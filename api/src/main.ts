@@ -10,9 +10,6 @@ import { BbAiState } from './types.ts';
 const configManager = await ConfigManager.getInstance();
 const config = configManager.getConfig().api;
 
-const redactedConfig = configManager.getRedactedConfig();
-logger.info(`Starting API with config:`, redactedConfig);
-
 const { environment, appPort } = config;
 
 const app = new Application<BbAiState>();
@@ -26,6 +23,9 @@ app.use(router.routes());
 app.use(router.allowedMethods());
 
 app.addEventListener('listen', ({ hostname, port, secure }: { hostname: string; port: number; secure: boolean }) => {
+	const redactedConfig = configManager.getRedactedConfig();
+	logger.info(`Starting API with config:`, redactedConfig);
+	
 	if (config.ignoreLLMRequestCache) {
 		logger.warn('Cache for LLM requests is disabled!');
 	}
