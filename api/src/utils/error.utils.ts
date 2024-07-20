@@ -10,7 +10,7 @@ import type {
 export const createError = (
 	errorType: ErrorType,
 	message: string,
-	options?: ErrorOptions | APIErrorOptions | LLMErrorOptions | RDFErrorOptions,
+	options?: ErrorOptions | APIErrorOptions | LLMErrorOptions | LLMRateLimitErrorOptions | LLMValidationErrorOptions,
 ): Error => {
 	if (!ErrorTypes.includes(errorType)) {
 		throw new Error(`Unknown error type: ${errorType}`);
