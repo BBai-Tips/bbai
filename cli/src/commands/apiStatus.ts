@@ -19,7 +19,9 @@ export const apiStatus = new Command()
 				const response = await fetch(`http://localhost:${apiPort}/api/v1/status`);
 				if (response.ok) {
 					const status = await response.json();
-					logger.info('API Status:', status);
+					logger.info(`API Status: ${status.status}`);
+					logger.info(`Message: ${status.message}`);
+					logger.info(`API URL: http://localhost:${apiPort}`);
 				} else {
 					logger.error(`Error fetching API status: ${response.statusText}`);
 				}
