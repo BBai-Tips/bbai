@@ -1,10 +1,10 @@
 export interface ConfigSchema {
 	api: {
-// 		anthropicApiKey?: string;
-// 		openaiApiKey?: string;
-// 		environment: string;
-// 		appPort?: number;
-// 		ignoreLLMRequestCache?: boolean;
+		anthropicApiKey?: string;
+		openaiApiKey?: string;
+		environment: string;
+		appPort: number;
+		ignoreLLMRequestCache?: boolean;
 	};
 	cli: {
 		// Add CLI-specific configuration options here
@@ -12,18 +12,16 @@ export interface ConfigSchema {
 	// Add shared configuration options here
 }
 
-export function mergeConfigs(...configs: Partial<ConfigSchema>[]): Partial<ConfigSchema> {
-	//   const defaultConfig: ConfigSchema = {
-	//     api: {
-	//       anthropicApiKey: '',
-	//       openaiApiKey: '',
-	//       environment: 'localdev',
-	//       appPort: 3000,
-	//       ignoreLLMRequestCache: false,
-	//     },
-	//     cli: {},
-	//   };
+export const defaultConfig: ConfigSchema = {
+	api: {
+		environment: 'localdev',
+		appPort: 3000,
+		ignoreLLMRequestCache: false,
+	},
+	cli: {},
+};
 
+export function mergeConfigs(...configs: Partial<ConfigSchema>[]): ConfigSchema {
 	return configs.reduce((acc, config) => {
 		const mergedConfig = { ...acc };
 
