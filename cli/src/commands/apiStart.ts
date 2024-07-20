@@ -1,7 +1,7 @@
 import { Command } from "cliffy/command/mod.ts";
 import { logger } from "shared/logger.ts";
 import { savePid, isApiRunning } from "../utils/pid.utils.ts";
-import { getBbaiDir } from "shared/utils/dataDir.utils.ts";
+import { getBbaiDir } from "shared/dataDir.ts";
 import { join } from "@std/path";
 
 export const apiStart = new Command()
