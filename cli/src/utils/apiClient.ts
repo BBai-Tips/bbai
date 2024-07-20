@@ -10,7 +10,7 @@ class ApiClient {
 	static async create(): Promise<ApiClient> {
 		const configManager = await ConfigManager.getInstance();
 		const config = configManager.getConfig();
-		const baseUrl = `http://localhost:${config.api.port}`;
+		const baseUrl = `http://localhost:${config.api.appPort}`;
 		return new ApiClient(baseUrl);
 	}
 
