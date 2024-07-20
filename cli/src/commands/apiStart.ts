@@ -7,7 +7,8 @@ import { join } from '@std/path';
 export const apiStart = new Command()
 	.name('start')
 	.description('Start the bbai API server')
-	.action(async () => {
+	.option('--log-level <level:string>', 'Set the log level for the API server', { default: 'info' })
+	.action(async ({ logLevel }) => {
 		if (await isApiRunning()) {
 			logger.info('bbai API server is already running.');
 			return;
@@ -34,6 +35,10 @@ export const apiStart = new Command()
 			stderr: 'null',
 			stdin: 'null',
 			detached: true,
+			env: {
+				...Deno.env.toObject(),
+				LOG_LEVEL: logLevel,
+			},
 		});
 
 		const process = command.spawn();
