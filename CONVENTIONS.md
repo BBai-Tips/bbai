@@ -12,8 +12,8 @@ DO NOT MAKE ANY CODE CHANGES UNTIL EXPLICITLY ASKED TO DO SO. The `bbai` assista
 ## Technology Stack
 - Runtime: Deno with TypeScript (strict mode)
 - API Framework: To be decided (a comparison of Oak, Opine, and Abc will be included in the planning stage)
-- Vector Database: To be implemented using an existing library (e.g., Hnswlib, with other options to be considered)
-- CLI Command-line Parsing: To be decided (recommendation to be provided)
+- Vector Database: To be decided (a comparison of Hnswlib and other options will be provided)
+- CLI Command-line Parsing: To be decided (recommendation to be provided, focusing on ease of use and feature set)
 - Documentation Generator: To be decided (options to be suggested for Deno projects)
 
 ## Architecture
@@ -210,10 +210,11 @@ Key API Endpoints:
 - Include both CLI tools and API code in the installation
 - Implement GitHub actions for building and compiling releases
 - Use semantic versioning for both API and CLI, keeping them version-locked together
+- Ensure compatibility with Linux systems
 
 ## Project Timeline
 - Project is to be completed as soon as possible (ASAP)
-- Detailed timeline and milestones to be established during the planning stage
+- Timeline and milestones will be handled separately from this planning stage
 
 ## Performance
 - Implement a lightweight performance monitoring solution
