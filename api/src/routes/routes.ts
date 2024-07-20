@@ -3,14 +3,15 @@ import { Context, Router } from '@oak/oak';
 import { errorHandler } from '../middlewares/error.middleware.ts';
 //import { metricsHandler } from '../middlewares/metrics.middleware.ts';
 
-import { LLMFactory } from '../llm/llmProvider.ts';
+import { LLMFactory } from '../llms/llmProvider.ts';
 import { logger } from 'shared/logger.ts';
 
 // api routes
 const apiRouter = new Router();
 apiRouter
-	.post('/v1/generate', async (ctx) => {
-		const { prompt, provider } = await ctx.request.body().value;
+	.post('/v1/generate', async (ctx: Context) => {
+		const body = await ctx.request.body.json();
+		const { prompt, provider, model, system } = body;
 
 		if (!prompt || !provider) {
 			ctx.response.status = 400;
@@ -20,7 +21,12 @@ apiRouter
 
 		try {
 			const llmProvider = LLMFactory.getProvider(provider);
-			const response = await llmProvider.generateResponse(prompt);
+			const response = await llmProvider.speakWith({
+				messages: [{ role: 'user', content: [{ type: 'text', text: prompt }] }],
+				system: system || '',
+				prompt: prompt,
+				model: model || '',
+			});
 			ctx.response.body = response;
 		} catch (error) {
 			logger.error(`Error generating response: ${error.message}`);

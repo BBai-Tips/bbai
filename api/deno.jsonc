@@ -54,7 +54,7 @@
 	},
 	"lint": {
 		"files": {
-			"include": ["evals/xestroAiPipelineProvider.js"]
+			"include": ["tests/pipelineProvider.js"]
 		},
 		"rules": {
 			"exclude": ["require-await", "no-var"]

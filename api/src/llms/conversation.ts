@@ -1,12 +1,11 @@
-import {
-	LLMMessageContentParts,
+import type {
+	ConversationId,
 	LLMProviderMessageRequest,
 	LLMProviderMessageResponse,
 	LLMSpeakWithOptions,
 	LLMTokenUsage,
 } from '../types.ts';
-import type { RepoRecId } from '../types.ts';
-import LLMMessage from './message.ts';
+import LLMMessage, { LLMMessageContentParts } from './message.ts';
 import type { LLMMessageProviderResponse } from './message.ts';
 import LLMTool from './tool.ts';
 import LLM from './providers/baseLLM.ts';
@@ -18,12 +17,12 @@ import { ulid } from '@std/ulid';
 class LLMConversation {
 	public id: string;
 	private llm: LLM;
-	private _repoRecId: RepoRecId = '';
+	private _conversationId: ConversationId = '';
 	private _turnCount: number = 0;
 	private messages: LLMMessage[] = [];
 	private tools: LLMTool[] = [];
 
-	private llmConversationRepository: LLMConversationRepository;
+	private llmConversationRepository: any; // TODO: Replace 'any' with the correct type when available
 
 	protected _system: string = '';
 	protected _model: string = '';
@@ -37,11 +36,12 @@ class LLMConversation {
 		this.id = ulid();
 		this.llm = llm;
 
-		this.llmConversationRepository = new LLMConversationRepository();
+		this.llmConversationRepository = {}; // TODO: Initialize properly when LLMConversationRepository is implemented
 	}
 
 	private async logConversation(): Promise<void> {
-		await this.llmConversationRepository.logConversation({
+		// TODO: Implement this method when LLMConversationRepository is available
+		console.log('Logging conversation:', {
 			id: this.id,
 			providerName: this.llm.providerName,
 			turnCount: this._turnCount,
@@ -57,12 +57,12 @@ class LLMConversation {
 	}
 
 	// Getters and setters
-	get repoRecId(): RepoRecId {
-		return this._repoRecId;
+	get conversationId(): ConversationId {
+		return this._conversationId;
 	}
 
-	set repoRecId(value: RepoRecId) {
-		this._repoRecId = value;
+	set conversationId(value: ConversationId) {
+		this._conversationId = value;
 	}
 
 	get providerName(): string {
@@ -147,7 +147,7 @@ class LLMConversation {
 
 	getLastMessageContent(): LLMMessageContentParts | undefined {
 		const lastMessage = this.getLastMessage();
-		return lastMessage?.content;
+		return lastMessage?.content; // as LLMMessageContentParts | undefined;
 	}
 
 	clearMessages(): void {
@@ -180,7 +180,7 @@ class LLMConversation {
 			speakOptions = {} as LLMSpeakWithOptions;
 		}
 
-		await this.logConversation();
+		//await this.logConversationStart();
 
 		this._turnCount++;
 		this.addMessage(
@@ -191,7 +191,7 @@ class LLMConversation {
 
 		await this.logConversation();
 
-		return llmProviderMessageResponse;
+		return llmProviderMessageResponse; // as LLMProviderMessageResponse;
 	}
 }
 

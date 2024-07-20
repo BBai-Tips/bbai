@@ -6,10 +6,29 @@ import type {
 	LLMTokenUsage,
 	LLMValidateResponseCallback,
 } from 'shared/types.ts';
+import type { LLMMessageContentPart, LLMMessageContentParts, LLMMessageContentPartTextBlock } from '../message.ts';
+import LLMTool from '../tool.ts';
+import type { LLMToolInputSchema } from '../tool.ts';
 import LLMConversation from '../conversation.ts';
 import { logger } from 'shared/logger.ts';
+import { config } from '../../config/config.ts';
+import { ErrorType, LLMErrorOptions } from '../../errors/error.ts';
+import { createError } from '../../utils/error.utils.ts';
+//import { metricsService } from '../../services/metrics.service.ts';
+import kv from '../../utils/kv.utils.ts';
+import { tokenUsageManager } from '../../utils/tokenUsage.utils.ts';
+import Ajv from 'ajv';
+
+const ajv = new Ajv();
 
 abstract class LLM {
+	protected modifySpeakWithConversationOptions(
+		conversation: LLMConversation,
+		speakOptions: LLMSpeakWithOptions,
+		validationFailedReason: string,
+	): void {
+		// Default implementation, can be overridden by subclasses
+	}
 	public providerName: LLMProviderEnum = LLMProviderEnum.ANTHROPIC;
 	public maxSpeakRetries: number = 3;
 	public requestCacheExpiry: number = 3 * (1000 * 60 * 60 * 24); // 3 days in milliseconds
@@ -31,7 +50,7 @@ abstract class LLM {
 		messageParams: LLMProviderMessageRequest,
 	): string[] {
 		const cacheKey = ['messageRequest', this.providerName, JSON.stringify(messageParams)];
-		logger.console.info(`provider[${this.providerName}] using cache key: ${cacheKey}`);
+		logger.info(`provider[${this.providerName}] using cache key: ${cacheKey}`);
 		return cacheKey;
 	}
 
@@ -46,33 +65,33 @@ abstract class LLM {
 			speakOptions,
 		) as LLMProviderMessageRequest;
 
-		let llmProviderMessageResponse: LLMProviderMessageResponse;
+		let llmProviderMessageResponse: LLMProviderMessageResponse | undefined;
 		let llmProviderMessageRequestId: string;
 
 		const cacheKey = !config.ignoreLLMRequestCache ? this.createRequestCacheKey(llmProviderMessageRequest) : [];
 		if (!config.ignoreLLMRequestCache) {
 			const cachedResponse = await kv.get<LLMProviderMessageResponse>(cacheKey);
 
-			if (cachedResponse.value) {
-				logger.console.info(`provider[${this.providerName}] speakWithPlus: Using cached response`);
+			if (cachedResponse && cachedResponse.value) {
+				logger.info(`provider[${this.providerName}] speakWithPlus: Using cached response`);
 				llmProviderMessageResponse = cachedResponse.value;
 				llmProviderMessageResponse.fromCache = true;
-				await metricsService.recordCacheMetrics({ operation: 'hit' });
+				//await metricsService.recordCacheMetrics({ operation: 'hit' });
 			} else {
-				await metricsService.recordCacheMetrics({ operation: 'miss' });
+				//await metricsService.recordCacheMetrics({ operation: 'miss' });
 			}
 		}
 
 		if (!llmProviderMessageResponse) {
 			llmProviderMessageResponse = await this.speakWith(llmProviderMessageRequest);
 
-			const latency = Date.now() - start;
-			await metricsService.recordLLMMetrics({
-				provider: this.providerName,
-				latency,
-				tokenUsage: llmProviderMessageResponse.usage.totalTokens,
-				error: llmProviderMessageResponse.type === 'error' ? 'LLM request failed' : undefined,
-			});
+			//const latency = Date.now() - start;
+			//await metricsService.recordLLMMetrics({
+			//	provider: this.providerName,
+			//	latency,
+			//	tokenUsage: llmProviderMessageResponse.usage.totalTokens,
+			//	error: llmProviderMessageResponse.type === 'error' ? 'LLM request failed' : undefined,
+			//});
 
 			await this.updateTokenUsage(llmProviderMessageResponse.usage);
 
@@ -88,28 +107,29 @@ abstract class LLM {
 
 			if (!config.ignoreLLMRequestCache) {
 				await kv.set(cacheKey, llmProviderMessageResponse, { expireIn: this.requestCacheExpiry });
-				await metricsService.recordCacheMetrics({ operation: 'set' });
+				//await metricsService.recordCacheMetrics({ operation: 'set' });
 			}
 		}
 
-		const { max_tokens: maxTokens, ...llmProviderMessageRequestDesnaked } = llmProviderMessageRequest;
-		llmProviderMessageRequestId = await conversation.llmProviderMessageRequestRepository
-			.createLLMProviderMessageRequest({
-				...llmProviderMessageRequestDesnaked,
-				maxTokens,
-				prompt: conversation.currentPrompt,
-				conversationId: conversation.repoRecId,
-				conversationTurnCount: conversation.turnCount,
-			});
+		// Remove these lines as they are not needed
+		// const { max_tokens: maxTokens, ...llmProviderMessageRequestDesnaked } = llmProviderMessageRequest;
+		// llmProviderMessageRequestId = await conversation.llmProviderMessageRequestRepository
+		// 	.createLLMProviderMessageRequest({
+		// 		...llmProviderMessageRequestDesnaked,
+		// 		maxTokens,
+		// 		prompt: conversation.currentPrompt,
+		// 		conversationId: conversation.repoRecId,
+		// 		conversationTurnCount: conversation.turnCount,
+		// 	});
 
-		const { id: _id, ...llmProviderMessageResponseWithoutId } = llmProviderMessageResponse;
-		await conversation.llmProviderMessageResponseRepository.createLLMProviderMessageResponse({
-			...llmProviderMessageResponseWithoutId,
-			conversationId: conversation.repoRecId,
-			conversationTurnCount: conversation.turnCount,
-			providerRequestId: llmProviderMessageRequestId,
-			apiResponseId: llmProviderMessageResponse.id,
-		});
+		// const { id: _id, ...llmProviderMessageResponseWithoutId } = llmProviderMessageResponse;
+		// await conversation.llmProviderMessageResponseRepository.createLLMProviderMessageResponse({
+		// 	...llmProviderMessageResponseWithoutId,
+		// 	conversationId: conversation.repoRecId,
+		// 	conversationTurnCount: conversation.turnCount,
+		// 	providerRequestId: llmProviderMessageRequestId,
+		// 	apiResponseId: llmProviderMessageResponse.id,
+		// });
 
 		return llmProviderMessageResponse;
 	}
@@ -150,13 +170,13 @@ abstract class LLM {
 
 				failReason = `validation: ${validationFailedReason}`;
 			} catch (error) {
-				logger.console.error(
+				logger.error(
 					`provider[${this.providerName}] speakWithRetry: Error calling speakWithPlus`,
 					error,
 				);
 				failReason = `caught error: ${error}`;
 			}
-			logger.console.warn(
+			logger.warn(
 				`provider[${this.providerName}] Request to ${this.providerName} failed. Retrying (${retries}/${maxRetries}) - ${failReason}`,
 			);
 
@@ -164,7 +184,7 @@ abstract class LLM {
 		}
 
 		conversation.updateTotals(totalTokenUsage, totalProviderRequests);
-		logger.console.error(
+		logger.error(
 			`provider[${this.providerName}] Max retries reached. Request to ${this.providerName} failed.`,
 		);
 		throw createError(
@@ -174,7 +194,7 @@ abstract class LLM {
 				model: conversation.model,
 				provider: this.providerName,
 				args: { reason: failReason, retries: { max: maxRetries, current: retries } },
-				conversationId: conversation.repoRecId,
+				conversationId: conversation.id,
 			} as LLMErrorOptions,
 		);
 	}
@@ -195,7 +215,7 @@ abstract class LLM {
 				const validate = ajv.compile(inputSchema);
 				const valid = validate(llmProviderMessageResponse.toolsUsed[0].toolInput);
 				if (!valid) {
-					logger.console.error(`Tool input validation failed: ${ajv.errorsText(validate.errors)}`);
+					logger.error(`Tool input validation failed: ${ajv.errorsText(validate.errors)}`);
 					return `Tool input validation failed: ${ajv.errorsText(validate.errors)}`;
 				}
 			}
@@ -204,7 +224,7 @@ abstract class LLM {
 		if (validateCallback) {
 			const validationFailed = validateCallback(llmProviderMessageResponse, conversation);
 			if (validationFailed) {
-				logger.console.error(`Callback validation failed: ${validationFailed}`);
+				logger.error(`Callback validation failed: ${validationFailed}`);
 				return validationFailed;
 			}
 		}

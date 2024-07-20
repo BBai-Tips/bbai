@@ -1,8 +1,11 @@
-import OpenAI from 'openai';
+import { OpenAI } from 'openai';
+import { ms } from 'ms';
+
 import { LLMProvider, OpenAIModel } from 'shared/types.ts';
 import LLM from './baseLLM.ts';
 import LLMConversation from '../conversation.ts';
-import LLMMessage from '../message.ts';
+import LLMMessage, { LLMMessageContentPart, LLMMessageContentParts } from '../message.ts';
+import type { LLMMessageContentPartTextBlock, LLMMessageContentPartToolUseBlock } from '../message.ts';
 import LLMTool from '../tool.ts';
 import { createError } from '../../utils/error.utils.ts';
 import { ErrorType, LLMErrorOptions } from '../../errors/error.ts';
@@ -16,7 +19,7 @@ class OpenAILLM extends LLM {
 	constructor() {
 		super();
 		this.providerName = LLMProvider.OPENAI;
-		const apiKey = config.OPENAI_API_KEY;
+		const apiKey = config.openaiApiKey;
 		if (!apiKey) {
 			throw new Error('OpenAI API key is not set');
 		}
@@ -24,15 +27,14 @@ class OpenAILLM extends LLM {
 	}
 
 	private asProviderMessageType(messages: LLMMessage[]): OpenAI.Chat.ChatCompletionMessageParam[] {
-		return messages.map((message) => {
-			if (message.role === 'system' || message.role === 'user') {
-				return {
+		return messages.map((message) => ((message.role === 'system' || message.role === 'user'
+			? {
 					role: message.role,
-					content: message.content,
-				};
-			} else if (message.role === 'assistant') {
-				if (message.content[0].type === 'tool_use') {
-					return {
+				content: message.content,
+			}
+			: message.role === 'assistant'
+			? (message.content[0].type === 'tool_use'
+				? {
 						role: message.role,
 						content: null,
 						tool_calls: [{
@@ -43,47 +45,47 @@ class OpenAILLM extends LLM {
 								arguments: JSON.stringify(message.content[0].input),
 							},
 						}],
-					};
-				} else {
-					return {
-						role: message.role,
-						content: message.content,
-					};
 				}
-			} else if (message.role === 'tool') {
-				return {
+				: {
 					role: message.role,
-					tool_call_id: message.tool_call_id,
 					content: message.content,
-				};
+				})
+			: message.role === 'tool'
+			? {
+				role: message.role,
+				tool_call_id: message.tool_call_id,
+				content: message.content,
 			}
-			return {
+			: {
 				role: message.role,
 				content: message.content,
-			};
-		});
+			}) as OpenAI.Chat.ChatCompletionMessageParam)
+		);
 	}
 
 	private asProviderToolType(tools: LLMTool[]): OpenAI.Chat.ChatCompletionTool[] {
 		return tools.map((tool) => ({
-			type: 'function',
-			function: {
+			'type': 'function',
+			'function': {
 				name: tool.name,
 				description: tool.description,
 				parameters: tool.input_schema,
 			},
-		}));
+		} as OpenAI.Chat.ChatCompletionTool));
 	}
 
-	private asApiMessageContentPartsType(choices: OpenAI.Chat.ChatCompletion.Choice[]): LLMMessageContentParts {
+	private asApiMessageContentPartsType(choices: OpenAI.Chat.ChatCompletion.Choice[]): LLMMessageContentPart[] {
 		const contentParts: LLMMessageContentParts = [];
-		const choice = choices[0];
-		const message = choice.message;
+		// CNG - we really just want the first choice, not any of the alternatives, so let's refactor... just use the first element, don't loop
+		// But leaving old code here to show we **could** look for alternate choices provided by OpenAI - eg loop through and "choose" our fave choice.
+		//choices.forEach( (choice: OpenAI.Chat.ChatCompletion.Choice): void => {
+		const choice: OpenAI.Chat.ChatCompletion.Choice = choices[0];
+		const message: OpenAI.Chat.ChatCompletionMessage = choice.message;
 		if (message.content) {
 			contentParts.push({
 				type: 'text',
 				text: message.content,
-			});
+			} as LLMMessageContentPartTextBlock);
 		}
 		if (message.tool_calls) {
 			contentParts.push({
@@ -91,8 +93,9 @@ class OpenAILLM extends LLM {
 				type: 'tool_use',
 				name: message.tool_calls[0].function.name,
 				input: JSON.parse(message.tool_calls[0].function.arguments),
-			});
+			} as LLMMessageContentPartToolUseBlock);
 		}
+		//});
 		return contentParts;
 	}
 
@@ -102,13 +105,13 @@ class OpenAILLM extends LLM {
 	): OpenAI.Chat.ChatCompletionCreateParams {
 		const messages = this.asProviderMessageType(speakOptions?.messages || conversation.getMessages());
 		const tools = this.asProviderToolType(speakOptions?.tools || conversation.getTools());
-		const system = speakOptions?.system || conversation.system;
-		const model = speakOptions?.model || conversation.model || OpenAIModel.GPT_4;
-		const maxTokens = speakOptions?.maxTokens || conversation.maxTokens;
-		const temperature = speakOptions?.temperature || conversation.temperature;
+		const system: string = speakOptions?.system || conversation.system;
+		const model: string = speakOptions?.model || conversation.model || OpenAIModel.GPT_4o;
+		const maxTokens: number = speakOptions?.maxTokens || conversation.maxTokens;
+		const temperature: number = speakOptions?.temperature || conversation.temperature;
 		const systemMessage: OpenAI.Chat.ChatCompletionSystemMessageParam = { role: 'system', content: system };
 
-		return {
+		const messageParams: OpenAI.Chat.ChatCompletionCreateParams = {
 			messages: [systemMessage, ...messages],
 			tools,
 			model,
@@ -116,22 +119,41 @@ class OpenAILLM extends LLM {
 			temperature,
 			stream: false,
 		};
+		//logger.debug('llms-openai-prepareMessageParams', messageParams);
+
+		return messageParams;
 	}
 
+	/**
+	 * Run OpenAI service
+	 * @param conversation LLMConversation
+	 * @param speakOptions LLMSpeakWithOptions
+	 * @returns Promise<LLMProviderMessageResponse> The response from OpenAI or an error
+	 */
 	public async speakWith(
-		messageParams: LLMProviderMessageRequest,
+		messageParams: LLMProviderMessageRequest
 	): Promise<LLMProviderMessageResponse> {
 		try {
-			logger.dir('llms-openai-speakWith-messageParams', messageParams);
+			logger.debug('llms-openai-speakWith-messageParams', JSON.stringify(messageParams, null, 2));
 
 			const { data: openaiMessageStream, response: openaiResponse } = await this.openai.chat.completions.create(
 				messageParams as OpenAI.Chat.ChatCompletionCreateParams,
 			).withResponse();
 
 			const openaiMessage = openaiMessageStream as OpenAI.Chat.ChatCompletion;
-			logger.dir('llms-openai-openaiMessage', openaiMessage);
+			logger.debug('llms-openai-openaiMessage', JSON.stringify(openaiMessage, null, 2));
 
 			const headers = openaiResponse?.headers;
+
+			const requestsRemaining = Number(headers.get('x-ratelimit-remaining-requests'));
+			const requestsLimit = Number(headers.get('x-ratelimit-limit-requests'));
+			const requestsResetMs = ms(headers.get('x-ratelimit-reset-requests') || '0') as number;
+			const requestsResetDate = new Date(Date.now() + requestsResetMs);
+
+			const tokensRemaining = Number(headers.get('x-ratelimit-remaining-tokens'));
+			const tokensLimit = Number(headers.get('x-ratelimit-limit-tokens'));
+			const tokensResetMs = ms(headers.get('x-ratelimit-reset-tokens') || '0') as number;
+			const tokensResetDate = new Date(Date.now() + tokensResetMs);
 
 			const messageResponse: LLMProviderMessageResponse = {
 				id: openaiMessage.id,
@@ -143,30 +165,36 @@ class OpenAILLM extends LLM {
 				isTool: openaiMessage.choices[0].finish_reason === 'tool_calls',
 				messageStop: {
 					stopReason: openaiMessage.choices[0].finish_reason,
-					stopSequence: null,
+					stopSequence: '', //openaiMessage.stop_sequence,
 				},
 				usage: {
 					inputTokens: openaiMessage.usage?.prompt_tokens ?? 0,
 					outputTokens: openaiMessage.usage?.completion_tokens ?? 0,
 					totalTokens: openaiMessage.usage?.total_tokens ?? 0,
 				},
+				extra: {
+					system_fingerprint: openaiMessage.system_fingerprint,
+					created: openaiMessage.created,
+					logprobs: openaiMessage.choices[0].logprobs,
+				},
 				rateLimit: {
-					requestsRemaining: Number(headers.get('x-ratelimit-remaining-requests')),
-					requestsLimit: Number(headers.get('x-ratelimit-limit-requests')),
-					requestsResetDate: new Date(Date.now() + Number(headers.get('x-ratelimit-reset-requests'))),
-					tokensRemaining: Number(headers.get('x-ratelimit-remaining-tokens')),
-					tokensLimit: Number(headers.get('x-ratelimit-limit-tokens')),
-					tokensResetDate: new Date(Date.now() + Number(headers.get('x-ratelimit-reset-tokens'))),
+					requestsRemaining,
+					requestsLimit,
+					requestsResetDate,
+					tokensRemaining,
+					tokensLimit,
+					tokensResetDate,
 				},
 				providerMessageResponseMeta: {
 					status: openaiResponse.status,
 					statusText: openaiResponse.statusText,
 				},
 			};
+			logger.debug('llms-openai-messageResponse', messageResponse);
 
 			return messageResponse;
 		} catch (err) {
-			logger.console.critical('Error calling OpenAI API', err);
+			logger.error('Error calling OpenAI API', err);
 			throw createError(
 				ErrorType.LLM,
 				'Could not get response from OpenAI API.',
@@ -184,9 +212,11 @@ class OpenAILLM extends LLM {
 		validationFailedReason: string,
 	): void {
 		if (validationFailedReason.startsWith('Tool input validation failed')) {
+			// Prompt the model to provide a valid tool input
 			const prevMessage = conversation.getLastMessage();
 			if (prevMessage && prevMessage.providerResponse && prevMessage.providerResponse.isTool) {
 				conversation.addMessage({
+					//[TODO] we're assuming a single tool is provided, and we're assuming only a single tool is used by LLM
 					role: 'tool',
 					tool_call_id: prevMessage.providerResponse.toolsUsed![0].toolUseId,
 					content: [
@@ -194,38 +224,41 @@ class OpenAILLM extends LLM {
 							'type': 'text',
 							'text':
 								"The previous tool input was invalid. Please provide a valid input according to the tool's schema",
-						},
+						} as LLMMessageContentPartTextBlock,
 					],
 				});
 			} else {
-				logger.console.warn(
+				logger.warn(
 					`provider[${this.providerName}] modifySpeakWithConversationOptions - Tool input validation failed, but no tool response found`,
 				);
 			}
 		} else if (validationFailedReason === 'Empty answer') {
+			// Increase temperature or adjust other parameters to encourage more diverse responses
 			speakOptions.temperature = speakOptions.temperature ? Math.min(speakOptions.temperature + 0.1, 1) : 0.5;
 		}
 	}
 
 	protected checkStopReason(llmProviderMessageResponse: LLMProviderMessageResponse): void {
+		// Check if the response has a stop reason
 		if (llmProviderMessageResponse.messageStop.stopReason) {
+			// Perform special handling based on the stop reason
 			switch (llmProviderMessageResponse.messageStop.stopReason) {
 				case 'length':
-					logger.console.warn(`provider[${this.providerName}] Response reached the maximum token limit`);
+					logger.warn(`provider[${this.providerName}] Response reached the maximum token limit`);
 					break;
 				case 'stop':
-					logger.console.warn(`provider[${this.providerName}] Response reached its natural end`);
+					logger.warn(`provider[${this.providerName}] Response reached its natural end`);
 					break;
 				case 'content_filter':
-					logger.console.warn(
+					logger.warn(
 						`provider[${this.providerName}] Response content was omitted due to a flag from provider content filters`,
 					);
 					break;
 				case 'tool_calls':
-					logger.console.warn(`provider[${this.providerName}] Response is using a tool`);
+					logger.warn(`provider[${this.providerName}] Response is using a tool`);
 					break;
 				default:
-					logger.console.info(
+					logger.info(
 						`provider[${this.providerName}] Response stopped due to: ${llmProviderMessageResponse.messageStop.stopReason}`,
 					);
 			}

@@ -67,7 +67,7 @@ export interface LLMMessageProviderResponse {
 
 class LLMMessage {
 	constructor(
-		public role: 'user' | 'assistant' | 'system' | 'tool',
+		public role: 'user' | 'assistant' | 'system' | 'tool', // system and tool are only for openai
 		public content: LLMMessageContentParts,
 		public tool_call_id?: string,
 		public providerResponse?: LLMMessageProviderResponse,
