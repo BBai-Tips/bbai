@@ -2,7 +2,7 @@ import { Context, State, Status } from '@oak/oak';
 import type { Middleware } from '@oak/oak';
 import { APIError, isAPIError } from '../errors/error.ts';
 import { logger } from 'shared/logger.ts';
-import { ConfigManager } from 'shared/config/configManager.ts';
+import { ConfigManager } from 'shared/configManager.ts';
 
 /**
  * Error Handler Middleware function

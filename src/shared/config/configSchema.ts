@@ -14,7 +14,7 @@ export interface ConfigSchema {
 
 export function mergeConfigs(...configs: Partial<ConfigSchema>[]): ConfigSchema {
   return configs.reduce((acc, config) => {
-    const mergedConfig: ConfigSchema = { ...acc };
+    const mergedConfig = { ...acc } as ConfigSchema;
 
     for (const [key, value] of Object.entries(config)) {
       if (value !== undefined) {

@@ -2,7 +2,7 @@ import { Command } from "cliffy/command/mod.ts";
 import { logger } from "shared/logger.ts";
 import { getPid, removePid, isApiRunning } from "../utils/pid.utils.ts";
 
-export const stopApi = new Command()
+export const apiStop = new Command()
   .name("stop-api")
   .description("Stop the bbai API server")
   .action(async () => {

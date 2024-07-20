@@ -20,7 +20,7 @@ export async function isApiRunning(): Promise<boolean> {
   if (pid === null) return false;
   
   try {
-    Deno.kill(pid, 0);
+    Deno.kill(pid, "SIGCONT");
     return true;
   } catch {
     await removePid();

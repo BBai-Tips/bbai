@@ -2,7 +2,7 @@ import { Application } from '@oak/oak';
 import oak_logger from 'oak_logger';
 //import { oakCors } from "cors";
 
-import { ConfigManager } from 'shared/config/configManager.ts';
+import { ConfigManager } from 'shared/configManager.ts';
 import router from './routes/routes.ts';
 import { logger } from 'shared/logger.ts';
 import { BbAiState } from './types.ts';

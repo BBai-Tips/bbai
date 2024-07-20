@@ -1,6 +1,6 @@
 import { Command } from "cliffy/command/mod.ts";
 import { logger } from "shared/logger.ts";
-import { ConfigManager } from "shared/config/configManager.ts";
+import { ConfigManager } from "shared/configManager.ts";
 import { addFiles } from "./commands/addFiles.ts";
 import { removeFiles } from "./commands/removeFiles.ts";
 import { listFiles } from "./commands/listFiles.ts";
@@ -15,8 +15,8 @@ import { loadExternalContent } from "./commands/loadExternalContent.ts";
 import { viewLogs } from "./commands/viewLogs.ts";
 import { persistConversation } from "./commands/persistConversation.ts";
 import { resumeConversation } from "./commands/resumeConversation.ts";
-import { startApi } from "./commands/startApi.ts";
-import { stopApi } from "./commands/stopApi.ts";
+import { apiStart } from "./commands/apiStart.ts";
+import { apiStop } from "./commands/apiStop.ts";
 import { apiStatus } from "./commands/apiStatus.ts";
 
 const configManager = await ConfigManager.getInstance();
@@ -42,8 +42,8 @@ const cli = new Command()
   .command("logs", viewLogs)
   .command("persist", persistConversation)
   .command("resume", resumeConversation)
-  .command("start-api", startApi)
-  .command("stop-api", stopApi)
+  .command("start-api", apiStart)
+  .command("stop-api", apiStop)
   .command("api-status", apiStatus);
 
 if (import.meta.main) {

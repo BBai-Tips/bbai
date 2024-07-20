@@ -11,7 +11,7 @@ import LLMTool from '../tool.ts';
 import type { LLMToolInputSchema } from '../tool.ts';
 import LLMConversation from '../conversation.ts';
 import { logger } from 'shared/logger.ts';
-import { ConfigManager } from 'shared/config/configManager.ts';
+import { ConfigManager } from 'shared/configManager.ts';
 import { ErrorType, LLMErrorOptions } from '../../errors/error.ts';
 import { createError } from '../../utils/error.utils.ts';
 //import { metricsService } from '../../services/metrics.service.ts';

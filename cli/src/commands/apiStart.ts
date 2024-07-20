@@ -27,6 +27,6 @@ export const apiStart = new Command()
 
     // We don't wait for the process to complete
     // Instead, we detach it and let it run in the background
-    process.stdout.pipeTo(Deno.stdout.writable);
-    process.stderr.pipeTo(Deno.stderr.writable);
+    process.stdout.readable.pipeTo(Deno.stdout.writable);
+    process.stderr.readable.pipeTo(Deno.stderr.writable);
   });
