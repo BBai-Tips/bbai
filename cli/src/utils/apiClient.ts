@@ -1,26 +1,28 @@
-import { ConfigManager } from "shared/config/configManager.ts";
+import { ConfigManager } from 'shared/configManager.ts';
 
 class ApiClient {
-  private baseUrl: string;
+	private baseUrl: string;
 
-  constructor() {
-    const config = ConfigManager.getInstance().getConfig();
-    this.baseUrl = `http://localhost:${config.api.port}`;
-  }
+	constructor() {
+		const configManager = await ConfigManager.getInstance();
+		const config = configManager.getConfig();
 
-  async get(endpoint: string) {
-    return await fetch(`${this.baseUrl}${endpoint}`);
-  }
+		this.baseUrl = `http://localhost:${config.api.port}`;
+	}
 
-  async post(endpoint: string, data: Record<string, unknown>) {
-    return await fetch(`${this.baseUrl}${endpoint}`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(data),
-    });
-  }
+	async get(endpoint: string) {
+		return await fetch(`${this.baseUrl}${endpoint}`);
+	}
+
+	async post(endpoint: string, data: Record<string, unknown>) {
+		return await fetch(`${this.baseUrl}${endpoint}`, {
+			method: 'POST',
+			headers: {
+				'Content-Type': 'application/json',
+			},
+			body: JSON.stringify(data),
+		});
+	}
 }
 
 export const apiClient = new ApiClient();
