@@ -33,6 +33,9 @@ apiRouter
 			ctx.response.status = 500;
 			ctx.response.body = { error: 'Failed to generate response' };
 		}
+	})
+	.get('/v1/status', (ctx: Context) => {
+		ctx.response.body = { status: 'OK', message: 'API is running' };
 	});
 
 // top-level routes
