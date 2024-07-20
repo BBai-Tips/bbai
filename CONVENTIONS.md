@@ -75,8 +75,7 @@ Key API Endpoints:
 
 ## Error Handling & Logging
 - Implement specific error types and proper async error handling
-- Use custom logger in respective `utils/` directories
-- Always use `logger.console` for logging
+- Use custom logger in `src/shared/` directory
 
 ## File Naming Conventions
 - Class files: camelCase (e.g., `vectorEmbedder.ts`)
