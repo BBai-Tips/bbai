@@ -1,103 +1,14 @@
-# `bbai` 
-
-## IMPORTANT NOTE FOR ASSISTANT
-DO NOT MAKE ANY CODE CHANGES UNTIL EXPLICITLY ASKED TO DO SO. The `bbai` assistant will prompt for code changes. Respect those instructions but wait until explicitly told to write code.
+# `bbai` Project Conventions
 
 ## Project Overview
-- REST API and CLI tools to modify local files using LLM, inspired by the `aider` tool
-- Supports vector embeddings for code/text chunks from local repo
-- Implements RAG (Retrieval-Augmented Generation) for LLM
-- Provides LLM tools for requesting access to files for review or edit
+`bbai` is a project that provides REST API and CLI tools to modify local files using LLM, inspired by the `aider` tool. It supports vector embeddings for code/text chunks from local repositories, implements RAG (Retrieval-Augmented Generation) for LLM, and provides LLM tools for requesting access to files for review or edit.
 
 ## Technology Stack
 - Runtime: Deno with TypeScript (strict mode)
 - API Framework: Oak
-
-Comparison of API Frameworks:
-1. Oak:
-   - Lightweight and performant
-   - Inspired by Koa (Node.js framework)
-   - Extensive middleware support
-   - Active development and community support
-   - Good documentation
-
-2. Opine:
-   - Express-like API, familiar to Node.js developers
-   - Middleware support
-   - Less active development compared to Oak
-   - Smaller community
-
-3. Abc:
-   - Simple and minimalistic
-   - Inspired by Echo (Go framework)
-   - Limited middleware support
-   - Smaller community and less active development
-
-Decision: Oak is chosen for its performance, active development, and extensive middleware support, which aligns well with our project requirements.
 - Vector Database: In-memory vector store using Hnswlib-ts
-
-Vector Database options comparison:
-1. Hnswlib-ts:
-   - TypeScript port of Hnswlib
-   - Efficient approximate nearest neighbor search
-   - In-memory storage, suitable for local use
-   - No external database dependencies
-
-2. Faiss:
-   - Developed by Facebook AI Research
-   - Efficient similarity search and clustering
-   - Requires compilation, which may complicate deployment
-
-3. Annoy:
-   - Developed by Spotify
-   - Approximate nearest neighbors
-   - Good for read-heavy workloads
-   - Requires compilation, which may complicate deployment
-
-4. Custom implementation:
-   - Tailored to project needs
-   - Full control over implementation
-   - Requires more development time
-
-Decision: Hnswlib-ts is chosen for its efficiency, TypeScript support, and suitability for in-memory local use, aligning with our project requirements.
 - CLI Command-line Parsing: Cliffy
-
-CLI Command-line Parsing library recommendation:
-1. Cliffy:
-   - Comprehensive command-line framework for Deno
-   - Rich feature set including command parsing, prompts, and tables
-   - Well-documented and actively maintained
-   - Modular design allows using only needed components
-
-2. flags:
-   - Part of Deno standard library
-   - Simple and lightweight
-   - Limited features compared to Cliffy
-
-3. yargs:
-   - Popular in Node.js ecosystem
-   - Ported to Deno, but may have compatibility issues
-
-Decision: Cliffy is recommended for its comprehensive feature set, ease of use, and active maintenance, which aligns well with our project requirements.
 - Documentation Generator: TypeDoc
-
-Documentation Generator options for Deno projects:
-1. TypeDoc:
-   - Generates documentation from TypeScript source code
-   - Supports Deno projects
-   - Produces clean, readable HTML output
-   - Active development and community support
-
-2. Deno Doc:
-   - Official Deno documentation generator
-   - Generates JSON output, which can be used to create custom documentation sites
-   - Requires additional tooling to generate user-friendly documentation
-
-3. JSDoc with custom template:
-   - Use JSDoc comments and create a custom template for Deno
-   - Flexible but requires more setup and maintenance
-
-Decision: TypeDoc is chosen for its TypeScript support, clean output, and active development, which aligns well with our project requirements.
 
 ## Architecture
 - API server for query handling
@@ -106,42 +17,7 @@ Decision: TypeDoc is chosen for its TypeScript support, clean output, and active
 - LLM abstraction layer for multiple providers (initially Claude, with plans for OpenAI)
 - RESTful communication between CLI and API for efficiency
 
-## API Design
-- RESTful principles
-- Primary endpoints: /api/v1
-- JSON request/response format
-- Endpoint `handlers` call `service` objects to handle business logic
-- Service objects call `pipeline` and `repository` objects for LLM and storage
-- No authentication required (designed for local use only)
-- Optimized for memory efficiency
-
-Key API Endpoints:
-- Add/remove files to conversation
-- List files in conversation
-- Start/clear/continue conversation with LLM
-- Request code/text changes from LLM
-- Undo last code/text change
-- Show current token usage
-- Run arbitrary CLI command with output added to conversation
-- Load content from external web site
-- Log conversations for live viewing and review using `bbai logs`
-- Persist current conversation to disk with a `resume` feature for API restarts
-
-## API Pipelines
-- Abstraction for different LLM use cases such as text entity extraction and text classification
-- Uses LLM `conversation` to manage calls to LLM providers
-- Uses LLM tools for structured data in conversations
-- Implements conversation logging for live viewing and review
-- Persists current conversation to disk for resuming after API restarts
-
-## Conversation Management
-- Log all conversations for review using `bbai logs` command
-- Implement a persistence mechanism to save current conversation state to disk
-- Provide a `resume` feature to restore conversation state after API restarts
-- Store logs in a human-readable format (e.g., Markdown or YAML)
-
 ## Project Structure
-- Maintain separate directories for API and CLI
 - API: `api/src/`
 - CLI: `cli/src/`
 - Shared: `src/shared/` for code shared between API and CLI
@@ -150,166 +26,108 @@ Key API Endpoints:
 - API tests: `hurl/`
 - Configuration: Separate `deno.jsonc` files for `api` and `cli`
 
-## Project Separation and Shared Code
-- Maintain separation between `api` and `cli` projects where possible
-- Use `src/shared/` directory for code that needs to be shared between API and CLI
-- Each project should have its own set of configuration files, including `.env` files
-- Shared configuration can be placed in `src/shared/config/`
+## API Design
+- RESTful principles with primary endpoints at /api/v1
+- JSON request/response format
+- No authentication required (designed for local use only)
+- Optimized for memory efficiency
 
-## Typescript Import Rules
-- Use an `import_map.json` file for both `api` and `cli` projects
-- All import statements should use bare specifiers from the import map
-- Avoid importing files between `cli` and `api` directories directly
-- Use `src/shared/` for code that needs to be used in both API and CLI
-- Maintain separate builds for API and CLI to facilitate easier deployment
+Key API Endpoints:
+- Manage files in conversation (add/remove/list)
+- Manage LLM conversations (start/clear/continue)
+- Request code/text changes from LLM
+- Undo last code/text change
+- Show current token usage
+- Run arbitrary CLI command with output added to conversation
+- Load content from external web site
+- Log conversations for live viewing and review
+- Persist current conversation to disk with a `resume` feature
 
-## Import Map Usage
-- Each project (`api` and `cli`) should have its own `import_map.json` file
-- All dependencies should be listed in the `import_map.json` file
-- If an import is not in the `import_map.json`, add it before using
-- Example: 
-  ```json
-  {
-    "imports": {
-      "chai": "https://deno.land/x/chai@v4.3.4/mod.ts",
-      "fs": "https://deno.land/std@0.177.0/fs/mod.ts",
-      "path": "https://deno.land/std@0.177.0/path/mod.ts"
-    }
-  }
-  ```
-- In your TypeScript files, use bare specifiers for imports:
-  ```typescript
-  import { expect } from "chai";
-  import { readFileSync } from "fs";
-  import { join } from "path";
-  ```
+## API Pipelines
+- Abstraction for different LLM use cases
+- Uses LLM `conversation` to manage calls to LLM providers
+- Implements conversation logging and persistence
 
-## API Structure
-- Keep all API-related code within the `api/` directory
-- Maintain API-specific configuration files in `api/` directory
+## Conversation Management
+- Log all conversations for review using `bbai logs` command
+- Implement persistence mechanism for conversation state
+- Provide `resume` feature for API restarts
+- Store logs in human-readable format (e.g., Markdown or YAML)
 
-## CLI Structure
-- Utilities: Keep CLI-specific utilities in `cli/src/utils/`
-- Main CLI process: Implement in `cli/src/main.ts`
-- Implement a simple way to pass long multi-line text strings via CLI
-- Include a `bbai logs` command for viewing and reviewing conversations in real-time
-- Use an existing command-line parsing library for handling CLI arguments and commands
+## TypeScript and Import Conventions
+- Use `import_map.json` for both `api` and `cli` projects
+- Use bare specifiers for imports
+- Maintain separate builds for API and CLI
+- Use `src/shared/` for code shared between API and CLI
 
-## CLI Compatibility
-- Ensure `bbai` can run on any platform where Deno is supported
-- Implement cross-platform compatibility checks and adjustments
-
-## CLI Naming Conventions
-- Follow the same naming conventions as the API project
-- Use descriptive names for CLI-specific components (e.g., `repoExtractor.ts`, `vectorTransformer.ts`, `fileLoader.ts`)
-- Prefix CLI-specific types with `CLI` (e.g., `CLIJob`, `CLIConfig`)
+## CLI Structure and Conventions
+- Main CLI process in `cli/src/main.ts`
+- Include `bbai logs` command for viewing conversations
+- Ensure cross-platform compatibility
+- Use descriptive names for CLI-specific components
+- Prefix CLI-specific types with `CLI`
 
 ## Configuration
-- Use `src/shared/config/config.ts` for shared configuration
-- Use `api/src/config/config.ts` and `cli/src/config/config.ts` for project-specific configuration
+- Use `deno.jsonc` for project configuration
+- Maintain separate config files for `api` and `cli`
 - Use environment variables for sensitive data
-- Add sensitive environment variables to the redacted config
-- Use environment-specific .env files (.env.localdev, .env.staging, .env.production)
-- Use .env.defaults for default values
-- Use .env.example as a template for required environment variables
-
-## CLI Error Handling & Logging
-- Implement CLI-specific error types in `cli/src/utils/error.utils.ts`
-- Use the custom logger in `cli/src/utils/logger.utils.ts` for CLI-specific logging
-- Log CLI process steps, errors, and performance metrics
-
-## CLI Testing
-- Implement unit tests for CLI components
-- Create integration tests for the entire CLI pipeline
-- Store CLI-specific tests in `cli/tests/`
-
-## Script Conventions
-- All scripts should include a shebang line at the top of the file
-- The shebang line should specify the runtime and any necessary flags
-- Example shebang line for Deno scripts:
-  ```
-  #!/usr/bin/env -S deno run --allow-env --allow-read --allow-net
-  ```
-- When providing examples for running scripts, use the direct execution method (e.g., `./script-name.ts`) instead of explicitly calling the runtime
-
-## File Naming Conventions
-- Class files: Use camelCase for the filename (e.g., `vectorEmbedder.ts`, `apiClient.ts`)
-- Script files: Use dashes to separate words (e.g., `transform-data.ts`, `extract-json.ts`)
-- Utility files: Include `.utils` in the filename (e.g., `error.utils.ts`, `logger.utils.ts`)
-- Type definition files: Include `.types` in the filename (e.g., `llms.types.ts`, `postgres.types.ts`)
-- Repository files: Use `.repository` in the filename (e.g., `llm_conversation.repository.ts`)
-- Service files: Use `.service` in the filename (e.g., `user.service.ts`)
-- Controller files: Use `.controller` in the filename (e.g., `auth.controller.ts`)
-- Middleware files: Use `.middleware` in the filename (e.g., `error.middleware.ts`)
-- Model files: Use singular form without additional suffixes (e.g., `user.ts`, `conversation.ts`)
-
-## Configuration
-- Use `deno.jsonc` for project configuration instead of `package.json`
-- Maintain separate `deno.jsonc` files for `api` and `cli`
-- Use src/config/config.ts for application-specific configuration
-- Use environment variables for sensitive data
-- Add sensitive environment variables to the redacted config
+- Implement environment-specific .env files
 
 ## Error Handling & Logging
 - Implement specific error types and proper async error handling
-- Log errors with context, avoid exposing sensitive data
-- Logging uses custom logger in respective `utils/` directories
-- Always use `logger.console` when logging, e.g., `logger.console.info()` or `logger.console.error()`
+- Use custom logger in respective `utils/` directories
+- Always use `logger.console` for logging
 
-## Performance & Scalability
-- Implement caching for frequent queries
-- Write LLM prompts with clear instructions
-- Design for running as local private API server
+## File Naming Conventions
+- Class files: camelCase (e.g., `vectorEmbedder.ts`)
+- Script files: dash-separated (e.g., `transform-data.ts`)
+- Utility files: include `.utils` (e.g., `error.utils.ts`)
+- Type definition files: include `.types` (e.g., `llms.types.ts`)
+- Repository files: use `.repository` (e.g., `llm_conversation.repository.ts`)
+- Service files: use `.service` (e.g., `user.service.ts`)
+- Controller files: use `.controller` (e.g., `auth.controller.ts`)
+- Middleware files: use `.middleware` (e.g., `error.middleware.ts`)
+- Model files: singular form without suffixes (e.g., `user.ts`)
+
+## Script Conventions
+- Include shebang line for Deno scripts
+- Use direct execution method in examples
 
 ## Security
 - Use environment variables for sensitive configuration
-- Data input is always sanitized and validated
-- LLM only has access to files added to the conversation by `bbai`
-- `bbai` should not add files that are outside the current git repo
+- Sanitize and validate all data input
+- Restrict LLM access to files added to conversation by `bbai`
+- Prevent `bbai` from adding files outside the current git repo
 
 ## Testing & Documentation
-- Write unit tests for new functions/classes using Deno's built-in testing functionality
+- Write unit tests using Deno's built-in testing functionality
 - Use Hurl for API endpoint tests
-- Maintain docs/ directory
 - Use JSDoc comments for code documentation
-- Use Swagger/OpenAPI comments for API endpoint documentation
-- Create a dedicated documentation site at https://bbai.tips (documentation generator to be decided)
+- Use Swagger/OpenAPI comments for API endpoints
+- Create documentation site at https://bbai.tips
 
 ## AI Integration
-- Use VoyageAI for code-specific embedding model and creating embeddings
-- Implement a utility for chunking code prior to creating embeddings
-- Use a local in-memory vector store and search within the API
-- Create an abstraction layer for LLM providers (initially supporting Claude, with plans for OpenAI)
-- Only implement LLM providers that support tool functionality
-- Implement pipelines for handling common conversations; code analysis, code refactoring, etc
+- Use VoyageAI for code-specific embedding model
+- Implement code chunking utility
+- Use local in-memory vector store and search
+- Create LLM provider abstraction layer
+- Implement pipelines for common conversations
 - Use embeddings for vector similarity for code chunks
 
 ## Deployment
-- Aim for simple deployment process for end-users
-- Support multiple package managers for installation:
-  - Use `brew install bbai` for macOS
-  - Implement support for other relevant package managers (e.g., npm, cargo) for cross-platform compatibility
-  - Additional package managers to be recommended for comprehensive cross-platform support
-- Include both CLI tools and API code in the installation
-- Implement GitHub actions for building and compiling releases
-- Use semantic versioning for both API and CLI, keeping them version-locked together
-- Ensure compatibility with Linux systems
-
-## Project Timeline
-- Project is to be completed as soon as possible (ASAP)
-- Timeline and milestones will be handled separately from this planning stage
+- Support multiple package managers (brew, npm, cargo)
+- Include both CLI tools and API code in installation
+- Use GitHub actions for building and compiling releases
+- Use semantic versioning for API and CLI
+- Ensure Linux compatibility
 
 ## Performance
-- Implement a lightweight performance monitoring solution using Deno's built-in performance API
+- Implement lightweight performance monitoring using Deno's built-in performance API
 - Focus on code efficiency and optimization
-
-Performance Monitoring Solution:
-1. Use Deno.Metrics() to collect runtime metrics
-2. Implement custom timing functions using performance.now()
-3. Create a PerformanceMonitor class to manage and report performance data
-4. Log performance metrics at appropriate intervals or on-demand
-5. Implement a /metrics endpoint in the API to expose performance data
-
-This solution provides a lightweight, built-in approach to monitoring performance without introducing external dependencies.
+- Use Deno.Metrics() for runtime metrics
+- Implement custom timing functions
+- Create PerformanceMonitor class
+- Log performance metrics at intervals
+- Implement /metrics API endpoint
 
 When discussing the project, refer to these conventions. Code suggestions should align with the project's style, structure, and technologies. Prioritize advanced techniques and efficient solutions within the project's scope.
