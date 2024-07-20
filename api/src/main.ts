@@ -2,40 +2,24 @@ import { Application } from '@oak/oak';
 import oak_logger from 'oak_logger';
 //import { oakCors } from "cors";
 
-import { config, configRedacted } from './config/config.ts';
+import { ConfigManager } from 'shared/config/configManager.ts';
 import router from './routes/routes.ts';
 import { logger } from 'shared/logger.ts';
 import { BbAiState } from './types.ts';
 
-logger.debug(`App Config using ${config.envPath}`, configRedacted);
+const configManager = await ConfigManager.getInstance();
+const config = configManager.getConfig().api;
+
+logger.debug(`App Config:`, config);
 
 const { environment, appPort } = config;
 
 const app = new Application<BbAiState>();
 
-/*
-// Set the environment as part of the application state
-// This is just an example of setting state; environment is already available via `config`
-app.state.environment = environment;
- */
-
 app.use(oak_logger.logger);
 if (environment === 'localdev') {
 	app.use(oak_logger.responseTime);
 }
-
-/*
-if (config.useCors) {
-    const corsOptions = {
-        "origin": config.clientUrl,
-        "methods": "GET,HEAD,PUT,PATCH,POST,DELETE",
-        "preflightContinue": false,
-        "optionsSuccessStatus": 200,
-        "credentials": true,
-    };
-    app.use(oakCors(corsOptions));
-}
- */
 
 app.use(router.routes());
 app.use(router.allowedMethods());
