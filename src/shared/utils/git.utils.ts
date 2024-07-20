@@ -1,7 +1,7 @@
 import { simpleGit, SimpleGit } from 'simple-git';
 
 export class GitUtils {
-  static async findGitRoot(startPath: string = process.cwd()): Promise<string | null> {
+  static async findGitRoot(startPath: string = Deno.cwd()): Promise<string | null> {
     const git: SimpleGit = simpleGit(startPath);
     
     try {
