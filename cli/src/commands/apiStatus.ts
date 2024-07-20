@@ -1,6 +1,6 @@
 import { Command } from 'cliffy/command/mod.ts';
 import { logger } from 'shared/logger.ts';
-import { isApiRunning, getPid } from '../utils/pid.utils.ts';
+import { getPid, isApiRunning } from '../utils/pid.utils.ts';
 import { ConfigManager } from 'shared/configManager.ts';
 
 export const apiStatus = new Command()

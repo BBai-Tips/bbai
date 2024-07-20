@@ -1,8 +1,8 @@
-import { Command } from "cliffy/command/mod.ts";
+import { Command } from 'cliffy/command/mod.ts';
 
 export const filesRemove = new Command()
-  .name("remove")
-  .description("Remove files from the conversation")
-  .action(() => {
-    // Implementation to be added
-  });
+	.name('remove')
+	.description('Remove files from the conversation')
+	.action(() => {
+		// Implementation to be added
+	});

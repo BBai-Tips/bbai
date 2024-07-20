@@ -1,8 +1,8 @@
-import { Command } from "cliffy/command/mod.ts";
+import { Command } from 'cliffy/command/mod.ts';
 
 export const conversationClear = new Command()
-  .name("clear")
-  .description("Clear the current conversation")
-  .action(() => {
-    // Implementation to be added
-  });
+	.name('clear')
+	.description('Clear the current conversation')
+	.action(() => {
+		// Implementation to be added
+	});

@@ -36,7 +36,7 @@ export const viewLogs = new Command()
 					stderr: 'piped',
 				});
 				const { stdout, stderr } = await command.output();
-				
+
 				if (stderr.length > 0) {
 					logger.error(new TextDecoder().decode(stderr));
 				} else {
