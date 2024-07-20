@@ -1,5 +1,8 @@
 # `bbai` Project Conventions
 
+## IMPORTANT NOTE FOR ASSISTANT
+DO NOT MAKE ANY CODE CHANGES UNTIL EXPLICITLY ASKED TO DO SO. The coding assistant will prompt for code changes. Respect those instructions but wait until explicitly told to write code.
+
 ## Project Overview
 `bbai` is a project that provides REST API and CLI tools to modify local files using LLM, inspired by the `aider` tool. It supports vector embeddings for code/text chunks from local repositories, implements RAG (Retrieval-Augmented Generation) for LLM, and provides LLM tools for requesting access to files for review or edit.
 
@@ -75,15 +78,13 @@ Key API Endpoints:
 
 ## Error Handling & Logging
 - Implement specific error types and proper async error handling
-- Use custom logger in respective `utils/` directories
-- Always use `logger.console` for logging
+- Use custom logger in `src/shared/` directory
 
 ## File Naming Conventions
 - Class files: camelCase (e.g., `vectorEmbedder.ts`)
 - Script files: dash-separated (e.g., `transform-data.ts`)
 - Utility files: include `.utils` (e.g., `error.utils.ts`)
 - Type definition files: include `.types` (e.g., `llms.types.ts`)
-- Repository files: use `.repository` (e.g., `llm_conversation.repository.ts`)
 - Service files: use `.service` (e.g., `user.service.ts`)
 - Controller files: use `.controller` (e.g., `auth.controller.ts`)
 - Middleware files: use `.middleware` (e.g., `error.middleware.ts`)
