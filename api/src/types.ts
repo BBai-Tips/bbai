@@ -2,6 +2,7 @@ export * from './types/app.types.ts';
 import { JSONSchema4 } from 'json-schema';
 
 export type ConversationId = string;
+export type RepoRecId = string;
 
 export enum LLMProvider {
   ANTHROPIC = 'anthropic',
@@ -24,7 +25,13 @@ export interface LLMMessageContentPartTextBlock {
 
 export interface LLMMessageContentPartImageBlock {
   type: 'image';
-  image_url: string;
+  source: LLMMessageContentPartImageBlockSource;
+}
+
+export interface LLMMessageContentPartImageBlockSource {
+  type: 'base64';
+  media_type: 'image/jpeg' | 'image/png' | 'image/gif' | 'image/webp';
+  data: string;
 }
 
 export interface LLMMessageContentPartToolUseBlock {
@@ -41,6 +48,18 @@ export interface LLMMessageContentPartToolUseBlock {
 
 export type LLMToolInputSchema = JSONSchema4;
 
+export interface LLMProviderMessageRequest {
+  id?: string;
+  messages: LLMMessage[];
+  tools?: LLMTool[];
+  system: string;
+  prompt: string;
+  model: string;
+  maxTokens?: number;
+  max_tokens?: number;
+  temperature?: number;
+}
+
 export interface LLMProviderMessageResponse {
   id: string;
   type: LLMProviderMessageResponseType;
@@ -51,6 +70,9 @@ export interface LLMProviderMessageResponse {
   rateLimit: LLMRateLimit;
   providerMessageResponseMeta: LLMProviderMessageResponseMeta;
   answerContent: LLMMessageContentParts;
+  fromCache?: boolean;
+  isTool?: boolean;
+  toolsUsed?: Array<LLMAnswerToolUse>;
 }
 
 export type LLMProviderMessageResponseType = 'message' | 'error';
@@ -65,7 +87,10 @@ export interface LLMMessageStop {
     | 'stop'
     | 'length'
     | 'tool_calls'
-    | 'content_filter';
+    | 'content_filter'
+    | 'function_call'
+    | null;
+  stopSequence?: string | null;
 }
 
 export interface LLMTokenUsage {
@@ -110,18 +135,6 @@ export interface LLMMessage {
   providerResponse?: LLMProviderMessageResponse;
 }
 
-export interface LLMProviderMessageResponse {
-  id: string;
-  type: LLMProviderMessageResponseType;
-  role: LLMProviderMessageResponseRole;
-  model: string;
-  messageStop: LLMMessageStop;
-  usage: LLMTokenUsage;
-  rateLimit: LLMRateLimit;
-  providerMessageResponseMeta: LLMProviderMessageResponseMeta;
-  answerContent: LLMMessageContentParts;
-}
-
 export interface LLMTool {
   name: string;
   description: string;
@@ -134,4 +147,11 @@ export interface LLMConversation {
   turnCount: number;
   messages: LLMMessage[];
   tools: LLMTool[];
+}
+
+export interface LLMAnswerToolUse {
+  toolInput: any;
+  toolUseId: string;
+  toolName: string;
+  toolThinking: string;
 }
