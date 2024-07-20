@@ -14,7 +14,7 @@ export const apiStart = new Command()
     logger.info("Starting bbai API server...");
     
     const command = new Deno.Command("deno", {
-      args: ["task", "start"],
+      args: ["run", "--allow-read", "--allow-write", "--allow-env", "--allow-net", "../api/src/main.ts"],
       cwd: "../api",
       stdout: "null",
       stderr: "null",
@@ -23,13 +23,15 @@ export const apiStart = new Command()
 
     const process = command.spawn();
 
-    await savePid(process.pid);
+    // Wait a short time to ensure the process has started
+    await new Promise(resolve => setTimeout(resolve, 1000));
 
-    logger.info(`bbai API server started with PID: ${process.pid}`);
+    const pid = process.pid;
+    await savePid(pid);
+
+    logger.info(`bbai API server started with PID: ${pid}`);
     logger.info("Use 'bbai stop-api' to stop the server.");
 
-    // Detach the process
+    // Detach the process and return immediately
     Deno.unrefTimer(setTimeout(() => {}, 0));
-
-    // Return immediately, allowing the CLI to exit
   });
