@@ -15,6 +15,8 @@ import { loadExternalContent } from "./commands/loadExternalContent.ts";
 import { viewLogs } from "./commands/viewLogs.ts";
 import { persistConversation } from "./commands/persistConversation.ts";
 import { resumeConversation } from "./commands/resumeConversation.ts";
+import { startApi } from "./commands/startApi.ts";
+import { stopApi } from "./commands/stopApi.ts";
 
 const configManager = await ConfigManager.getInstance();
 const config = configManager.getConfig();
@@ -38,7 +40,9 @@ const cli = new Command()
   .command("load", loadExternalContent)
   .command("logs", viewLogs)
   .command("persist", persistConversation)
-  .command("resume", resumeConversation);
+  .command("resume", resumeConversation)
+  .command("start-api", startApi)
+  .command("stop-api", stopApi);
 
 if (import.meta.main) {
   await cli.parse(Deno.args);
