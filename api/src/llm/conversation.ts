@@ -41,7 +41,8 @@ class LLMConversation {
 	}
 
 	private async logConversation(): Promise<void> {
-		await this.llmConversationRepository.logConversation({
+		// TODO: Implement this method when LLMConversationRepository is available
+		console.log('Logging conversation:', {
 			id: this.id,
 			providerName: this.llm.providerName,
 			turnCount: this._turnCount,
