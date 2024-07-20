@@ -1,22 +1,14 @@
-import { walk } from "https://deno.land/std/fs/mod.ts";
+import { simpleGit, SimpleGit } from 'simple-git';
 
 export class GitUtils {
-  static async findGitRoot(startPath: string = Deno.cwd()): Promise<string | null> {
-    let currentPath = startPath;
-
-    while (currentPath !== '/') {
-      try {
-        const gitDir = await Deno.stat(`${currentPath}/.git`);
-        if (gitDir.isDirectory) {
-          return currentPath;
-        }
-      } catch (_) {
-        // .git directory not found, continue searching
-      }
-
-      currentPath = Deno.realPathSync(Deno.joinPath(currentPath, '..'));
+  static async findGitRoot(startPath: string = process.cwd()): Promise<string | null> {
+    const git: SimpleGit = simpleGit(startPath);
+    
+    try {
+      const result = await git.revparse(['--show-toplevel']);
+      return result.trim();
+    } catch (_) {
+      return null; // Git root not found
     }
-
-    return null; // Git root not found
   }
 }
