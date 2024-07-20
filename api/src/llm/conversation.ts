@@ -5,7 +5,7 @@ import {
 	LLMSpeakWithOptions,
 	LLMTokenUsage,
 } from '../types.ts';
-import type { RepoRecId, LLMProviderMessageRequest, LLMProviderMessageResponse } from '../types.ts';
+import type { ConversationId, LLMProviderMessageRequest, LLMProviderMessageResponse } from '../types.ts';
 import LLMMessage from './message.ts';
 import type { LLMMessageProviderResponse } from './message.ts';
 import LLMTool from './tool.ts';
@@ -18,7 +18,7 @@ import { ulid } from '@std/ulid';
 class LLMConversation {
 	public id: string;
 	private llm: LLM;
-	private _repoRecId: RepoRecId = '';
+	private _conversationId: ConversationId = '';
 	private _turnCount: number = 0;
 	private messages: LLMMessage[] = [];
 	private tools: LLMTool[] = [];
@@ -58,12 +58,12 @@ class LLMConversation {
 	}
 
 	// Getters and setters
-	get repoRecId(): RepoRecId {
-		return this._repoRecId;
+	get conversationId(): ConversationId {
+		return this._conversationId;
 	}
 
-	set repoRecId(value: RepoRecId) {
-		this._repoRecId = value;
+	set conversationId(value: ConversationId) {
+		this._conversationId = value;
 	}
 
 	get providerName(): string {
