@@ -24,7 +24,7 @@ export const apiStatus = new Command()
 					logger.error(`Error fetching API status: ${response.statusText}`);
 				}
 			} catch (error) {
-				logger.error(`Error fetching detailed API status: ${error.message}`);
+				logger.error(`Error connecting to API: ${error.message}`);
 			}
 		} else {
 			logger.info('bbai API server is not running.');
