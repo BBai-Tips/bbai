@@ -3,11 +3,15 @@ import { ConfigManager } from 'shared/configManager.ts';
 class ApiClient {
 	private baseUrl: string;
 
-	constructor() {
+	private constructor(baseUrl: string) {
+		this.baseUrl = baseUrl;
+	}
+
+	static async create(): Promise<ApiClient> {
 		const configManager = await ConfigManager.getInstance();
 		const config = configManager.getConfig();
-
-		this.baseUrl = `http://localhost:${config.api.port}`;
+		const baseUrl = `http://localhost:${config.api.port}`;
+		return new ApiClient(baseUrl);
 	}
 
 	async get(endpoint: string) {
@@ -25,4 +29,4 @@ class ApiClient {
 	}
 }
 
-export const apiClient = new ApiClient();
+export const apiClient = await ApiClient.create();
