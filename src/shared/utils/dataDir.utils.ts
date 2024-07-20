@@ -1,12 +1,6 @@
 import { ensureDir, join } from "@std/fs";
 import { GitUtils } from "./git.utils.ts";
 
-export async function getDataDir(): Promise<string> {
-  const homeDir = Deno.env.get("HOME") || Deno.env.get("USERPROFILE") || "";
-  const dataDir = join(homeDir, ".bbai");
-  await ensureDir(dataDir);
-  return dataDir;
-}
 
 export async function getRepoCacheDir(): Promise<string> {
   const gitRoot = await GitUtils.findGitRoot();
