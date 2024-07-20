@@ -17,8 +17,12 @@ export function mergeConfigs(...configs: Partial<ConfigSchema>[]): ConfigSchema 
     return {
       api: { ...acc.api, ...config.api },
       cli: { ...acc.cli, ...config.cli },
-      ...acc,
-      ...config,
+      ...Object.entries(config).reduce((innerAcc, [key, value]) => {
+        if (key !== 'api' && key !== 'cli') {
+          innerAcc[key] = value;
+        }
+        return innerAcc;
+      }, {} as Partial<ConfigSchema>),
     };
-  }, {} as ConfigSchema);
+  }, { api: {}, cli: {} } as ConfigSchema);
 }
