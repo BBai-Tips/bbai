@@ -1,5 +1,8 @@
 # `bbai` 
 
+## IMPORTANT NOTE FOR ASSISTANT
+DO NOT MAKE ANY CODE CHANGES UNTIL EXPLICITLY ASKED TO DO SO. The `aider` assistant will prompt for code changes. Respect those instructions but wait until explicitly told to write code.
+
 ## Project Overview
 - REST API and cli tools to modify local files using LLM
 
