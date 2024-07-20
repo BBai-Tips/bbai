@@ -9,10 +9,11 @@ export async function getDataDir(): Promise<string> {
 }
 
 export async function getRepoCacheDir(): Promise<string> {
-  const dataDir = await getDataDir();
-  const gitRoot = await GitUtils.findGitRoot() || Deno.cwd();
-  const repoName = gitRoot.split("/").pop() || "default";
-  const repoCacheDir = join(dataDir, "repos", repoName);
+  const gitRoot = await GitUtils.findGitRoot();
+  if (!gitRoot) {
+    throw new Error("Not in a git repository");
+  }
+  const repoCacheDir = join(gitRoot, ".bbai");
   await ensureDir(repoCacheDir);
   return repoCacheDir;
 }
