@@ -16,8 +16,9 @@ DO NOT MAKE ANY CODE CHANGES UNTIL EXPLICITLY ASKED TO DO SO. The `bbai` assista
 ## Architecture
 - API server for query handling
 - CLI commands for interfacing with API
-- Vector embeddings and search functionality
-- LLM abstraction layer for multiple providers
+- In-memory vector storage and search functionality within the API
+- LLM abstraction layer for multiple providers (initially Claude, with plans for OpenAI)
+- RESTful communication between CLI and API for efficiency
 
 ## API Design
 - RESTful principles
@@ -25,6 +26,8 @@ DO NOT MAKE ANY CODE CHANGES UNTIL EXPLICITLY ASKED TO DO SO. The `bbai` assista
 - JSON request/response format
 - Endpoint `handlers` call `service` objects to handle business logic
 - Service objects call `pipeline` and `repository` objects for LLM and storage
+- No authentication required (designed for local use only)
+- Optimized for memory efficiency
 
 Key API Endpoints:
 - Add/remove files to conversation
@@ -49,6 +52,7 @@ Key API Endpoints:
 - Log all conversations for review using `bbai logs` command
 - Implement a persistence mechanism to save current conversation state to disk
 - Provide a `resume` feature to restore conversation state after API restarts
+- Store logs in a human-readable format (e.g., Markdown or YAML)
 
 ## Project Structure
 - Maintain separate directories for API and CLI
@@ -181,10 +185,11 @@ Key API Endpoints:
 - Create a dedicated documentation site at https://bbai.tips
 
 ## AI Integration
-- Use VoyageAI for code-specific embedding model
+- Use VoyageAI for code-specific embedding model and creating embeddings
 - Implement a utility for chunking code prior to creating embeddings
-- Use a local in-memory (or disk) vector store and search
-- Create an abstraction layer for LLM providers (initially supporting Claude)
+- Use a local in-memory vector store and search within the API
+- Create an abstraction layer for LLM providers (initially supporting Claude, with plans for OpenAI)
+- Only implement LLM providers that support tool functionality
 - Implement pipelines for handling common conversations; code analysis, code refactoring, etc
 - Use embeddings for vector similarity for code chunks
 
@@ -193,5 +198,6 @@ Key API Endpoints:
 - Consider using `brew install bbai` for easy installation
 - Include both CLI tools and API code in the installation
 - Implement GitHub actions for building and compiling releases
+- Use semantic versioning for both API and CLI, keeping them version-locked together
 
 When discussing the project, refer to these conventions. Code suggestions should align with the project's style, structure, and technologies. Prioritize advanced techniques and efficient solutions within the project's scope.
