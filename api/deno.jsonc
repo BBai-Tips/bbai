@@ -6,6 +6,7 @@
   },
   "imports": {
     "oak": "https://deno.land/x/oak@v12.5.0/mod.ts",
-    "hnswlib-ts": "https://deno.land/x/hnswlib_ts@v0.1.0/mod.ts"
+    "hnswlib-ts": "https://deno.land/x/hnswlib_ts@v0.1.0/mod.ts",
+    "../../shared/types.ts": "./src/shared/types.ts"
   }
 }
