@@ -8,9 +8,9 @@ import { logger } from 'shared/logger.ts';
 import { BbAiState } from './types.ts';
 
 const configManager = await ConfigManager.getInstance();
-const config = configManager.getConfig().api;
+const config = configManager.getConfig();
 
-const { environment, appPort } = config;
+const { environment, appPort } = config.api;
 
 const app = new Application<BbAiState>();
 
@@ -25,10 +25,12 @@ app.use(router.allowedMethods());
 app.addEventListener('listen', ({ hostname, port, secure }: { hostname: string; port: number; secure: boolean }) => {
 	const redactedConfig = configManager.getRedactedConfig();
 	logger.info(`Starting API with config:`, redactedConfig);
-
+	
 	if (config.api?.ignoreLLMRequestCache) {
 		logger.warn('Cache for LLM requests is disabled!');
 	}
+
+	logger.info(`Environment: ${environment}`);
 
 	logger.info(
 		`Listening on: ${secure ? 'https://' : 'http://'}${

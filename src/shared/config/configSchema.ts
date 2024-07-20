@@ -14,15 +14,19 @@ export interface ConfigSchema {
 
 export function mergeConfigs(...configs: Partial<ConfigSchema>[]): ConfigSchema {
   return configs.reduce((acc, config) => {
-    return {
-      api: { ...acc.api, ...config.api },
-      cli: { ...acc.cli, ...config.cli },
-      ...Object.entries(config).reduce((innerAcc, [key, value]) => {
-        if (key !== 'api' && key !== 'cli') {
-          innerAcc[key] = value;
-        }
-        return innerAcc;
-      }, {} as Partial<ConfigSchema>),
-    };
+    const mergedConfig: ConfigSchema = { ...acc };
+
+    for (const [key, value] of Object.entries(config)) {
+      if (typeof value === 'object' && value !== null) {
+        mergedConfig[key] = {
+          ...(mergedConfig[key] || {}),
+          ...value,
+        };
+      } else {
+        mergedConfig[key] = value;
+      }
+    }
+
+    return mergedConfig;
   }, { api: {}, cli: {} } as ConfigSchema);
 }
