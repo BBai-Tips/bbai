@@ -7,7 +7,8 @@ export async function getRepoCacheDir(): Promise<string> {
   if (!gitRoot) {
     throw new Error("Not in a git repository");
   }
-  const repoCacheDir = join(gitRoot, ".bbai");
+  const bbaiDir = join(gitRoot, ".bbai");
+  const repoCacheDir = join(bbaiDir, "cache");
   await ensureDir(repoCacheDir);
   return repoCacheDir;
 }
