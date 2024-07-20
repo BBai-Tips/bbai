@@ -19,13 +19,17 @@ export function mergeConfigs(...configs: Partial<ConfigSchema>[]): ConfigSchema 
     const mergedConfig: ConfigSchema = { ...acc };
 
     for (const [key, value] of Object.entries(config)) {
-      if (typeof value === 'object' && value !== null) {
-        mergedConfig[key] = {
-          ...(mergedConfig[key] || {}),
-          ...value,
-        };
-      } else {
-        mergedConfig[key] = value;
+      if (value !== undefined) {
+        if (typeof value === 'object' && value !== null) {
+          mergedConfig[key] = {
+            ...(mergedConfig[key] || {}),
+            ...Object.fromEntries(
+              Object.entries(value).filter(([_, v]) => v !== undefined)
+            ),
+          };
+        } else {
+          mergedConfig[key] = value;
+        }
       }
     }
 
