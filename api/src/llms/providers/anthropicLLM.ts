@@ -10,7 +10,7 @@ import LLMTool from '../tool.ts';
 import { createError } from '../../utils/error.utils.ts';
 import { ErrorType, LLMErrorOptions } from '../../errors/error.ts';
 import { logger } from 'shared/logger.ts';
-import { config } from '../../config/config.ts';
+import { ConfigManager } from 'shared/config/configManager.ts';
 import type { LLMProviderMessageRequest, LLMProviderMessageResponse, LLMSpeakWithOptions } from 'shared/types.ts';
 
 class AnthropicLLM extends LLM {
@@ -20,8 +20,15 @@ class AnthropicLLM extends LLM {
 		super();
 		this.providerName = LLMProvider.ANTHROPIC;
 
+		this.initializeAnthropicClient();
+	}
+
+	private async initializeAnthropicClient() {
+		const configManager = await ConfigManager.getInstance();
+		const config = configManager.getConfig();
+
 		const clientOptions: ClientOptions = {
-			apiKey: config.anthropicApiKey,
+			apiKey: config.api.anthropicApiKey,
 		};
 		this.anthropic = new Anthropic(clientOptions);
 	}
