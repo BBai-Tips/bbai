@@ -1,11 +1,28 @@
+import { ConfigManager } from 'shared/configManager.ts';
+
 const logLevels = ["debug", "info", "warn", "error"] as const;
 type LogLevel = typeof logLevels[number];
 
 class Logger {
-  private level: LogLevel = "info";
+  private level: LogLevel;
 
-  setLevel(level: LogLevel) {
-    this.level = level;
+  constructor() {
+    this.level = this.getLogLevel();
+  }
+
+  private getLogLevel(): LogLevel {
+    const envLogLevel = Deno.env.get("LOG_LEVEL");
+    if (envLogLevel && logLevels.includes(envLogLevel as LogLevel)) {
+      return envLogLevel as LogLevel;
+    }
+
+    const configManager = ConfigManager.getInstance();
+    const config = configManager.getConfig();
+    if (config.logLevel && logLevels.includes(config.logLevel as LogLevel)) {
+      return config.logLevel as LogLevel;
+    }
+
+    return "info";
   }
 
   private log(level: LogLevel, message: string, ...args: unknown[]) {
