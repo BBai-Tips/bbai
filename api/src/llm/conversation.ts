@@ -9,9 +9,9 @@ import type { RepoRecId } from '../types.ts';
 import LLMMessage from './message.ts';
 import type { LLMMessageProviderResponse } from './message.ts';
 import LLMTool from './tool.ts';
-import LLM from './providers/base.provider.ts';
-import LLMConversationRepository from '../repositories/llm_conversation.repository.ts';
-import { logger } from '../utils/logger.ts';
+import LLM from './providers/baseLLM.ts';
+//import LLMConversationRepository from '../repositories/llm_conversation.repository.ts';
+import { logger } from 'shared/logger.ts';
 
 import { ulid } from '@std/ulid';
 

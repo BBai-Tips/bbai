@@ -1,13 +1,13 @@
-import { LLMProvider as LLMProviderEnum } from "../../shared/types.ts";
+import { LLMProvider as LLMProviderEnum } from "shared/types.ts";
 import type { 
   LLMProviderMessageRequest, 
   LLMProviderMessageResponse, 
   LLMSpeakWithOptions,
   LLMTokenUsage,
   LLMValidateResponseCallback
-} from "../../shared/types.ts";
+} from "shared/types.ts";
 import LLMConversation from "../conversation.ts";
-import { logger } from "../../utils/logger.ts";
+import { logger } from "shared/logger.ts";
 
 abstract class LLM {
   public providerName: LLMProviderEnum = LLMProviderEnum.ANTHROPIC;
