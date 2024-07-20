@@ -1,0 +1,11 @@
+{
+  "tasks": {
+    "start": "deno run --allow-net src/main.ts",
+    "dev": "deno run --watch --allow-net src/main.ts",
+    "test": "deno test --allow-net"
+  },
+  "imports": {
+    "oak": "https://deno.land/x/oak@v12.5.0/mod.ts",
+    "hnswlib-ts": "https://deno.land/x/hnswlib_ts@v0.1.0/mod.ts"
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "tasks": {
+    "start": "deno run --allow-read --allow-write --allow-net src/main.ts",
+    "dev": "deno run --watch --allow-read --allow-write --allow-net src/main.ts",
+    "test": "deno test"
+  },
+  "imports": {
+    "cliffy/": "https://deno.land/x/cliffy@v0.25.7/"
+  }
+}
