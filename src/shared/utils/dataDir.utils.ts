@@ -1,4 +1,4 @@
-import { ensureDir, join } from "https://deno.land/std/fs/mod.ts";
+import { ensureDir, join } from "@std/fs";
 
 export async function getDataDir(): Promise<string> {
   const homeDir = Deno.env.get("HOME") || Deno.env.get("USERPROFILE") || "";
