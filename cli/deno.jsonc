@@ -5,6 +5,7 @@
 	"tasks": {
 		"start": "deno run --allow-read --allow-write --allow-run --allow-net src/main.ts",
 		"dev": "deno run --watch --allow-read --allow-write --allow-run --allow-net src/main.ts",
+		"debug": "LOG_LEVEL=debug deno run --allow-read --allow-write --allow-run --allow-net src/main.ts",
 		"test": "deno test",
 		"format": "deno fmt",
 		"check-types": "deno check src/main.ts",
