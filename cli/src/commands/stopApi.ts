@@ -6,7 +6,18 @@ export const stopApi = new Command()
   .description("Stop the bbai API server")
   .action(async () => {
     logger.info("Stopping bbai API server...");
-    // TODO: Implement API server stop logic
-    // This might involve sending a shutdown signal to the API server process
-    logger.info("bbai API server stopped successfully.");
+    
+    try {
+      const response = await fetch("http://localhost:8000/api/v1/shutdown", {
+        method: "POST",
+      });
+
+      if (response.ok) {
+        logger.info("bbai API server stopped successfully.");
+      } else {
+        logger.error(`Failed to stop bbai API server: ${response.statusText}`);
+      }
+    } catch (error) {
+      logger.error(`Error stopping bbai API server: ${error.message}`);
+    }
   });
