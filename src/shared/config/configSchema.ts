@@ -14,21 +14,24 @@ export interface ConfigSchema {
 
 export function mergeConfigs(...configs: Partial<ConfigSchema>[]): ConfigSchema {
   return configs.reduce((acc, config) => {
-    const mergedConfig = { ...acc } as ConfigSchema;
+    const mergedConfig = { ...acc };
 
-    for (const [key, value] of Object.entries(config)) {
-      if (value !== undefined) {
-        if (typeof value === 'object' && value !== null) {
-          mergedConfig[key] = {
-            ...(mergedConfig[key] || {}),
-            ...Object.fromEntries(
-              Object.entries(value).filter(([_, v]) => v !== undefined)
-            ),
-          };
-        } else {
-          mergedConfig[key] = value;
-        }
-      }
+    if (config.api) {
+      mergedConfig.api = {
+        ...mergedConfig.api,
+        ...Object.fromEntries(
+          Object.entries(config.api).filter(([_, v]) => v !== undefined)
+        ),
+      };
+    }
+
+    if (config.cli) {
+      mergedConfig.cli = {
+        ...mergedConfig.cli,
+        ...Object.fromEntries(
+          Object.entries(config.cli).filter(([_, v]) => v !== undefined)
+        ),
+      };
     }
 
     return mergedConfig;
