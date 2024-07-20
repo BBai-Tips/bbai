@@ -1,10 +1,13 @@
 # `bbai` 
 
 ## IMPORTANT NOTE FOR ASSISTANT
-DO NOT MAKE ANY CODE CHANGES UNTIL EXPLICITLY ASKED TO DO SO. The `aider` assistant will prompt for code changes. Respect those instructions but wait until explicitly told to write code.
+DO NOT MAKE ANY CODE CHANGES UNTIL EXPLICITLY ASKED TO DO SO. The `bbai` assistant will prompt for code changes. Respect those instructions but wait until explicitly told to write code.
 
 ## Project Overview
-- REST API and cli tools to modify local files using LLM
+- REST API and CLI tools to modify local files using LLM, inspired by the `aider` tool
+- Supports vector embeddings for code/text chunks from local repo
+- Implements RAG (Retrieval-Augmented Generation) for LLM
+- Provides LLM tools for requesting access to files for review or edit
 
 ## Technology Stack
 - Runtime: Deno with TypeScript (strict mode)
@@ -13,6 +16,8 @@ DO NOT MAKE ANY CODE CHANGES UNTIL EXPLICITLY ASKED TO DO SO. The `aider` assist
 ## Architecture
 - API server for query handling
 - CLI commands for interfacing with API
+- Vector embeddings and search functionality
+- LLM abstraction layer for multiple providers
 
 ## API Design
 - RESTful principles
@@ -20,6 +25,16 @@ DO NOT MAKE ANY CODE CHANGES UNTIL EXPLICITLY ASKED TO DO SO. The `aider` assist
 - JSON request/response format
 - Endpoint `handlers` call `service` objects to handle business logic
 - Service objects call `pipeline` and `repository` objects for LLM and storage
+
+Key API Endpoints:
+- Add/remove files to conversation
+- List files in conversation
+- Start/clear/continue conversation with LLM
+- Request code/text changes from LLM
+- Undo last code/text change
+- Show current token usage
+- Run arbitrary CLI command with output added to conversation
+- Load content from external web site
 
 ## API Pipelines
 - Abstraction for different LLM use cases such as text entity extraction and text classification
@@ -77,6 +92,7 @@ DO NOT MAKE ANY CODE CHANGES UNTIL EXPLICITLY ASKED TO DO SO. The `aider` assist
 ## CLI Structure
 - Utilities: Keep CLI-specific utilities in `cli/src/utils/`
 - Main CLI process: Implement in `cli/src/main.ts`
+- Implement a simple way to pass long multi-line text strings via CLI
 
 ## CLI Naming Conventions
 - Follow the same naming conventions as the API project
@@ -143,6 +159,8 @@ DO NOT MAKE ANY CODE CHANGES UNTIL EXPLICITLY ASKED TO DO SO. The `aider` assist
 ## Security
 - Use environment variables for sensitive configuration
 - Data input is always sanitized and validated
+- LLM only has access to files added to the conversation by `bbai`
+- `bbai` should not add files that are outside the current git repo
 
 ## Testing & Documentation
 - Write unit tests for new functions/classes
@@ -150,10 +168,20 @@ DO NOT MAKE ANY CODE CHANGES UNTIL EXPLICITLY ASKED TO DO SO. The `aider` assist
 - Maintain docs/ directory
 - Use JSDoc comments for code documentation
 - Use Swagger/OpenAPI comments for API endpoint documentation
+- Create a dedicated documentation site at https://bbai.tips
 
 ## AI Integration
-- Abstraction for LLM providers
-- Pipelines for handling common conversations; code analysis, code refactoring, etc
-- Embeddings for vector similarity for code chunks
+- Use VoyageAI for code-specific embedding model
+- Implement a utility for chunking code prior to creating embeddings
+- Use a local in-memory (or disk) vector store and search
+- Create an abstraction layer for LLM providers (initially supporting Claude)
+- Implement pipelines for handling common conversations; code analysis, code refactoring, etc
+- Use embeddings for vector similarity for code chunks
+
+## Deployment
+- Aim for simple deployment process for end-users
+- Consider using `brew install bbai` for easy installation
+- Include both CLI tools and API code in the installation
+- Implement GitHub actions for building and compiling releases
 
 When discussing the project, refer to these conventions. Code suggestions should align with the project's style, structure, and technologies. Prioritize advanced techniques and efficient solutions within the project's scope.
