@@ -1,7 +1,7 @@
 import { Context, State, Status } from '@oak/oak';
 import type { Middleware } from '@oak/oak';
 import { APIError, isAPIError } from '../errors/error.ts';
-import logger from '../utils/logger.utils.ts';
+import { logger } from 'shared/logger.ts';
 import config from '../config/config.ts';
 
 /**
