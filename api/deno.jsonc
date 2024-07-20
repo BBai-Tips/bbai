@@ -1,8 +1,8 @@
 {
   "tasks": {
-    "start": "deno run --allow-net src/main.ts",
-    "dev": "deno run --watch --allow-net src/main.ts",
-    "test": "deno test --allow-net"
+    "start": "deno run --allow-net --allow-env src/main.ts",
+    "dev": "deno run --watch --allow-net --allow-env src/main.ts",
+    "test": "deno test --allow-net --allow-env"
   },
   "imports": {
     "oak": "https://deno.land/x/oak@v12.5.0/mod.ts",
