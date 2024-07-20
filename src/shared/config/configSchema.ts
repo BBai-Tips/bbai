@@ -1,5 +1,3 @@
-// import { logger } from 'shared/logger.ts';
-
 export interface ConfigSchema {
   api: {
     anthropicApiKey: string;
@@ -15,46 +13,39 @@ export interface ConfigSchema {
 }
 
 export function mergeConfigs(...configs: Partial<ConfigSchema>[]): ConfigSchema {
-  return configs.reduce((acc, config) => {
-    const mergedConfig: ConfigSchema = { ...acc };
+  const defaultConfig: ConfigSchema = {
+    api: {
+      anthropicApiKey: '',
+      openaiApiKey: '',
+      environment: 'localdev',
+      appPort: 3000,
+      ignoreLLMRequestCache: false,
+    },
+    cli: {},
+  };
 
-    for (const [key, value] of Object.entries(config)) {
-      if (value !== undefined) {
-        if (typeof value === 'object' && value !== null) {
-          mergedConfig[key] = {
-            ...(mergedConfig[key] || {}),
-            ...Object.fromEntries(
-              Object.entries(value).filter(([_, v]) => v !== undefined)
-            ),
-          };
-        } else {
-          mergedConfig[key] = value;
-        }
-      }
+  return configs.reduce((acc, config) => {
+    const mergedConfig = { ...acc };
+
+    if (config.api) {
+      mergedConfig.api = {
+        ...mergedConfig.api,
+        ...Object.fromEntries(
+          Object.entries(config.api).filter(([_, v]) => v !== undefined)
+        ),
+      };
+    }
+
+    if (config.cli) {
+      mergedConfig.cli = {
+        ...mergedConfig.cli,
+        ...Object.fromEntries(
+          Object.entries(config.cli).filter(([_, v]) => v !== undefined)
+        ),
+      };
     }
 
     return mergedConfig;
-  }, { api: {}, cli: {} } as ConfigSchema);
+  }, defaultConfig);
 }
 
-
-// export function mergeConfigs<T>(...objects: Partial<T>[]): T {
-// //   logger.debug(objects);
-//   return objects.reduce((result, obj) => {
-//     Object.keys(obj).forEach(key => {
-//       const value = obj[key];
-//       if (Array.isArray(value)) {
-//         result[key] = (result[key] || []).concat(value);
-//       } else if (isObject(value) && isObject(result[key])) {
-//         result[key] = mergeConfigs(result[key], value);
-//       } else {
-//         result[key] = value;
-//       }
-//     });
-//     return result;
-//   }, {}) as T;
-// }
-// 
-// function isObject(item: any): item is Record<string, any> {
-//   return item && typeof item === 'object' && !Array.isArray(item);
-// }
