@@ -3,7 +3,7 @@ import { logger } from "shared/logger.ts";
 import { getPid, removePid, isApiRunning } from "../utils/pid.utils.ts";
 
 export const apiStop = new Command()
-  .name("stop-api")
+  .name("stop")
   .description("Stop the bbai API server")
   .action(async () => {
     if (!(await isApiRunning())) {

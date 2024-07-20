@@ -1,6 +1,6 @@
 import { Command } from "cliffy/command/mod.ts";
 
-export const persistConversation = new Command()
+export const conversationPersist = new Command()
   .name("persist")
   .description("Persist the current conversation to disk")
   .action(() => {

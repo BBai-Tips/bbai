@@ -1,8 +1,8 @@
 import { Command } from "cliffy/command/mod.ts";
 
-export const listFiles = new Command()
-  .name("list")
-  .description("List files in the conversation")
+export const conversationStart = new Command()
+  .name("start")
+  .description("Start a new conversation")
   .action(() => {
     // Implementation to be added
   });

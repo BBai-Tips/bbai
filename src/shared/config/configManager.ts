@@ -8,7 +8,7 @@ import { ConfigSchema, mergeConfigs } from './configSchema.ts';
 
 export class ConfigManager {
 	private static instance: ConfigManager;
-	private config: ConfigSchema = { api: {}, cli: {} } as ConfigSchema;
+	private config: Partial<ConfigSchema> = { api: {}, cli: {} } as Partial<ConfigSchema>;
 
 	private constructor() {}
 
@@ -105,11 +105,11 @@ export class ConfigManager {
 		} as Partial<ConfigSchema>;
 	}
 
-	public getConfig(): ConfigSchema {
+	public getConfig(): Partial<ConfigSchema> {
 		return this.config;
 	}
 
-	public getRedactedConfig(): ConfigSchema {
+	public getRedactedConfig(): Partial<ConfigSchema> {
 		const redactedConfig = JSON.parse(JSON.stringify(this.config));
 		if (redactedConfig.api.anthropicApiKey) redactedConfig.api.anthropicApiKey = '[REDACTED]';
 		if (redactedConfig.api.openaiApiKey) redactedConfig.api.openaiApiKey = '[REDACTED]';

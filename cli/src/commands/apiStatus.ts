@@ -4,7 +4,7 @@ import { isApiRunning, getPid } from '../utils/pid.utils.ts';
 import { ConfigManager } from 'shared/configManager.ts';
 
 export const apiStatus = new Command()
-	.name('api-status')
+	.name('status')
 	.description('Check the status of the bbai API server')
 	.action(async () => {
 		const configManager = await ConfigManager.getInstance();

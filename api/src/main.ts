@@ -25,6 +25,10 @@ if (logFile) {
     logFileStream.write(encoder.encode(message));
   };
 
+  console.info = (...args) => {
+    const message = '[INFO] ' + args.map(arg => typeof arg === 'string' ? arg : JSON.stringify(arg)).join(' ') + '\n';
+    logFileStream.write(encoder.encode(message));
+  };
   console.error = (...args) => {
     const message = '[ERROR] ' + args.map(arg => typeof arg === 'string' ? arg : JSON.stringify(arg)).join(' ') + '\n';
     logFileStream.write(encoder.encode(message));
