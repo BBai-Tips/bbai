@@ -4,7 +4,7 @@ import { errorHandler } from '../middlewares/error.middleware.ts';
 //import { metricsHandler } from '../middlewares/metrics.middleware.ts';
 
 import { LLMFactory } from '../llm/llmProvider.ts';
-import { logger } from "shared/logger.ts";
+import { logger } from 'shared/logger.ts';
 
 // api routes
 const apiRouter = new Router();

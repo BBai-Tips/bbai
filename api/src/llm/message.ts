@@ -1,77 +1,77 @@
 import {
-    LLMMessageStop,
-    LLMProviderMessageResponseRole,
-    LLMProviderMessageResponseType,
-    LLMTokenUsage,
+	LLMMessageStop,
+	LLMProviderMessageResponseRole,
+	LLMProviderMessageResponseType,
+	LLMTokenUsage,
 } from '../types.ts';
 
 export interface LLMMessageContentPartTextBlock {
-    type: 'text';
-    text: string;
+	type: 'text';
+	text: string;
 }
 
 export interface LLMMessageContentPartImageBlock {
-    type: 'image';
-    source: LLMMessageContentPartImageBlockSource;
+	type: 'image';
+	source: LLMMessageContentPartImageBlockSource;
 }
 export interface LLMMessageContentPartImageBlockSource {
-    data: string;
-    media_type: 'image/jpeg' | 'image/png' | 'image/gif' | 'image/webp';
-    type: 'base64';
+	data: string;
+	media_type: 'image/jpeg' | 'image/png' | 'image/gif' | 'image/webp';
+	type: 'base64';
 }
 
 export interface LLMMessageContentPartToolUseBlock {
-    type: 'tool_use' | 'tool_calls'; // tool_use is anthropic - tool_calls is openai
-    id: string;
-    input: object;
-    name: string;
+	type: 'tool_use' | 'tool_calls'; // tool_use is anthropic - tool_calls is openai
+	id: string;
+	input: object;
+	name: string;
 }
 
 export interface LLMMessageContentPartToolResultBlock {
-    type: 'tool_result' | 'tool'; // tool_result is anthropic - tool is openai
-    tool_use_id?: string; // anthropic
-    tool_call_id?: string; // openai
-    content?: Array<LLMMessageContentPartTextBlock | LLMMessageContentPartImageBlock>;
-    is_error?: boolean;
+	type: 'tool_result' | 'tool'; // tool_result is anthropic - tool is openai
+	tool_use_id?: string; // anthropic
+	tool_call_id?: string; // openai
+	content?: Array<LLMMessageContentPartTextBlock | LLMMessageContentPartImageBlock>;
+	is_error?: boolean;
 }
 
 export type LLMMessageContentPart =
-    | LLMMessageContentPartTextBlock
-    | LLMMessageContentPartImageBlock
-    | LLMMessageContentPartToolUseBlock
-    | LLMMessageContentPartToolResultBlock;
+	| LLMMessageContentPartTextBlock
+	| LLMMessageContentPartImageBlock
+	| LLMMessageContentPartToolUseBlock
+	| LLMMessageContentPartToolResultBlock;
 
 export type LLMMessageContentParts = Array<LLMMessageContentPart>;
 
 export interface LLMAnswerToolUse {
-    toolThinking?: string;
-    toolInput?: unknown;
-    toolUseId?: string;
-    toolName?: string;
+	toolThinking?: string;
+	toolInput?: unknown;
+	toolUseId?: string;
+	toolName?: string;
 }
 
 export interface LLMMessageProviderResponse {
-    id: string;
-    type: LLMProviderMessageResponseType;
-    role: LLMProviderMessageResponseRole;
-    model: string;
-    messageStop: LLMMessageStop;
-    usage: LLMTokenUsage;
-    isTool: boolean;
-    toolsUsed?: Array<LLMAnswerToolUse>;
-    toolThinking?: string;
-    extra?: object;
-    createdAt?: Date;
-    updatedAt?: Date;
+	id: string;
+	type: LLMProviderMessageResponseType;
+	role: LLMProviderMessageResponseRole;
+	model: string;
+	messageStop: LLMMessageStop;
+	usage: LLMTokenUsage;
+	isTool: boolean;
+	toolsUsed?: Array<LLMAnswerToolUse>;
+	toolThinking?: string;
+	extra?: object;
+	createdAt?: Date;
+	updatedAt?: Date;
 }
 
 class LLMMessage {
-    constructor(
-        public role: 'user' | 'assistant' | 'system' | 'tool',
-        public content: LLMMessageContentParts,
-        public tool_call_id?: string,
-        public providerResponse?: LLMMessageProviderResponse,
-    ) {}
+	constructor(
+		public role: 'user' | 'assistant' | 'system' | 'tool',
+		public content: LLMMessageContentParts,
+		public tool_call_id?: string,
+		public providerResponse?: LLMMessageProviderResponse,
+	) {}
 }
 
 export default LLMMessage;
