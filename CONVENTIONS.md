@@ -11,10 +11,93 @@ DO NOT MAKE ANY CODE CHANGES UNTIL EXPLICITLY ASKED TO DO SO. The `bbai` assista
 
 ## Technology Stack
 - Runtime: Deno with TypeScript (strict mode)
-- API Framework: To be decided (a comparison of Oak, Opine, and Abc will be included in the planning stage)
-- Vector Database: To be decided (a comparison of Hnswlib and other options will be provided)
-- CLI Command-line Parsing: To be decided (recommendation to be provided, focusing on ease of use and feature set)
-- Documentation Generator: To be decided (options to be suggested for Deno projects)
+- API Framework: Oak
+
+Comparison of API Frameworks:
+1. Oak:
+   - Lightweight and performant
+   - Inspired by Koa (Node.js framework)
+   - Extensive middleware support
+   - Active development and community support
+   - Good documentation
+
+2. Opine:
+   - Express-like API, familiar to Node.js developers
+   - Middleware support
+   - Less active development compared to Oak
+   - Smaller community
+
+3. Abc:
+   - Simple and minimalistic
+   - Inspired by Echo (Go framework)
+   - Limited middleware support
+   - Smaller community and less active development
+
+Decision: Oak is chosen for its performance, active development, and extensive middleware support, which aligns well with our project requirements.
+- Vector Database: In-memory vector store using Hnswlib-ts
+
+Vector Database options comparison:
+1. Hnswlib-ts:
+   - TypeScript port of Hnswlib
+   - Efficient approximate nearest neighbor search
+   - In-memory storage, suitable for local use
+   - No external database dependencies
+
+2. Faiss:
+   - Developed by Facebook AI Research
+   - Efficient similarity search and clustering
+   - Requires compilation, which may complicate deployment
+
+3. Annoy:
+   - Developed by Spotify
+   - Approximate nearest neighbors
+   - Good for read-heavy workloads
+   - Requires compilation, which may complicate deployment
+
+4. Custom implementation:
+   - Tailored to project needs
+   - Full control over implementation
+   - Requires more development time
+
+Decision: Hnswlib-ts is chosen for its efficiency, TypeScript support, and suitability for in-memory local use, aligning with our project requirements.
+- CLI Command-line Parsing: Cliffy
+
+CLI Command-line Parsing library recommendation:
+1. Cliffy:
+   - Comprehensive command-line framework for Deno
+   - Rich feature set including command parsing, prompts, and tables
+   - Well-documented and actively maintained
+   - Modular design allows using only needed components
+
+2. flags:
+   - Part of Deno standard library
+   - Simple and lightweight
+   - Limited features compared to Cliffy
+
+3. yargs:
+   - Popular in Node.js ecosystem
+   - Ported to Deno, but may have compatibility issues
+
+Decision: Cliffy is recommended for its comprehensive feature set, ease of use, and active maintenance, which aligns well with our project requirements.
+- Documentation Generator: TypeDoc
+
+Documentation Generator options for Deno projects:
+1. TypeDoc:
+   - Generates documentation from TypeScript source code
+   - Supports Deno projects
+   - Produces clean, readable HTML output
+   - Active development and community support
+
+2. Deno Doc:
+   - Official Deno documentation generator
+   - Generates JSON output, which can be used to create custom documentation sites
+   - Requires additional tooling to generate user-friendly documentation
+
+3. JSDoc with custom template:
+   - Use JSDoc comments and create a custom template for Deno
+   - Flexible but requires more setup and maintenance
+
+Decision: TypeDoc is chosen for its TypeScript support, clean output, and active development, which aligns well with our project requirements.
 
 ## Architecture
 - API server for query handling
@@ -217,7 +300,16 @@ Key API Endpoints:
 - Timeline and milestones will be handled separately from this planning stage
 
 ## Performance
-- Implement a lightweight performance monitoring solution
+- Implement a lightweight performance monitoring solution using Deno's built-in performance API
 - Focus on code efficiency and optimization
+
+Performance Monitoring Solution:
+1. Use Deno.Metrics() to collect runtime metrics
+2. Implement custom timing functions using performance.now()
+3. Create a PerformanceMonitor class to manage and report performance data
+4. Log performance metrics at appropriate intervals or on-demand
+5. Implement a /metrics endpoint in the API to expose performance data
+
+This solution provides a lightweight, built-in approach to monitoring performance without introducing external dependencies.
 
 When discussing the project, refer to these conventions. Code suggestions should align with the project's style, structure, and technologies. Prioritize advanced techniques and efficient solutions within the project's scope.
