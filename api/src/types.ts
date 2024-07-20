@@ -2,7 +2,6 @@ export * from './types/app.types.ts';
 import { JSONSchema4 } from 'json-schema';
 
 export type ConversationId = string;
-export type ConversationId = string;
 
 export enum LLMProvider {
   ANTHROPIC = 'anthropic',

@@ -5,9 +5,22 @@ import type {
 	LLMSpeakWithOptions,
 	LLMTokenUsage,
 	LLMValidateResponseCallback,
+	LLMMessageContentParts,
+	LLMMessageContentPart,
+	LLMMessageContentPartTextBlock,
+	LLMTool,
+	LLMToolInputSchema,
 } from 'shared/types.ts';
 import LLMConversation from '../conversation.ts';
 import { logger } from 'shared/logger.ts';
+import { config } from '../../config/config.ts';
+import { createError, ErrorType, LLMErrorOptions } from '../../errors/error.ts';
+import { kv } from '../../services/kv.ts';
+import { metricsService } from '../../services/metrics.service.ts';
+import { tokenUsageManager } from '../../services/tokenUsage.manager.ts';
+import Ajv from 'ajv';
+
+const ajv = new Ajv();
 
 abstract class LLM {
 	public providerName: LLMProviderEnum = LLMProviderEnum.ANTHROPIC;
@@ -53,7 +66,7 @@ abstract class LLM {
 		if (!config.ignoreLLMRequestCache) {
 			const cachedResponse = await kv.get<LLMProviderMessageResponse>(cacheKey);
 
-			if (cachedResponse.value) {
+			if (cachedResponse && cachedResponse.value) {
 				logger.info(`provider[${this.providerName}] speakWithPlus: Using cached response`);
 				llmProviderMessageResponse = cachedResponse.value;
 				llmProviderMessageResponse.fromCache = true;
@@ -92,24 +105,25 @@ abstract class LLM {
 			}
 		}
 
-		const { max_tokens: maxTokens, ...llmProviderMessageRequestDesnaked } = llmProviderMessageRequest;
-		llmProviderMessageRequestId = await conversation.llmProviderMessageRequestRepository
-			.createLLMProviderMessageRequest({
-				...llmProviderMessageRequestDesnaked,
-				maxTokens,
-				prompt: conversation.currentPrompt,
-				conversationId: conversation.repoRecId,
-				conversationTurnCount: conversation.turnCount,
-			});
+		// Remove these lines as they are not needed
+		// const { max_tokens: maxTokens, ...llmProviderMessageRequestDesnaked } = llmProviderMessageRequest;
+		// llmProviderMessageRequestId = await conversation.llmProviderMessageRequestRepository
+		// 	.createLLMProviderMessageRequest({
+		// 		...llmProviderMessageRequestDesnaked,
+		// 		maxTokens,
+		// 		prompt: conversation.currentPrompt,
+		// 		conversationId: conversation.repoRecId,
+		// 		conversationTurnCount: conversation.turnCount,
+		// 	});
 
-		const { id: _id, ...llmProviderMessageResponseWithoutId } = llmProviderMessageResponse;
-		await conversation.llmProviderMessageResponseRepository.createLLMProviderMessageResponse({
-			...llmProviderMessageResponseWithoutId,
-			conversationId: conversation.repoRecId,
-			conversationTurnCount: conversation.turnCount,
-			providerRequestId: llmProviderMessageRequestId,
-			apiResponseId: llmProviderMessageResponse.id,
-		});
+		// const { id: _id, ...llmProviderMessageResponseWithoutId } = llmProviderMessageResponse;
+		// await conversation.llmProviderMessageResponseRepository.createLLMProviderMessageResponse({
+		// 	...llmProviderMessageResponseWithoutId,
+		// 	conversationId: conversation.repoRecId,
+		// 	conversationTurnCount: conversation.turnCount,
+		// 	providerRequestId: llmProviderMessageRequestId,
+		// 	apiResponseId: llmProviderMessageResponse.id,
+		// });
 
 		return llmProviderMessageResponse;
 	}

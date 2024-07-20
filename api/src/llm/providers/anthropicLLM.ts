@@ -8,7 +8,12 @@ import { createError } from '../../utils/error.utils.ts';
 import { ErrorType, LLMErrorOptions } from '../../errors/error.ts';
 import { logger } from 'shared/logger.ts';
 import { config } from '../../config/config.ts';
-import type { LLMProviderMessageRequest, LLMProviderMessageResponse, LLMSpeakWithOptions } from 'shared/types.ts';
+import type {
+	LLMProviderMessageRequest,
+	LLMProviderMessageResponse,
+	LLMSpeakWithOptions,
+	LLMMessageContentParts,
+} from 'shared/types.ts';
 
 class AnthropicLLM extends LLM {
 	private anthropic: Anthropic;
@@ -38,10 +43,10 @@ class AnthropicLLM extends LLM {
 		}));
 	}
 
-	private asApiMessageContentPartsType(content: Anthropic.Content[]): LLMMessageContentParts {
+	private asApiMessageContentPartsType(content: Anthropic.ContentBlock[]): LLMMessageContentParts {
 		return content.map((part) => {
-			if (typeof part === 'string') {
-				return { type: 'text', text: part };
+			if (part.type === 'text') {
+				return { type: 'text', text: part.text };
 			} else if (part.type === 'image') {
 				return {
 					type: 'image',
@@ -52,7 +57,7 @@ class AnthropicLLM extends LLM {
 					},
 				};
 			}
-			return part;
+			return part as any; // This should be improved to handle all possible types
 		});
 	}
 
@@ -82,14 +87,14 @@ class AnthropicLLM extends LLM {
 		messageParams: LLMProviderMessageRequest,
 	): Promise<LLMProviderMessageResponse> {
 		try {
-			logger.dir('llms-anthropic-speakWith-messageParams', messageParams);
+			logger.info('llms-anthropic-speakWith-messageParams', messageParams);
 
 			const { data: anthropicMessageStream, response: anthropicResponse } = await this.anthropic.messages.create(
 				messageParams as Anthropic.MessageCreateParams,
 			).withResponse();
 
 			const anthropicMessage = anthropicMessageStream as Anthropic.Message;
-			logger.dir('llms-anthropic-anthropicMessage', anthropicMessage);
+			logger.info('llms-anthropic-anthropicMessage', anthropicMessage);
 
 			const headers = anthropicResponse?.headers;
 
@@ -126,7 +131,7 @@ class AnthropicLLM extends LLM {
 
 			return messageResponse;
 		} catch (err) {
-			logger.critical('Error calling Anthropic API', err);
+			logger.error('Error calling Anthropic API', err);
 			throw createError(
 				ErrorType.LLM,
 				'Could not get response from Anthropic API.',

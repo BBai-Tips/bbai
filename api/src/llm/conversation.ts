@@ -1,11 +1,11 @@
-import {
+import type {
+	ConversationId,
 	LLMMessageContentParts,
 	LLMProviderMessageRequest,
 	LLMProviderMessageResponse,
 	LLMSpeakWithOptions,
 	LLMTokenUsage,
 } from '../types.ts';
-import type { ConversationId, LLMProviderMessageRequest, LLMProviderMessageResponse } from '../types.ts';
 import LLMMessage from './message.ts';
 import type { LLMMessageProviderResponse } from './message.ts';
 import LLMTool from './tool.ts';
@@ -148,7 +148,7 @@ class LLMConversation {
 
 	getLastMessageContent(): LLMMessageContentParts | undefined {
 		const lastMessage = this.getLastMessage();
-		return lastMessage?.content;
+		return lastMessage?.content as LLMMessageContentParts | undefined;
 	}
 
 	clearMessages(): void {

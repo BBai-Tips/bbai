@@ -10,7 +10,7 @@ import { logger } from 'shared/logger.ts';
 const apiRouter = new Router();
 apiRouter
 	.post('/v1/generate', async (ctx) => {
-		const { prompt, provider } = await ctx.request.body().value;
+		const { prompt, provider } = await ctx.request.body({ type: 'json' }).value;
 
 		if (!prompt || !provider) {
 			ctx.response.status = 400;
