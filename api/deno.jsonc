@@ -7,7 +7,7 @@
 		"dev": "deno run --watch --allow-net --allow-env src/main.ts",
 		"test": "deno test --allow-net --allow-env",
 		"format": "deno fmt",
-		"check-types": "deno check src/main.ts",
+		"check-types": "deno check **/*.ts",
 		"update-deps": "deno cache src/main.ts && deno cache tests/deps.ts"
 	},
 	"imports": {
