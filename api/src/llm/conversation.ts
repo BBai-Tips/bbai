@@ -1,12 +1,11 @@
 import type {
 	ConversationId,
-	LLMMessageContentParts,
 	LLMProviderMessageRequest,
 	LLMProviderMessageResponse,
 	LLMSpeakWithOptions,
 	LLMTokenUsage,
 } from '../types.ts';
-import LLMMessage from './message.ts';
+import LLMMessage, { LLMMessageContentParts } from './message.ts';
 import type { LLMMessageProviderResponse } from './message.ts';
 import LLMTool from './tool.ts';
 import LLM from './providers/baseLLM.ts';
@@ -185,14 +184,14 @@ class LLMConversation {
 
 		this._turnCount++;
 		this.addMessage(
-			{ role: 'user', content: [{ type: 'text', text: prompt }] as LLMMessageContentParts } as LLMMessage,
+			new LLMMessage('user', [{ type: 'text', text: prompt }] as LLMMessageContentParts),
 		);
 
 		const llmProviderMessageResponse = await this.llm.speakWithRetry(this, speakOptions);
 
 		await this.logConversation();
 
-		return llmProviderMessageResponse;
+		return llmProviderMessageResponse as LLMProviderMessageResponse;
 	}
 }
 

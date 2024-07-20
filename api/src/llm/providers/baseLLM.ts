@@ -11,7 +11,8 @@ import type {
 	LLMMessageContentPart,
 	LLMMessageContentPartTextBlock,
 } from '../message.ts';
-import type { LLMTool, LLMToolInputSchema } from '../tool.ts';
+import LLMTool from '../tool.ts';
+import type { LLMToolInputSchema } from '../tool.ts';
 import LLMConversation from '../conversation.ts';
 import { logger } from 'shared/logger.ts';
 import { config } from '../../config/config.ts';
@@ -85,7 +86,7 @@ abstract class LLM {
 			}
 		}
 
-		if (!llmProviderMessageResponse) {
+		if (!config.ignoreLLMRequestCache && !llmProviderMessageResponse) {
 			llmProviderMessageResponse = await this.speakWith(llmProviderMessageRequest);
 
 			//const latency = Date.now() - start;

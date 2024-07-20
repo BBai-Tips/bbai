@@ -12,8 +12,8 @@ import type {
 	LLMProviderMessageRequest,
 	LLMProviderMessageResponse,
 	LLMSpeakWithOptions,
-	LLMMessageContentParts,
 } from 'shared/types.ts';
+import type { LLMMessageContentParts } from '../message.ts';
 
 class AnthropicLLM extends LLM {
 	private anthropic: Anthropic;
@@ -43,17 +43,22 @@ class AnthropicLLM extends LLM {
 							data: part.source.data,
 						},
 					};
+				} else if (part.type === 'tool_use' || part.type === 'tool_calls') {
+					return part as Anthropic.ToolUseBlockParam;
 				}
-				return part;
+				return part as Anthropic.ContentBlock;
 			}),
 		}));
 	}
 
 	private asProviderToolType(tools: LLMTool[]): Anthropic.Tool[] {
 		return tools.map((tool) => ({
-			name: tool.name,
-			description: tool.description,
-			parameters: tool.input_schema,
+			type: 'function',
+			function: {
+				name: tool.name,
+				description: tool.description,
+				parameters: tool.input_schema,
+			},
 		}));
 	}
 
