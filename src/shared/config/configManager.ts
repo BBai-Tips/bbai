@@ -1,6 +1,8 @@
-import { parse as parseYaml } from "https://deno.land/std/yaml/mod.ts";
+import { parse as parseYaml, stringify as stringifyYaml } from "https://deno.land/std/yaml/mod.ts";
 import { GitUtils } from "../utils/git.utils.ts";
 import { ConfigSchema, mergeConfigs } from "./configSchema.ts";
+import { ensureDir } from "https://deno.land/std/fs/mod.ts";
+import { join } from "https://deno.land/std/path/mod.ts";
 
 export class ConfigManager {
   private static instance: ConfigManager;
@@ -17,6 +19,7 @@ export class ConfigManager {
   }
 
   private async initialize(): Promise<void> {
+    await this.ensureUserConfig();
     const userConfig = await this.loadUserConfig();
     const projectConfig = await this.loadProjectConfig();
     const envConfig = this.loadEnvConfig();
@@ -24,8 +27,48 @@ export class ConfigManager {
     this.config = mergeConfigs(userConfig, projectConfig, envConfig);
   }
 
+  private async ensureUserConfig(): Promise<void> {
+    const userConfigDir = join(Deno.env.get("HOME") || "", ".config", "bbai");
+    const userConfigPath = join(userConfigDir, "config.yaml");
+
+    try {
+      await Deno.stat(userConfigPath);
+    } catch (error) {
+      if (error instanceof Deno.errors.NotFound) {
+        await ensureDir(userConfigDir);
+        const defaultConfig = `
+# BBAI Configuration File
+
+api:
+  # Your Anthropic API key. Replace with your actual key.
+  anthropicApiKey: "your-anthropic-api-key-here"
+
+  # Your OpenAI API key. Uncomment and replace with your actual key if using OpenAI.
+  # openaiApiKey: "your-openai-api-key-here"
+
+  # The environment the application is running in. Options: localdev, development, production
+  environment: "localdev"
+
+  # The port number for the API to listen on
+  appPort: 3000
+
+  # Set to true to ignore the LLM request cache (useful for development)
+  ignoreLLMRequestCache: false
+
+cli:
+  # Add any CLI-specific configuration options here
+
+# Add any shared configuration options here
+`;
+        await Deno.writeTextFile(userConfigPath, defaultConfig);
+      } else {
+        throw error;
+      }
+    }
+  }
+
   private async loadUserConfig(): Promise<Partial<ConfigSchema>> {
-    const userConfigPath = `${Deno.env.get("HOME")}/.config/bbai/config.yaml`;
+    const userConfigPath = join(Deno.env.get("HOME") || "", ".config", "bbai", "config.yaml");
     try {
       const content = await Deno.readTextFile(userConfigPath);
       return parseYaml(content) as Partial<ConfigSchema>;
