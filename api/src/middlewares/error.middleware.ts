@@ -36,7 +36,7 @@ export const errorHandler: Middleware = async (
 				if (
 					config.environment === 'localdev' || config.environment === 'development'
 				) {
-					logger.error(error, args);
+					logger.error(error.message, args);
 				}
 
 				responseBody.message = message;
