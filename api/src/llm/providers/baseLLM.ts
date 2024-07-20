@@ -5,24 +5,33 @@ import type {
 	LLMSpeakWithOptions,
 	LLMTokenUsage,
 	LLMValidateResponseCallback,
+} from 'shared/types.ts';
+import type {
 	LLMMessageContentParts,
 	LLMMessageContentPart,
 	LLMMessageContentPartTextBlock,
-	LLMTool,
-	LLMToolInputSchema,
-} from 'shared/types.ts';
+} from '../message.ts';
+import type { LLMTool, LLMToolInputSchema } from '../tool.ts';
 import LLMConversation from '../conversation.ts';
 import { logger } from 'shared/logger.ts';
 import { config } from '../../config/config.ts';
-import { createError, ErrorType, LLMErrorOptions } from '../../errors/error.ts';
+import { ErrorType, LLMErrorOptions } from '../../errors/error.ts';
+import { createError } from '../../utils/error.utils.ts';
 //import { metricsService } from '../../services/metrics.service.ts';
-import { kv } from '../../utils/kv.utils.ts';
+import kv from '../../utils/kv.utils.ts';
 import { tokenUsageManager } from '../../utils/tokenUsage.utils.ts';
 import Ajv from 'ajv';
 
 const ajv = new Ajv();
 
 abstract class LLM {
+	protected modifySpeakWithConversationOptions(
+		conversation: LLMConversation,
+		speakOptions: LLMSpeakWithOptions,
+		validationFailedReason: string
+	): void {
+		// Default implementation, can be overridden by subclasses
+	}
 	public providerName: LLMProviderEnum = LLMProviderEnum.ANTHROPIC;
 	public maxSpeakRetries: number = 3;
 	public requestCacheExpiry: number = 3 * (1000 * 60 * 60 * 24); // 3 days in milliseconds
@@ -188,7 +197,7 @@ abstract class LLM {
 				model: conversation.model,
 				provider: this.providerName,
 				args: { reason: failReason, retries: { max: maxRetries, current: retries } },
-				conversationId: conversation.repoRecId,
+				conversationId: conversation.id,
 			} as LLMErrorOptions,
 		);
 	}

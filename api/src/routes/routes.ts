@@ -10,7 +10,8 @@ import { logger } from 'shared/logger.ts';
 const apiRouter = new Router();
 apiRouter
 	.post('/v1/generate', async (ctx) => {
-		const { prompt, provider } = await ctx.request.body({ type: 'json' }).value;
+		const body = await ctx.request.body({ type: 'json' }).value;
+		const { prompt, provider } = await body;
 
 		if (!prompt || !provider) {
 			ctx.response.status = 400;
@@ -20,7 +21,7 @@ apiRouter
 
 		try {
 			const llmProvider = LLMFactory.getProvider(provider);
-			const response = await llmProvider.generateResponse(prompt);
+			const response = await llmProvider.speakWith({ messages: [{ role: 'user', content: [{ type: 'text', text: prompt }] }] });
 			ctx.response.body = response;
 		} catch (error) {
 			logger.error(`Error generating response: ${error.message}`);

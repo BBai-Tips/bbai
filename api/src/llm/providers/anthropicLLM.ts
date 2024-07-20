@@ -31,7 +31,21 @@ class AnthropicLLM extends LLM {
 	private asProviderMessageType(messages: LLMMessage[]): Anthropic.MessageParam[] {
 		return messages.map((message) => ({
 			role: message.role,
-			content: message.content,
+			content: message.content.map(part => {
+				if (part.type === 'text') {
+					return { type: 'text', text: part.text };
+				} else if (part.type === 'image') {
+					return {
+						type: 'image',
+						source: {
+							type: 'base64',
+							media_type: part.source.media_type,
+							data: part.source.data,
+						},
+					};
+				}
+				return part;
+			}),
 		}));
 	}
 

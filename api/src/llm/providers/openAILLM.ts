@@ -122,14 +122,14 @@ class OpenAILLM extends LLM {
 		messageParams: LLMProviderMessageRequest,
 	): Promise<LLMProviderMessageResponse> {
 		try {
-			logger.dir('llms-openai-speakWith-messageParams', messageParams);
+			logger.debug('llms-openai-speakWith-messageParams', JSON.stringify(messageParams, null, 2));
 
 			const { data: openaiMessageStream, response: openaiResponse } = await this.openai.chat.completions.create(
 				messageParams as OpenAI.Chat.ChatCompletionCreateParams,
 			).withResponse();
 
 			const openaiMessage = openaiMessageStream as OpenAI.Chat.ChatCompletion;
-			logger.dir('llms-openai-openaiMessage', openaiMessage);
+			logger.debug('llms-openai-openaiMessage', JSON.stringify(openaiMessage, null, 2));
 
 			const headers = openaiResponse?.headers;
 
@@ -166,7 +166,7 @@ class OpenAILLM extends LLM {
 
 			return messageResponse;
 		} catch (err) {
-			logger.critical('Error calling OpenAI API', err);
+			logger.error('Error calling OpenAI API', err);
 			throw createError(
 				ErrorType.LLM,
 				'Could not get response from OpenAI API.',

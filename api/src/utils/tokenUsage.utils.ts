@@ -37,7 +37,7 @@ class TokenUsageManager {
 		await kv.atomic()
 			.set(key, usage)
 			.commit();
-		logger.console.info(`Updated token usage for ${provider}`);
+		logger.info(`Updated token usage for ${provider}`);
 	}
 
 	public async checkAndWaitForRateLimit(provider: LLMProvider): Promise<void> {
@@ -60,7 +60,7 @@ class TokenUsageManager {
 				requestsResetDate.getTime() - now.getTime(),
 				tokensResetDate.getTime() - now.getTime(),
 			);
-			logger.console.warn(`Rate limit nearly exceeded for ${provider}. Waiting for ${waitTime}ms.`);
+			logger.warn(`Rate limit nearly exceeded for ${provider}. Waiting for ${waitTime}ms.`);
 			await new Promise((resolve) => setTimeout(resolve, waitTime));
 			/*
 			// [CNG] Not sure what the thinking was with throwing this error - I suspect it snuck in with boilerplate code -
