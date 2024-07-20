@@ -1,6 +1,6 @@
-import { ConversationId, LLMProvider, ErrorType, ErrorStatus, APIErrorOptions, LLMErrorOptions, LLMRateLimitErrorOptions, LLMValidationErrorOptions } from '../types.ts';
+import { ConversationId, LLMProvider } from '../types.ts';
 export type { ErrorObject as AjvErrorObject } from 'ajv';
-import { Status as ErrorStatus } from '@oak/oak';
+import { Status } from '@oak/oak';
 
 export enum ErrorType {
 	API = 'APIError',
@@ -20,10 +20,14 @@ export interface ErrorOptions {
 }
 
 export interface APIErrorOptions extends ErrorOptions {
-	status?: ErrorStatus;
+	status?: Status;
 	path?: string;
 	args?: object;
 	expose?: boolean;
+}
+
+export interface ErrorOptions {
+	name: string;
 }
 
 export interface LLMErrorOptions extends ErrorOptions {
@@ -49,14 +53,14 @@ export interface LLMValidationErrorOptions extends LLMErrorOptions {
 }
 
 export class APIError extends Error {
-	public status: ErrorStatus;
+	public status: Status;
 	constructor(
 		message: string,
 		public options?: APIErrorOptions,
 	) {
 		super(message);
-		//this.type = ErrorType.API;
-		this.status = options?.status ?? ErrorStatus.InternalServerError;
+		this.name = ErrorType.API;
+		this.status = options?.status ?? Status.InternalServerError;
 		this.options = options;
 	}
 }

@@ -107,7 +107,19 @@ export interface LLMMessage {
   role: 'user' | 'assistant' | 'system' | 'tool';
   content: LLMMessageContentParts;
   tool_call_id?: string;
-  providerResponse?: LLMMessageProviderResponse;
+  providerResponse?: LLMProviderMessageResponse;
+}
+
+export interface LLMProviderMessageResponse {
+  id: string;
+  type: LLMProviderMessageResponseType;
+  role: LLMProviderMessageResponseRole;
+  model: string;
+  messageStop: LLMMessageStop;
+  usage: LLMTokenUsage;
+  rateLimit: LLMRateLimit;
+  providerMessageResponseMeta: LLMProviderMessageResponseMeta;
+  answerContent: LLMMessageContentParts;
 }
 
 export interface LLMTool {
