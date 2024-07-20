@@ -10,10 +10,7 @@ import { BbAiState } from './types.ts';
 const configManager = await ConfigManager.getInstance();
 const config = configManager.getConfig().api;
 
-// Redact sensitive information before logging
-const redactedConfig = JSON.parse(JSON.stringify(config));
-if (redactedConfig.api.anthropicApiKey) redactedConfig.api.anthropicApiKey = '[REDACTED]';
-if (redactedConfig.api.openaiApiKey) redactedConfig.api.openaiApiKey = '[REDACTED]';
+const redactedConfig = configManager.getRedactedConfig();
 logger.info(`Starting API with config:`, redactedConfig);
 
 const { environment, appPort } = config;

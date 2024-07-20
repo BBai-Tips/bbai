@@ -63,4 +63,11 @@ export class ConfigManager {
   public getConfig(): ConfigSchema {
     return this.config;
   }
+
+  public getRedactedConfig(): ConfigSchema {
+    const redactedConfig = JSON.parse(JSON.stringify(this.config));
+    if (redactedConfig.api.anthropicApiKey) redactedConfig.api.anthropicApiKey = '[REDACTED]';
+    if (redactedConfig.api.openaiApiKey) redactedConfig.api.openaiApiKey = '[REDACTED]';
+    return redactedConfig;
+  }
 }
