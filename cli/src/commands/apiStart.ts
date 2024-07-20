@@ -31,8 +31,19 @@ export const apiStart = new Command()
 
     // Redirect stdout and stderr to the log file
     const logStream = await Deno.open(logFile, { write: true, create: true, append: true });
-    process.stdout.pipeTo(logStream.writable, { preventClose: true });
-    process.stderr.pipeTo(logStream.writable, { preventClose: true });
+    const encoder = new TextEncoder();
+    
+    (async () => {
+      for await (const chunk of process.stdout) {
+        await logStream.write(chunk);
+      }
+    })();
+
+    (async () => {
+      for await (const chunk of process.stderr) {
+        await logStream.write(encoder.encode(`[ERROR] ${new TextDecoder().decode(chunk)}`));
+      }
+    })();
 
     // Wait a short time to ensure the process has started
     await new Promise(resolve => setTimeout(resolve, 1000));
