@@ -8,7 +8,7 @@ import { ConfigSchema, mergeConfigs } from './configSchema.ts';
 
 export class ConfigManager {
 	private static instance: ConfigManager;
-	private config: ConfigSchema = {} as ConfigSchema;
+	private config: ConfigSchema = { api: {}, cli: {} } as ConfigSchema;
 
 	private constructor() {}
 

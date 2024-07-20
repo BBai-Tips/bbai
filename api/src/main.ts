@@ -26,7 +26,7 @@ app.addEventListener('listen', ({ hostname, port, secure }: { hostname: string; 
 	const redactedConfig = configManager.getRedactedConfig();
 	logger.info(`Starting API with config:`, redactedConfig);
 	
-	if (config.api.ignoreLLMRequestCache) {
+	if (config.api && config.api.ignoreLLMRequestCache) {
 		logger.warn('Cache for LLM requests is disabled!');
 	}
 
