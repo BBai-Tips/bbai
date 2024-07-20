@@ -95,14 +95,14 @@ export class ConfigManager {
 	private loadEnvConfig(): Partial<ConfigSchema> {
 		return {
 			api: {
-				anthropicApiKey: Deno.env.get('ANTHROPIC_API_KEY'),
-				openaiApiKey: Deno.env.get('OPENAI_API_KEY'),
-				environment: Deno.env.get('ENVIRONMENT'),
-				appPort: Deno.env.get('APP_PORT') ? parseInt(Deno.env.get('APP_PORT')!, 10) : undefined,
-				ignoreLLMRequestCache: Deno.env.get('IGNORE_LLM_REQUEST_CACHE') === 'true',
+				anthropicApiKey: Deno.env.get('ANTHROPIC_API_KEY') || undefined,
+				openaiApiKey: Deno.env.get('OPENAI_API_KEY') || undefined,
+				environment: Deno.env.get('ENVIRONMENT') || undefined,
+				appPort: Deno.env.get('APP_PORT') ? parseInt(Deno.env.get('APP_PORT'), 10) : undefined,
+				ignoreLLMRequestCache: Deno.env.get('IGNORE_LLM_REQUEST_CACHE') === 'true' || undefined,
 			},
 			// Add CLI-specific env variables here if needed
-		};
+		} as Partial<ConfigSchema>;
 	}
 
 	public getConfig(): ConfigSchema {
