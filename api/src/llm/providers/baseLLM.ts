@@ -6,11 +6,7 @@ import type {
 	LLMTokenUsage,
 	LLMValidateResponseCallback,
 } from 'shared/types.ts';
-import type {
-	LLMMessageContentParts,
-	LLMMessageContentPart,
-	LLMMessageContentPartTextBlock,
-} from '../message.ts';
+import type { LLMMessageContentPart, LLMMessageContentParts, LLMMessageContentPartTextBlock } from '../message.ts';
 import LLMTool from '../tool.ts';
 import type { LLMToolInputSchema } from '../tool.ts';
 import LLMConversation from '../conversation.ts';
@@ -29,7 +25,7 @@ abstract class LLM {
 	protected modifySpeakWithConversationOptions(
 		conversation: LLMConversation,
 		speakOptions: LLMSpeakWithOptions,
-		validationFailedReason: string
+		validationFailedReason: string,
 	): void {
 		// Default implementation, can be overridden by subclasses
 	}

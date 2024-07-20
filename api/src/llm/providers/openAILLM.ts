@@ -28,7 +28,7 @@ class OpenAILLM extends LLM {
 			if (message.role === 'system' || message.role === 'user') {
 				return {
 					role: message.role,
-					content: message.content.map(part => part.type === 'text' ? part.text : '').join(''),
+					content: message.content.map((part) => part.type === 'text' ? part.text : '').join(''),
 				};
 			} else if (message.role === 'assistant') {
 				if (message.content[0].type === 'tool_use') {
@@ -47,19 +47,19 @@ class OpenAILLM extends LLM {
 				} else {
 					return {
 						role: message.role,
-						content: message.content.map(part => part.type === 'text' ? part.text : '').join(''),
+						content: message.content.map((part) => part.type === 'text' ? part.text : '').join(''),
 					};
 				}
 			} else if (message.role === 'tool') {
 				return {
 					role: 'function' as const,
-					content: message.content.map(part => part.type === 'text' ? part.text : '').join(''),
+					content: message.content.map((part) => part.type === 'text' ? part.text : '').join(''),
 					name: message.tool_call_id,
 				};
 			}
 			return {
 				role: 'user',
-				content: message.content.map(part => part.type === 'text' ? part.text : '').join(''),
+				content: message.content.map((part) => part.type === 'text' ? part.text : '').join(''),
 			};
 		});
 	}
@@ -88,7 +88,7 @@ class OpenAILLM extends LLM {
 		if (message.tool_calls) {
 			contentParts.push({
 				type: 'tool_calls',
-				tool_calls: message.tool_calls.map(tool_call => ({
+				tool_calls: message.tool_calls.map((tool_call) => ({
 					id: tool_call.id,
 					type: tool_call.type,
 					function: {

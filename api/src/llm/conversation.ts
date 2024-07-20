@@ -1,10 +1,10 @@
 import type {
 	ConversationId,
+	LLMMessage,
 	LLMProviderMessageRequest,
 	LLMProviderMessageResponse,
 	LLMSpeakWithOptions,
 	LLMTokenUsage,
-	LLMMessage,
 } from '../types.ts';
 import { LLMMessageContentParts } from './message.ts';
 import type { LLMMessageProviderResponse } from './message.ts';

@@ -8,11 +8,7 @@ import { createError } from '../../utils/error.utils.ts';
 import { ErrorType, LLMErrorOptions } from '../../errors/error.ts';
 import { logger } from 'shared/logger.ts';
 import { config } from '../../config/config.ts';
-import type {
-	LLMProviderMessageRequest,
-	LLMProviderMessageResponse,
-	LLMSpeakWithOptions,
-} from 'shared/types.ts';
+import type { LLMProviderMessageRequest, LLMProviderMessageResponse, LLMSpeakWithOptions } from 'shared/types.ts';
 import type { LLMMessageContentParts } from '../message.ts';
 
 class AnthropicLLM extends LLM {
@@ -31,7 +27,7 @@ class AnthropicLLM extends LLM {
 	private asProviderMessageType(messages: LLMMessage[]): Anthropic.MessageParam[] {
 		return messages.map((message) => ({
 			role: message.role === 'tool' ? 'assistant' : message.role,
-			content: message.content.map(part => {
+			content: message.content.map((part) => {
 				if (part.type === 'text') {
 					return { type: 'text', text: part.text };
 				} else if (part.type === 'image') {
