@@ -19,6 +19,7 @@ export const apiStart = new Command()
       stdout: "null",
       stderr: "null",
       stdin: "null",
+      detached: true,
     });
 
     const process = command.spawn();
@@ -29,9 +30,9 @@ export const apiStart = new Command()
     const pid = process.pid;
     await savePid(pid);
 
+    // Unref the child process to allow the parent to exit
+    process.unref();
+
     logger.info(`bbai API server started with PID: ${pid}`);
     logger.info("Use 'bbai stop-api' to stop the server.");
-
-    // Detach the process and return immediately
-    Deno.unrefTimer(setTimeout(() => {}, 0));
   });
