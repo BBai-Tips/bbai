@@ -126,7 +126,7 @@ class AnthropicLLM extends LLM {
 
 			return messageResponse;
 		} catch (err) {
-			logger.console.critical('Error calling Anthropic API', err);
+			logger.critical('Error calling Anthropic API', err);
 			throw createError(
 				ErrorType.LLM,
 				'Could not get response from Anthropic API.',
@@ -164,7 +164,7 @@ class AnthropicLLM extends LLM {
 					],
 				});
 			} else {
-				logger.console.warn(
+				logger.warn(
 					`provider[${this.providerName}] modifySpeakWithConversationOptions - Tool input validation failed, but no tool response found`,
 				);
 			}
@@ -177,19 +177,19 @@ class AnthropicLLM extends LLM {
 		if (llmProviderMessageResponse.messageStop.stopReason) {
 			switch (llmProviderMessageResponse.messageStop.stopReason) {
 				case 'max_tokens':
-					logger.console.warn(`provider[${this.providerName}] Response reached the maximum token limit`);
+					logger.warn(`provider[${this.providerName}] Response reached the maximum token limit`);
 					break;
 				case 'end_turn':
-					logger.console.warn(`provider[${this.providerName}] Response reached the end turn`);
+					logger.warn(`provider[${this.providerName}] Response reached the end turn`);
 					break;
 				case 'stop_sequence':
-					logger.console.warn(`provider[${this.providerName}] Response reached its natural end`);
+					logger.warn(`provider[${this.providerName}] Response reached its natural end`);
 					break;
 				case 'tool_use':
-					logger.console.warn(`provider[${this.providerName}] Response is using a tool`);
+					logger.warn(`provider[${this.providerName}] Response is using a tool`);
 					break;
 				default:
-					logger.console.info(
+					logger.info(
 						`provider[${this.providerName}] Response stopped due to: ${llmProviderMessageResponse.messageStop.stopReason}`,
 					);
 			}

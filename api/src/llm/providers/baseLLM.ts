@@ -31,7 +31,7 @@ abstract class LLM {
 		messageParams: LLMProviderMessageRequest,
 	): string[] {
 		const cacheKey = ['messageRequest', this.providerName, JSON.stringify(messageParams)];
-		logger.console.info(`provider[${this.providerName}] using cache key: ${cacheKey}`);
+		logger.info(`provider[${this.providerName}] using cache key: ${cacheKey}`);
 		return cacheKey;
 	}
 
@@ -54,7 +54,7 @@ abstract class LLM {
 			const cachedResponse = await kv.get<LLMProviderMessageResponse>(cacheKey);
 
 			if (cachedResponse.value) {
-				logger.console.info(`provider[${this.providerName}] speakWithPlus: Using cached response`);
+				logger.info(`provider[${this.providerName}] speakWithPlus: Using cached response`);
 				llmProviderMessageResponse = cachedResponse.value;
 				llmProviderMessageResponse.fromCache = true;
 				await metricsService.recordCacheMetrics({ operation: 'hit' });
@@ -150,13 +150,13 @@ abstract class LLM {
 
 				failReason = `validation: ${validationFailedReason}`;
 			} catch (error) {
-				logger.console.error(
+				logger.error(
 					`provider[${this.providerName}] speakWithRetry: Error calling speakWithPlus`,
 					error,
 				);
 				failReason = `caught error: ${error}`;
 			}
-			logger.console.warn(
+			logger.warn(
 				`provider[${this.providerName}] Request to ${this.providerName} failed. Retrying (${retries}/${maxRetries}) - ${failReason}`,
 			);
 
@@ -164,7 +164,7 @@ abstract class LLM {
 		}
 
 		conversation.updateTotals(totalTokenUsage, totalProviderRequests);
-		logger.console.error(
+		logger.error(
 			`provider[${this.providerName}] Max retries reached. Request to ${this.providerName} failed.`,
 		);
 		throw createError(
@@ -195,7 +195,7 @@ abstract class LLM {
 				const validate = ajv.compile(inputSchema);
 				const valid = validate(llmProviderMessageResponse.toolsUsed[0].toolInput);
 				if (!valid) {
-					logger.console.error(`Tool input validation failed: ${ajv.errorsText(validate.errors)}`);
+					logger.error(`Tool input validation failed: ${ajv.errorsText(validate.errors)}`);
 					return `Tool input validation failed: ${ajv.errorsText(validate.errors)}`;
 				}
 			}
@@ -204,7 +204,7 @@ abstract class LLM {
 		if (validateCallback) {
 			const validationFailed = validateCallback(llmProviderMessageResponse, conversation);
 			if (validationFailed) {
-				logger.console.error(`Callback validation failed: ${validationFailed}`);
+				logger.error(`Callback validation failed: ${validationFailed}`);
 				return validationFailed;
 			}
 		}
