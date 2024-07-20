@@ -166,7 +166,7 @@ class OpenAILLM extends LLM {
 
 			return messageResponse;
 		} catch (err) {
-			logger.console.critical('Error calling OpenAI API', err);
+			logger.critical('Error calling OpenAI API', err);
 			throw createError(
 				ErrorType.LLM,
 				'Could not get response from OpenAI API.',
@@ -198,7 +198,7 @@ class OpenAILLM extends LLM {
 					],
 				});
 			} else {
-				logger.console.warn(
+				logger.warn(
 					`provider[${this.providerName}] modifySpeakWithConversationOptions - Tool input validation failed, but no tool response found`,
 				);
 			}
@@ -211,21 +211,21 @@ class OpenAILLM extends LLM {
 		if (llmProviderMessageResponse.messageStop.stopReason) {
 			switch (llmProviderMessageResponse.messageStop.stopReason) {
 				case 'length':
-					logger.console.warn(`provider[${this.providerName}] Response reached the maximum token limit`);
+					logger.warn(`provider[${this.providerName}] Response reached the maximum token limit`);
 					break;
 				case 'stop':
-					logger.console.warn(`provider[${this.providerName}] Response reached its natural end`);
+					logger.warn(`provider[${this.providerName}] Response reached its natural end`);
 					break;
 				case 'content_filter':
-					logger.console.warn(
+					logger.warn(
 						`provider[${this.providerName}] Response content was omitted due to a flag from provider content filters`,
 					);
 					break;
 				case 'tool_calls':
-					logger.console.warn(`provider[${this.providerName}] Response is using a tool`);
+					logger.warn(`provider[${this.providerName}] Response is using a tool`);
 					break;
 				default:
-					logger.console.info(
+					logger.info(
 						`provider[${this.providerName}] Response stopped due to: ${llmProviderMessageResponse.messageStop.stopReason}`,
 					);
 			}

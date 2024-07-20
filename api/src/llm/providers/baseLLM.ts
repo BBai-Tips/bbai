@@ -15,9 +15,9 @@ import LLMConversation from '../conversation.ts';
 import { logger } from 'shared/logger.ts';
 import { config } from '../../config/config.ts';
 import { createError, ErrorType, LLMErrorOptions } from '../../errors/error.ts';
-import { kv } from '../../services/kv.ts';
-import { metricsService } from '../../services/metrics.service.ts';
-import { tokenUsageManager } from '../../services/tokenUsage.manager.ts';
+//import { metricsService } from '../../services/metrics.service.ts';
+import { kv } from '../../utils/kv.utils.ts';
+import { tokenUsageManager } from '../../utils/tokenUsage.utils.ts';
 import Ajv from 'ajv';
 
 const ajv = new Ajv();
@@ -70,22 +70,22 @@ abstract class LLM {
 				logger.info(`provider[${this.providerName}] speakWithPlus: Using cached response`);
 				llmProviderMessageResponse = cachedResponse.value;
 				llmProviderMessageResponse.fromCache = true;
-				await metricsService.recordCacheMetrics({ operation: 'hit' });
+				//await metricsService.recordCacheMetrics({ operation: 'hit' });
 			} else {
-				await metricsService.recordCacheMetrics({ operation: 'miss' });
+				//await metricsService.recordCacheMetrics({ operation: 'miss' });
 			}
 		}
 
 		if (!llmProviderMessageResponse) {
 			llmProviderMessageResponse = await this.speakWith(llmProviderMessageRequest);
 
-			const latency = Date.now() - start;
-			await metricsService.recordLLMMetrics({
-				provider: this.providerName,
-				latency,
-				tokenUsage: llmProviderMessageResponse.usage.totalTokens,
-				error: llmProviderMessageResponse.type === 'error' ? 'LLM request failed' : undefined,
-			});
+			//const latency = Date.now() - start;
+			//await metricsService.recordLLMMetrics({
+			//	provider: this.providerName,
+			//	latency,
+			//	tokenUsage: llmProviderMessageResponse.usage.totalTokens,
+			//	error: llmProviderMessageResponse.type === 'error' ? 'LLM request failed' : undefined,
+			//});
 
 			await this.updateTokenUsage(llmProviderMessageResponse.usage);
 
@@ -101,7 +101,7 @@ abstract class LLM {
 
 			if (!config.ignoreLLMRequestCache) {
 				await kv.set(cacheKey, llmProviderMessageResponse, { expireIn: this.requestCacheExpiry });
-				await metricsService.recordCacheMetrics({ operation: 'set' });
+				//await metricsService.recordCacheMetrics({ operation: 'set' });
 			}
 		}
 
