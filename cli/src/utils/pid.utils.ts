@@ -1,4 +1,4 @@
-import { writeToCache, readFromCache, removeFromCache } from "shared/utils/dataDir.utils.ts";
+import { writeToCache, readFromCache, removeFromCache } from "shared/dataDir.ts";
 
 const PID_FILE_NAME = "api.pid";
 
