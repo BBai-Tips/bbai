@@ -30,7 +30,7 @@ class AnthropicLLM extends LLM {
 
 	private asProviderMessageType(messages: LLMMessage[]): Anthropic.MessageParam[] {
 		return messages.map((message) => ({
-			role: message.role,
+			role: message.role === 'tool' ? 'assistant' : message.role,
 			content: message.content.map(part => {
 				if (part.type === 'text') {
 					return { type: 'text', text: part.text };
@@ -59,7 +59,7 @@ class AnthropicLLM extends LLM {
 				description: tool.description,
 				parameters: tool.input_schema,
 			},
-		}));
+		})) as Anthropic.Tool[];
 	}
 
 	private asApiMessageContentPartsType(content: Anthropic.ContentBlock[]): LLMMessageContentParts {

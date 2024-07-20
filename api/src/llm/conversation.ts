@@ -4,8 +4,9 @@ import type {
 	LLMProviderMessageResponse,
 	LLMSpeakWithOptions,
 	LLMTokenUsage,
+	LLMMessage,
 } from '../types.ts';
-import LLMMessage, { LLMMessageContentParts } from './message.ts';
+import { LLMMessageContentParts } from './message.ts';
 import type { LLMMessageProviderResponse } from './message.ts';
 import LLMTool from './tool.ts';
 import LLM from './providers/baseLLM.ts';

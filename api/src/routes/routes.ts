@@ -11,7 +11,7 @@ const apiRouter = new Router();
 apiRouter
 	.post('/v1/generate', async (ctx) => {
 		const body = await ctx.request.body({ type: 'json' }).value;
-		const { prompt, provider, model, system } = await body;
+		const { prompt, provider, model, system } = body;
 
 		if (!prompt || !provider) {
 			ctx.response.status = 400;

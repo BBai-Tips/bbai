@@ -52,13 +52,13 @@ class OpenAILLM extends LLM {
 				}
 			} else if (message.role === 'tool') {
 				return {
-					role: message.role,
-					tool_call_id: message.tool_call_id,
+					role: 'function' as const,
 					content: message.content.map(part => part.type === 'text' ? part.text : '').join(''),
+					name: message.tool_call_id,
 				};
 			}
 			return {
-				role: message.role,
+				role: 'user',
 				content: message.content.map(part => part.type === 'text' ? part.text : '').join(''),
 			};
 		});

@@ -69,7 +69,7 @@ abstract class LLM {
 			speakOptions,
 		) as LLMProviderMessageRequest;
 
-		let llmProviderMessageResponse: LLMProviderMessageResponse;
+		let llmProviderMessageResponse: LLMProviderMessageResponse | undefined;
 		let llmProviderMessageRequestId: string;
 
 		const cacheKey = !config.ignoreLLMRequestCache ? this.createRequestCacheKey(llmProviderMessageRequest) : [];
@@ -86,7 +86,7 @@ abstract class LLM {
 			}
 		}
 
-		if (!config.ignoreLLMRequestCache && !llmProviderMessageResponse) {
+		if (!llmProviderMessageResponse) {
 			llmProviderMessageResponse = await this.speakWith(llmProviderMessageRequest);
 
 			//const latency = Date.now() - start;
