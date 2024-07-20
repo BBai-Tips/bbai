@@ -1,4 +1,4 @@
-import { ConversationId, LLMProvider } from '../types.ts';
+import { ConversationId, LLMProvider, ErrorType, ErrorStatus, APIErrorOptions, LLMErrorOptions, LLMRateLimitErrorOptions, LLMValidationErrorOptions } from '../types.ts';
 export type { ErrorObject as AjvErrorObject } from 'ajv';
 import { Status as ErrorStatus } from '@oak/oak';
 
