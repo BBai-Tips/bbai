@@ -3,12 +3,18 @@ import { join } from "@std/path";
 import { GitUtils } from "./git.utils.ts";
 
 
-export async function getRepoCacheDir(): Promise<string> {
+export async function getBbaiDir(): Promise<string> {
   const gitRoot = await GitUtils.findGitRoot();
   if (!gitRoot) {
     throw new Error("Not in a git repository");
   }
   const bbaiDir = join(gitRoot, ".bbai");
+  await ensureDir(bbaiDir);
+  return bbaiDir;
+}
+
+export async function getRepoCacheDir(): Promise<string> {
+  const bbaiDir = await getBbaiDir();
   const repoCacheDir = join(bbaiDir, "cache");
   await ensureDir(repoCacheDir);
   return repoCacheDir;

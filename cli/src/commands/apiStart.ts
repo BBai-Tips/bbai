@@ -1,6 +1,8 @@
 import { Command } from "cliffy/command/mod.ts";
 import { logger } from "shared/logger.ts";
 import { savePid, isApiRunning } from "../utils/pid.utils.ts";
+import { getBbaiDir } from "shared/utils/dataDir.utils.ts";
+import { join } from "@std/path";
 
 export const apiStart = new Command()
   .name("start-api")
@@ -13,16 +15,24 @@ export const apiStart = new Command()
 
     logger.info("Starting bbai API server...");
     
+    const bbaiDir = await getBbaiDir();
+    const logFile = join(bbaiDir, "api.log");
+
     const command = new Deno.Command("deno", {
       args: ["run", "--allow-read", "--allow-write", "--allow-env", "--allow-net", "--allow-run", "../api/src/main.ts"],
       cwd: "../api",
-      stdout: "null",
-      stderr: "null",
+      stdout: "piped",
+      stderr: "piped",
       stdin: "null",
       detached: true,
     });
 
     const process = command.spawn();
+
+    // Redirect stdout and stderr to the log file
+    const logStream = await Deno.open(logFile, { write: true, create: true, append: true });
+    process.stdout.pipeTo(logStream.writable, { preventClose: true });
+    process.stderr.pipeTo(logStream.writable, { preventClose: true });
 
     // Wait a short time to ensure the process has started
     await new Promise(resolve => setTimeout(resolve, 1000));
@@ -30,9 +40,7 @@ export const apiStart = new Command()
     const pid = process.pid;
     await savePid(pid);
 
-    // Unref the child process to allow the parent to exit
-    process.unref();
-
     logger.info(`bbai API server started with PID: ${pid}`);
+    logger.info(`Logs are being written to: ${logFile}`);
     logger.info("Use 'bbai stop-api' to stop the server.");
   });
