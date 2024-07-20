@@ -14,7 +14,7 @@ export const apiStart = new Command()
     logger.info("Starting bbai API server...");
     
     const command = new Deno.Command("deno", {
-      args: ["run", "--allow-read", "--allow-write", "--allow-env", "--allow-net", "../api/src/main.ts"],
+      args: ["run", "--allow-read", "--allow-write", "--allow-env", "--allow-net", "--allow-run", "../api/src/main.ts"],
       cwd: "../api",
       stdout: "null",
       stderr: "null",
