@@ -1,15 +1,17 @@
 import Anthropic from 'anthropic';
+import type { ClientOptions } from 'anthropic';
+
 import { AnthropicModel, LLMProvider } from 'shared/types.ts';
 import LLM from './baseLLM.ts';
 import LLMConversation from '../conversation.ts';
-import LLMMessage from '../message.ts';
+import LLMMessage, { LLMMessageContentParts } from '../message.ts';
+import type { LLMMessageContentPartTextBlock, LLMMessageContentPartToolResultBlock } from '../message.ts';
 import LLMTool from '../tool.ts';
 import { createError } from '../../utils/error.utils.ts';
 import { ErrorType, LLMErrorOptions } from '../../errors/error.ts';
 import { logger } from 'shared/logger.ts';
 import { config } from '../../config/config.ts';
 import type { LLMProviderMessageRequest, LLMProviderMessageResponse, LLMSpeakWithOptions } from 'shared/types.ts';
-import type { LLMMessageContentParts } from '../message.ts';
 
 class AnthropicLLM extends LLM {
 	private anthropic: Anthropic;
@@ -17,63 +19,26 @@ class AnthropicLLM extends LLM {
 	constructor() {
 		super();
 		this.providerName = LLMProvider.ANTHROPIC;
-		const apiKey = config.CLAUDE_API_KEY;
-		if (!apiKey) {
-			throw new Error('Claude API key is not set');
-		}
-		this.anthropic = new Anthropic({ apiKey });
+
+		const clientOptions: ClientOptions = {
+			apiKey: config.anthropicApiKey,
+		};
+		this.anthropic = new Anthropic(clientOptions);
 	}
 
 	private asProviderMessageType(messages: LLMMessage[]): Anthropic.MessageParam[] {
 		return messages.map((message) => ({
-			role: message.role === 'tool' ? 'assistant' : message.role,
-			content: message.content.map((part) => {
-				if (part.type === 'text') {
-					return { type: 'text', text: part.text };
-				} else if (part.type === 'image') {
-					return {
-						type: 'image',
-						source: {
-							type: 'base64',
-							media_type: part.source.media_type,
-							data: part.source.data,
-						},
-					};
-				} else if (part.type === 'tool_use' || part.type === 'tool_calls') {
-					return part as Anthropic.ToolUseBlockParam;
-				}
-				return part as Anthropic.ContentBlock;
-			}),
-		}));
+			role: message.role,
+			content: message.content,
+		} as Anthropic.MessageParam));
 	}
 
 	private asProviderToolType(tools: LLMTool[]): Anthropic.Tool[] {
 		return tools.map((tool) => ({
-			type: 'function',
-			function: {
 				name: tool.name,
 				description: tool.description,
-				parameters: tool.input_schema,
-			},
-		})) as Anthropic.Tool[];
-	}
-
-	private asApiMessageContentPartsType(content: Anthropic.ContentBlock[]): LLMMessageContentParts {
-		return content.map((part) => {
-			if (part.type === 'text') {
-				return { type: 'text', text: part.text };
-			} else if (part.type === 'image') {
-				return {
-					type: 'image',
-					source: {
-						type: 'base64',
-						media_type: part.source.media_type,
-						data: part.source.data,
-					},
-				};
-			}
-			return part as any; // This should be improved to handle all possible types
-		});
+			input_schema: tool.input_schema,
+		} as Anthropic.Tool));
 	}
 
 	public prepareMessageParams(
@@ -82,12 +47,12 @@ class AnthropicLLM extends LLM {
 	): Anthropic.MessageCreateParams {
 		const messages = this.asProviderMessageType(speakOptions?.messages || conversation.getMessages());
 		const tools = this.asProviderToolType(speakOptions?.tools || conversation.getTools());
-		const system = speakOptions?.system || conversation.system;
-		const model = speakOptions?.model || conversation.model || AnthropicModel.CLAUDE_3_5_SONNET;
-		const maxTokens = speakOptions?.maxTokens || conversation.maxTokens;
-		const temperature = speakOptions?.temperature || conversation.temperature;
+		const system: string = speakOptions?.system || conversation.system;
+		const model: string = speakOptions?.model || conversation.model || AnthropicModel.CLAUDE_3_5_SONNET;
+		const maxTokens: number = speakOptions?.maxTokens || conversation.maxTokens;
+		const temperature: number = speakOptions?.temperature || conversation.temperature;
 
-		return {
+		const messageParams: Anthropic.MessageCreateParams = {
 			messages,
 			tools,
 			system,
@@ -96,10 +61,19 @@ class AnthropicLLM extends LLM {
 			temperature,
 			stream: false,
 		};
+		//logger.debug("llms-anthropic-prepareMessageParams", messageParams);
+
+		return messageParams;
 	}
 
+	/**
+	 * Run Anthropic service
+	 * @param conversation LLMConversation
+	 * @param speakOptions LLMSpeakWithOptions
+	 * @returns Promise<LLMProviderMessageResponse> The response from Anthropic or an error
+	 */
 	public async speakWith(
-		messageParams: LLMProviderMessageRequest,
+		messageParams: LLMProviderMessageRequest
 	): Promise<LLMProviderMessageResponse> {
 		try {
 			logger.info('llms-anthropic-speakWith-messageParams', messageParams);
@@ -113,13 +87,21 @@ class AnthropicLLM extends LLM {
 
 			const headers = anthropicResponse?.headers;
 
+			const requestsRemaining = Number(headers.get('anthropic-ratelimit-requests-remaining'));
+			const requestsLimit = Number(headers.get('anthropic-ratelimit-requests-limit'));
+			const requestsResetDate = new Date(headers.get('anthropic-ratelimit-requests-reset') || '');
+
+			const tokensRemaining = Number(headers.get('anthropic-ratelimit-tokens-remaining'));
+			const tokensLimit = Number(headers.get('anthropic-ratelimit-tokens-limit'));
+			const tokensResetDate = new Date(headers.get('anthropic-ratelimit-tokens-reset') || '');
+
 			const messageResponse: LLMProviderMessageResponse = {
 				id: anthropicMessage.id,
 				type: anthropicMessage.type,
 				role: anthropicMessage.role,
 				model: anthropicMessage.model,
 				fromCache: false,
-				answerContent: this.asApiMessageContentPartsType(anthropicMessage.content),
+				answerContent: anthropicMessage.content as LLMMessageContentParts,
 				isTool: anthropicMessage.stop_reason === 'tool_use',
 				messageStop: {
 					stopReason: anthropicMessage.stop_reason,
@@ -128,21 +110,22 @@ class AnthropicLLM extends LLM {
 				usage: {
 					inputTokens: anthropicMessage.usage.input_tokens,
 					outputTokens: anthropicMessage.usage.output_tokens,
-					totalTokens: anthropicMessage.usage.input_tokens + anthropicMessage.usage.output_tokens,
+					totalTokens: (anthropicMessage.usage.input_tokens + anthropicMessage.usage.output_tokens),
 				},
 				rateLimit: {
-					requestsRemaining: Number(headers.get('anthropic-ratelimit-requests-remaining')),
-					requestsLimit: Number(headers.get('anthropic-ratelimit-requests-limit')),
-					requestsResetDate: new Date(headers.get('anthropic-ratelimit-requests-reset') || ''),
-					tokensRemaining: Number(headers.get('anthropic-ratelimit-tokens-remaining')),
-					tokensLimit: Number(headers.get('anthropic-ratelimit-tokens-limit')),
-					tokensResetDate: new Date(headers.get('anthropic-ratelimit-tokens-reset') || ''),
+					requestsRemaining,
+					requestsLimit,
+					requestsResetDate,
+					tokensRemaining,
+					tokensLimit,
+					tokensResetDate,
 				},
 				providerMessageResponseMeta: {
 					status: anthropicResponse.status,
 					statusText: anthropicResponse.statusText,
 				},
 			};
+			//logger.debug("llms-anthropic-messageResponse", messageResponse);
 
 			return messageResponse;
 		} catch (err) {
@@ -164,10 +147,12 @@ class AnthropicLLM extends LLM {
 		validationFailedReason: string,
 	): void {
 		if (validationFailedReason.startsWith('Tool input validation failed')) {
+			// Prompt the model to provide a valid tool input
 			const prevMessage = conversation.getLastMessage();
 			if (prevMessage && prevMessage.providerResponse && prevMessage.providerResponse.isTool) {
 				conversation.addMessage({
 					role: 'user',
+					//[TODO] we're assuming a single tool is provided, and we're assuming only a single tool is used by LLM
 					content: [
 						{
 							type: 'tool_result',
@@ -178,9 +163,9 @@ class AnthropicLLM extends LLM {
 									'type': 'text',
 									'text':
 										"The previous tool input was invalid. Please provide a valid input according to the tool's schema",
-								},
+								} as LLMMessageContentPartTextBlock,
 							],
-						},
+						} as LLMMessageContentPartToolResultBlock,
 					],
 				});
 			} else {
@@ -189,12 +174,15 @@ class AnthropicLLM extends LLM {
 				);
 			}
 		} else if (validationFailedReason === 'Empty answer') {
+			// Increase temperature or adjust other parameters to encourage more diverse responses
 			speakOptions.temperature = speakOptions.temperature ? Math.min(speakOptions.temperature + 0.1, 1) : 0.5;
 		}
 	}
 
 	protected checkStopReason(llmProviderMessageResponse: LLMProviderMessageResponse): void {
+		// Check if the response has a stop reason
 		if (llmProviderMessageResponse.messageStop.stopReason) {
+			// Perform special handling based on the stop reason
 			switch (llmProviderMessageResponse.messageStop.stopReason) {
 				case 'max_tokens':
 					logger.warn(`provider[${this.providerName}] Response reached the maximum token limit`);

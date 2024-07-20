@@ -1,12 +1,11 @@
 import type {
 	ConversationId,
-	LLMMessage,
 	LLMProviderMessageRequest,
 	LLMProviderMessageResponse,
 	LLMSpeakWithOptions,
 	LLMTokenUsage,
 } from '../types.ts';
-import { LLMMessageContentParts } from './message.ts';
+import LLMMessage, { LLMMessageContentParts } from './message.ts';
 import type { LLMMessageProviderResponse } from './message.ts';
 import LLMTool from './tool.ts';
 import LLM from './providers/baseLLM.ts';
@@ -148,7 +147,7 @@ class LLMConversation {
 
 	getLastMessageContent(): LLMMessageContentParts | undefined {
 		const lastMessage = this.getLastMessage();
-		return lastMessage?.content as LLMMessageContentParts | undefined;
+		return lastMessage?.content; // as LLMMessageContentParts | undefined;
 	}
 
 	clearMessages(): void {
@@ -181,18 +180,18 @@ class LLMConversation {
 			speakOptions = {} as LLMSpeakWithOptions;
 		}
 
-		await this.logConversation();
+		//await this.logConversationStart();
 
 		this._turnCount++;
 		this.addMessage(
-			new LLMMessage('user', [{ type: 'text', text: prompt }] as LLMMessageContentParts),
+			{ role: 'user', content: [{ type: 'text', text: prompt }] as LLMMessageContentParts } as LLMMessage,
 		);
 
 		const llmProviderMessageResponse = await this.llm.speakWithRetry(this, speakOptions);
 
 		await this.logConversation();
 
-		return llmProviderMessageResponse as LLMProviderMessageResponse;
+		return llmProviderMessageResponse; // as LLMProviderMessageResponse;
 	}
 }
 
