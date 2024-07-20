@@ -35,11 +35,20 @@ Key API Endpoints:
 - Show current token usage
 - Run arbitrary CLI command with output added to conversation
 - Load content from external web site
+- Log conversations for live viewing and review using `bbai logs`
+- Persist current conversation to disk with a `resume` feature for API restarts
 
 ## API Pipelines
 - Abstraction for different LLM use cases such as text entity extraction and text classification
 - Uses LLM `conversation` to manage calls to LLM providers
 - Uses LLM tools for structured data in conversations
+- Implements conversation logging for live viewing and review
+- Persists current conversation to disk for resuming after API restarts
+
+## Conversation Management
+- Log all conversations for review using `bbai logs` command
+- Implement a persistence mechanism to save current conversation state to disk
+- Provide a `resume` feature to restore conversation state after API restarts
 
 ## Project Structure
 - Maintain separate directories for API and CLI
@@ -93,6 +102,7 @@ Key API Endpoints:
 - Utilities: Keep CLI-specific utilities in `cli/src/utils/`
 - Main CLI process: Implement in `cli/src/main.ts`
 - Implement a simple way to pass long multi-line text strings via CLI
+- Include a `bbai logs` command for viewing and reviewing conversations in real-time
 
 ## CLI Naming Conventions
 - Follow the same naming conventions as the API project
