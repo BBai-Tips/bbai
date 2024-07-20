@@ -10,7 +10,7 @@ import LLMTool from '../tool.ts';
 import { createError } from '../../utils/error.utils.ts';
 import { ErrorType, LLMErrorOptions } from '../../errors/error.ts';
 import { logger } from 'shared/logger.ts';
-import { config } from '../../config/config.ts';
+import { ConfigManager } from 'shared/config/configManager.ts';
 import type { LLMProviderMessageRequest, LLMProviderMessageResponse, LLMSpeakWithOptions } from 'shared/types.ts';
 
 class OpenAILLM extends LLM {
@@ -19,7 +19,13 @@ class OpenAILLM extends LLM {
 	constructor() {
 		super();
 		this.providerName = LLMProvider.OPENAI;
-		const apiKey = config.openaiApiKey;
+		this.initializeOpenAIClient();
+	}
+
+	private async initializeOpenAIClient() {
+		const configManager = await ConfigManager.getInstance();
+		const config = configManager.getConfig();
+		const apiKey = config.api.openaiApiKey;
 		if (!apiKey) {
 			throw new Error('OpenAI API key is not set');
 		}

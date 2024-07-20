@@ -1,5 +1,6 @@
 import { Command } from "cliffy/command/mod.ts";
 import { logger } from "shared/logger.ts";
+import { ConfigManager } from "shared/config/configManager.ts";
 import { addFiles } from "./commands/addFiles.ts";
 import { removeFiles } from "./commands/removeFiles.ts";
 import { listFiles } from "./commands/listFiles.ts";
@@ -14,6 +15,11 @@ import { loadExternalContent } from "./commands/loadExternalContent.ts";
 import { viewLogs } from "./commands/viewLogs.ts";
 import { persistConversation } from "./commands/persistConversation.ts";
 import { resumeConversation } from "./commands/resumeConversation.ts";
+
+const configManager = await ConfigManager.getInstance();
+const config = configManager.getConfig();
+
+logger.debug("CLI Config:", config.cli);
 
 const cli = new Command()
   .name("bbai")

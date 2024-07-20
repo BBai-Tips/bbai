@@ -2,7 +2,7 @@ import { Context, State, Status } from '@oak/oak';
 import type { Middleware } from '@oak/oak';
 import { APIError, isAPIError } from '../errors/error.ts';
 import { logger } from 'shared/logger.ts';
-import { config } from '../config/config.ts';
+import { ConfigManager } from 'shared/config/configManager.ts';
 
 /**
  * Error Handler Middleware function
@@ -10,6 +10,9 @@ import { config } from '../config/config.ts';
  * @param next
  * @returns Promise<void>
  */
+const configManager = await ConfigManager.getInstance();
+const config = configManager.getConfig();
+
 export const errorHandler: Middleware = async (
 	ctx: Context<State, Record<string, unknown>>,
 	next: () => Promise<unknown>,
@@ -26,7 +29,7 @@ export const errorHandler: Middleware = async (
 				message: '',
 			};
 
-			if (config.environment === 'production') { // || config.environment === 'docker'
+			if (config.api.environment === 'production') { // || config.api.environment === 'docker'
 				responseBody.message = message;
 			} else {
 				const name: string = error.name || 'Error';
