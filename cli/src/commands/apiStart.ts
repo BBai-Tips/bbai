@@ -13,20 +13,29 @@ export const apiStart = new Command()
 
     logger.info("Starting bbai API server...");
     
-    const process = Deno.run({
-      cmd: ["deno", "task", "start"],
+    const command = new Deno.Command("deno", {
+      args: ["task", "start"],
       cwd: "../api",
       stdout: "piped",
       stderr: "piped",
     });
+
+    const process = command.spawn();
 
     await savePid(process.pid);
 
     logger.info(`bbai API server started with PID: ${process.pid}`);
     logger.info("Use 'bbai stop-api' to stop the server.");
 
-    // We don't wait for the process to complete
-    // Instead, we detach it and let it run in the background
-    process.stdout.readable.pipeTo(Deno.stdout.writable);
-    process.stderr.readable.pipeTo(Deno.stderr.writable);
+    // Start a background task to handle output
+    (async () => {
+      const output = await process.output();
+      if (output.success) {
+        logger.info("API server exited successfully");
+      } else {
+        logger.error("API server exited with an error");
+      }
+    })();
+
+    // Return immediately, allowing the CLI to exit
   });
