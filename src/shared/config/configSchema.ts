@@ -13,6 +13,17 @@ export interface ConfigSchema {
 }
 
 export function mergeConfigs(...configs: Partial<ConfigSchema>[]): ConfigSchema {
+  const defaultConfig: ConfigSchema = {
+    api: {
+      anthropicApiKey: '',
+      openaiApiKey: '',
+      environment: 'localdev',
+      appPort: 3000,
+      ignoreLLMRequestCache: false,
+    },
+    cli: {},
+  };
+
   return configs.reduce((acc, config) => {
     const mergedConfig = { ...acc };
 
@@ -35,6 +46,6 @@ export function mergeConfigs(...configs: Partial<ConfigSchema>[]): ConfigSchema 
     }
 
     return mergedConfig;
-  }, { api: {}, cli: {} } as ConfigSchema);
+  }, defaultConfig);
 }
 
