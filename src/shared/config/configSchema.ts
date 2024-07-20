@@ -1,3 +1,5 @@
+// import { logger } from 'shared/logger.ts';
+
 export interface ConfigSchema {
   api: {
     anthropicApiKey: string;
@@ -30,3 +32,25 @@ export function mergeConfigs(...configs: Partial<ConfigSchema>[]): ConfigSchema 
     return mergedConfig;
   }, { api: {}, cli: {} } as ConfigSchema);
 }
+
+
+// export function mergeConfigs<T>(...objects: Partial<T>[]): T {
+// //   logger.debug(objects);
+//   return objects.reduce((result, obj) => {
+//     Object.keys(obj).forEach(key => {
+//       const value = obj[key];
+//       if (Array.isArray(value)) {
+//         result[key] = (result[key] || []).concat(value);
+//       } else if (isObject(value) && isObject(result[key])) {
+//         result[key] = mergeConfigs(result[key], value);
+//       } else {
+//         result[key] = value;
+//       }
+//     });
+//     return result;
+//   }, {}) as T;
+// }
+// 
+// function isObject(item: any): item is Record<string, any> {
+//   return item && typeof item === 'object' && !Array.isArray(item);
+// }
