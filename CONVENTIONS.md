@@ -11,7 +11,8 @@ DO NOT MAKE ANY CODE CHANGES UNTIL EXPLICITLY ASKED TO DO SO. The `bbai` assista
 
 ## Technology Stack
 - Runtime: Deno with TypeScript (strict mode)
-- API Framework: Oak
+- API Framework: To be decided (considering Oak, Opine, Abc, or others)
+- Vector Database: To be implemented using an existing library (e.g., Hnswlib)
 
 ## Architecture
 - API server for query handling
@@ -107,6 +108,11 @@ Key API Endpoints:
 - Main CLI process: Implement in `cli/src/main.ts`
 - Implement a simple way to pass long multi-line text strings via CLI
 - Include a `bbai logs` command for viewing and reviewing conversations in real-time
+- Use an existing command-line parsing library for handling CLI arguments and commands
+
+## CLI Compatibility
+- Ensure `bbai` can run on any platform where Deno is supported
+- Implement cross-platform compatibility checks and adjustments
 
 ## CLI Naming Conventions
 - Follow the same naming conventions as the API project
@@ -177,12 +183,12 @@ Key API Endpoints:
 - `bbai` should not add files that are outside the current git repo
 
 ## Testing & Documentation
-- Write unit tests for new functions/classes
+- Write unit tests for new functions/classes using Deno's built-in testing functionality
 - Use Hurl for API endpoint tests
 - Maintain docs/ directory
 - Use JSDoc comments for code documentation
 - Use Swagger/OpenAPI comments for API endpoint documentation
-- Create a dedicated documentation site at https://bbai.tips
+- Create a dedicated documentation site at https://bbai.tips (documentation generator to be decided)
 
 ## AI Integration
 - Use VoyageAI for code-specific embedding model and creating embeddings
@@ -195,9 +201,15 @@ Key API Endpoints:
 
 ## Deployment
 - Aim for simple deployment process for end-users
-- Consider using `brew install bbai` for easy installation
+- Support multiple package managers for installation:
+  - Use `brew install bbai` for macOS
+  - Implement support for other relevant package managers (e.g., npm, cargo) for cross-platform compatibility
 - Include both CLI tools and API code in the installation
 - Implement GitHub actions for building and compiling releases
 - Use semantic versioning for both API and CLI, keeping them version-locked together
+
+## Performance
+- Implement basic performance monitoring or profiling if an easy solution is available
+- Focus on code efficiency and optimization rather than extensive monitoring tools
 
 When discussing the project, refer to these conventions. Code suggestions should align with the project's style, structure, and technologies. Prioritize advanced techniques and efficient solutions within the project's scope.
