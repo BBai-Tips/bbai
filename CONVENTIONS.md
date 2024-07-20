@@ -83,7 +83,6 @@ Key API Endpoints:
 - Script files: dash-separated (e.g., `transform-data.ts`)
 - Utility files: include `.utils` (e.g., `error.utils.ts`)
 - Type definition files: include `.types` (e.g., `llms.types.ts`)
-- Repository files: use `.repository` (e.g., `llm_conversation.repository.ts`)
 - Service files: use `.service` (e.g., `user.service.ts`)
 - Controller files: use `.controller` (e.g., `auth.controller.ts`)
 - Middleware files: use `.middleware` (e.g., `error.middleware.ts`)

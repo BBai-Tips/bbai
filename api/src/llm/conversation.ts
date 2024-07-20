@@ -10,8 +10,6 @@ import LLMMessage from './message.ts';
 import type { LLMMessageProviderResponse } from './message.ts';
 import LLMTool from './tool.ts';
 import LLM from './providers/base.provider.ts';
-import LLMProviderMessageResponseRepository from '../repositories/llm_provider_message_response.repository.ts';
-import LLMProviderMessageRequestRepository from '../repositories/llm_provider_message_request.repository.ts';
 import LLMConversationRepository from '../repositories/llm_conversation.repository.ts';
 import { logger } from '../utils/logger.ts';
 
@@ -26,8 +24,6 @@ class LLMConversation {
     private tools: LLMTool[] = [];
 
     private llmConversationRepository: LLMConversationRepository;
-    public llmProviderMessageRequestRepository: LLMProviderMessageRequestRepository;
-    public llmProviderMessageResponseRepository: LLMProviderMessageResponseRepository;
 
     protected _system: string = '';
     protected _model: string = '';
@@ -42,12 +38,11 @@ class LLMConversation {
         this.llm = llm;
 
         this.llmConversationRepository = new LLMConversationRepository();
-        this.llmProviderMessageRequestRepository = new LLMProviderMessageRequestRepository();
-        this.llmProviderMessageResponseRepository = new LLMProviderMessageResponseRepository();
     }
 
-    private async createLLMConversationDoc(): Promise<void> {
-        this._repoRecId = await this.llmConversationRepository.createLLMConversation({
+    private async logConversation(): Promise<void> {
+        await this.llmConversationRepository.logConversation({
+            id: this.id,
             providerName: this.llm.providerName,
             turnCount: this._turnCount,
             messages: this.messages,
@@ -57,30 +52,8 @@ class LLMConversation {
             model: this._model,
             maxTokens: this._maxTokens,
             temperature: this._temperature,
-            createdAt: new Date(),
+            timestamp: new Date(),
         });
-    }
-
-    private async updateLLMConversatioDoc(): Promise<void> {
-        if (this._repoRecId === '') {
-            await this.createLLMConversationDoc();
-        }
-        try {
-            await this.llmConversationRepository.updateLLMConversation(this._repoRecId, {
-                providerName: this.llm.providerName,
-                turnCount: this._turnCount,
-                messages: this.messages,
-                tools: this.tools,
-                tokenUsage: this.totalTokenUsage,
-                system: this._system,
-                model: this._model,
-                maxTokens: this._maxTokens,
-                temperature: this._temperature,
-                updatedAt: new Date(),
-            });
-        } catch (error) {
-            logger.error('Error updating LLM conversation document:', error);
-        }
     }
 
     // Getters and setters
@@ -207,9 +180,7 @@ class LLMConversation {
             speakOptions = {} as LLMSpeakWithOptions;
         }
 
-        if (this._repoRecId === '') {
-            await this.createLLMConversationDoc();
-        }
+        await this.logConversation();
 
         this._turnCount++;
         this.addMessage(
@@ -218,7 +189,7 @@ class LLMConversation {
 
         const llmProviderMessageResponse = await this.llm.speakWithRetry(this, speakOptions);
 
-        this.updateLLMConversatioDoc();
+        await this.logConversation();
 
         return llmProviderMessageResponse;
     }
