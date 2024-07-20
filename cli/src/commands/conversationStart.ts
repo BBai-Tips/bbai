@@ -17,8 +17,11 @@ export const conversationStart = new Command()
 			if (response.ok) {
 				const data = await response.json();
 				logger.info(`New conversation started. Conversation ID: ${data.conversationId}`);
+				logger.debug('Response body:', data);
 			} else {
 				logger.error(`Failed to start conversation. Status: ${response.status}`);
+				const errorBody = await response.text();
+				logger.debug('Error response body:', errorBody);
 			}
 		} catch (error) {
 			logger.error(`Error starting conversation: ${error.message}`);
