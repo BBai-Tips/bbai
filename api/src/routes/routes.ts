@@ -9,8 +9,8 @@ import { logger } from 'shared/logger.ts';
 // api routes
 const apiRouter = new Router();
 apiRouter
-	.post('/v1/generate', async (ctx) => {
-		const body = await ctx.request.body({ type: 'json' }).value;
+	.post('/v1/generate', async (ctx: Context) => {
+		const body = await ctx.request.body.json();
 		const { prompt, provider, model, system } = body;
 
 		if (!prompt || !provider) {
