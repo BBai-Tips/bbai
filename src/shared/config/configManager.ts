@@ -8,7 +8,17 @@ import { ConfigSchema, mergeConfigs } from './configSchema.ts';
 
 export class ConfigManager {
 	private static instance: ConfigManager;
-	private config: ConfigSchema = { api: {}, cli: {} } as ConfigSchema;
+	private config: Partial<ConfigSchema> = {
+		api: {
+			environment: 'local',
+			apiPort: 3000,
+		},
+		cli: {},
+		ctags: {
+			autoGenerate: true,
+			//tagsFilePath: 'tags',
+		},
+	};
 
 	private constructor() {}
 
@@ -29,7 +39,7 @@ export class ConfigManager {
 		this.config = mergeConfigs(userConfig, projectConfig, envConfig);
 	}
 
-	private async ensureUserConfig(): Promise<void> {
+	public async ensureUserConfig(): Promise<void> {
 		const userConfigDir = join(Deno.env.get('HOME') || '', '.config', 'bbai');
 		const userConfigPath = join(userConfigDir, 'config.yaml');
 
@@ -39,7 +49,7 @@ export class ConfigManager {
 			if (error instanceof Deno.errors.NotFound) {
 				await ensureDir(userConfigDir);
 				const defaultConfig = stripIndent`
-					# BBAI Configuration File
+					# bbai Configuration File
 					
 					api:
 					  # Your Anthropic API key. Replace with your actual key.
@@ -47,25 +57,56 @@ export class ConfigManager {
 					
 					  # Your OpenAI API key. Uncomment and replace with your actual key if using OpenAI.
 					  # openaiApiKey: "your-openai-api-key-here"
+
+					  # Your VoyageAI API key. Uncomment and replace with your actual key if using VoyageAI.
+					  # voyageaiApiKey: "your-voyageai-api-key-here"
 					
-					  # The environment the application is running in. Options: localdev, development, production
-					  environment: "localdev"
+					  # The environment the application is running in. Options: local, remote
+					  environment: "local"
 					
 					  # The port number for the API to listen on
-					  appPort: 3000
+					  apiPort: 3000
 					
 					  # Set to true to ignore the LLM request cache (useful for development)
 					  ignoreLLMRequestCache: false
 					
-					cli:
-					  # Add any CLI-specific configuration options here
+					# Add any CLI-specific configuration options here
+					cli: {}
 					
 					# Add any shared configuration options here
+					logLevel: info
 					`;
 				await Deno.writeTextFile(userConfigPath, defaultConfig);
 			} else {
 				throw error;
 			}
+		}
+	}
+
+	public async ensureProjectConfig(cwd: string): Promise<void> {
+		const projectConfigPath = join(cwd, '.bbai', 'config.yaml');
+
+		try {
+			await ensureDir(join(cwd, '.bbai'));
+			const projectConfig = stripIndent`
+				# bbai Project Configuration File
+
+				api:
+				  # Your Anthropic API key. Replace with your actual key.
+				  anthropicApiKey: "your-anthropic-api-key-here"
+				
+				  # Your OpenAI API key. Uncomment and replace with your actual key if using OpenAI.
+				  # openaiApiKey: "your-openai-api-key-here"
+
+				  # Your VoyageAI API key. Uncomment and replace with your actual key if using VoyageAI.
+				  # voyageaiApiKey: "your-voyageai-api-key-here"
+
+				# Add any project-specific configuration options here
+				logLevel: info
+				`;
+			await Deno.writeTextFile(projectConfigPath, projectConfig);
+		} catch (error) {
+			throw error;
 		}
 	}
 
@@ -93,26 +134,59 @@ export class ConfigManager {
 	}
 
 	private loadEnvConfig(): Partial<ConfigSchema> {
-		return {
-			api: {
-				anthropicApiKey: Deno.env.get('ANTHROPIC_API_KEY') || undefined,
-				openaiApiKey: Deno.env.get('OPENAI_API_KEY') || undefined,
-				environment: Deno.env.get('ENVIRONMENT') || undefined,
-				appPort: Deno.env.get('APP_PORT') ? parseInt(Deno.env.get('APP_PORT') || '', 10) : undefined,
-				ignoreLLMRequestCache: Deno.env.get('IGNORE_LLM_REQUEST_CACHE') === 'true' || undefined,
-			},
-			// Add CLI-specific env variables here if needed
-		} as Partial<ConfigSchema>;
+		const config: Partial<ConfigSchema> = {};
+		const apiConfig: Partial<ConfigSchema['api']> = {};
+		const cliConfig: Partial<ConfigSchema['cli']> = {};
+
+		const anthropicApiKey = Deno.env.get('ANTHROPIC_API_KEY');
+		if (anthropicApiKey) apiConfig.anthropicApiKey = anthropicApiKey;
+
+		const openaiApiKey = Deno.env.get('OPENAI_API_KEY');
+		if (openaiApiKey) apiConfig.openaiApiKey = openaiApiKey;
+
+		const voyageaiApiKey = Deno.env.get('VOYAGEAI_API_KEY');
+		if (voyageaiApiKey) apiConfig.voyageaiApiKey = voyageaiApiKey;
+
+		const environment = Deno.env.get('BBAI_ENVIRONMENT');
+		if (environment) apiConfig.environment = environment;
+
+		const apiPort = Deno.env.get('BBAI_API_PORT');
+		if (apiPort) apiConfig.apiPort = parseInt(apiPort, 10);
+
+		const ignoreLLMRequestCache = Deno.env.get('BBAI_IGNORE_LLM_REQUEST_CACHE');
+		if (ignoreLLMRequestCache) apiConfig.ignoreLLMRequestCache = ignoreLLMRequestCache === 'true';
+
+		// Add CLI-specific env variables here if needed
+
+		if (Object.keys(apiConfig).length > 0) {
+			config.api = apiConfig;
+		}
+
+		if (Object.keys(cliConfig).length > 0) {
+			config.cli = cliConfig;
+		}
+
+		const logFile = Deno.env.get('BBAI_LOG_FILE');
+		if (logFile) config.logFile = logFile;
+
+		const logLevel = Deno.env.get('BBAI_LOG_LEVEL');
+		if (logLevel) config.logLevel = logLevel as 'debug' | 'info' | 'warn' | 'error';
+
+		return config;
 	}
 
-	public getConfig(): ConfigSchema {
+	public getConfig(): Partial<ConfigSchema> {
 		return this.config;
 	}
 
-	public getRedactedConfig(): ConfigSchema {
+	public getRedactedConfig(): Partial<ConfigSchema> {
 		const redactedConfig = JSON.parse(JSON.stringify(this.config));
 		if (redactedConfig.api.anthropicApiKey) redactedConfig.api.anthropicApiKey = '[REDACTED]';
 		if (redactedConfig.api.openaiApiKey) redactedConfig.api.openaiApiKey = '[REDACTED]';
 		return redactedConfig;
 	}
 }
+
+const configManager = await ConfigManager.getInstance();
+export const config = configManager.getConfig();
+export const redactedConfig = configManager.getRedactedConfig();

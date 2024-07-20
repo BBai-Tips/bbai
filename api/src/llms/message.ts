@@ -35,6 +35,8 @@ export interface LLMMessageContentPartToolResultBlock {
 	is_error?: boolean;
 }
 
+export type LLMMessageContentPartType = 'text' | 'image' | 'tool_use' | 'tool_calls' | 'tool_result' | 'tool';
+
 export type LLMMessageContentPart =
 	| LLMMessageContentPartTextBlock
 	| LLMMessageContentPartImageBlock
@@ -71,6 +73,7 @@ class LLMMessage {
 		public content: LLMMessageContentParts,
 		public tool_call_id?: string,
 		public providerResponse?: LLMMessageProviderResponse,
+		public id?: string,
 	) {}
 }
 

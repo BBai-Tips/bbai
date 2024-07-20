@@ -1,15 +1,19 @@
-import { LLMProvider as LLMProviderEnum } from 'shared/types.ts';
+import { LLMProvider as LLMProviderEnum } from '../types.ts';
 import LLM from './providers/baseLLM.ts';
 import AnthropicLLM from './providers/anthropicLLM.ts';
 import OpenAILLM from './providers/openAILLM.ts';
+import { ProjectEditor } from '../editor/projectEditor.ts';
 
 export class LLMFactory {
-	static getProvider(providerName: string): LLM {
-		switch (providerName.toLowerCase()) {
+	static getProvider(projectEditor: ProjectEditor, providerName?: string): LLM {
+		const defaultProvider = 'claude';
+		const provider = providerName?.toLowerCase() || defaultProvider;
+
+		switch (provider) {
 			case 'claude':
-				return new AnthropicLLM();
+				return new AnthropicLLM(projectEditor);
 			case 'openai':
-				return new OpenAILLM();
+				return new OpenAILLM(projectEditor);
 			default:
 				throw new Error(`Unsupported LLM provider: ${providerName}`);
 		}

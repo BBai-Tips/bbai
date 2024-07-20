@@ -1,34 +1,36 @@
 import Anthropic from 'anthropic';
 import type { ClientOptions } from 'anthropic';
 
-import { AnthropicModel, LLMProvider } from 'shared/types.ts';
+import { AnthropicModel, LLMProvider } from '../../types.ts';
 import LLM from './baseLLM.ts';
 import LLMConversation from '../conversation.ts';
 import LLMMessage, { LLMMessageContentParts } from '../message.ts';
-import type { LLMMessageContentPartTextBlock, LLMMessageContentPartToolResultBlock } from '../message.ts';
+import type {
+	LLMMessageContentPart,
+	LLMMessageContentPartTextBlock,
+	LLMMessageContentPartToolResultBlock,
+} from '../message.ts';
 import LLMTool from '../tool.ts';
 import { createError } from '../../utils/error.utils.ts';
 import { ErrorType, LLMErrorOptions } from '../../errors/error.ts';
 import { logger } from 'shared/logger.ts';
-import { ConfigManager } from 'shared/configManager.ts';
-import type { LLMProviderMessageRequest, LLMProviderMessageResponse, LLMSpeakWithOptions } from 'shared/types.ts';
+import { config } from 'shared/configManager.ts';
+import type { LLMProviderMessageRequest, LLMProviderMessageResponse, LLMSpeakWithOptions } from '../../types.ts';
+import { ProjectEditor } from '../../editor/projectEditor.ts';
 
 class AnthropicLLM extends LLM {
-	private anthropic: Anthropic;
+	private anthropic!: Anthropic;
 
-	constructor() {
-		super();
+	constructor(projectEditor: ProjectEditor) {
+		super(projectEditor);
 		this.providerName = LLMProvider.ANTHROPIC;
 
 		this.initializeAnthropicClient();
 	}
 
 	private async initializeAnthropicClient() {
-		const configManager = await ConfigManager.getInstance();
-		const config = configManager.getConfig();
-
 		const clientOptions: ClientOptions = {
-			apiKey: config.api.anthropicApiKey,
+			apiKey: config.api?.anthropicApiKey,
 		};
 		this.anthropic = new Anthropic(clientOptions);
 	}
@@ -40,21 +42,39 @@ class AnthropicLLM extends LLM {
 		} as Anthropic.MessageParam));
 	}
 
-	private asProviderToolType(tools: LLMTool[]): Anthropic.Tool[] {
-		return tools.map((tool) => ({
-				name: tool.name,
-				description: tool.description,
+	private asProviderToolType(tools: Map<string, LLMTool>): Anthropic.Tool[] {
+		return Array.from(tools.values()).map((tool) => ({
+			name: tool.name,
+			description: tool.description,
 			input_schema: tool.input_schema,
 		} as Anthropic.Tool));
 	}
 
-	public prepareMessageParams(
+	async prepareMessageParams(
 		conversation: LLMConversation,
 		speakOptions?: LLMSpeakWithOptions,
-	): Anthropic.MessageCreateParams {
-		const messages = this.asProviderMessageType(speakOptions?.messages || conversation.getMessages());
-		const tools = this.asProviderToolType(speakOptions?.tools || conversation.getTools());
-		const system: string = speakOptions?.system || conversation.system;
+	): Promise<Anthropic.MessageCreateParams> {
+		let system = speakOptions?.system || conversation.baseSystem;
+		const repositoryInfo = await this.getRepositoryInfo(await this.projectEditor.getBbaiDir(), await this.projectEditor.getProjectRoot(), conversation);
+		if (repositoryInfo) {
+			if (conversation.ctagsContent) {
+				conversation.ctagsContent = repositoryInfo;
+			} else {
+				conversation.fileListingContent = repositoryInfo;
+			}
+		}
+		system = await this.appendCtagsOrFileListingToSystem(system, conversation.ctagsContent, conversation.fileListingContent);
+		system = await this.appendFilesToSystem(system, conversation);
+
+		const messages = this.asProviderMessageType(
+			await this.hydrateMessages(
+				conversation,
+				speakOptions?.messages || conversation.getMessages(),
+			),
+		);
+
+		const tools = this.asProviderToolType(speakOptions?.tools || conversation.allTools());
+
 		const model: string = speakOptions?.model || conversation.model || AnthropicModel.CLAUDE_3_5_SONNET;
 		const maxTokens: number = speakOptions?.maxTokens || conversation.maxTokens;
 		const temperature: number = speakOptions?.temperature || conversation.temperature;
@@ -68,7 +88,6 @@ class AnthropicLLM extends LLM {
 			temperature,
 			stream: false,
 		};
-		//logger.debug("llms-anthropic-prepareMessageParams", messageParams);
 
 		return messageParams;
 	}
@@ -80,10 +99,10 @@ class AnthropicLLM extends LLM {
 	 * @returns Promise<LLMProviderMessageResponse> The response from Anthropic or an error
 	 */
 	public async speakWith(
-		messageParams: LLMProviderMessageRequest
+		messageParams: LLMProviderMessageRequest,
 	): Promise<LLMProviderMessageResponse> {
 		try {
-			logger.info('llms-anthropic-speakWith-messageParams', messageParams);
+			//logger.info('llms-anthropic-speakWith-messageParams', messageParams);
 
 			const { data: anthropicMessageStream, response: anthropicResponse } = await this.anthropic.messages.create(
 				messageParams as Anthropic.MessageCreateParams,

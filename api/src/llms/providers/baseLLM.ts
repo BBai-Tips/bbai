@@ -1,27 +1,58 @@
-import { LLMProvider as LLMProviderEnum } from 'shared/types.ts';
+import { join } from '@std/path';
+import Ajv from 'ajv';
+
+import { LLMProvider as LLMProviderEnum } from '../../types.ts';
 import type {
 	LLMProviderMessageRequest,
 	LLMProviderMessageResponse,
 	LLMSpeakWithOptions,
 	LLMTokenUsage,
 	LLMValidateResponseCallback,
-} from 'shared/types.ts';
-import type { LLMMessageContentPart, LLMMessageContentParts, LLMMessageContentPartTextBlock } from '../message.ts';
+} from '../../types.ts';
+import LLMMessage from '../message.ts';
+import type { LLMMessageContentPart, LLMMessageContentParts } from '../message.ts';
 import LLMTool from '../tool.ts';
 import type { LLMToolInputSchema } from '../tool.ts';
 import LLMConversation from '../conversation.ts';
 import { logger } from 'shared/logger.ts';
-import { ConfigManager } from 'shared/configManager.ts';
+import { config } from 'shared/configManager.ts';
 import { ErrorType, LLMErrorOptions } from '../../errors/error.ts';
 import { createError } from '../../utils/error.utils.ts';
 //import { metricsService } from '../../services/metrics.service.ts';
 import kv from '../../utils/kv.utils.ts';
 import { tokenUsageManager } from '../../utils/tokenUsage.utils.ts';
-import Ajv from 'ajv';
+import { ProjectEditor } from '../../editor/projectEditor.ts';
+import { ConversationPersistence } from '../../utils/conversationPersistence.utils.ts';
+import { readFileContent } from 'shared/dataDir.ts';
+import { readCtagsFile } from 'shared/ctags.ts';
+import { FILE_LISTING_TIERS, generateFileListing } from 'shared/fileListing.ts';
 
 const ajv = new Ajv();
 
-abstract class LLM {
+class LLM {
+	public providerName: LLMProviderEnum = LLMProviderEnum.ANTHROPIC;
+	public maxSpeakRetries: number = 3;
+	public requestCacheExpiry: number = 3 * (1000 * 60 * 60 * 24); // 3 days in milliseconds
+	public projectEditor: ProjectEditor;
+	//protected projectRoot: string;
+
+	constructor(projectEditor: ProjectEditor) {
+		this.projectEditor = projectEditor;
+	}
+
+	async prepareMessageParams(
+		conversation: LLMConversation,
+		speakOptions?: LLMSpeakWithOptions,
+	): Promise<object> {
+		throw new Error("Method 'prepareMessageParams' must be implemented.");
+	}
+
+	async speakWith(
+		messageParams: LLMProviderMessageRequest,
+	): Promise<LLMProviderMessageResponse> {
+		throw new Error("Method 'speakWith' must be implemented.");
+	}
+
 	protected modifySpeakWithConversationOptions(
 		conversation: LLMConversation,
 		speakOptions: LLMSpeakWithOptions,
@@ -29,21 +60,122 @@ abstract class LLM {
 	): void {
 		// Default implementation, can be overridden by subclasses
 	}
-	public providerName: LLMProviderEnum = LLMProviderEnum.ANTHROPIC;
-	public maxSpeakRetries: number = 3;
-	public requestCacheExpiry: number = 3 * (1000 * 60 * 60 * 24); // 3 days in milliseconds
-
-	abstract prepareMessageParams(
-		conversation: LLMConversation,
-		speakOptions?: LLMSpeakWithOptions,
-	): object;
-
-	abstract speakWith(
-		messageParams: LLMProviderMessageRequest,
-	): Promise<LLMProviderMessageResponse>;
 
 	createConversation(): LLMConversation {
 		return new LLMConversation(this);
+	}
+
+	async loadConversation(conversationId: string): Promise<LLMConversation> {
+		const persistence = new ConversationPersistence(conversationId, this.projectEditor);
+		await persistence.init();
+		const conversation = await LLMConversation.resume(conversationId, this);
+		return conversation;
+	}
+
+	protected async readProjectFileContent(filePath: string): Promise<string> {
+		const fullFilePath = join(await this.projectEditor.getProjectRoot(), filePath);
+		const content = await readFileContent(fullFilePath);
+		if (content === null) {
+			throw new Error(`File not found: ${fullFilePath}`);
+		}
+		return content;
+	}
+
+	protected async createFileXmlString(filePath: string): Promise<string | null> {
+		try {
+			logger.info('createFileXmlString - filePath', filePath);
+			const fullFilePath = join(await this.projectEditor.getProjectRoot(), filePath);
+			logger.info('createFileXmlString - fullFilePath', fullFilePath);
+			const content = await this.readProjectFileContent(filePath);
+			const metadata = {
+				size: new TextEncoder().encode(content).length,
+				lastModified: new Date(),
+			};
+			return `<file path="${filePath}" size="${metadata.size}" last_modified="${metadata.lastModified.toISOString()}">\n${content}\n</file>`;
+		} catch (error) {
+			logger.error(`Error creating XML string for ${filePath}: ${error.message}`);
+			//throw createError(ErrorType.FileHandling, `Failed to create xmlString for ${filePath}`, {
+			//	filePath,
+			//	operation: 'write',
+			//} as FileHandlingErrorOptions);
+		}
+		return null;
+	}
+
+	protected async appendCtagsOrFileListingToSystem(
+		system: string,
+		ctagsContent: string | null,
+		fileListingContent: string | null,
+	): Promise<string> {
+		if (ctagsContent) {
+			system += `\n\n<ctags>\n${ctagsContent}\n</ctags>`;
+		} else if (fileListingContent) {
+			system += `\n\n<file-listing>\n${fileListingContent}\n</file-listing>`;
+		}
+		return system;
+	}
+
+	protected async appendFilesToSystem(system: string, conversation: LLMConversation): Promise<string> {
+		for (const filePath of conversation.getSystemPromptFiles()) {
+			const fileXml = await this.createFileXmlString(filePath);
+			if (fileXml) {
+				system += `\n\n${fileXml}`;
+			}
+		}
+		return system;
+	}
+
+	protected async getRepositoryInfo(
+		bbaiDir: string,
+		projectRoot: string,
+		conversation: LLMConversation,
+	): Promise<string | null> {
+		const ctagsContent = await readCtagsFile(bbaiDir);
+		if (ctagsContent) {
+			conversation.repositoryInfoTier = 0; // Assuming ctags is always tier 0
+			return ctagsContent;
+		}
+
+		const fileListingContent = await generateFileListing(projectRoot);
+		if (fileListingContent) {
+			// Determine which tier was used for file listing
+			const tier = FILE_LISTING_TIERS.findIndex((t: { depth: number; includeMetadata: boolean }) => t.depth === Infinity && t.includeMetadata === true);
+			conversation.repositoryInfoTier = tier !== -1 ? tier : null;
+			return fileListingContent;
+		}
+
+		conversation.repositoryInfoTier = null;
+		return null;
+	}
+
+	protected async hydrateMessages(conversation: LLMConversation, messages: LLMMessage[]): Promise<LLMMessage[]> {
+		const processContentPart = async <T extends LLMMessageContentPart>(contentPart: T): Promise<T> => {
+			if (contentPart.type === 'text' && contentPart.text.startsWith('File added:')) {
+				const filePath = contentPart.text.split(': ')[1].trim();
+				const fileXml = await this.createFileXmlString(filePath);
+				return fileXml ? { ...contentPart, text: fileXml } as T : contentPart;
+			}
+			if (contentPart.type === 'tool_result' && Array.isArray(contentPart.content)) {
+				const updatedContent = await Promise.all(contentPart.content.map(processContentPart));
+				return { ...contentPart, content: updatedContent } as T;
+			}
+			return contentPart;
+		};
+
+		const processMessage = async (message: LLMMessage): Promise<LLMMessage | null> => {
+			if (!message || typeof message !== 'object') {
+				logger.error(`Invalid message encountered: ${JSON.stringify(message)}`);
+				return null;
+			}
+			if (message.role === 'user') {
+				const updatedContent = await Promise.all(message.content.map(processContentPart));
+				return { ...message, content: updatedContent };
+			}
+			return message;
+		};
+
+		const processedMessages = await Promise.all(messages.map(processMessage));
+		return processedMessages.filter((message): message is LLMMessage => message !== null);
 	}
 
 	protected createRequestCacheKey(
@@ -60,7 +192,7 @@ abstract class LLM {
 	): Promise<LLMProviderMessageResponse> {
 		const start = Date.now();
 
-		const llmProviderMessageRequest = this.prepareMessageParams(
+		const llmProviderMessageRequest = await this.prepareMessageParams(
 			conversation,
 			speakOptions,
 		) as LLMProviderMessageRequest;
@@ -68,8 +200,10 @@ abstract class LLM {
 		let llmProviderMessageResponse: LLMProviderMessageResponse | undefined;
 		let llmProviderMessageRequestId: string;
 
-		const cacheKey = !config.ignoreLLMRequestCache ? this.createRequestCacheKey(llmProviderMessageRequest) : [];
-		if (!config.ignoreLLMRequestCache) {
+		const cacheKey = !config.api?.ignoreLLMRequestCache
+			? this.createRequestCacheKey(llmProviderMessageRequest)
+			: [];
+		if (!config.api?.ignoreLLMRequestCache) {
 			const cachedResponse = await kv.get<LLMProviderMessageResponse>(cacheKey);
 
 			if (cachedResponse && cachedResponse.value) {
@@ -99,13 +233,15 @@ abstract class LLM {
 				llmProviderMessageResponse.toolsUsed = llmProviderMessageResponse.toolsUsed || [];
 				this.extractToolUse(llmProviderMessageResponse);
 			} else {
-				const answerPart = llmProviderMessageResponse.answerContent[0] as LLMMessageContentPartTextBlock;
-				llmProviderMessageResponse.answer = answerPart?.text;
+				const answerPart = llmProviderMessageResponse.answerContent[0] as LLMMessageContentPart;
+				if ('text' in answerPart) {
+					llmProviderMessageResponse.answer = answerPart.text;
+				}
 			}
 
 			llmProviderMessageResponse.fromCache = false;
 
-			if (!config.ignoreLLMRequestCache) {
+			if (!config.api?.ignoreLLMRequestCache) {
 				await kv.set(cacheKey, llmProviderMessageResponse, { expireIn: this.requestCacheExpiry });
 				//await metricsService.recordCacheMetrics({ operation: 'set' });
 			}
@@ -163,6 +299,7 @@ abstract class LLM {
 
 				if (validationFailedReason === null) {
 					conversation.updateTotals(totalTokenUsage, totalProviderRequests);
+					await conversation.save(); // Persist the conversation after successful response
 					return llmProviderMessageResponse;
 				}
 
@@ -184,6 +321,7 @@ abstract class LLM {
 		}
 
 		conversation.updateTotals(totalTokenUsage, totalProviderRequests);
+		await conversation.save(); // Persist the conversation even if all retries failed
 		logger.error(
 			`provider[${this.providerName}] Max retries reached. Request to ${this.providerName} failed.`,
 		);
@@ -209,14 +347,19 @@ abstract class LLM {
 			llmProviderMessageResponse.toolsUsed &&
 			llmProviderMessageResponse.toolsUsed.length > 0
 		) {
-			const tool: LLMTool = conversation.getTools()[0];
-			if (tool) {
-				const inputSchema: LLMToolInputSchema = tool.input_schema;
-				const validate = ajv.compile(inputSchema);
-				const valid = validate(llmProviderMessageResponse.toolsUsed[0].toolInput);
-				if (!valid) {
-					logger.error(`Tool input validation failed: ${ajv.errorsText(validate.errors)}`);
-					return `Tool input validation failed: ${ajv.errorsText(validate.errors)}`;
+			for (const toolUse of llmProviderMessageResponse.toolsUsed) {
+				const tool = conversation.getTool(toolUse.toolName ?? '');
+				if (tool) {
+					const inputSchema: LLMToolInputSchema = tool.input_schema;
+					const validate = ajv.compile(inputSchema);
+					const valid = validate(toolUse.toolInput);
+					if (!valid) {
+						logger.error(`Tool input validation failed: ${ajv.errorsText(validate.errors)}`);
+						return `Tool input validation failed: ${ajv.errorsText(validate.errors)}`;
+					}
+				} else {
+					logger.error(`Tool not found: ${toolUse.toolName}`);
+					return `Tool not found: ${toolUse.toolName}`;
 				}
 			}
 		}
@@ -269,5 +412,3 @@ abstract class LLM {
 }
 
 export default LLM;
-const configManager = await ConfigManager.getInstance();
-const config = configManager.getConfig();

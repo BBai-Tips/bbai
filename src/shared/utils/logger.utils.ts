@@ -1,34 +1,45 @@
-const logLevels = ["debug", "info", "warn", "error"] as const;
+import { config } from 'shared/configManager.ts';
+
+const logLevels = ['debug', 'info', 'warn', 'error'] as const;
 type LogLevel = typeof logLevels[number];
 
-class Logger {
-  private level: LogLevel = "info";
+const getLogLevel = async (): Promise<LogLevel> => {
+	const envLogLevel = Deno.env.get('LOG_LEVEL');
+	if (envLogLevel && logLevels.includes(envLogLevel as LogLevel)) {
+		return envLogLevel as LogLevel;
+	}
 
-  setLevel(level: LogLevel) {
-    this.level = level;
-  }
+	if (config.logLevel && logLevels.includes(config.logLevel as LogLevel)) {
+		return config.logLevel as LogLevel;
+	}
 
-  private log(level: LogLevel, message: string, ...args: unknown[]) {
-    if (logLevels.indexOf(level) >= logLevels.indexOf(this.level)) {
-      console[level](message, ...args);
-    }
-  }
+	return 'info';
+};
 
-  debug(message: string, ...args: unknown[]) {
-    this.log("debug", message, ...args);
-  }
+const currentLogLevel = await getLogLevel();
 
-  info(message: string, ...args: unknown[]) {
-    this.log("info", message, ...args);
-  }
-
-  warn(message: string, ...args: unknown[]) {
-    this.log("warn", message, ...args);
-  }
-
-  error(message: string, ...args: unknown[]) {
-    this.log("error", message, ...args);
-  }
-}
-
-export const logger = new Logger();
+export const logger = {
+	debug: (message: string, ...args: unknown[]) => {
+		if (logLevels.indexOf('debug') >= logLevels.indexOf(currentLogLevel)) {
+			// [FIXME] how do I enable debug logging via `console`
+			// I've set LOG_LEVEL and --log-level but nothing gets me console.debug logs, so use console.info for now
+			//console.debug(message, ...args);
+			console.info(message, ...args);
+		}
+	},
+	info: (message: string, ...args: unknown[]) => {
+		if (logLevels.indexOf('info') >= logLevels.indexOf(currentLogLevel)) {
+			console.info(message, ...args);
+		}
+	},
+	warn: (message: string, ...args: unknown[]) => {
+		if (logLevels.indexOf('warn') >= logLevels.indexOf(currentLogLevel)) {
+			console.warn(message, ...args);
+		}
+	},
+	error: (message: string, ...args: unknown[]) => {
+		if (logLevels.indexOf('error') >= logLevels.indexOf(currentLogLevel)) {
+			console.error(message, ...args);
+		}
+	},
+};

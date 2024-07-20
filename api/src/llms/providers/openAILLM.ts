@@ -1,7 +1,7 @@
 import { OpenAI } from 'openai';
 import { ms } from 'ms';
 
-import { LLMProvider, OpenAIModel } from 'shared/types.ts';
+import { LLMProvider, OpenAIModel } from '../../types.ts';
 import LLM from './baseLLM.ts';
 import LLMConversation from '../conversation.ts';
 import LLMMessage, { LLMMessageContentPart, LLMMessageContentParts } from '../message.ts';
@@ -10,22 +10,21 @@ import LLMTool from '../tool.ts';
 import { createError } from '../../utils/error.utils.ts';
 import { ErrorType, LLMErrorOptions } from '../../errors/error.ts';
 import { logger } from 'shared/logger.ts';
-import { ConfigManager } from 'shared/configManager.ts';
-import type { LLMProviderMessageRequest, LLMProviderMessageResponse, LLMSpeakWithOptions } from 'shared/types.ts';
+import { config } from 'shared/configManager.ts';
+import type { LLMProviderMessageRequest, LLMProviderMessageResponse, LLMSpeakWithOptions } from '../../types.ts';
+import { ProjectEditor } from '../../editor/projectEditor.ts';
 
 class OpenAILLM extends LLM {
-	private openai: OpenAI;
+	private openai!: OpenAI;
 
-	constructor() {
-		super();
+	constructor(projectEditor: ProjectEditor) {
+		super(projectEditor);
 		this.providerName = LLMProvider.OPENAI;
 		this.initializeOpenAIClient();
 	}
 
 	private async initializeOpenAIClient() {
-		const configManager = await ConfigManager.getInstance();
-		const config = configManager.getConfig();
-		const apiKey = config.api.openaiApiKey;
+		const apiKey = config.api?.openaiApiKey;
 		if (!apiKey) {
 			throw new Error('OpenAI API key is not set');
 		}
@@ -35,22 +34,22 @@ class OpenAILLM extends LLM {
 	private asProviderMessageType(messages: LLMMessage[]): OpenAI.Chat.ChatCompletionMessageParam[] {
 		return messages.map((message) => ((message.role === 'system' || message.role === 'user'
 			? {
-					role: message.role,
+				role: message.role,
 				content: message.content,
 			}
 			: message.role === 'assistant'
 			? (message.content[0].type === 'tool_use'
 				? {
-						role: message.role,
-						content: null,
-						tool_calls: [{
-							id: message.content[0].id,
-							type: 'function',
-							function: {
-								name: message.content[0].name,
-								arguments: JSON.stringify(message.content[0].input),
-							},
-						}],
+					role: message.role,
+					content: null,
+					tool_calls: [{
+						id: message.content[0].id,
+						type: 'function',
+						function: {
+							name: message.content[0].name,
+							arguments: JSON.stringify(message.content[0].input),
+						},
+					}],
 				}
 				: {
 					role: message.role,
@@ -69,8 +68,8 @@ class OpenAILLM extends LLM {
 		);
 	}
 
-	private asProviderToolType(tools: LLMTool[]): OpenAI.Chat.ChatCompletionTool[] {
-		return tools.map((tool) => ({
+	private asProviderToolType(tools: Map<string, LLMTool>): OpenAI.Chat.ChatCompletionTool[] {
+		return Array.from(tools.values()).map((tool) => ({
 			'type': 'function',
 			'function': {
 				name: tool.name,
@@ -105,13 +104,13 @@ class OpenAILLM extends LLM {
 		return contentParts;
 	}
 
-	public prepareMessageParams(
+	public async prepareMessageParams(
 		conversation: LLMConversation,
 		speakOptions?: LLMSpeakWithOptions,
-	): OpenAI.Chat.ChatCompletionCreateParams {
+	): Promise<OpenAI.Chat.ChatCompletionCreateParams> {
 		const messages = this.asProviderMessageType(speakOptions?.messages || conversation.getMessages());
-		const tools = this.asProviderToolType(speakOptions?.tools || conversation.getTools());
-		const system: string = speakOptions?.system || conversation.system;
+		const tools = this.asProviderToolType(speakOptions?.tools || conversation.allTools());
+		const system: string = speakOptions?.system || conversation.baseSystem;
 		const model: string = speakOptions?.model || conversation.model || OpenAIModel.GPT_4o;
 		const maxTokens: number = speakOptions?.maxTokens || conversation.maxTokens;
 		const temperature: number = speakOptions?.temperature || conversation.temperature;
@@ -137,7 +136,7 @@ class OpenAILLM extends LLM {
 	 * @returns Promise<LLMProviderMessageResponse> The response from OpenAI or an error
 	 */
 	public async speakWith(
-		messageParams: LLMProviderMessageRequest
+		messageParams: LLMProviderMessageRequest,
 	): Promise<LLMProviderMessageResponse> {
 		try {
 			logger.debug('llms-openai-speakWith-messageParams', JSON.stringify(messageParams, null, 2));

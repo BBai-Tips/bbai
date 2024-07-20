@@ -1,10 +1,24 @@
-# `bbai` Project Conventions
+# BBai Project Conventions
+
+## Note to Users
+This document is primarily intended for the AI assistant to understand the project's conventions and guidelines. While you're welcome to read it, please be aware that changes to this file should only be made when explicitly instructed, as they directly affect how the AI interprets and works with the project.
 
 ## IMPORTANT NOTE FOR ASSISTANT
 DO NOT MAKE ANY CODE CHANGES UNTIL EXPLICITLY ASKED TO DO SO. The coding assistant will prompt for code changes. Respect those instructions but wait until explicitly told to write code.
 
 ## Project Overview
-`bbai` is a project that provides REST API and CLI tools to modify local files using LLM, inspired by the `aider` tool. It supports vector embeddings for code/text chunks from local repositories, implements RAG (Retrieval-Augmented Generation) for LLM, and provides LLM tools for requesting access to files for review or edit.
+BBai is a versatile project that provides REST API and CLI tools to modify and enhance a wide range of text-based projects using LLM technology. Inspired by the `aider` tool, BBai is designed to work with various text formats including, but not limited to:
+
+- Programming code in any language
+- Prose and documentation
+- Fiction writing
+- LLM prompts
+- HTML and SVG
+- Markdown and other markup languages
+- Configuration files
+- Data formats (JSON, YAML, etc.)
+
+It supports vector embeddings for code and text chunks from local repositories, implements RAG (Retrieval-Augmented Generation) for LLM, and provides LLM tools for requesting access to files for review or edit. This makes `bbai` a powerful assistant for any text-based project, whether it's software development, content creation, or data analysis.
 
 ## Technology Stack
 - Runtime: Deno with TypeScript (strict mode)
@@ -28,6 +42,22 @@ DO NOT MAKE ANY CODE CHANGES UNTIL EXPLICITLY ASKED TO DO SO. The coding assista
 - Documentation: `docs/`
 - API tests: `hurl/`
 - Configuration: Separate `deno.jsonc` files for `api` and `cli`
+
+## Glossary of Terms
+
+- **Conversation**: An ongoing interaction between a user and the bbai system, which may include multiple statements and turns.
+- **Statement**: A single request or input from the user to the bbai system.
+- **Turn**: A single request-response cycle between bbai and the LLM.
+- **Session**: The entire duration of a user's interaction with bbai, which may include multiple conversations.
+- **Project**: The collection of files and resources that bbai is working with.
+- **Tool**: A specific function or capability that the LLM can use to perform actions or retrieve information.
+- **Patch**: A set of changes to be applied to a file.
+- **Commit**: A saved state of the project in the version control system.
+- **Embedding**: A numerical representation of text used for semantic search and comparison.
+- **Token**: The basic unit of text processing for the LLM, typically a word or part of a word.
+- **Prompt**: The input provided to the LLM to guide its response.
+- **System Prompt**: The initial instructions given to the LLM to set its behavior and context.
+- **RAG (Retrieval-Augmented Generation)**: A technique that combines retrieval of relevant information with text generation.
 
 ## API Design
 - RESTful principles with primary endpoints at /api/v1
@@ -69,6 +99,7 @@ Key API Endpoints:
 - Ensure cross-platform compatibility
 - Use descriptive names for CLI-specific components
 - Prefix CLI-specific types with `CLI`
+- The CLI tool is named `bbai` (lowercase)
 
 ## Configuration
 - Use `deno.jsonc` for project configuration

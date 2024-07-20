@@ -7,7 +7,6 @@ import LLMMessage from '../llms/message.ts';
 import type { LLMAnswerToolUse, LLMMessageContentParts } from '../llms/message.ts';
 export type { LLMMessageContentPart, LLMMessageContentParts } from '../llms/message.ts';
 
-
 export type ConversationId = string;
 
 export enum AnthropicModel {
@@ -138,7 +137,7 @@ export interface LLMProviderMessageResponseMeta {
 export interface LLMProviderMessageRequest {
 	id?: string;
 	messages: LLMMessage[];
-	tools?: LLMTool[];
+	tools?: Map<string, LLMTool>;
 	system: string;
 	prompt: string;
 	model: string;
@@ -177,7 +176,7 @@ export type LLMValidateResponseCallback = (
 
 export interface LLMSpeakWithOptions {
 	messages?: LLMMessage[];
-	tools?: LLMTool[];
+	tools?: Map<string, LLMTool>;
 	system?: string;
 	model?: string;
 	maxTokens?: number;
