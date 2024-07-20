@@ -19,31 +19,15 @@ export const apiStart = new Command()
     const logFile = join(bbaiDir, "api.log");
 
     const command = new Deno.Command("deno", {
-      args: ["run", "--allow-read", "--allow-write", "--allow-env", "--allow-net", "--allow-run", "../api/src/main.ts"],
+      args: ["run", "--allow-read", "--allow-write", "--allow-env", "--allow-net", "--allow-run", "../api/src/main.ts", logFile],
       cwd: "../api",
-      stdout: "piped",
-      stderr: "piped",
+      stdout: "null",
+      stderr: "null",
       stdin: "null",
       detached: true,
     });
 
     const process = command.spawn();
-
-    // Redirect stdout and stderr to the log file
-    const logStream = await Deno.open(logFile, { write: true, create: true, append: true });
-    const encoder = new TextEncoder();
-    
-    (async () => {
-      for await (const chunk of process.stdout) {
-        await logStream.write(chunk);
-      }
-    })();
-
-    (async () => {
-      for await (const chunk of process.stderr) {
-        await logStream.write(encoder.encode(`[ERROR] ${new TextDecoder().decode(chunk)}`));
-      }
-    })();
 
     // Wait a short time to ensure the process has started
     await new Promise(resolve => setTimeout(resolve, 1000));
