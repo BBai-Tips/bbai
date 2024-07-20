@@ -5,7 +5,7 @@ import {
 	LLMSpeakWithOptions,
 	LLMTokenUsage,
 } from '../types.ts';
-import type { RepoRecId } from '../types.ts';
+import type { RepoRecId, LLMProviderMessageRequest, LLMProviderMessageResponse } from '../types.ts';
 import LLMMessage from './message.ts';
 import type { LLMMessageProviderResponse } from './message.ts';
 import LLMTool from './tool.ts';
@@ -23,7 +23,7 @@ class LLMConversation {
 	private messages: LLMMessage[] = [];
 	private tools: LLMTool[] = [];
 
-	private llmConversationRepository: LLMConversationRepository;
+	private llmConversationRepository: any; // TODO: Replace 'any' with the correct type when available
 
 	protected _system: string = '';
 	protected _model: string = '';
@@ -37,7 +37,7 @@ class LLMConversation {
 		this.id = ulid();
 		this.llm = llm;
 
-		this.llmConversationRepository = new LLMConversationRepository();
+		this.llmConversationRepository = {}; // TODO: Initialize properly when LLMConversationRepository is implemented
 	}
 
 	private async logConversation(): Promise<void> {
