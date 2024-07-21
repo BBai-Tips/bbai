@@ -8,7 +8,13 @@ import { ConfigSchema, mergeConfigs } from './configSchema.ts';
 
 export class ConfigManager {
 	private static instance: ConfigManager;
-	private config: Partial<ConfigSchema> = { api: {}, cli: {} } as Partial<ConfigSchema>;
+	private config: Partial<ConfigSchema> = {
+		api: {
+			environment: 'local',
+			apiPort: 3000,
+		},
+		cli: {}
+	};
 
 	private constructor() {}
 
