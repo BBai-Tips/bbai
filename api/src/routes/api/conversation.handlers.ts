@@ -1,53 +1,41 @@
 import { Context } from '@oak/oak';
-import { LLMFactory } from '../../llms/llmProvider.ts';
 import { logger } from 'shared/logger.ts';
-import { PromptManager } from '../../prompts/promptManager.ts';
-import { ConversationPersistence } from '../../utils/conversationPersistence.utils.ts';
+import { ProjectEditor } from '../../editor/projectEditor.ts';
 
-const promptManager = new PromptManager();
+const projectEditor = new ProjectEditor();
 
 export const startConversation = async (ctx: Context) => {
-	logger.debug('startConversation called');
-	logger.debug('Request method:', ctx.request.method);
-	logger.debug('Request URL:', ctx.request.url);
-	logger.debug('Request headers:', ctx.request.headers);
+    logger.debug('startConversation called');
+    logger.debug('Request method:', ctx.request.method);
+    logger.debug('Request URL:', ctx.request.url);
+    logger.debug('Request headers:', ctx.request.headers);
 
-	try {
-		const body = await ctx.request.body.json();
-		logger.debug('Request body:', body);
-		const { prompt, provider, model } = body;
+    try {
+        const body = await ctx.request.body.json();
+        logger.debug('Request body:', body);
+        const { prompt, provider, model } = body;
 
-		if (!prompt) {
-			logger.warn('Missing system or prompt');
-			ctx.response.status = 400;
-			ctx.response.body = { error: 'Missing system or prompt' };
-			return;
-		}
+        if (!prompt) {
+            logger.warn('Missing prompt');
+            ctx.response.status = 400;
+            ctx.response.body = { error: 'Missing prompt' };
+            return;
+        }
 
-		logger.debug('Creating LLM provider:', provider);
-		const llmProvider = LLMFactory.getProvider(provider);
+        logger.debug('Starting conversation with ProjectEditor');
+        const response = await projectEditor.startConversation(prompt, provider, model);
 
-		const systemPrompt = await promptManager.getPrompt('system', { userDefinedContent: "Help me with this code" });
+        logger.debug('LLM response:', response);
+        ctx.response.body = response;
+    } catch (error) {
+        logger.error(`Error in startConversation: ${error.message}`);
+        logger.error('Error stack:', error.stack);
+        ctx.response.status = 500;
+        ctx.response.body = { error: 'Failed to generate response' };
+    }
 
-		logger.debug('Calling llmProvider.speakWith');
-		const response = await llmProvider.speakWith({
-			messages: [{ role: 'user', content: [{ type: 'text', text: prompt }] }],
-			system: systemPrompt,
-			prompt: prompt,
-			model: model || '',
-		});
-
-		logger.debug('LLM response:', response);
-		ctx.response.body = response;
-	} catch (error) {
-		logger.error(`Error in startConversation: ${error.message}`);
-		logger.error('Error stack:', error.stack);
-		ctx.response.status = 500;
-		ctx.response.body = { error: 'Failed to generate response' };
-	}
-
-	logger.debug('Response status:', ctx.response.status);
-	logger.debug('Response body:', ctx.response.body);
+    logger.debug('Response status:', ctx.response.status);
+    logger.debug('Response body:', ctx.response.body);
 };
 
 export const getConversation = async (
