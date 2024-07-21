@@ -18,11 +18,11 @@ export class ProjectEditor {
         this.llmProvider = LLMFactory.getProvider(); // Initialize llmProvider
     }
 
-    private determineStorageLocation(filePath: string, content: string): 'system' | 'message' {
+    private determineStorageLocation(filePath: string, content: string, source: 'tool' | 'user'): 'system' | 'message' {
         const fileSize = new TextEncoder().encode(content).length;
         const fileCount = this.conversation?.listFiles().length || 0;
 
-        if (fileCount < 10 && fileSize < 50 * 1024) {
+        if (source === 'user' || (fileCount < 10 && fileSize < 50 * 1024)) {
             return 'system';
         }
         return 'message';
@@ -177,7 +177,7 @@ export class ProjectEditor {
         this.conversation?.addTool(applyPatchTool);
     }
 
-    async addFile(filePath: string, content: string, toolUseId: string): Promise<void> {
+    async addFile(filePath: string, content: string, source: 'tool' | 'user', toolUseId?: string): Promise<void> {
         if (!this.conversation) {
             throw new Error("Conversation not started. Call startConversation first.");
         }
@@ -187,24 +187,31 @@ export class ProjectEditor {
                 path: filePath,
                 size: new TextEncoder().encode(content).length,
                 last_modified: new Date().toISOString(),
+                source: source,
             };
 
-            const fileContent = {
-                type: 'tool_result',
-                tool_use_id: toolUseId,
-                value: {
-                    file_path: filePath,
-                    content: content,
-                    metadata: metadata
-                }
-            };
+            const storageLocation = this.determineStorageLocation(filePath, content, source);
 
-            await this.conversation.addMessage({
-                role: 'assistant',
-                content: [fileContent]
-            });
+            if (storageLocation === 'system') {
+                await this.conversation.addFileToSystemPrompt(filePath, content, metadata);
+            } else {
+                const fileContent = {
+                    type: 'tool_result',
+                    tool_use_id: toolUseId,
+                    value: {
+                        file_path: filePath,
+                        content: content,
+                        metadata: metadata
+                    }
+                };
 
-            logger.info(`File ${filePath} added to the project and LLM conversation as a tool result`);
+                await this.conversation.addMessage({
+                    role: 'assistant',
+                    content: [fileContent]
+                });
+            }
+
+            logger.info(`File ${filePath} added to the project and LLM conversation as a ${source} result`);
         } catch (error) {
             logger.error(`Error adding file ${filePath}: ${error.message}`);
             throw createError(ErrorType.FileHandling, `Failed to add file ${filePath}`, {
@@ -229,7 +236,7 @@ export class ProjectEditor {
         for (const fileName of fileNames) {
             try {
                 const content = await Deno.readTextFile(fileName);
-                await this.addFile(fileName, content, toolUseId);
+                await this.addFile(fileName, content, 'tool', toolUseId);
                 logger.info(`File ${fileName} added to the chat`);
             } catch (error) {
                 logger.error(`Error adding file ${fileName}: ${error.message}`);
