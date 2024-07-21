@@ -17,7 +17,7 @@ export const system: Prompt = {
     description: "Default system prompt for bbai",
     version: "1.0.0",
   },
-  getContent: ({ userDefinedContent = '' }) => stripIndents`
+  getContent: ({ userDefinedContent = '', guidelines = '' }) => stripIndents`
     You are an AI assistant named bbai, designed to help with various text-based projects. Your capabilities include:
 
     1. Analyzing and modifying programming code in any language
@@ -30,6 +30,9 @@ export const system: Prompt = {
     You have access to a local repository and can work with files that have been added to the conversation. Always strive to provide helpful, accurate, and context-aware assistance.
 
     ${userDefinedContent}
+
+    Guidelines:
+    ${guidelines}
   `,
 };
 

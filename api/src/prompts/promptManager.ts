@@ -2,7 +2,7 @@ import { join } from "@std/path";
 import { exists } from "@std/fs";
 import { parse as parseYaml } from "yaml";
 import { stripIndents } from "common-tags";
-import { getBbaiDir } from "shared/dataDir.ts";
+import { getBbaiDir, loadConfig, resolveFilePath, readFileContent } from "shared/dataDir.ts";
 import * as defaultPrompts from "./defaultPrompts.ts";
 
 interface PromptMetadata {
@@ -18,15 +18,29 @@ interface Prompt {
 
 export class PromptManager {
   private userPromptsDir: string;
+  private config: Record<string, any>;
 
   constructor() {
     this.userPromptsDir = "";
-    this.initializeUserPromptsDir();
+    this.config = {};
+    this.initialize();
   }
 
-  private async initializeUserPromptsDir() {
+  private async initialize() {
     const bbaiDir = await getBbaiDir();
     this.userPromptsDir = join(bbaiDir, "prompts");
+    this.config = await loadConfig();
+  }
+
+  private async loadGuidelines(): Promise<string | null> {
+    const guidelinesPath = this.config.llmGuidelinesFile;
+    if (!guidelinesPath) {
+      return null;
+    }
+
+    const isUserLevel = this.config.configSource === 'user';
+    const resolvedPath = await resolveFilePath(guidelinesPath, isUserLevel);
+    return await readFileContent(resolvedPath);
   }
 
   async getPrompt(promptName: string, variables: Record<string, any> = {}): Promise<string> {
@@ -37,12 +51,15 @@ export class PromptManager {
       throw new Error(`Prompt '${promptName}' not found`);
     }
 
+    const guidelines = await this.loadGuidelines();
+    const updatedVariables = { ...variables, guidelines: guidelines || '' };
+
     if (userPrompt) {
-      return this.applyTemplate(userPrompt.content, variables);
+      return this.applyTemplate(userPrompt.content, updatedVariables);
     }
 
     if (defaultPrompt) {
-      return defaultPrompt.getContent(variables);
+      return defaultPrompt.getContent(updatedVariables);
     }
 
     throw new Error(`Prompt '${promptName}' content not found`);

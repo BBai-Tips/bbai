@@ -1,6 +1,8 @@
-import { ensureDir } from '@std/fs';
-import { join } from '@std/path';
+import { ensureDir, exists } from '@std/fs';
+import { join, resolve } from '@std/path';
+import { parse as parseYaml } from "yaml";
 import { GitUtils } from './git.utils.ts';
+import { ConfigManager } from 'shared/configManager.ts';
 
 export async function getBbaiDir(): Promise<string> {
 	const gitRoot = await GitUtils.findGitRoot();
@@ -79,4 +81,32 @@ export async function removeFromBbaiCacheDir(filename: string): Promise<void> {
 			throw error;
 		}
 	}
+}
+
+export async function loadConfig(): Promise<Record<string, any>> {
+	const configManager = await ConfigManager.getInstance();
+	return configManager.getConfig();
+}
+
+export async function resolveFilePath(filePath: string, isUserLevel: boolean): Promise<string> {
+	if (filePath.startsWith('/')) {
+		return filePath;
+	}
+
+	if (isUserLevel) {
+		return join(Deno.env.get('HOME') || '', filePath);
+	} else {
+		const gitRoot = await GitUtils.findGitRoot();
+		if (!gitRoot) {
+			throw new Error('Not in a git repository');
+		}
+		return join(gitRoot, filePath);
+	}
+}
+
+export async function readFileContent(filePath: string): Promise<string | null> {
+	if (await exists(filePath)) {
+		return await Deno.readTextFile(filePath);
+	}
+	return null;
 }
