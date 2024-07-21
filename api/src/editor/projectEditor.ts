@@ -56,10 +56,10 @@ export class ProjectEditor {
         const systemPrompt = await this.promptManager.getPrompt('system', { userDefinedContent: "You are an AI assistant helping with code and project management." });
 
         this.conversation = this.llmProvider.createConversation();
-        this.conversation.system = systemPrompt;
+        this.conversation.baseSystem = systemPrompt;
         this.conversation.model = model;
         
-        // Add ctags to the system prompt
+        // Update ctags
         await this.updateCtags();
 
         this.addDefaultTools();
@@ -225,12 +225,22 @@ export class ProjectEditor {
                 source: source,
             };
 
-            const storageLocation = this.determineStorageLocation(filePath, content, source);
+            await this.conversation.addFile(filePath, content, metadata);
 
-            if (storageLocation === 'system') {
-                await this.conversation.addFileToSystemPrompt(filePath, content, metadata);
-            } else {
-                await this.conversation.addFileToMessageArray(filePath, content, metadata, toolUseId);
+            if (source === 'tool' && toolUseId) {
+                const fileContent = `<file path="${metadata.path}" size="${metadata.size}" last_modified="${metadata.last_modified}">\n${content}\n</file>`;
+                const fileMessage = `File added: ${filePath}\n${fileContent}`;
+                const toolResult: LLMMessageContentPartToolResultBlock = {
+                    type: 'tool_result',
+                    tool_use_id: toolUseId,
+                    content: [
+                        {
+                            type: 'text',
+                            text: fileMessage
+                        }
+                    ]
+                };
+                this.conversation.addMessage(new LLMMessage('user', [toolResult]));
             }
 
             logger.info(`File ${filePath} added to the project and LLM conversation as a ${source} result`);
@@ -340,7 +350,7 @@ export class ProjectEditor {
         await generateCtags();
         const ctagsContent = await readCtagsFile();
         if (ctagsContent && this.conversation) {
-            this.conversation.system += `\n\n<ctags>\n${ctagsContent}\n</ctags>`;
+            this.conversation.ctagsContent = ctagsContent;
         }
     }
 

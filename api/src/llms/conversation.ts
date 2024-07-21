@@ -26,7 +26,9 @@ class LLMConversation {
 
 	private persistence: ConversationPersistence;
 
-	protected _system: string = '';
+	protected _baseSystem: string = '';
+	protected _ctagsContent: string = '';
+	protected _files: Map<string, { content: string; metadata: any }> = new Map();
 	protected _model: string = '';
 	protected _maxTokens: number = 4000;
 	protected _temperature: number = 0.2;
@@ -40,34 +42,8 @@ class LLMConversation {
 		this.persistence = new ConversationPersistence(this.id);
 	}
 
-	async addFileToSystemPrompt(filePath: string, content: string, metadata: any): Promise<void> {
-		const fileContent = `<file path="${metadata.path}" size="${metadata.size}" last_modified="${metadata.last_modified}">\n${content}\n</file>`;
-		this._system += `\n\n${fileContent}`;
-		this.files.set(filePath, { content, metadata });
-		await this.persistence.saveConversation(this);
-	}
-
-	async addFileToMessageArray(filePath: string, content: string, metadata: any, toolUseId?: string): Promise<void> {
-		const fileContent = `<file path="${metadata.path}" size="${metadata.size}" last_modified="${metadata.last_modified}">\n${content}\n</file>`;
-		const fileMessage = `File added: ${filePath}\n${fileContent}`;
-		
-		if (toolUseId) {
-			const toolResult: LLMMessageContentPartToolResultBlock = {
-				type: 'tool_result',
-				tool_use_id: toolUseId,
-				content: [
-					{
-						type: 'text',
-						text: fileMessage
-					}
-				]
-			};
-			this.addMessage(new LLMMessage('user', [toolResult]));
-		} else {
-			this.addMessageWithCorrectRole(fileMessage);
-		}
-		
-		this.files.set(filePath, { content, metadata });
+	async addFile(filePath: string, content: string, metadata: any): Promise<void> {
+		this._files.set(filePath, { content, metadata });
 		await this.persistence.saveConversation(this);
 	}
 
@@ -151,12 +127,20 @@ class LLMConversation {
 		this._currentPrompt = value;
 	}
 
-	get system(): string {
-		return this._system;
+	get baseSystem(): string {
+		return this._baseSystem;
 	}
 
-	set system(value: string) {
-		this._system = value;
+	set baseSystem(value: string) {
+		this._baseSystem = value;
+	}
+
+	get ctagsContent(): string {
+		return this._ctagsContent;
+	}
+
+	set ctagsContent(value: string) {
+		this._ctagsContent = value;
 	}
 
 	get model(): string {
