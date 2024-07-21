@@ -80,6 +80,15 @@ export class ConversationPersistence {
 						operation: 'write',
 					} as FileHandlingErrorOptions,
 				);
+			} else if (error instanceof Deno.errors.NotFound) {
+				throw createError(
+					ErrorType.FileHandling,
+					`File or directory not found when saving conversation: ${this.filePath}`,
+					{
+						filePath: this.filePath,
+						operation: 'write',
+					} as FileHandlingErrorOptions,
+				);
 			} else {
 				logger.error(`Error saving conversation: ${error.message}`);
 				throw createError(ErrorType.FileHandling, `Failed to save conversation: ${this.filePath}`, {
