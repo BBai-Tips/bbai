@@ -25,9 +25,12 @@ export const system: Prompt = {
     let guidelines = '';
 
     if (guidelinesPath) {
-      const isUserLevel = config.configSource === 'user';
-      const resolvedPath = await resolveFilePath(guidelinesPath, isUserLevel);
-      guidelines = await readFileContent(resolvedPath) || '';
+      try {
+        const resolvedPath = await resolveFilePath(guidelinesPath);
+        guidelines = await readFileContent(resolvedPath) || '';
+      } catch (error) {
+        console.error(`Failed to load guidelines: ${error.message}`);
+      }
     }
 
     return stripIndents`

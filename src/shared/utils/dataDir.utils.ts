@@ -88,20 +88,25 @@ export async function loadConfig(): Promise<Record<string, any>> {
 	return configManager.getConfig();
 }
 
-export async function resolveFilePath(filePath: string, isUserLevel: boolean): Promise<string> {
+export async function resolveFilePath(filePath: string): Promise<string> {
 	if (filePath.startsWith('/')) {
 		return filePath;
 	}
 
-	if (isUserLevel) {
-		return join(Deno.env.get('HOME') || '', filePath);
-	} else {
-		const gitRoot = await GitUtils.findGitRoot();
-		if (!gitRoot) {
-			throw new Error('Not in a git repository');
+	const gitRoot = await GitUtils.findGitRoot();
+	if (gitRoot) {
+		const projectPath = join(gitRoot, filePath);
+		if (await exists(projectPath)) {
+			return projectPath;
 		}
-		return join(gitRoot, filePath);
 	}
+
+	const homePath = join(Deno.env.get('HOME') || '', filePath);
+	if (await exists(homePath)) {
+		return homePath;
+	}
+
+	throw new Error(`File not found: ${filePath}`);
 }
 
 export async function readFileContent(filePath: string): Promise<string | null> {
