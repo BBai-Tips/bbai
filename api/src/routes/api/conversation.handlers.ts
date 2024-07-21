@@ -99,12 +99,18 @@ export const addFile = async (
         const body = await request.body().value;
         const { filePath } = body;
 
+        if (!filePath) {
+            response.status = 400;
+            response.body = { error: 'Missing filePath in request body' };
+            return;
+        }
+
         // TODO: Implement file addition logic
         // For now, we'll just log the file addition
         logger.info(`File ${filePath} added to conversation ${conversationId}`);
 
         response.status = 200;
-        response.body = { message: 'File added to conversation' };
+        response.body = { message: 'File added to conversation', conversationId, filePath };
     } catch (error) {
         logger.error(`Error in addFile: ${error.message}`);
         response.status = 500;
@@ -118,12 +124,18 @@ export const removeFile = async (
     try {
         const { id: conversationId, fileId } = params;
 
+        if (!fileId) {
+            response.status = 400;
+            response.body = { error: 'Missing fileId in request parameters' };
+            return;
+        }
+
         // TODO: Implement file removal logic
         // For now, we'll just log the file removal
         logger.info(`File ${fileId} removed from conversation ${conversationId}`);
 
         response.status = 200;
-        response.body = { message: `File ${fileId} removed from conversation` };
+        response.body = { message: `File ${fileId} removed from conversation`, conversationId, fileId };
     } catch (error) {
         logger.error(`Error in removeFile: ${error.message}`);
         response.status = 500;
