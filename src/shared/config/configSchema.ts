@@ -54,6 +54,6 @@ export function mergeConfigs(...configs: Partial<ConfigSchema>[]): ConfigSchema 
             }
         }
 
-        return mergedConfig;
-    }, { ...defaultConfig });
+        return mergedConfig as ConfigSchema;
+    }, { ...defaultConfig } as ConfigSchema);
 }
