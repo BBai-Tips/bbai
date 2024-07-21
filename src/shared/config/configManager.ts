@@ -97,13 +97,16 @@ export class ConfigManager {
 	}
 
 	private loadEnvConfig(): Partial<ConfigSchema> {
-		const config: Partial<ConfigSchema> = { api: {} };
+		const config: Partial<ConfigSchema> = { api: {}, cli: {} };
 
 		const anthropicApiKey = Deno.env.get('ANTHROPIC_API_KEY');
 		if (anthropicApiKey) config.api!.anthropicApiKey = anthropicApiKey;
 
 		const openaiApiKey = Deno.env.get('OPENAI_API_KEY');
 		if (openaiApiKey) config.api!.openaiApiKey = openaiApiKey;
+
+		const voyageaiApiKey = Deno.env.get('VOYAGEAI_API_KEY');
+		if (voyageaiApiKey) config.api!.voyageaiApiKey = voyageaiApiKey;
 
 		const environment = Deno.env.get('BBAI_ENVIRONMENT');
 		if (environment) config.api!.environment = environment;
@@ -112,7 +115,13 @@ export class ConfigManager {
 		if (apiPort) config.api!.apiPort = parseInt(apiPort, 10);
 
 		const ignoreLLMRequestCache = Deno.env.get('BBAI_IGNORE_LLM_REQUEST_CACHE');
-		if (ignoreLLMRequestCache === 'true') config.api!.ignoreLLMRequestCache = true;
+		if (ignoreLLMRequestCache) config.api!.ignoreLLMRequestCache = ignoreLLMRequestCache === 'true';
+
+		const logFile = Deno.env.get('BBAI_LOG_FILE');
+		if (logFile) config.logFile = logFile;
+
+		const logLevel = Deno.env.get('BBAI_LOG_LEVEL');
+		if (logLevel) config.logLevel = logLevel as 'debug' | 'info' | 'warn' | 'error';
 
 		// Add CLI-specific env variables here if needed
 
