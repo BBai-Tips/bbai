@@ -5,8 +5,8 @@ export interface ConfigSchema {
 		anthropicApiKey?: string;
 		openaiApiKey?: string;
 		voyageaiApiKey?: string;
-		environment: string;
-		apiPort: number;
+		environment?: string;
+		apiPort?: number;
 		ignoreLLMRequestCache?: boolean;
 	};
 	cli: {};

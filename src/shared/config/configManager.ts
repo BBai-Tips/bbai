@@ -13,7 +13,7 @@ export class ConfigManager {
 			environment: 'local',
 			apiPort: 3000,
 		},
-		cli: {}
+		cli: {},
 	};
 
 	private constructor() {}
@@ -104,7 +104,8 @@ export class ConfigManager {
 
 	private loadEnvConfig(): Partial<ConfigSchema> {
 		const config: Partial<ConfigSchema> = {};
-		let apiConfig: Partial<ConfigSchema['api']> = {};
+		const apiConfig: Partial<ConfigSchema['api']> = {};
+		const cliConfig: Partial<ConfigSchema['cli']> = {};
 
 		const anthropicApiKey = Deno.env.get('ANTHROPIC_API_KEY');
 		if (anthropicApiKey) apiConfig.anthropicApiKey = anthropicApiKey;
@@ -124,8 +125,14 @@ export class ConfigManager {
 		const ignoreLLMRequestCache = Deno.env.get('BBAI_IGNORE_LLM_REQUEST_CACHE');
 		if (ignoreLLMRequestCache) apiConfig.ignoreLLMRequestCache = ignoreLLMRequestCache === 'true';
 
+		// Add CLI-specific env variables here if needed
+
 		if (Object.keys(apiConfig).length > 0) {
 			config.api = apiConfig;
+		}
+
+		if (Object.keys(cliConfig).length > 0) {
+			config.cli = cliConfig;
 		}
 
 		const logFile = Deno.env.get('BBAI_LOG_FILE');
@@ -133,8 +140,6 @@ export class ConfigManager {
 
 		const logLevel = Deno.env.get('BBAI_LOG_LEVEL');
 		if (logLevel) config.logLevel = logLevel as 'debug' | 'info' | 'warn' | 'error';
-
-		// Add CLI-specific env variables here if needed
 
 		return config;
 	}
