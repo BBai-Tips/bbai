@@ -50,17 +50,19 @@ class AnthropicLLM extends LLM {
 		speakOptions?: LLMSpeakWithOptions,
 	): Promise<Anthropic.MessageCreateParams> {
 		const messages = await Promise.all(conversation.getMessages().map(async (message) => {
-			if (message.role === 'user' && message.content[0].type === 'text' && message.content[0].text.startsWith('File added:')) {
-				const filePath = message.content[0].text.split(': ')[1].trim();
-				const fileMetadata = conversation.getFile(filePath);
-				if (fileMetadata) {
-					const content = await this.readFileContent(filePath);
-					const fileXml = this.createFileXmlString(filePath, content, fileMetadata);
-					return {
-						...message,
-						content: [{ type: 'text', text: fileXml }],
-					};
-				}
+			if (message.role === 'user') {
+				const updatedContent = await Promise.all(message.content.map(async (contentPart) => {
+					if (contentPart.type === 'text' && contentPart.text.startsWith('File added:')) {
+						const filePath = contentPart.text.split(': ')[1].trim();
+						const fileMetadata = conversation.getFile(filePath);
+						if (fileMetadata) {
+							const content = await this.readFileContent(filePath);
+							return { type: 'text', text: this.createFileXmlString(filePath, content, fileMetadata) };
+						}
+					}
+					return contentPart;
+				}));
+				return { ...message, content: updatedContent };
 			}
 			return message;
 		}));
