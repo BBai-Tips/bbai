@@ -28,22 +28,19 @@ export function mergeConfigs(...configs: Partial<ConfigSchema>[]): ConfigSchema 
 	return configs.reduce((acc, config) => {
 		const mergedConfig = { ...acc };
 
-		if (config.api) {
-			mergedConfig.api = {
-				...mergedConfig.api,
-				...Object.fromEntries(
-					Object.entries(config.api).filter(([_, v]) => v !== undefined),
-				),
-			};
-		}
+		for (const [key, value] of Object.entries(config)) {
+			if (value === undefined) continue;
 
-		if (config.cli) {
-			mergedConfig.cli = {
-				...mergedConfig.cli,
-				...Object.fromEntries(
-					Object.entries(config.cli).filter(([_, v]) => v !== undefined),
-				),
-			};
+			if (typeof value === 'object' && value !== null) {
+				mergedConfig[key as keyof ConfigSchema] = {
+					...mergedConfig[key as keyof ConfigSchema],
+					...Object.fromEntries(
+						Object.entries(value).filter(([_, v]) => v !== undefined)
+					),
+				};
+			} else {
+				mergedConfig[key as keyof ConfigSchema] = value;
+			}
 		}
 
 		return mergedConfig;
