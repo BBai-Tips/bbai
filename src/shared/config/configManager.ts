@@ -103,25 +103,31 @@ export class ConfigManager {
 	}
 
 	private loadEnvConfig(): Partial<ConfigSchema> {
-		const config: Partial<ConfigSchema> = { };
+		const config: Partial<ConfigSchema> = {};
+		let apiConfig: Partial<ConfigSchema['api']> = {};
 
 		const anthropicApiKey = Deno.env.get('ANTHROPIC_API_KEY');
-		if (anthropicApiKey) config.api!.anthropicApiKey = anthropicApiKey;
+		if (anthropicApiKey) apiConfig.anthropicApiKey = anthropicApiKey;
 
 		const openaiApiKey = Deno.env.get('OPENAI_API_KEY');
-		if (openaiApiKey) config.api!.openaiApiKey = openaiApiKey;
+		if (openaiApiKey) apiConfig.openaiApiKey = openaiApiKey;
 
 		const voyageaiApiKey = Deno.env.get('VOYAGEAI_API_KEY');
-		if (voyageaiApiKey) config.api!.voyageaiApiKey = voyageaiApiKey;
+		if (voyageaiApiKey) apiConfig.voyageaiApiKey = voyageaiApiKey;
 
 		const environment = Deno.env.get('BBAI_ENVIRONMENT');
-		if (environment) config.api!.environment = environment;
+		if (environment) apiConfig.environment = environment;
 
 		const apiPort = Deno.env.get('BBAI_API_PORT');
-		if (apiPort) config.api!.apiPort = parseInt(apiPort, 10);
+		if (apiPort) apiConfig.apiPort = parseInt(apiPort, 10);
 
 		const ignoreLLMRequestCache = Deno.env.get('BBAI_IGNORE_LLM_REQUEST_CACHE');
-		if (ignoreLLMRequestCache) config.api!.ignoreLLMRequestCache = ignoreLLMRequestCache === 'true';
+		if (ignoreLLMRequestCache) apiConfig.ignoreLLMRequestCache = ignoreLLMRequestCache === 'true';
+
+		// Only add the api object if there are any api-related configurations
+		if (Object.keys(apiConfig).length > 0) {
+			config.api = apiConfig;
+		}
 
 		const logFile = Deno.env.get('BBAI_LOG_FILE');
 		if (logFile) config.logFile = logFile;
