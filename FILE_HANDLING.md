@@ -15,12 +15,13 @@ This document outlines the conventions and strategies for handling files within 
    - Suitable for >10 files or >50KB total
 
 3. **Large File Handling:**
-   - For files >1MB, consider chunking and loading relevant sections as needed
+   - For files >1MB, implement content-based chunking
+   - Load relevant sections as needed (to be implemented with embedding storage and search)
 
 ## File Updates
 
 - Replace the original file with the edited version in the conversation
-- Maintain a separate log of changes for reference if needed
+- Maintain a separate log of changes for each conversation using ConversationPersistence
 
 ## File Metadata
 
@@ -48,10 +49,6 @@ When proposing changes to files, use the diff patch format:
  unchanged line
 ```
 
-## Caching
-
-Implement a caching mechanism in the bbai agent for frequently accessed files to reduce redundant loading.
-
 ## Version Control Integration
 
 - While direct access to git logs is not available, include relevant commit messages or summaries when significant changes occur
@@ -63,5 +60,25 @@ Implement a caching mechanism in the bbai agent for frequently accessed files to
 2. bbai agent adds requested files to the conversation
 3. Assistant proposes changes using the diff patch format
 4. bbai agent applies changes and updates the conversation state
+
+## Permissions and Error Handling
+
+- Assume bbai has necessary permissions to read/write files
+- If permission issues occur, treat as a conversation-ending error and notify the user
+
+## Multiple Conversations Warning
+
+- Allow multiple active conversations per project
+- Implement a prominent warning to users about the risks of concurrent edits
+
+## Security Considerations
+
+- File security is primarily the user's responsibility
+- Implement a system to flag potentially sensitive data (e.g., API keys, passwords) and warn the user
+
+## File Deletion
+
+- Implement a specific tool or command for file removal
+- Log file deletions in the conversation change log
 
 By following these conventions, we ensure consistent and efficient file handling throughout bbai conversations.
