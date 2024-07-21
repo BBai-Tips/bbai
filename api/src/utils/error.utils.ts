@@ -11,6 +11,8 @@ import {
 	FileReadError,
 	FileWriteError,
 } from '../errors/error.ts';
+
+export { ErrorType };
 import type {
 	APIErrorOptions,
 	ErrorOptions,

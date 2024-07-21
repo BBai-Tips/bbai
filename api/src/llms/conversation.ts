@@ -4,6 +4,7 @@ import type {
 	LLMProviderMessageResponse,
 	LLMSpeakWithOptions,
 	LLMTokenUsage,
+	LLMMessageContentPartToolResultBlock,
 } from '../types.ts';
 import LLMMessage, { LLMMessageContentParts } from './message.ts';
 import type { LLMMessageProviderResponse } from './message.ts';
