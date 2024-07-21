@@ -68,8 +68,8 @@ abstract class LLM {
 		let llmProviderMessageResponse: LLMProviderMessageResponse | undefined;
 		let llmProviderMessageRequestId: string;
 
-		const cacheKey = !config.ignoreLLMRequestCache ? this.createRequestCacheKey(llmProviderMessageRequest) : [];
-		if (!config.ignoreLLMRequestCache) {
+		const cacheKey = !config.api?.ignoreLLMRequestCache ? this.createRequestCacheKey(llmProviderMessageRequest) : [];
+		if (!config.api?.ignoreLLMRequestCache) {
 			const cachedResponse = await kv.get<LLMProviderMessageResponse>(cacheKey);
 
 			if (cachedResponse && cachedResponse.value) {
@@ -105,7 +105,7 @@ abstract class LLM {
 
 			llmProviderMessageResponse.fromCache = false;
 
-			if (!config.ignoreLLMRequestCache) {
+			if (!config.api?.ignoreLLMRequestCache) {
 				await kv.set(cacheKey, llmProviderMessageResponse, { expireIn: this.requestCacheExpiry });
 				//await metricsService.recordCacheMetrics({ operation: 'set' });
 			}

@@ -27,7 +27,7 @@ export const errorHandler: Middleware = async (
 				message: '',
 			};
 
-			if (config.api.environment === 'production') { // || config.api.environment === 'docker'
+			if (config.api?.environment === 'production') { // || config.api?.environment === 'docker'
 				responseBody.message = message;
 			} else {
 				const name: string = error.name || 'Error';
@@ -35,7 +35,7 @@ export const errorHandler: Middleware = async (
 				const args: object = error.options?.args || error.options || {};
 
 				if (
-					config.environment === 'local' || config.environment === 'development'
+					config.api?.environment === 'local' || config.api?.environment === 'development'
 				) {
 					logger.error(error.message, args);
 				}
@@ -55,8 +55,8 @@ export const errorHandler: Middleware = async (
 			 * do not want to share internal server errors to
 			 * end user in non "development" mode
 			 */
-			const message = config.environment === 'local' ||
-					config.environment === 'development'
+			const message = config.api?.environment === 'local' ||
+					config.api?.environment === 'development'
 				? (err.message ?? 'Unknown error occurred')
 				: 'Internal Server Error';
 

@@ -14,7 +14,7 @@ import { config } from 'shared/configManager.ts';
 import type { LLMProviderMessageRequest, LLMProviderMessageResponse, LLMSpeakWithOptions } from 'shared/types.ts';
 
 class AnthropicLLM extends LLM {
-	private anthropic: Anthropic;
+	private anthropic!: Anthropic;
 
 	constructor() {
 		super();
@@ -25,7 +25,7 @@ class AnthropicLLM extends LLM {
 
 	private async initializeAnthropicClient() {
 		const clientOptions: ClientOptions = {
-			apiKey: config.api.anthropicApiKey,
+			apiKey: config.api?.anthropicApiKey,
 		};
 		this.anthropic = new Anthropic(clientOptions);
 	}

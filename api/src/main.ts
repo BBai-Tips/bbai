@@ -7,7 +7,7 @@ import router from './routes/routes.ts';
 import { logger } from 'shared/logger.ts';
 import { BbAiState } from './types.ts';
 
-const { environment, apiPort } = config.api;
+const { environment, apiPort } = config.api || {};
 
 // Get the log file path from command line arguments
 const logFile = Deno.args[0];

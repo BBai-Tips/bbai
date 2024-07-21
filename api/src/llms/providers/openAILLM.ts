@@ -14,7 +14,7 @@ import { config } from 'shared/configManager.ts';
 import type { LLMProviderMessageRequest, LLMProviderMessageResponse, LLMSpeakWithOptions } from 'shared/types.ts';
 
 class OpenAILLM extends LLM {
-	private openai: OpenAI;
+	private openai!: OpenAI;
 
 	constructor() {
 		super();
@@ -23,7 +23,7 @@ class OpenAILLM extends LLM {
 	}
 
 	private async initializeOpenAIClient() {
-		const apiKey = config.api.openaiApiKey;
+		const apiKey = config.api?.openaiApiKey;
 		if (!apiKey) {
 			throw new Error('OpenAI API key is not set');
 		}
