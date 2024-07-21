@@ -219,28 +219,16 @@ export class ProjectEditor {
 
         try {
             const metadata = {
-                path: filePath,
                 size: new TextEncoder().encode(content).length,
-                last_modified: new Date().toISOString(),
-                source: source,
+                lastModified: new Date(),
             };
 
-            await this.conversation.addFile(filePath, content, metadata);
+            const storageLocation = this.determineStorageLocation(filePath, content, source);
 
-            if (source === 'tool' && toolUseId) {
-                const fileContent = `<file path="${metadata.path}" size="${metadata.size}" last_modified="${metadata.last_modified}">\n${content}\n</file>`;
-                const fileMessage = `File added: ${filePath}\n${fileContent}`;
-                const toolResult: LLMMessageContentPartToolResultBlock = {
-                    type: 'tool_result',
-                    tool_use_id: toolUseId,
-                    content: [
-                        {
-                            type: 'text',
-                            text: fileMessage
-                        }
-                    ]
-                };
-                this.conversation.addMessage(new LLMMessage('user', [toolResult]));
+            if (storageLocation === 'system') {
+                await this.conversation.addFileForSystemPrompt(filePath, metadata);
+            } else {
+                await this.conversation.addFileToMessageArray(filePath, metadata);
             }
 
             logger.info(`File ${filePath} added to the project and LLM conversation as a ${source} result`);

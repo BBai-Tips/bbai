@@ -15,6 +15,14 @@ import { logger } from 'shared/logger.ts';
 
 import { ulid } from '@std/ulid';
 
+interface FileMetadata {
+	path: string;
+	size: number;
+	lastModified: Date;
+	inSystemPrompt: boolean;
+	messageId?: string;
+}
+
 class LLMConversation {
 	public id: string;
 	private llm: LLM;
@@ -22,13 +30,13 @@ class LLMConversation {
 	private _turnCount: number = 0;
 	private messages: LLMMessage[] = [];
 	private tools: LLMTool[] = [];
-	private files: Map<string, { content: string; metadata: any }> = new Map();
+	private _files: Map<string, FileMetadata> = new Map();
+	private systemPromptFiles: string[] = [];
 
 	private persistence: ConversationPersistence;
 
 	protected _baseSystem: string = '';
 	protected _ctagsContent: string = '';
-	protected _files: Map<string, { content: string; metadata: any }> = new Map();
 	protected _model: string = '';
 	protected _maxTokens: number = 4000;
 	protected _temperature: number = 0.2;
@@ -42,21 +50,51 @@ class LLMConversation {
 		this.persistence = new ConversationPersistence(this.id);
 	}
 
-	async addFile(filePath: string, content: string, metadata: any): Promise<void> {
-		this._files.set(filePath, { content, metadata });
+	async addFileToMessageArray(filePath: string, metadata: Omit<FileMetadata, 'path' | 'inSystemPrompt'>): Promise<void> {
+		const fileMetadata: FileMetadata = {
+			...metadata,
+			path: filePath,
+			inSystemPrompt: false,
+		};
+		this._files.set(filePath, fileMetadata);
+		const message = new LLMMessage('user', [{ type: 'text', text: `File added: ${filePath}` }]);
+		message.id = ulid();
+		this.messages.push(message);
+		fileMetadata.messageId = message.id;
+		await this.persistence.saveConversation(this);
+	}
+
+	async addFileForSystemPrompt(filePath: string, metadata: Omit<FileMetadata, 'path' | 'inSystemPrompt'>): Promise<void> {
+		const fileMetadata: FileMetadata = {
+			...metadata,
+			path: filePath,
+			inSystemPrompt: true,
+		};
+		this._files.set(filePath, fileMetadata);
+		this.systemPromptFiles.push(filePath);
 		await this.persistence.saveConversation(this);
 	}
 
 	removeFile(filePath: string): boolean {
-		return this.files.delete(filePath);
+		const fileMetadata = this._files.get(filePath);
+		if (fileMetadata) {
+			if (!fileMetadata.inSystemPrompt && fileMetadata.messageId) {
+				this.messages = this.messages.filter(message => message.id !== fileMetadata.messageId);
+			}
+			if (fileMetadata.inSystemPrompt) {
+				this.systemPromptFiles = this.systemPromptFiles.filter(path => path !== filePath);
+			}
+			return this._files.delete(filePath);
+		}
+		return false;
 	}
 
-	getFile(filePath: string): { content: string; metadata: any } | undefined {
-		return this.files.get(filePath);
+	getFile(filePath: string): FileMetadata | undefined {
+		return this._files.get(filePath);
 	}
 
 	listFiles(): string[] {
-		return Array.from(this.files.keys());
+		return Array.from(this._files.keys());
 	}
 
 	private addMessageWithCorrectRole(content: string): void {
@@ -70,8 +108,8 @@ class LLMConversation {
 		}
 	}
 
-	getFiles(): Map<string, { content: string; metadata: any }> {
-		return this.files;
+	getFiles(): Map<string, FileMetadata> {
+		return this._files;
 	}
 
 	async save(): Promise<void> {
@@ -98,7 +136,7 @@ class LLMConversation {
 			messages: this.messages,
 			tools: this.tools,
 			tokenUsage: this.totalTokenUsage,
-			system: this._system,
+			system: this._baseSystem,
 			model: this._model,
 			maxTokens: this._maxTokens,
 			temperature: this._temperature,
@@ -159,7 +197,9 @@ class LLMConversation {
 		this._maxTokens = value;
 	}
 
-	get temperature(): number {
+	get temperature():
+
+ number {
 		return this._temperature;
 	}
 

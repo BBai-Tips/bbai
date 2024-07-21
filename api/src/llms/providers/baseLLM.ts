@@ -21,6 +21,8 @@ import Ajv from 'ajv';
 
 const ajv = new Ajv();
 
+import { readFileContent } from '../../utils/fileUtils.ts';
+
 abstract class LLM {
 	protected modifySpeakWithConversationOptions(
 		conversation: LLMConversation,
@@ -36,7 +38,7 @@ abstract class LLM {
 	abstract prepareMessageParams(
 		conversation: LLMConversation,
 		speakOptions?: LLMSpeakWithOptions,
-	): object;
+	): Promise<object>;
 
 	abstract speakWith(
 		messageParams: LLMProviderMessageRequest,
@@ -49,6 +51,14 @@ abstract class LLM {
 	async loadConversation(conversationId: string): Promise<LLMConversation> {
 		const conversation = await LLMConversation.resume(conversationId, this);
 		return conversation;
+	}
+
+	protected async readFileContent(filePath: string): Promise<string> {
+		return await readFileContent(filePath);
+	}
+
+	protected createFileXmlString(filePath: string, content: string, metadata: FileMetadata): string {
+		return `<file path="${metadata.path}" size="${metadata.size}" last_modified="${metadata.lastModified.toISOString()}">\n${content}\n</file>`;
 	}
 
 	protected createRequestCacheKey(
