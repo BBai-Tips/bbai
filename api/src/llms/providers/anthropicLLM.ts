@@ -33,7 +33,13 @@ class AnthropicLLM extends LLM {
 	private asProviderMessageType(messages: LLMMessage[]): Anthropic.MessageParam[] {
 		return messages.map((message) => ({
 			role: message.role,
-			content: message.content,
+			content: message.content.map(part => {
+				if (part.type === 'text') {
+					return part.text;
+				}
+				// Handle other content types if necessary
+				return '';
+			}).join(''),
 		} as Anthropic.MessageParam));
 	}
 
