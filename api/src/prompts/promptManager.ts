@@ -3,6 +3,7 @@ import { exists } from "@std/fs";
 import { parse as parseYaml } from "yaml";
 import { stripIndent } from "common-tags";
 import { getBbaiDir } from "shared/dataDir.ts";
+import * as defaultPrompts from "./defaultPrompts.ts";
 
 interface PromptMetadata {
   name: string;
@@ -16,11 +17,9 @@ interface Prompt {
 }
 
 export class PromptManager {
-  private defaultPromptsDir: string;
   private userPromptsDir: string;
 
   constructor() {
-    this.defaultPromptsDir = join(Deno.cwd(), "api", "prompts");
     this.userPromptsDir = "";
     this.initializeUserPromptsDir();
   }
@@ -31,12 +30,12 @@ export class PromptManager {
   }
 
   async getPrompt(promptName: string): Promise<string> {
-    const userPrompt = await this.loadPrompt(this.userPromptsDir, promptName);
+    const userPrompt = await this.loadUserPrompt(promptName);
     if (userPrompt) {
       return userPrompt.content;
     }
 
-    const defaultPrompt = await this.loadPrompt(this.defaultPromptsDir, promptName);
+    const defaultPrompt = defaultPrompts[promptName as keyof typeof defaultPrompts];
     if (defaultPrompt) {
       return defaultPrompt.content;
     }
@@ -44,8 +43,8 @@ export class PromptManager {
     throw new Error(`Prompt '${promptName}' not found`);
   }
 
-  private async loadPrompt(directory: string, promptName: string): Promise<Prompt | null> {
-    const promptPath = join(directory, `${promptName}.md`);
+  private async loadUserPrompt(promptName: string): Promise<Prompt | null> {
+    const promptPath = join(this.userPromptsDir, `${promptName}.md`);
     if (!(await exists(promptPath))) {
       return null;
     }
