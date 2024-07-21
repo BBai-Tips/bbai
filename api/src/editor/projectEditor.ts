@@ -31,6 +31,19 @@ export class ProjectEditor {
         };
 
         const response = await this.conversation.speakWithLLM(prompt, speakOptions);
+
+        // Handle tool calls
+        if (response.toolsUsed && response.toolsUsed.length > 0) {
+            for (const tool of response.toolsUsed) {
+                if (tool.toolName === 'request_files') {
+                    await this.handleRequestFiles(tool.toolInput.fileNames);
+                } else if (tool.toolName === 'vector_search') {
+                    const searchResults = await this.handleVectorSearch(tool.toolInput.query);
+                    response.searchResults = searchResults;
+                }
+            }
+        }
+
         return response;
     }
 

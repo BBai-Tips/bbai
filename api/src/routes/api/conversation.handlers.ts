@@ -6,48 +6,25 @@ const projectEditor = new ProjectEditor();
 
 export const startConversation = async (ctx: Context) => {
     logger.debug('startConversation called');
-    logger.debug('Request method:', ctx.request.method);
-    logger.debug('Request URL:', ctx.request.url);
-    logger.debug('Request headers:', ctx.request.headers);
 
     try {
         const body = await ctx.request.body.json();
-        logger.debug('Request body:', body);
         const { prompt, provider, model } = body;
 
         if (!prompt) {
-            logger.warn('Missing prompt');
             ctx.response.status = 400;
             ctx.response.body = { error: 'Missing prompt' };
             return;
         }
 
-        logger.debug('Starting conversation with ProjectEditor');
         const response = await projectEditor.startConversation(prompt, provider, model);
 
-        // Handle tool calls
-        if (response.toolsUsed && response.toolsUsed.length > 0) {
-            for (const tool of response.toolsUsed) {
-                if (tool.toolName === 'request_files') {
-                    await projectEditor.handleRequestFiles(tool.toolInput.fileNames);
-                } else if (tool.toolName === 'vector_search') {
-                    const searchResults = await projectEditor.handleVectorSearch(tool.toolInput.query);
-                    response.searchResults = searchResults;
-                }
-            }
-        }
-
-        logger.debug('LLM response:', response);
         ctx.response.body = response;
     } catch (error) {
         logger.error(`Error in startConversation: ${error.message}`);
-        logger.error('Error stack:', error.stack);
         ctx.response.status = 500;
         ctx.response.body = { error: 'Failed to generate response' };
     }
-
-    logger.debug('Response status:', ctx.response.status);
-    logger.debug('Response body:', ctx.response.body);
 };
 
 export const getConversation = async (
