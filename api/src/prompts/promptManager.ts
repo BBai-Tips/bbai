@@ -59,10 +59,19 @@ export class PromptManager {
     };
   }
 
-  applyTemplate(template: string, variables: Record<string, string>): string {
+  applyTemplate(template: string, variables: Record<string, any>): string {
     return stripIndents(template).replace(
-      /\${(\w+)}/g,
-      (_, key) => variables[key] || `\${${key}}`
+      /\${(.*?)}/g,
+      (_, expr) => {
+        try {
+          // Create a function that takes variables as arguments and evaluates the expression
+          const func = new Function(...Object.keys(variables), `return ${expr};`);
+          return func(...Object.values(variables));
+        } catch (error) {
+          console.error(`Error evaluating expression: ${expr}`, error);
+          return `\${${expr}}`;
+        }
+      }
     );
   }
 
