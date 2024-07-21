@@ -1,7 +1,7 @@
 import { join } from "@std/path";
 import { exists } from "@std/fs";
 import { parse as parseYaml } from "yaml";
-import { stripIndent } from "common-tags";
+import { stripIndents } from "common-tags";
 import { getBbaiDir } from "shared/dataDir.ts";
 import * as defaultPrompts from "./defaultPrompts.ts";
 
@@ -55,12 +55,12 @@ export class PromptManager {
     const metadata = parseYaml(metadataStr) as PromptMetadata;
     return {
       metadata,
-      content: stripIndent(promptContent.trim()),
+      content: stripIndents(promptContent.trim()),
     };
   }
 
   applyTemplate(template: string, variables: Record<string, string>): string {
-    return stripIndent(template).replace(
+    return stripIndents(template).replace(
       /\${(\w+)}/g,
       (_, key) => variables[key] || `\${${key}}`
     );

@@ -1,4 +1,4 @@
-import { stripIndent } from "common-tags";
+import { stripIndents } from "common-tags";
 
 export const system = {
   metadata: {
@@ -6,7 +6,7 @@ export const system = {
     description: "Default system prompt for bbai",
     version: "1.0.0",
   },
-  content: stripIndent`
+  content: stripIndents`
     You are an AI assistant named bbai, designed to help with various text-based projects. Your capabilities include:
 
     1. Analyzing and modifying programming code in any language
