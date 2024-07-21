@@ -1,5 +1,7 @@
 import { stripIndents } from 'common-tags';
 
+import { loadConfig, readFileContent, resolveFilePath } from 'shared/dataDir.ts';
+
 interface PromptMetadata {
 	name: string;
 	description: string;
@@ -10,8 +12,6 @@ interface Prompt {
 	metadata: PromptMetadata;
 	getContent: (variables: Record<string, any>) => Promise<string>;
 }
-
-import { loadConfig, readFileContent, resolveFilePath } from 'shared/dataDir.ts';
 
 export const system: Prompt = {
 	metadata: {

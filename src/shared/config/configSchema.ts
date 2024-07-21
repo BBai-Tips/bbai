@@ -25,6 +25,10 @@ export const defaultConfig: ConfigSchema = {
 		ignoreLLMRequestCache: false,
 	},
 	cli: {},
+	ctags: {
+		autoGenerate: true,
+		tagsFilePath: '.bbai/tags',
+	},
 	logFile: 'api.log',
 	logLevel: 'info',
 };

@@ -5,7 +5,11 @@ import { AnthropicModel, LLMProvider } from 'shared/types.ts';
 import LLM from './baseLLM.ts';
 import LLMConversation from '../conversation.ts';
 import LLMMessage, { LLMMessageContentParts } from '../message.ts';
-import type { LLMMessageContentPartTextBlock, LLMMessageContentPartToolResultBlock } from '../message.ts';
+import type {
+	LLMMessageContentPart,
+	LLMMessageContentPartTextBlock,
+	LLMMessageContentPartToolResultBlock,
+} from '../message.ts';
 import LLMTool from '../tool.ts';
 import { createError } from '../../utils/error.utils.ts';
 import { ErrorType, LLMErrorOptions } from '../../errors/error.ts';
@@ -33,13 +37,7 @@ class AnthropicLLM extends LLM {
 	private asProviderMessageType(messages: LLMMessage[]): Anthropic.MessageParam[] {
 		return messages.map((message) => ({
 			role: message.role,
-			content: message.content.map(part => {
-				if ('text' in part) {
-					return part.text;
-				}
-				// Handle other content types if necessary
-				return '';
-			}).join(''),
+			content: message.content,
 		} as Anthropic.MessageParam));
 	}
 
@@ -55,23 +53,30 @@ class AnthropicLLM extends LLM {
 		conversation: LLMConversation,
 		speakOptions?: LLMSpeakWithOptions,
 	): Promise<Anthropic.MessageCreateParams> {
-		const messages = await Promise.all(conversation.getMessages().map(async (message) => {
-			if (message.role === 'user') {
-				const updatedContent = await Promise.all(message.content.map(async (contentPart) => {
-					if (contentPart.type === 'text' && contentPart.text.startsWith('File added:')) {
-						const filePath = contentPart.text.split(': ')[1].trim();
-						const fileMetadata = conversation.getFile(filePath);
-						if (fileMetadata) {
-							const content = await this.readFileContent(filePath);
-							return { type: 'text', text: this.createFileXmlString(filePath, content, fileMetadata) };
-						}
-					}
-					return contentPart;
-				}));
-				return { ...message, content: updatedContent };
-			}
-			return message;
-		}));
+		const messages = await Promise.all(
+			conversation.getMessages().map(async (message: LLMMessage) => {
+				if (message.role === 'user') {
+					const updatedContent: LLMMessageContentParts = await Promise.all(
+						message.content.map(async (contentPart) => {
+							if (contentPart.type === 'text' && contentPart.text.startsWith('File added:')) {
+								const filePath = contentPart.text.split(': ')[1].trim();
+								const fileMetadata = conversation.getFile(filePath);
+								if (fileMetadata) {
+									const content = await this.readFileContent(filePath);
+									return {
+										type: 'text',
+										text: this.createFileXmlString(filePath, content, fileMetadata),
+									};
+								}
+							}
+							return contentPart;
+						}),
+					);
+					return { role: message.role, content: updatedContent } as LLMMessage;
+				}
+				return message;
+			}),
+		);
 
 		const tools = this.asProviderToolType(speakOptions?.tools || conversation.getTools());
 		let system = speakOptions?.system || conversation.baseSystem;

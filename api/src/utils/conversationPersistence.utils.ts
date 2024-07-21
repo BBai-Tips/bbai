@@ -69,7 +69,7 @@ export class ConversationPersistence {
 			for (const [filePath, fileData] of files.entries()) {
 				const fileStoragePath = join(this.filesDir, filePath);
 				await ensureDir(join(fileStoragePath, '..'));
-				await Deno.writeTextFile(fileStoragePath, fileData.content || '');
+				//await Deno.writeTextFile(fileStoragePath, fileData.content || '');
 				await Deno.writeTextFile(`${fileStoragePath}.meta`, JSON.stringify(fileData));
 			}
 		} catch (error) {

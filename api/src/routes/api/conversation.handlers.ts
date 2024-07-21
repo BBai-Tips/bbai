@@ -42,7 +42,7 @@ export const getConversation = async (
 		response.body = {
 			id: conversation.id,
 			providerName: conversation.providerName,
-			system: conversation.system,
+			system: conversation.baseSystem,
 			model: conversation.model,
 			maxTokens: conversation.maxTokens,
 			temperature: conversation.temperature,

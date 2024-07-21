@@ -33,6 +33,8 @@ class LLMConversation {
 	private _files: Map<string, FileMetadata> = new Map();
 	private systemPromptFiles: string[] = [];
 
+	private _system: string = '';
+
 	private persistence: ConversationPersistence;
 
 	protected _baseSystem: string = '';

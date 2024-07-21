@@ -55,10 +55,14 @@ abstract class LLM {
 	}
 
 	protected async readFileContent(filePath: string): Promise<string> {
-		return await readFileContent(filePath);
+		const content = await readFileContent(filePath);
+		if (content === null) {
+			throw new Error(`File not found: ${filePath}`);
+		}
+		return content;
 	}
 
-	protected createFileXmlString(filePath: string, content: string, metadata: FileMetadata): string {
+	protected createFileXmlString(filePath: string, content: string, metadata: any): string {
 		return `<file path="${metadata.path}" size="${metadata.size}" last_modified="${metadata.lastModified.toISOString()}">\n${content}\n</file>`;
 	}
 
@@ -76,7 +80,7 @@ abstract class LLM {
 	): Promise<LLMProviderMessageResponse> {
 		const start = Date.now();
 
-		const llmProviderMessageRequest = this.prepareMessageParams(
+		const llmProviderMessageRequest = await this.prepareMessageParams(
 			conversation,
 			speakOptions,
 		) as LLMProviderMessageRequest;

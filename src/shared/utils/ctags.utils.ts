@@ -8,13 +8,13 @@ export async function generateCtags(): Promise<void> {
     const config = await ConfigManager.getInstance();
     const ctagsConfig = config.getConfig().ctags;
 
-    if (!ctagsConfig.autoGenerate) {
+    if (ctagsConfig?.autoGenerate === false) {
         logger.info('Ctags auto-generation is disabled');
         return;
     }
 
     const bbaiDir = await getBbaiDir();
-    const tagsFilePath = ctagsConfig.tagsFilePath ? 
+    const tagsFilePath = ctagsConfig?.tagsFilePath ? 
         join(bbaiDir, ctagsConfig.tagsFilePath) : 
         join(bbaiDir, 'tags');
 
@@ -39,7 +39,7 @@ export async function readCtagsFile(): Promise<string | null> {
     const ctagsConfig = config.getConfig().ctags;
 
     const bbaiDir = await getBbaiDir();
-    const tagsFilePath = ctagsConfig.tagsFilePath ? 
+    const tagsFilePath = ctagsConfig?.tagsFilePath ? 
         join(bbaiDir, ctagsConfig.tagsFilePath) : 
         join(bbaiDir, 'tags');
 
