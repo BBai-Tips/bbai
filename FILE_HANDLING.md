@@ -18,6 +18,16 @@ This document outlines the conventions and strategies for handling files within 
    - For files >1MB, implement content-based chunking
    - Load relevant sections as needed (to be implemented with embedding storage and search)
 
+4. **ctags Integration:**
+   - Generate ctags for all files in the project
+   - Include ctags summaries in the system prompt or initial message
+   - Provide a mechanism to request full file content based on ctags information
+   - Benefits:
+     - Quick assessment of file structure
+     - Identifying key functions, classes, and methods
+     - Determining if a full file view is necessary
+     - Reduced token usage and improved efficiency
+
 ## File Updates
 
 - Replace the original file with the edited version in the conversation
