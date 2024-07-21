@@ -201,10 +201,9 @@ export class ProjectEditor {
                     content: [
                         {
                             type: 'text',
-                            text: content
+                            text: `File: ${filePath}\nMetadata: ${JSON.stringify(metadata)}\n\nContent:\n${content}`
                         }
-                    ],
-                    metadata: metadata
+                    ]
                 };
 
                 await this.conversation.addMessage({
