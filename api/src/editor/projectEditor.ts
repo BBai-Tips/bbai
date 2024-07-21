@@ -159,7 +159,16 @@ export class ProjectEditor {
             await this.conversation.addFileToMessageArray(filePath, content, metadata);
         }
 
-        logger.info(`File ${filePath} added to the project in ${storageLocation} storage`);
+        // Add the file to the LLM conversation
+        if (storageLocation === 'system') {
+            const fileContent = `<file path="${metadata.path}" size="${metadata.size}" last_modified="${metadata.last_modified}">\n${content}\n</file>`;
+            this.conversation.system += `\n\n${fileContent}`;
+        } else {
+            const fileMessage = `File added: ${filePath}\nContent:\n${content}`;
+            await this.conversation.speakWithLLM(fileMessage);
+        }
+
+        logger.info(`File ${filePath} added to the project and LLM conversation in ${storageLocation} storage`);
     }
 
     async updateFile(filePath: string, content: string): Promise<void> {
