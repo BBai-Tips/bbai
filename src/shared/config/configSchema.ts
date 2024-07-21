@@ -42,7 +42,7 @@ export function mergeConfigs(...configs: Partial<ConfigSchema>[]): ConfigSchema 
                 };
             } else if (typeof value === 'object' && value !== null) {
                 mergedConfig[key as keyof ConfigSchema] = {
-                    ...mergedConfig[key as keyof ConfigSchema],
+                    ...(mergedConfig[key as keyof ConfigSchema] as object),
                     ...Object.fromEntries(
                         Object.entries(value as object).filter(([_, v]) => v !== undefined)
                     ),
@@ -50,7 +50,7 @@ export function mergeConfigs(...configs: Partial<ConfigSchema>[]): ConfigSchema 
             } else if (key === 'logLevel' && typeof value === 'string') {
                 mergedConfig.logLevel = value as 'debug' | 'info' | 'warn' | 'error';
             } else {
-                mergedConfig[key as keyof ConfigSchema] = value as ConfigSchema[keyof ConfigSchema];
+                (mergedConfig as any)[key] = value;
             }
         }
 
