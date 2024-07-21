@@ -45,19 +45,48 @@ class AnthropicLLM extends LLM {
 		} as Anthropic.Tool));
 	}
 
-	public prepareMessageParams(
+	async prepareMessageParams(
 		conversation: LLMConversation,
 		speakOptions?: LLMSpeakWithOptions,
-	): Anthropic.MessageCreateParams {
-		const messages = this.asProviderMessageType(speakOptions?.messages || conversation.getMessages());
+	): Promise<Anthropic.MessageCreateParams> {
+		const messages = await Promise.all(conversation.getMessages().map(async (message) => {
+			if (message.role === 'user' && message.content[0].type === 'text' && message.content[0].text.startsWith('File added:')) {
+				const filePath = message.content[0].text.split(': ')[1].trim();
+				const fileMetadata = conversation.getFile(filePath);
+				if (fileMetadata) {
+					const content = await this.readFileContent(filePath);
+					const fileXml = this.createFileXmlString(filePath, content, fileMetadata);
+					return {
+						...message,
+						content: [{ type: 'text', text: fileXml }],
+					};
+				}
+			}
+			return message;
+		}));
+
 		const tools = this.asProviderToolType(speakOptions?.tools || conversation.getTools());
-		const system: string = speakOptions?.system || conversation.system;
+		let system = speakOptions?.system || conversation.baseSystem;
+
+		// Add system prompt files
+		for (const filePath of conversation.systemPromptFiles) {
+			const fileMetadata = conversation.getFile(filePath);
+			if (fileMetadata) {
+				const content = await this.readFileContent(filePath);
+				const fileXml = this.createFileXmlString(filePath, content, fileMetadata);
+				system += `\n\n${fileXml}`;
+			}
+		}
+
+		// Add ctags content
+		system += `\n\n${conversation.ctagsContent}`;
+
 		const model: string = speakOptions?.model || conversation.model || AnthropicModel.CLAUDE_3_5_SONNET;
 		const maxTokens: number = speakOptions?.maxTokens || conversation.maxTokens;
 		const temperature: number = speakOptions?.temperature || conversation.temperature;
 
 		const messageParams: Anthropic.MessageCreateParams = {
-			messages,
+			messages: this.asProviderMessageType(messages),
 			tools,
 			system,
 			model,
@@ -65,7 +94,6 @@ class AnthropicLLM extends LLM {
 			temperature,
 			stream: false,
 		};
-		//logger.debug("llms-anthropic-prepareMessageParams", messageParams);
 
 		return messageParams;
 	}
