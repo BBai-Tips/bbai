@@ -195,25 +195,7 @@ export class ProjectEditor {
             if (storageLocation === 'system') {
                 await this.conversation.addFileToSystemPrompt(filePath, content, metadata);
             } else {
-                await this.conversation.addFileToMessageArray(filePath, content, metadata);
-            }
-
-            if (toolUseId) {
-                const toolResult = {
-                    type: 'tool_result',
-                    tool_use_id: toolUseId,
-                    content: [
-                        {
-                            type: 'text',
-                            text: `File added: ${filePath}`
-                        }
-                    ]
-                };
-
-                await this.conversation.addMessage({
-                    role: 'user',
-                    content: [toolResult]
-                });
+                await this.conversation.addFileToMessageArray(filePath, content, metadata, toolUseId);
             }
 
             logger.info(`File ${filePath} added to the project and LLM conversation as a ${source} result`);

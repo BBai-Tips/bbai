@@ -46,10 +46,26 @@ class LLMConversation {
 		await this.persistence.saveConversation(this);
 	}
 
-	async addFileToMessageArray(filePath: string, content: string, metadata: any): Promise<void> {
+	async addFileToMessageArray(filePath: string, content: string, metadata: any, toolUseId?: string): Promise<void> {
 		const fileContent = `<file path="${metadata.path}" size="${metadata.size}" last_modified="${metadata.last_modified}">\n${content}\n</file>`;
 		const fileMessage = `File added: ${filePath}\n${fileContent}`;
-		this.addMessageWithCorrectRole(fileMessage);
+		
+		if (toolUseId) {
+			const toolResult = {
+				type: 'tool_result',
+				tool_use_id: toolUseId,
+				content: [
+					{
+						type: 'text',
+						text: fileMessage
+					}
+				]
+			};
+			this.addMessage(new LLMMessage('user', [toolResult]));
+		} else {
+			this.addMessageWithCorrectRole(fileMessage);
+		}
+		
 		this.files.set(filePath, { content, metadata });
 		await this.persistence.saveConversation(this);
 	}
