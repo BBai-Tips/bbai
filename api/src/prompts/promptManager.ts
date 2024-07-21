@@ -2,6 +2,7 @@ import { join } from "@std/path";
 import { exists } from "@std/fs";
 import { parse as parseYaml } from "yaml";
 import { stripIndent } from "common-tags";
+import { getBbaiDir } from "shared/dataDir.ts";
 
 interface PromptMetadata {
   name: string;
@@ -18,9 +19,15 @@ export class PromptManager {
   private defaultPromptsDir: string;
   private userPromptsDir: string;
 
-  constructor(projectRoot: string) {
+  constructor() {
     this.defaultPromptsDir = join(Deno.cwd(), "api", "prompts");
-    this.userPromptsDir = join(projectRoot, ".bbai", "prompts");
+    this.userPromptsDir = "";
+    this.initializeUserPromptsDir();
+  }
+
+  private async initializeUserPromptsDir() {
+    const bbaiDir = await getBbaiDir();
+    this.userPromptsDir = join(bbaiDir, "prompts");
   }
 
   async getPrompt(promptName: string): Promise<string> {
