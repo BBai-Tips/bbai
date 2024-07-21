@@ -44,7 +44,7 @@ export function mergeConfigs(...configs: Partial<ConfigSchema>[]): ConfigSchema 
 				mergedConfig[key as keyof ConfigSchema] = {
 					...mergedConfig[key as keyof ConfigSchema],
 					...Object.fromEntries(
-						Object.entries(value).filter(([_, v]) => v !== undefined)
+						Object.entries(value as object).filter(([_, v]) => v !== undefined)
 					),
 				};
 			} else {
