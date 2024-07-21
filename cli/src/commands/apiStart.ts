@@ -1,5 +1,6 @@
 import { Command } from 'cliffy/command/mod.ts';
 import { logger } from 'shared/logger.ts';
+import { config } from 'shared/configManager.ts';
 import { isApiRunning, savePid } from '../utils/pid.utils.ts';
 import { getBbaiDir } from 'shared/dataDir.ts';
 import { join } from '@std/path';
@@ -7,29 +8,32 @@ import { join } from '@std/path';
 export const apiStart = new Command()
 	.name('start')
 	.description('Start the bbai API server')
-	.option('--log-level <level:string>', 'Set the log level for the API server', { default: 'info' })
-	.action(async ({ logLevel }) => {
+	.option('--log-level <level:string>', 'Set the log level for the API server', { default: undefined })
+	.action(async ({ logLevel: cliLogLevel }) => {
 		if (await isApiRunning()) {
 			logger.info('bbai API server is already running.');
 			return;
 		}
 
-		logger.info('Starting bbai API server...');
-
 		const bbaiDir = await getBbaiDir();
 		const logFile = join(bbaiDir, 'api.log');
+		const logLevel = cliLogLevel ?? config.logLevel ?? 'info';
+
+		logger.info(`Starting bbai API server, logging at level ${logLevel} to ${logFile}`);
+
+		const cmdArgs = [
+			'run',
+			'--allow-read',
+			'--allow-write',
+			'--allow-env',
+			'--allow-net',
+			'--allow-run',
+		];
+		//`--log-level=${logLevel}`,
+		// add '--watch' if logLevel === 'debug'
 
 		const command = new Deno.Command(Deno.execPath(), {
-			args: [
-				'run',
-				'--allow-read',
-				'--allow-write',
-				'--allow-env',
-				'--allow-net',
-				'--allow-run',
-				'../api/src/main.ts',
-				logFile,
-			],
+			args: [...cmdArgs, '../api/src/main.ts', logFile],
 			cwd: '../api',
 			stdout: 'null',
 			stderr: 'null',
@@ -37,7 +41,7 @@ export const apiStart = new Command()
 			detached: true,
 			env: {
 				...Deno.env.toObject(),
-				LOG_LEVEL: logLevel,
+				//LOG_LEVEL: logLevel,
 			},
 		});
 
