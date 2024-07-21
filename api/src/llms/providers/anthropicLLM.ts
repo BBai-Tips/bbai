@@ -34,7 +34,7 @@ class AnthropicLLM extends LLM {
 		return messages.map((message) => ({
 			role: message.role,
 			content: message.content.map(part => {
-				if (part.type === 'text') {
+				if ('text' in part) {
 					return part.text;
 				}
 				// Handle other content types if necessary
