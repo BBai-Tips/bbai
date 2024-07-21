@@ -26,7 +26,7 @@ export const defaultConfig: ConfigSchema = {
 
 export function mergeConfigs(...configs: Partial<ConfigSchema>[]): ConfigSchema {
     return configs.reduce((acc, config) => {
-        const mergedConfig: Partial<ConfigSchema> = { ...acc };
+        const mergedConfig: ConfigSchema = { ...acc };
 
         for (const [key, value] of Object.entries(config)) {
             if (value === undefined) continue;
@@ -42,16 +42,18 @@ export function mergeConfigs(...configs: Partial<ConfigSchema>[]): ConfigSchema 
                 };
             } else if (typeof value === 'object' && value !== null) {
                 mergedConfig[key as keyof ConfigSchema] = {
-                    ...(mergedConfig[key as keyof ConfigSchema] as object),
+                    ...mergedConfig[key as keyof ConfigSchema],
                     ...Object.fromEntries(
                         Object.entries(value as object).filter(([_, v]) => v !== undefined)
                     ),
-                };
+                } as ConfigSchema[keyof ConfigSchema];
+            } else if (key === 'logLevel' && typeof value === 'string') {
+                mergedConfig.logLevel = value as 'debug' | 'info' | 'warn' | 'error';
             } else {
                 mergedConfig[key as keyof ConfigSchema] = value as ConfigSchema[keyof ConfigSchema];
             }
         }
 
-        return mergedConfig as ConfigSchema;
-    }, defaultConfig);
+        return mergedConfig;
+    }, { ...defaultConfig });
 }
