@@ -3,22 +3,25 @@ export interface ConfigSchema {
 		anthropicApiKey?: string;
 		openaiApiKey?: string;
 		environment: string;
-		appPort: number;
+		apiPort: number;
 		ignoreLLMRequestCache?: boolean;
 	};
 	cli: {
-		// Add CLI-specific configuration options here
 	};
-	// Add shared configuration options here
+	logFile?: string;
+	logLevel: 'debug' | 'info' | 'warn' | 'error';
 }
 
 export const defaultConfig: ConfigSchema = {
 	api: {
 		environment: 'local',
-		appPort: 3000,
+		apiPort: 3000,
 		ignoreLLMRequestCache: false,
 	},
-	cli: {},
+	cli: {
+	},
+	logFile: 'api.log',
+	logLevel: 'info',
 };
 
 export function mergeConfigs(...configs: Partial<ConfigSchema>[]): ConfigSchema {
@@ -44,6 +47,5 @@ export function mergeConfigs(...configs: Partial<ConfigSchema>[]): ConfigSchema 
 		}
 
 		return mergedConfig;
-	});
-	//   }, defaultConfig);
+	}, defaultConfig);
 }
