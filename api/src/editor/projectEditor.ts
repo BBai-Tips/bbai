@@ -7,15 +7,24 @@ import { LLMProvider, LLMSpeakWithOptions } from 'shared/types.ts';
 import LLMTool from '../llms/tool.ts';
 import * as diff from 'diff';
 import { ConversationPersistence } from '../utils/conversationPersistence.utils.ts';
+import { join, resolve, normalize } from '@std/path';
 
 export class ProjectEditor {
     private conversation: LLMConversation | null = null;
     private promptManager: PromptManager;
     private llmProvider: LLM;
+    private projectRoot: string;
 
     constructor() {
         this.promptManager = new PromptManager();
         this.llmProvider = LLMFactory.getProvider(); // Initialize llmProvider
+        this.projectRoot = Deno.cwd(); // Set the project root to the current working directory
+    }
+
+    private isPathWithinProject(filePath: string): boolean {
+        const normalizedPath = normalize(filePath);
+        const resolvedPath = resolve(this.projectRoot, normalizedPath);
+        return resolvedPath.startsWith(this.projectRoot);
     }
 
     private determineStorageLocation(filePath: string, content: string, source: 'tool' | 'user'): 'system' | 'message' {
@@ -182,6 +191,13 @@ export class ProjectEditor {
             throw new Error("Conversation not started. Call startConversation first.");
         }
 
+        if (!this.isPathWithinProject(filePath)) {
+            throw createError(ErrorType.FileHandling, `Access denied: ${filePath} is outside the project directory`, {
+                filePath,
+                operation: 'write',
+            } as FileHandlingErrorOptions);
+        }
+
         try {
             const metadata = {
                 path: filePath,
@@ -209,6 +225,13 @@ export class ProjectEditor {
     }
 
     async updateFile(filePath: string, content: string): Promise<void> {
+        if (!this.isPathWithinProject(filePath)) {
+            throw createError(ErrorType.FileHandling, `Access denied: ${filePath} is outside the project directory`, {
+                filePath,
+                operation: 'write',
+            } as FileHandlingErrorOptions);
+        }
+
         // TODO: Implement file update logic
         logger.info(`File ${filePath} updated in the project`);
     }
@@ -221,6 +244,11 @@ export class ProjectEditor {
 
     async handleRequestFiles(fileNames: string[], toolUseId: string): Promise<void> {
         for (const fileName of fileNames) {
+            if (!this.isPathWithinProject(fileName)) {
+                logger.warn(`Access denied: ${fileName} is outside the project directory`);
+                continue;
+            }
+
             try {
                 const content = await Deno.readTextFile(fileName);
                 await this.addFile(fileName, content, 'tool', toolUseId);
@@ -236,6 +264,13 @@ export class ProjectEditor {
     }
 
     async applyPatch(filePath: string, patch: string): Promise<void> {
+        if (!this.isPathWithinProject(filePath)) {
+            throw createError(ErrorType.FileHandling, `Access denied: ${filePath} is outside the project directory`, {
+                filePath,
+                operation: 'patch',
+            } as FileHandlingErrorOptions);
+        }
+
         try {
             const currentContent = await Deno.readTextFile(filePath);
             
