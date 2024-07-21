@@ -1,6 +1,6 @@
-import { ensureDir, exists } from 'https://deno.land/std/fs/mod.ts';
-import { join } from 'https://deno.land/std/path/mod.ts';
-import { LLMConversation } from '../llms/conversation.ts';
+import { ensureDir, exists } from '@std/fs';
+import { join } from '@std/path';
+import LLMConversation from '../llms/conversation.ts';
 import LLM from '../llms/providers/baseLLM.ts';
 import { logger } from 'shared/logger.ts';
 
