@@ -17,11 +17,12 @@ import { createError } from '../../utils/error.utils.ts';
 //import { metricsService } from '../../services/metrics.service.ts';
 import kv from '../../utils/kv.utils.ts';
 import { tokenUsageManager } from '../../utils/tokenUsage.utils.ts';
+import { readFileContent } from 'shared/dataDir.ts';
+
 import Ajv from 'ajv';
 
 const ajv = new Ajv();
 
-import { readFileContent } from '../../utils/fileUtils.ts';
 
 abstract class LLM {
 	protected modifySpeakWithConversationOptions(
