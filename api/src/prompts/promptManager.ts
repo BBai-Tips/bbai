@@ -1,6 +1,6 @@
-import { join } from "std/path/mod.ts";
-import { exists } from "std/fs/mod.ts";
-import { parse as parseYaml } from "std/yaml/mod.ts";
+import { join } from "@std/path";
+import { exists } from "@std/fs";
+import { parse as parseYaml } from "yaml";
 import { stripIndent } from "common-tags";
 
 interface PromptMetadata {
