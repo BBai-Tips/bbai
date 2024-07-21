@@ -91,56 +91,61 @@ export const undoConversation = async (
     response.body = { message: `Last change in conversation ${params.id} undone` };
 };
 
-export const addFile = async (ctx: Context) => {
+export const addFile = async (
+    { params, request, response }: { params: { id: string }; request: Context['request']; response: Context['response'] }
+) => {
     try {
-        const body = await ctx.request.body.json();
-        const { conversationId, filePath } = body;
+        const { id: conversationId } = params;
+        const body = await request.body().value;
+        const { filePath } = body;
 
         // TODO: Implement file addition logic
         // For now, we'll just log the file addition
         logger.info(`File ${filePath} added to conversation ${conversationId}`);
 
-        ctx.response.status = 200;
-        ctx.response.body = { message: 'File added to conversation' };
+        response.status = 200;
+        response.body = { message: 'File added to conversation' };
     } catch (error) {
         logger.error(`Error in addFile: ${error.message}`);
-        ctx.response.status = 500;
-        ctx.response.body = { error: 'Failed to add file to conversation' };
+        response.status = 500;
+        response.body = { error: 'Failed to add file to conversation' };
     }
 };
 
-export const removeFile = async (ctx: Context) => {
+export const removeFile = async (
+    { params, response }: { params: { id: string; fileId: string }; response: Context['response'] }
+) => {
     try {
-        const { id } = ctx.params;
-        const body = await ctx.request.body.json();
-        const { conversationId } = body;
+        const { id: conversationId, fileId } = params;
 
         // TODO: Implement file removal logic
         // For now, we'll just log the file removal
-        logger.info(`File ${id} removed from conversation ${conversationId}`);
+        logger.info(`File ${fileId} removed from conversation ${conversationId}`);
 
-        ctx.response.status = 200;
-        ctx.response.body = { message: `File ${id} removed from conversation` };
+        response.status = 200;
+        response.body = { message: `File ${fileId} removed from conversation` };
     } catch (error) {
         logger.error(`Error in removeFile: ${error.message}`);
-        ctx.response.status = 500;
-        ctx.response.body = { error: 'Failed to remove file from conversation' };
+        response.status = 500;
+        response.body = { error: 'Failed to remove file from conversation' };
     }
 };
 
-export const listFiles = async (ctx: Context<State, { params: { id: string } }>) => {
+export const listFiles = async (
+    { params, response }: { params: { id: string }; response: Context['response'] }
+) => {
     try {
-        const { id } = ctx.params;
+        const { id: conversationId } = params;
 
         // TODO: Implement file listing logic
         // For now, we'll return a mock list of files
         const mockFiles = ['file1.txt', 'file2.js', 'file3.py'];
 
-        ctx.response.status = 200;
-        ctx.response.body = { files: mockFiles };
+        response.status = 200;
+        response.body = { conversationId, files: mockFiles };
     } catch (error) {
         logger.error(`Error in listFiles: ${error.message}`);
-        ctx.response.status = 500;
-        ctx.response.body = { error: 'Failed to list files in conversation' };
+        response.status = 500;
+        response.body = { error: 'Failed to list files in conversation' };
     }
 };
