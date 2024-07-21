@@ -58,6 +58,16 @@ export class ProjectEditor {
         };
 
         const response = await this.conversation.speakWithLLM(prompt, speakOptions);
+
+        // Handle tool calls
+        if (response.toolsUsed && response.toolsUsed.length > 0) {
+            for (const tool of response.toolsUsed) {
+                if (tool.toolName === 'apply_patch') {
+                    await this.applyPatch(tool.toolInput.filePath, tool.toolInput.patch);
+                }
+            }
+        }
+
         return response;
     }
 
@@ -93,8 +103,28 @@ export class ProjectEditor {
             },
         };
 
+        const applyPatchTool: LLMTool = {
+            name: 'apply_patch',
+            description: 'Apply a patch to a file',
+            input_schema: {
+                type: 'object',
+                properties: {
+                    filePath: {
+                        type: 'string',
+                        description: 'The path of the file to be patched',
+                    },
+                    patch: {
+                        type: 'string',
+                        description: 'The patch to be applied in diff format',
+                    },
+                },
+                required: ['filePath', 'patch'],
+            },
+        };
+
         this.conversation?.addTool(requestFilesTool);
         this.conversation?.addTool(vectorSearchTool);
+        this.conversation?.addTool(applyPatchTool);
     }
 
     async addFile(filePath: string, content: string): Promise<void> {
@@ -127,5 +157,51 @@ export class ProjectEditor {
 
     async handleVectorSearch(query: string): Promise<any> {
         return await this.searchEmbeddings(query);
+    }
+
+    async applyPatch(filePath: string, patch: string): Promise<void> {
+        try {
+            const currentContent = await Deno.readTextFile(filePath);
+            const updatedContent = this.applyDiffPatch(currentContent, patch);
+            await Deno.writeTextFile(filePath, updatedContent);
+            logger.info(`Patch applied to file: ${filePath}`);
+        } catch (error) {
+            logger.error(`Error applying patch to ${filePath}: ${error.message}`);
+            throw error;
+        }
+    }
+
+    private applyDiffPatch(originalContent: string, patch: string): string {
+        const lines = originalContent.split('\n');
+        const patchLines = patch.split('\n');
+        let lineIndex = 0;
+
+        for (const patchLine of patchLines) {
+            if (patchLine.startsWith('---') || patchLine.startsWith('+++')) {
+                continue;
+            }
+
+            if (patchLine.startsWith('@@')) {
+                const match = patchLine.match(/@@ -(\d+),?(\d+)? \+(\d+),?(\d+)? @@/);
+                if (match) {
+                    lineIndex = parseInt(match[3]) - 1;
+                }
+                continue;
+            }
+
+            if (patchLine.startsWith('-')) {
+                if (lines[lineIndex] !== patchLine.slice(1)) {
+                    throw new Error('Patch does not match the original content');
+                }
+                lines.splice(lineIndex, 1);
+            } else if (patchLine.startsWith('+')) {
+                lines.splice(lineIndex, 0, patchLine.slice(1));
+                lineIndex++;
+            } else {
+                lineIndex++;
+            }
+        }
+
+        return lines.join('\n');
     }
 }
