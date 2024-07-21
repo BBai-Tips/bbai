@@ -103,13 +103,13 @@ class OpenAILLM extends LLM {
 		return contentParts;
 	}
 
-	public prepareMessageParams(
+	public async prepareMessageParams(
 		conversation: LLMConversation,
 		speakOptions?: LLMSpeakWithOptions,
-	): OpenAI.Chat.ChatCompletionCreateParams {
+	): Promise<OpenAI.Chat.ChatCompletionCreateParams> {
 		const messages = this.asProviderMessageType(speakOptions?.messages || conversation.getMessages());
 		const tools = this.asProviderToolType(speakOptions?.tools || conversation.getTools());
-		const system: string = speakOptions?.system || conversation.system;
+		const system: string = speakOptions?.system || conversation.baseSystem;
 		const model: string = speakOptions?.model || conversation.model || OpenAIModel.GPT_4o;
 		const maxTokens: number = speakOptions?.maxTokens || conversation.maxTokens;
 		const temperature: number = speakOptions?.temperature || conversation.temperature;
