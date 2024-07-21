@@ -15,7 +15,7 @@ export class ProjectEditor {
         this.promptManager = new PromptManager();
     }
 
-    async startConversation(prompt: string, provider: LLMProvider, model: string, tools: LLMTool[] = []): Promise<any> {
+    async startConversation(prompt: string, provider: LLMProvider, model: string): Promise<any> {
         this.llmProvider = LLMFactory.getProvider(provider);
         const systemPrompt = await this.promptManager.getPrompt('system', { userDefinedContent: "You are an AI assistant helping with code and project management." });
 
@@ -23,7 +23,7 @@ export class ProjectEditor {
         this.conversation.system = systemPrompt;
         this.conversation.model = model;
         
-        tools.forEach(tool => this.conversation.addTool(tool));
+        this.addDefaultTools();
 
         const speakOptions: LLMSpeakWithOptions = {
             temperature: 0.7,
@@ -48,6 +48,42 @@ export class ProjectEditor {
         return response;
     }
 
+    private addDefaultTools(): void {
+        const requestFilesTool: LLMTool = {
+            name: 'request_files',
+            description: 'Request files to be added to the chat',
+            input_schema: {
+                type: 'object',
+                properties: {
+                    fileNames: {
+                        type: 'array',
+                        items: { type: 'string' },
+                        description: 'Array of file names to be added to the chat',
+                    },
+                },
+                required: ['fileNames'],
+            },
+        };
+
+        const vectorSearchTool: LLMTool = {
+            name: 'vector_search',
+            description: 'Perform a vector search on the project files',
+            input_schema: {
+                type: 'object',
+                properties: {
+                    query: {
+                        type: 'string',
+                        description: 'The search query to use for vector search',
+                    },
+                },
+                required: ['query'],
+            },
+        };
+
+        this.conversation?.addTool(requestFilesTool);
+        this.conversation?.addTool(vectorSearchTool);
+    }
+
     async addFile(filePath: string, content: string): Promise<void> {
         // TODO: Implement file addition logic
         logger.info(`File ${filePath} added to the project`);
@@ -64,5 +100,19 @@ export class ProjectEditor {
         return [];
     }
 
-    // Additional methods can be added here as needed
+    async handleRequestFiles(fileNames: string[]): Promise<void> {
+        for (const fileName of fileNames) {
+            try {
+                const content = await Deno.readTextFile(fileName);
+                await this.addFile(fileName, content);
+                logger.info(`File ${fileName} added to the chat`);
+            } catch (error) {
+                logger.error(`Error adding file ${fileName}: ${error.message}`);
+            }
+        }
+    }
+
+    async handleVectorSearch(query: string): Promise<any> {
+        return await this.searchEmbeddings(query);
+    }
 }

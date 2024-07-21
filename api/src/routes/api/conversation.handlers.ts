@@ -25,6 +25,18 @@ export const startConversation = async (ctx: Context) => {
         logger.debug('Starting conversation with ProjectEditor');
         const response = await projectEditor.startConversation(prompt, provider, model);
 
+        // Handle tool calls
+        if (response.toolsUsed && response.toolsUsed.length > 0) {
+            for (const tool of response.toolsUsed) {
+                if (tool.toolName === 'request_files') {
+                    await projectEditor.handleRequestFiles(tool.toolInput.fileNames);
+                } else if (tool.toolName === 'vector_search') {
+                    const searchResults = await projectEditor.handleVectorSearch(tool.toolInput.query);
+                    response.searchResults = searchResults;
+                }
+            }
+        }
+
         logger.debug('LLM response:', response);
         ctx.response.body = response;
     } catch (error) {
