@@ -94,16 +94,26 @@ export class ConfigManager {
 	}
 
 	private loadEnvConfig(): Partial<ConfigSchema> {
-		return {
-			api: {
-				anthropicApiKey: Deno.env.get('ANTHROPIC_API_KEY') || undefined,
-				openaiApiKey: Deno.env.get('OPENAI_API_KEY') || undefined,
-				environment: Deno.env.get('BBAI_ENVIRONMENT') || undefined,
-				apiPort: Deno.env.get('BBAI_API_PORT') ? parseInt(Deno.env.get('BBAI_API_PORT') || '', 10) : undefined,
-				ignoreLLMRequestCache: Deno.env.get('BBAI_IGNORE_LLM_REQUEST_CACHE') === 'true' || undefined,
-			},
-			// Add CLI-specific env variables here if needed
-		} as Partial<ConfigSchema>;
+		const config: Partial<ConfigSchema> = { api: {} };
+
+		const anthropicApiKey = Deno.env.get('ANTHROPIC_API_KEY');
+		if (anthropicApiKey) config.api!.anthropicApiKey = anthropicApiKey;
+
+		const openaiApiKey = Deno.env.get('OPENAI_API_KEY');
+		if (openaiApiKey) config.api!.openaiApiKey = openaiApiKey;
+
+		const environment = Deno.env.get('BBAI_ENVIRONMENT');
+		if (environment) config.api!.environment = environment;
+
+		const apiPort = Deno.env.get('BBAI_API_PORT');
+		if (apiPort) config.api!.apiPort = parseInt(apiPort, 10);
+
+		const ignoreLLMRequestCache = Deno.env.get('BBAI_IGNORE_LLM_REQUEST_CACHE');
+		if (ignoreLLMRequestCache === 'true') config.api!.ignoreLLMRequestCache = true;
+
+		// Add CLI-specific env variables here if needed
+
+		return config;
 	}
 
 	public getConfig(): Partial<ConfigSchema> {
