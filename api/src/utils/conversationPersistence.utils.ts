@@ -6,10 +6,12 @@ import { logger } from 'shared/logger.ts';
 
 export class ConversationPersistence {
 	private filePath: string;
+	private patchLogPath: string;
 
 	constructor(conversationId: string) {
 		const cacheDir = join(Deno.env.get('HOME') || '', '.bbai', 'cache');
 		this.filePath = join(cacheDir, `${conversationId}.jsonl`);
+		this.patchLogPath = join(cacheDir, `${conversationId}_patches.jsonl`);
 	}
 
 	static async listConversations(options: {
@@ -86,5 +88,26 @@ export class ConversationPersistence {
 		}
 
 		return conversation;
+	}
+
+	async logPatch(filePath: string, patch: string): Promise<void> {
+		const patchEntry = JSON.stringify({
+			timestamp: new Date().toISOString(),
+			filePath,
+			patch,
+		}) + '\n';
+
+		await Deno.writeTextFile(this.patchLogPath, patchEntry, { append: true });
+	}
+
+	async getPatchLog(): Promise<Array<{ timestamp: string; filePath: string; patch: string }>> {
+		if (!await exists(this.patchLogPath)) {
+			return [];
+		}
+
+		const content = await Deno.readTextFile(this.patchLogPath);
+		const lines = content.trim().split('\n');
+
+		return lines.map(line => JSON.parse(line));
 	}
 }

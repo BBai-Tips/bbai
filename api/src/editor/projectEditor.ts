@@ -176,6 +176,12 @@ export class ProjectEditor {
 
             await Deno.writeTextFile(filePath, patchedContent);
             logger.info(`Patch applied to file: ${filePath}`);
+
+            // Log the applied patch
+            if (this.conversation) {
+                const persistence = new ConversationPersistence(this.conversation.id);
+                await persistence.logPatch(filePath, patch);
+            }
         } catch (error) {
             logger.error(`Error applying patch to ${filePath}: ${error.message}`);
             throw error;
