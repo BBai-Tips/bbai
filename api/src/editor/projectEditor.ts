@@ -5,6 +5,7 @@ import { logger } from 'shared/logger.ts';
 import { PromptManager } from '../prompts/promptManager.ts';
 import { LLMProvider, LLMSpeakWithOptions } from 'shared/types.ts';
 import LLMTool from '../llms/tool.ts';
+import * as diff from 'diff';
 
 export class ProjectEditor {
     private conversation: LLMConversation | null = null;
@@ -163,80 +164,20 @@ export class ProjectEditor {
         try {
             const currentContent = await Deno.readTextFile(filePath);
             
-            if (!this.validatePatch(currentContent, patch)) {
-                throw new Error('Patch validation failed. The patch does not match the current file content.');
+            const patchedContent = diff.applyPatch(currentContent, patch, {
+                fuzzFactor: 2,
+                autoConvertLineEndings: true,
+            });
+
+            if (patchedContent === false) {
+                throw new Error('Failed to apply patch. The patch does not match the current file content.');
             }
 
-            const updatedContent = this.applyDiffPatch(currentContent, patch);
-            await Deno.writeTextFile(filePath, updatedContent);
+            await Deno.writeTextFile(filePath, patchedContent);
             logger.info(`Patch applied to file: ${filePath}`);
         } catch (error) {
             logger.error(`Error applying patch to ${filePath}: ${error.message}`);
             throw error;
         }
-    }
-
-    private validatePatch(originalContent: string, patch: string): boolean {
-        const lines = originalContent.split('\n');
-        const patchLines = patch.split('\n');
-        let lineIndex = 0;
-
-        for (const patchLine of patchLines) {
-            if (patchLine.startsWith('---') || patchLine.startsWith('+++')) {
-                continue;
-            }
-
-            if (patchLine.startsWith('@@')) {
-                const match = patchLine.match(/@@ -(\d+),?(\d+)? \+(\d+),?(\d+)? @@/);
-                if (match) {
-                    lineIndex = parseInt(match[3]) - 1;
-                }
-                continue;
-            }
-
-            if (patchLine.startsWith('-')) {
-                if (lines[lineIndex] !== patchLine.slice(1)) {
-                    return false;
-                }
-                lineIndex++;
-            } else if (patchLine.startsWith('+')) {
-                // No validation needed for additions
-            } else {
-                lineIndex++;
-            }
-        }
-
-        return true;
-    }
-
-    private applyDiffPatch(originalContent: string, patch: string): string {
-        const lines = originalContent.split('\n');
-        const patchLines = patch.split('\n');
-        let lineIndex = 0;
-
-        for (const patchLine of patchLines) {
-            if (patchLine.startsWith('---') || patchLine.startsWith('+++')) {
-                continue;
-            }
-
-            if (patchLine.startsWith('@@')) {
-                const match = patchLine.match(/@@ -(\d+),?(\d+)? \+(\d+),?(\d+)? @@/);
-                if (match) {
-                    lineIndex = parseInt(match[3]) - 1;
-                }
-                continue;
-            }
-
-            if (patchLine.startsWith('-')) {
-                lines.splice(lineIndex, 1);
-            } else if (patchLine.startsWith('+')) {
-                lines.splice(lineIndex, 0, patchLine.slice(1));
-                lineIndex++;
-            } else {
-                lineIndex++;
-            }
-        }
-
-        return lines.join('\n');
     }
 }
