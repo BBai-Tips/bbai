@@ -12,6 +12,18 @@ export class ConversationPersistence {
 		this.filePath = join(cacheDir, `${conversationId}.jsonl`);
 	}
 
+	static async listConversations(options: {
+		page: number;
+		pageSize: number;
+		startDate?: Date;
+		endDate?: Date;
+		providerName?: string;
+	}): Promise<any[]> {
+		// TODO: Implement actual conversation listing logic
+		// This is a placeholder implementation
+		return [];
+	}
+
 	async saveConversation(conversation: LLMConversation): Promise<void> {
 		await ensureDir(join(this.filePath, '..'));
 
