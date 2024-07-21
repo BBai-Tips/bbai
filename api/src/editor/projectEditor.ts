@@ -8,6 +8,7 @@ import LLMTool from '../llms/tool.ts';
 import * as diff from 'diff';
 import { ConversationPersistence } from '../utils/conversationPersistence.utils.ts';
 import { join, resolve, normalize } from '@std/path';
+import { getBbaiDir } from '../utils/dataDir.utils.ts';
 
 export class ProjectEditor {
     private conversation: LLMConversation | null = null;
@@ -18,7 +19,16 @@ export class ProjectEditor {
     constructor() {
         this.promptManager = new PromptManager();
         this.llmProvider = LLMFactory.getProvider(); // Initialize llmProvider
-        this.projectRoot = Deno.cwd(); // Set the project root to the current working directory
+        this.initializeProjectRoot();
+    }
+
+    private async initializeProjectRoot() {
+        try {
+            this.projectRoot = await getBbaiDir();
+        } catch (error) {
+            console.error("Failed to get project root:", error);
+            this.projectRoot = Deno.cwd(); // Fallback to current working directory
+        }
     }
 
     private isPathWithinProject(filePath: string): boolean {
