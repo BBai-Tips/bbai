@@ -31,7 +31,14 @@ export function mergeConfigs(...configs: Partial<ConfigSchema>[]): ConfigSchema 
 		for (const [key, value] of Object.entries(config)) {
 			if (value === undefined) continue;
 
-			if (typeof value === 'object' && value !== null) {
+			if (key === 'cli' || key === 'api') {
+				mergedConfig[key] = {
+					...mergedConfig[key],
+					...Object.fromEntries(
+						Object.entries(value as object).filter(([_, v]) => v !== undefined)
+					),
+				};
+			} else if (typeof value === 'object' && value !== null) {
 				mergedConfig[key as keyof ConfigSchema] = {
 					...mergedConfig[key as keyof ConfigSchema],
 					...Object.fromEntries(
