@@ -2,6 +2,7 @@ import { Context } from '@oak/oak';
 import { LLMFactory } from '../../llms/llmProvider.ts';
 import { logger } from 'shared/logger.ts';
 import { PromptManager } from '../../prompts/promptManager.ts';
+import { ConversationPersistence } from '../../utils/conversationPersistence.utils.ts';
 
 const promptManager = new PromptManager();
 
@@ -52,8 +53,29 @@ export const startConversation = async (ctx: Context) => {
 export const getConversation = async (
 	{ params, response }: { params: { id: string }; response: Context['response'] },
 ) => {
-	// Get conversation details
-	response.body = { message: `Conversation ${params.id} details` };
+	try {
+		const { id: conversationId } = params;
+		const persistence = new ConversationPersistence(conversationId);
+		const llmProvider = LLMFactory.getProvider(); // Use default provider
+		const conversation = await persistence.loadConversation(llmProvider);
+
+		response.status = 200;
+		response.body = {
+			id: conversation.id,
+			providerName: conversation.providerName,
+			system: conversation.system,
+			model: conversation.model,
+			maxTokens: conversation.maxTokens,
+			temperature: conversation.temperature,
+			turnCount: conversation.turnCount,
+			totalTokenUsage: conversation.totalTokenUsage,
+			messages: conversation.getMessages(),
+		};
+	} catch (error) {
+		logger.error(`Error in getConversation: ${error.message}`);
+		response.status = 404;
+		response.body = { error: 'Conversation not found' };
+	}
 };
 
 export const updateConversation = async (
@@ -68,6 +90,38 @@ export const deleteConversation = async (
 ) => {
 	// Delete conversation
 	response.body = { message: `Conversation ${params.id} deleted` };
+};
+
+export const listConversations = async (
+	{ request, response }: { request: Context['request']; response: Context['response'] },
+) => {
+	try {
+		const { page = '1', pageSize = '10', startDate, endDate, providerName } = request.url.searchParams;
+
+		// TODO: Implement actual pagination and filtering logic
+		const conversations = await ConversationPersistence.listConversations({
+			page: parseInt(page),
+			pageSize: parseInt(pageSize),
+			startDate: startDate ? new Date(startDate) : undefined,
+			endDate: endDate ? new Date(endDate) : undefined,
+			providerName,
+		});
+
+		response.status = 200;
+		response.body = {
+			conversations,
+			pagination: {
+				page: parseInt(page),
+				pageSize: parseInt(pageSize),
+				totalPages: Math.ceil(conversations.length / parseInt(pageSize)),
+				totalItems: conversations.length,
+			},
+		};
+	} catch (error) {
+		logger.error(`Error in listConversations: ${error.message}`);
+		response.status = 500;
+		response.body = { error: 'Failed to list conversations' };
+	}
 };
 
 export const addMessage = async (
