@@ -21,6 +21,7 @@ class LLMConversation {
 	private _turnCount: number = 0;
 	private messages: LLMMessage[] = [];
 	private tools: LLMTool[] = [];
+	private files: { [key: string]: { content: string; metadata: any } } = {};
 
 	private persistence: ConversationPersistence;
 
@@ -36,6 +37,24 @@ class LLMConversation {
 		this.id = ulid();
 		this.llm = llm;
 		this.persistence = new ConversationPersistence(this.id);
+	}
+
+	async addFileToSystemPrompt(filePath: string, content: string, metadata: any): Promise<void> {
+		const fileContent = `<file path="${metadata.path}" size="${metadata.size}" last_modified="${metadata.last_modified}">\n${content}\n</file>`;
+		this._system += `\n\n${fileContent}`;
+		this.files[filePath] = { content, metadata };
+		await this.persistence.saveConversation(this);
+	}
+
+	async addFileToMessageArray(filePath: string, content: string, metadata: any): Promise<void> {
+		const fileMessage = new LLMMessage('system', [{ type: 'text', text: `File added: ${filePath}` }]);
+		this.addMessage(fileMessage);
+		this.files[filePath] = { content, metadata };
+		await this.persistence.saveConversation(this);
+	}
+
+	getFiles(): { [key: string]: { content: string; metadata: any } } {
+		return this.files;
 	}
 
 	async save(): Promise<void> {

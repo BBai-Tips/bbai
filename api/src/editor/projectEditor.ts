@@ -18,6 +18,16 @@ export class ProjectEditor {
         this.llmProvider = LLMFactory.getProvider(); // Initialize llmProvider
     }
 
+    private determineStorageLocation(filePath: string, content: string): 'system' | 'message' {
+        const fileSize = new TextEncoder().encode(content).length;
+        const fileCount = this.conversation?.getFiles().length || 0;
+
+        if (fileCount < 10 && fileSize < 50 * 1024) {
+            return 'system';
+        }
+        return 'message';
+    }
+
     async startConversation(prompt: string, provider: LLMProvider, model: string): Promise<any> {
         this.llmProvider = LLMFactory.getProvider(provider);
         const systemPrompt = await this.promptManager.getPrompt('system', { userDefinedContent: "You are an AI assistant helping with code and project management." });
@@ -132,8 +142,24 @@ export class ProjectEditor {
     }
 
     async addFile(filePath: string, content: string): Promise<void> {
-        // TODO: Implement file addition logic
-        logger.info(`File ${filePath} added to the project`);
+        if (!this.conversation) {
+            throw new Error("Conversation not started. Call startConversation first.");
+        }
+
+        const storageLocation = this.determineStorageLocation(filePath, content);
+        const metadata = {
+            path: filePath,
+            size: new TextEncoder().encode(content).length,
+            last_modified: new Date().toISOString(),
+        };
+
+        if (storageLocation === 'system') {
+            await this.conversation.addFileToSystemPrompt(filePath, content, metadata);
+        } else {
+            await this.conversation.addFileToMessageArray(filePath, content, metadata);
+        }
+
+        logger.info(`File ${filePath} added to the project in ${storageLocation} storage`);
     }
 
     async updateFile(filePath: string, content: string): Promise<void> {
