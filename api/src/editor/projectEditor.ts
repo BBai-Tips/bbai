@@ -20,7 +20,7 @@ export class ProjectEditor {
 
     private determineStorageLocation(filePath: string, content: string): 'system' | 'message' {
         const fileSize = new TextEncoder().encode(content).length;
-        const fileCount = this.conversation?.getFiles().length || 0;
+        const fileCount = Object.keys(this.conversation?.getFiles() || {}).length;
 
         if (fileCount < 10 && fileSize < 50 * 1024) {
             return 'system';
@@ -243,7 +243,11 @@ export class ProjectEditor {
             const currentContent = await Deno.readTextFile(filePath);
             
             // Create a reverse patch
-            const reversePatch = diff.createPatch(filePath, diff.applyPatch(currentContent, patch), currentContent);
+            const patchResult = diff.applyPatch(currentContent, patch);
+            if (typeof patchResult === 'boolean') {
+                throw new Error('Failed to apply original patch. Cannot create reverse patch.');
+            }
+            const reversePatch = diff.createPatch(filePath, patchResult, currentContent);
 
             // Apply the reverse patch
             const revertedContent = diff.applyPatch(currentContent, reversePatch);
