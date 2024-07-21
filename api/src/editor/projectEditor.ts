@@ -6,6 +6,7 @@ import { PromptManager } from '../prompts/promptManager.ts';
 import { LLMProvider, LLMSpeakWithOptions } from 'shared/types.ts';
 import LLMTool from '../llms/tool.ts';
 import * as diff from 'diff';
+import { ConversationPersistence } from '../utils/conversationPersistence.utils.ts';
 
 export class ProjectEditor {
     private conversation: LLMConversation | null = null;
@@ -184,6 +185,45 @@ export class ProjectEditor {
             }
         } catch (error) {
             logger.error(`Error applying patch to ${filePath}: ${error.message}`);
+            throw error;
+        }
+    }
+
+    async revertLastPatch(): Promise<void> {
+        if (!this.conversation) {
+            throw new Error("No active conversation. Cannot revert patch.");
+        }
+
+        const persistence = new ConversationPersistence(this.conversation.id);
+        const patchLog = await persistence.getPatchLog();
+
+        if (patchLog.length === 0) {
+            throw new Error("No patches to revert.");
+        }
+
+        const lastPatch = patchLog[patchLog.length - 1];
+        const { filePath, patch } = lastPatch;
+
+        try {
+            const currentContent = await Deno.readTextFile(filePath);
+            
+            // Create a reverse patch
+            const reversePatch = diff.createPatch(filePath, diff.applyPatch(currentContent, patch), currentContent);
+
+            // Apply the reverse patch
+            const revertedContent = diff.applyPatch(currentContent, reversePatch);
+
+            if (revertedContent === false) {
+                throw new Error('Failed to revert patch. The current file content may have changed.');
+            }
+
+            await Deno.writeTextFile(filePath, revertedContent);
+            logger.info(`Last patch reverted for file: ${filePath}`);
+
+            // Remove the last patch from the log
+            await persistence.removeLastPatch();
+        } catch (error) {
+            logger.error(`Error reverting last patch: ${error.message}`);
             throw error;
         }
     }

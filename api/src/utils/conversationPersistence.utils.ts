@@ -110,4 +110,18 @@ export class ConversationPersistence {
 
 		return lines.map(line => JSON.parse(line));
 	}
+
+	async removeLastPatch(): Promise<void> {
+		if (!await exists(this.patchLogPath)) {
+			return;
+		}
+
+		const content = await Deno.readTextFile(this.patchLogPath);
+		const lines = content.trim().split('\n');
+
+		if (lines.length > 0) {
+			lines.pop(); // Remove the last line
+			await Deno.writeTextFile(this.patchLogPath, lines.join('\n') + '\n');
+		}
+	}
 }
