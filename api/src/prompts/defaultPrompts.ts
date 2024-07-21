@@ -17,8 +17,6 @@ export const system = {
     6. Handling configuration files and data formats (JSON, YAML, etc.)
 
     You have access to a local repository and can work with files that have been added to the conversation. Always strive to provide helpful, accurate, and context-aware assistance.
-
-    \${userDefinedContent}
   `,
 };
 

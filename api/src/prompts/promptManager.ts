@@ -31,16 +31,17 @@ export class PromptManager {
 
   async getPrompt(promptName: string): Promise<string> {
     const userPrompt = await this.loadUserPrompt(promptName);
-    if (userPrompt) {
-      return userPrompt.content;
-    }
-
     const defaultPrompt = defaultPrompts[promptName as keyof typeof defaultPrompts];
-    if (defaultPrompt) {
-      return defaultPrompt.content;
+
+    if (!userPrompt && !defaultPrompt) {
+      throw new Error(`Prompt '${promptName}' not found`);
     }
 
-    throw new Error(`Prompt '${promptName}' not found`);
+    const promptContent = userPrompt?.content || defaultPrompt?.content || '';
+    const userDefinedContent = ''; // This would be populated from somewhere else in your application
+
+    // Use template literal for interpolation
+    return `${promptContent}\n\n${userDefinedContent}`.trim();
   }
 
   private async loadUserPrompt(promptName: string): Promise<Prompt | null> {
