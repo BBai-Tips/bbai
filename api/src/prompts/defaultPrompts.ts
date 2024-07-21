@@ -8,7 +8,7 @@ interface PromptMetadata {
 
 interface Prompt {
   metadata: PromptMetadata;
-  getContent: (variables: Record<string, any>) => string;
+  getContent: (variables: Record<string, any>) => Promise<string>;
 }
 
 import { loadConfig, resolveFilePath, readFileContent } from "shared/dataDir.ts";

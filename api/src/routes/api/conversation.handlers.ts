@@ -130,7 +130,7 @@ export const removeFile = async (ctx: Context) => {
 
 export const listFiles = async (ctx: Context) => {
     try {
-        const { id } = ctx.params;
+        const id = ctx.params?.id;
 
         // TODO: Implement file listing logic
         // For now, we'll return a mock list of files

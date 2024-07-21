@@ -26,7 +26,7 @@ export const defaultConfig: ConfigSchema = {
 
 export function mergeConfigs(...configs: Partial<ConfigSchema>[]): ConfigSchema {
     return configs.reduce((acc, config) => {
-        const mergedConfig: ConfigSchema = { ...acc };
+        const mergedConfig = { ...acc } as ConfigSchema;
 
         for (const [key, value] of Object.entries(config)) {
             if (value === undefined) continue;
@@ -40,6 +40,12 @@ export function mergeConfigs(...configs: Partial<ConfigSchema>[]): ConfigSchema 
                         )
                         : {}),
                 } as ConfigSchema[typeof key];
+                if (key === 'api' && !mergedConfig.api.environment) {
+                    mergedConfig.api.environment = defaultConfig.api.environment;
+                }
+                if (key === 'api' && !mergedConfig.api.apiPort) {
+                    mergedConfig.api.apiPort = defaultConfig.api.apiPort;
+                }
             } else if (typeof value === 'object' && value !== null) {
                 (mergedConfig[key as keyof ConfigSchema] as any) = {
                     ...(mergedConfig[key as keyof ConfigSchema] as object),

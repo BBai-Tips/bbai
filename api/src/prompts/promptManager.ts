@@ -39,7 +39,7 @@ export class PromptManager {
     }
 
     const isUserLevel = this.config.configSource === 'user';
-    const resolvedPath = await resolveFilePath(guidelinesPath, isUserLevel);
+    const resolvedPath = await resolveFilePath(guidelinesPath);
     return await readFileContent(resolvedPath);
   }
 
