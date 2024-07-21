@@ -7,7 +7,6 @@ import LLMMessage from '../llms/message.ts';
 import type { LLMAnswerToolUse, LLMMessageContentParts } from '../llms/message.ts';
 export type { LLMMessageContentPart, LLMMessageContentParts } from '../llms/message.ts';
 
-
 export type ConversationId = string;
 
 export enum AnthropicModel {

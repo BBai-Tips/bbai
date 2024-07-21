@@ -39,8 +39,8 @@ class AnthropicLLM extends LLM {
 
 	private asProviderToolType(tools: LLMTool[]): Anthropic.Tool[] {
 		return tools.map((tool) => ({
-				name: tool.name,
-				description: tool.description,
+			name: tool.name,
+			description: tool.description,
 			input_schema: tool.input_schema,
 		} as Anthropic.Tool));
 	}
@@ -77,7 +77,7 @@ class AnthropicLLM extends LLM {
 	 * @returns Promise<LLMProviderMessageResponse> The response from Anthropic or an error
 	 */
 	public async speakWith(
-		messageParams: LLMProviderMessageRequest
+		messageParams: LLMProviderMessageRequest,
 	): Promise<LLMProviderMessageResponse> {
 		try {
 			logger.info('llms-anthropic-speakWith-messageParams', messageParams);

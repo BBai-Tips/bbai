@@ -1,39 +1,39 @@
-import { stripIndents } from "common-tags";
+import { stripIndents } from 'common-tags';
 
 interface PromptMetadata {
-  name: string;
-  description: string;
-  version: string;
+	name: string;
+	description: string;
+	version: string;
 }
 
 interface Prompt {
-  metadata: PromptMetadata;
-  getContent: (variables: Record<string, any>) => Promise<string>;
+	metadata: PromptMetadata;
+	getContent: (variables: Record<string, any>) => Promise<string>;
 }
 
-import { loadConfig, resolveFilePath, readFileContent } from "shared/dataDir.ts";
+import { loadConfig, readFileContent, resolveFilePath } from 'shared/dataDir.ts';
 
 export const system: Prompt = {
-  metadata: {
-    name: "System Prompt",
-    description: "Default system prompt for bbai",
-    version: "1.0.0",
-  },
-  getContent: async ({ userDefinedContent = '' }) => {
-    const config = await loadConfig();
-    const guidelinesPath = config.llmGuidelinesFile;
-    let guidelines = '';
+	metadata: {
+		name: 'System Prompt',
+		description: 'Default system prompt for bbai',
+		version: '1.0.0',
+	},
+	getContent: async ({ userDefinedContent = '' }) => {
+		const config = await loadConfig();
+		const guidelinesPath = config.llmGuidelinesFile;
+		let guidelines = '';
 
-    if (guidelinesPath) {
-      try {
-        const resolvedPath = await resolveFilePath(guidelinesPath);
-        guidelines = await readFileContent(resolvedPath) || '';
-      } catch (error) {
-        console.error(`Failed to load guidelines: ${error.message}`);
-      }
-    }
+		if (guidelinesPath) {
+			try {
+				const resolvedPath = await resolveFilePath(guidelinesPath);
+				guidelines = await readFileContent(resolvedPath) || '';
+			} catch (error) {
+				console.error(`Failed to load guidelines: ${error.message}`);
+			}
+		}
 
-    return stripIndents`
+		return stripIndents`
       You are an AI assistant named bbai, designed to help with various text-based projects. Your capabilities include:
 
       1. Analyzing and modifying programming code in any language
@@ -50,16 +50,17 @@ export const system: Prompt = {
       Guidelines:
       ${guidelines}
     `;
-  },
+	},
 };
 
 export const addFiles: Prompt = {
-  metadata: {
-    name: "Add Files Prompt",
-    description: "Prompt for adding files to the conversation",
-    version: "1.0.0",
-  },
-  getContent: async ({ fileList }) => stripIndents`
+	metadata: {
+		name: 'Add Files Prompt',
+		description: 'Prompt for adding files to the conversation',
+		version: '1.0.0',
+	},
+	getContent: async ({ fileList }) =>
+		stripIndents`
     The following files have been added to the conversation:
 
     ${fileList.map((file: string) => `- ${file}`).join('\n')}

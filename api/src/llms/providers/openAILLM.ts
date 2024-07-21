@@ -33,22 +33,22 @@ class OpenAILLM extends LLM {
 	private asProviderMessageType(messages: LLMMessage[]): OpenAI.Chat.ChatCompletionMessageParam[] {
 		return messages.map((message) => ((message.role === 'system' || message.role === 'user'
 			? {
-					role: message.role,
+				role: message.role,
 				content: message.content,
 			}
 			: message.role === 'assistant'
 			? (message.content[0].type === 'tool_use'
 				? {
-						role: message.role,
-						content: null,
-						tool_calls: [{
-							id: message.content[0].id,
-							type: 'function',
-							function: {
-								name: message.content[0].name,
-								arguments: JSON.stringify(message.content[0].input),
-							},
-						}],
+					role: message.role,
+					content: null,
+					tool_calls: [{
+						id: message.content[0].id,
+						type: 'function',
+						function: {
+							name: message.content[0].name,
+							arguments: JSON.stringify(message.content[0].input),
+						},
+					}],
 				}
 				: {
 					role: message.role,
@@ -135,7 +135,7 @@ class OpenAILLM extends LLM {
 	 * @returns Promise<LLMProviderMessageResponse> The response from OpenAI or an error
 	 */
 	public async speakWith(
-		messageParams: LLMProviderMessageRequest
+		messageParams: LLMProviderMessageRequest,
 	): Promise<LLMProviderMessageResponse> {
 		try {
 			logger.debug('llms-openai-speakWith-messageParams', JSON.stringify(messageParams, null, 2));
