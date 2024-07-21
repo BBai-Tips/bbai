@@ -20,7 +20,7 @@ export class ProjectEditor {
 
     private determineStorageLocation(filePath: string, content: string): 'system' | 'message' {
         const fileSize = new TextEncoder().encode(content).length;
-        const fileCount = Object.keys(this.conversation?.getFiles() || {}).length;
+        const fileCount = this.conversation?.listFiles().length || 0;
 
         if (fileCount < 10 && fileSize < 50 * 1024) {
             return 'system';

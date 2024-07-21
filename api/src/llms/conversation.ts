@@ -21,7 +21,7 @@ class LLMConversation {
 	private _turnCount: number = 0;
 	private messages: LLMMessage[] = [];
 	private tools: LLMTool[] = [];
-	private files: { [key: string]: { content: string; metadata: any } } = {};
+	private files: Map<string, { content: string; metadata: any }> = new Map();
 
 	private persistence: ConversationPersistence;
 
@@ -42,7 +42,7 @@ class LLMConversation {
 	async addFileToSystemPrompt(filePath: string, content: string, metadata: any): Promise<void> {
 		const fileContent = `<file path="${metadata.path}" size="${metadata.size}" last_modified="${metadata.last_modified}">\n${content}\n</file>`;
 		this._system += `\n\n${fileContent}`;
-		this.files[filePath] = { content, metadata };
+		this.files.set(filePath, { content, metadata });
 		await this.persistence.saveConversation(this);
 	}
 
@@ -50,8 +50,20 @@ class LLMConversation {
 		const fileContent = `<file path="${metadata.path}" size="${metadata.size}" last_modified="${metadata.last_modified}">\n${content}\n</file>`;
 		const fileMessage = `File added: ${filePath}\n${fileContent}`;
 		this.addMessageWithCorrectRole(fileMessage);
-		this.files[filePath] = { content, metadata };
+		this.files.set(filePath, { content, metadata });
 		await this.persistence.saveConversation(this);
+	}
+
+	removeFile(filePath: string): boolean {
+		return this.files.delete(filePath);
+	}
+
+	getFile(filePath: string): { content: string; metadata: any } | undefined {
+		return this.files.get(filePath);
+	}
+
+	listFiles(): string[] {
+		return Array.from(this.files.keys());
 	}
 
 	private addMessageWithCorrectRole(content: string): void {
@@ -65,7 +77,7 @@ class LLMConversation {
 		}
 	}
 
-	getFiles(): { [key: string]: { content: string; metadata: any } } {
+	getFiles(): Map<string, { content: string; metadata: any }> {
 		return this.files;
 	}
 

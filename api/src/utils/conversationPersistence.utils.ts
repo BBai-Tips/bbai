@@ -63,7 +63,7 @@ export class ConversationPersistence {
 
 		// Save files
 		const files = conversation.getFiles();
-		for (const [filePath, fileData] of Object.entries(files)) {
+		for (const [filePath, fileData] of files.entries()) {
 			const fileStoragePath = join(this.filesDir, filePath);
 			await ensureDir(join(fileStoragePath, '..'));
 			await Deno.writeTextFile(fileStoragePath, fileData.content);
@@ -113,6 +113,7 @@ export class ConversationPersistence {
 					} else {
 						await conversation.addFileToMessageArray(entry.name, content, metadata);
 					}
+					logger.info(`Loaded file: ${entry.name}`);
 				}
 			}
 		}
