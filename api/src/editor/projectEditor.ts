@@ -6,16 +6,18 @@ import LLMConversation from '../llms/conversation.ts';
 import LLM from '../llms/providers/baseLLM.ts';
 import { logger } from 'shared/logger.ts';
 import { PromptManager } from '../prompts/promptManager.ts';
-import { LLMProvider, LLMSpeakWithOptions } from 'shared/types.ts';
+import { LLMProvider, LLMSpeakWithOptions, LLMProviderMessageResponse } from 'shared/types.ts';
 import LLMTool from '../llms/tool.ts';
 import { ConversationPersistence } from '../utils/conversationPersistence.utils.ts';
 import { getProjectRoot } from 'shared/dataDir.ts';
+import { createError, ErrorType } from '../utils/error.utils.ts';
+import { FileHandlingErrorOptions } from '../errors/error.ts';
 
 export class ProjectEditor {
     private conversation: LLMConversation | null = null;
     private promptManager: PromptManager;
     private llmProvider: LLM;
-    private projectRoot: string;
+    private projectRoot: string = '';
 
     constructor() {
         this.promptManager = new PromptManager();
@@ -78,7 +80,7 @@ export class ProjectEditor {
         if (toolFeedback) {
             const feedbackPrompt = `Tool use feedback:\n${toolFeedback}\nPlease acknowledge this feedback and continue the conversation.`;
             const feedbackResponse = await this.conversation.speakWithLLM(feedbackPrompt, speakOptions);
-            response.toolFeedback = feedbackResponse;
+            (response as any).toolFeedback = feedbackResponse;
         }
 
         return response;
@@ -135,7 +137,7 @@ export class ProjectEditor {
         if (toolFeedback) {
             const feedbackPrompt = `Tool use feedback:\n${toolFeedback}\nPlease acknowledge this feedback and continue the conversation.`;
             const feedbackResponse = await this.conversation.speakWithLLM(feedbackPrompt, speakOptions);
-            response.toolFeedback = feedbackResponse;
+            (response as any).toolFeedback = feedbackResponse;
         }
 
         return response;

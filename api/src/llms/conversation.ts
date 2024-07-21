@@ -51,7 +51,7 @@ class LLMConversation {
 		const fileMessage = `File added: ${filePath}\n${fileContent}`;
 		
 		if (toolUseId) {
-			const toolResult = {
+			const toolResult: LLMMessageContentPartToolResultBlock = {
 				type: 'tool_result',
 				tool_use_id: toolUseId,
 				content: [

@@ -3,6 +3,8 @@ import { join } from '@std/path';
 import LLMConversation from '../llms/conversation.ts';
 import LLM from '../llms/providers/baseLLM.ts';
 import { logger } from 'shared/logger.ts';
+import { createError, ErrorType } from './error.utils.ts';
+import { FileHandlingErrorOptions } from '../errors/error.ts';
 
 export class ConversationPersistence {
 	private filePath: string;
