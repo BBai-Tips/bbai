@@ -39,7 +39,7 @@ export function mergeConfigs(...configs: Partial<ConfigSchema>[]): ConfigSchema 
                             Object.entries(value).filter(([_, v]) => v !== undefined)
                         )
                         : {}),
-                };
+                } as ConfigSchema[typeof key];
             } else if (typeof value === 'object' && value !== null) {
                 (mergedConfig[key as keyof ConfigSchema] as any) = {
                     ...(mergedConfig[key as keyof ConfigSchema] as object),
@@ -55,5 +55,5 @@ export function mergeConfigs(...configs: Partial<ConfigSchema>[]): ConfigSchema 
         }
 
         return mergedConfig;
-    }, { ...defaultConfig } as ConfigSchema);
+    }, { ...defaultConfig });
 }
