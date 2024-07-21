@@ -27,7 +27,7 @@ export class ProjectEditor {
             this.projectRoot = await getProjectRoot();
         } catch (error) {
             console.error("Failed to get project root:", error);
-            this.projectRoot = Deno.cwd(); // Fallback to current working directory
+            this.projectRoot = Deno.env.get("HOME") || Deno.cwd(); // Fallback to user's home directory, or cwd if HOME is not set
         }
     }
 
