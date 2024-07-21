@@ -2,25 +2,25 @@ import { Command } from 'cliffy/command/mod.ts';
 import { logger } from 'shared/logger.ts';
 import { config } from 'shared/configManager.ts';
 
-import { filesAdd } from './commands/filesAdd.ts';
-import { filesRemove } from './commands/filesRemove.ts';
-import { filesList } from './commands/filesList.ts';
+import { apiStart } from './commands/apiStart.ts';
+import { apiStop } from './commands/apiStop.ts';
+import { apiStatus } from './commands/apiStatus.ts';
 import { conversationStart } from './commands/conversationStart.ts';
 import { conversationContinue } from './commands/conversationContinue.ts';
 import { conversationClear } from './commands/conversationClear.ts';
+import { conversationPersist } from './commands/conversationPersist.ts';
+import { conversationResume } from './commands/conversationResume.ts';
+import { filesAdd } from './commands/filesAdd.ts';
+import { filesRemove } from './commands/filesRemove.ts';
+import { filesList } from './commands/filesList.ts';
 import { requestChanges } from './commands/requestChanges.ts';
 import { undoLastChange } from './commands/undoLastChange.ts';
 import { showTokenUsage } from './commands/showTokenUsage.ts';
 import { runCommand } from './commands/runCommand.ts';
 import { loadExternalContent } from './commands/loadExternalContent.ts';
 import { viewLogs } from './commands/viewLogs.ts';
-import { conversationPersist } from './commands/conversationPersist.ts';
-import { conversationResume } from './commands/conversationResume.ts';
-import { apiStart } from './commands/apiStart.ts';
-import { apiStop } from './commands/apiStop.ts';
-import { apiStatus } from './commands/apiStatus.ts';
 
-logger.debug('CLI Config:', config.cli);
+//logger.debug('CLI Config:', config.cli);
 
 const cli = new Command()
 	.name('bbai')

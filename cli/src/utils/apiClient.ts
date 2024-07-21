@@ -9,7 +9,7 @@ class ApiClient {
 	}
 
 	static async create(): Promise<ApiClient> {
-		const baseUrl = `http://localhost:${config.api.appPort}`;
+		const baseUrl = `http://localhost:${config.api.apiPort}`;
 		return new ApiClient(baseUrl);
 	}
 

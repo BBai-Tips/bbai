@@ -283,26 +283,5 @@
     "https://esm.sh/v135/openai@4.24.0/denonext/version.js": "92bbe509b1913d76540274245251be0a411330d84a242ab893651f99bd68c7aa",
     "https://esm.sh/v135/simple-git@3.25.0/denonext/simple-git.mjs": "9e3328183265bfb899d74750231fdc035fb023e9e3ddf768e0ff6e3a9bc846b4",
     "https://esm.sh/v135/uri-js@4.4.1/denonext/uri-js.mjs": "901d462f9db207376b39ec603d841d87e6b9e9568ce97dfaab12aa77d0f99f74"
-  },
-  "workspace": {
-    "dependencies": [
-      "jsr:@oak/commons@^0.11.0",
-      "jsr:@oak/oak@^16.0.0",
-      "jsr:@std/assert@^0.225.3",
-      "jsr:@std/crypto@^0.224.0",
-      "jsr:@std/datetime@^0.224.0",
-      "jsr:@std/dotenv@^0.224.0",
-      "jsr:@std/encoding@^0.224.3",
-      "jsr:@std/fs@^0.224.0",
-      "jsr:@std/io@^0.224.1",
-      "jsr:@std/log@^0.224.1",
-      "jsr:@std/path@^0.225.1",
-      "jsr:@std/testing@^0.224.0",
-      "jsr:@std/ulid@^0.224.1",
-      "jsr:@std/uuid@^0.224.3",
-      "npm:@anthropic-ai/tokenizer",
-      "npm:groq-sdk@0.5.0",
-      "npm:swagger-jsdoc@6.2.8"
-    ]
   }
 }

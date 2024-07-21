@@ -1,5 +1,6 @@
 import { Command } from 'cliffy/command/mod.ts';
 import { logger } from 'shared/logger.ts';
+import { config } from 'shared/configManager.ts';
 import { getBbaiDir } from 'shared/dataDir.ts';
 import { join } from '@std/path';
 
@@ -10,18 +11,19 @@ export const viewLogs = new Command()
 	.option('-f, --follow', 'Follow the log output')
 	.action(async (options) => {
 		const bbaiDir = await getBbaiDir();
-		const logFile = join(bbaiDir, 'api.log');
+		const logFile = config.logFile ?? 'api.log';
+		const logFilePath = join(bbaiDir, logFile);
 
 		try {
-			const fileInfo = await Deno.stat(logFile);
+			const fileInfo = await Deno.stat(logFilePath);
 			if (!fileInfo.isFile) {
-				logger.error(`Log file not found: ${logFile}`);
+				logger.error(`Log file not found: ${logFilePath}`);
 				return;
 			}
 
 			if (options.follow) {
 				const command = new Deno.Command('tail', {
-					args: ['-f', logFile],
+					args: ['-f', logFilePath],
 					stdout: 'piped',
 					stderr: 'piped',
 				});
@@ -31,7 +33,7 @@ export const viewLogs = new Command()
 				}
 			} else {
 				const command = new Deno.Command('tail', {
-					args: ['-n', options.lines.toString(), logFile],
+					args: ['-n', options.lines.toString(), logFilePath],
 					stdout: 'piped',
 					stderr: 'piped',
 				});

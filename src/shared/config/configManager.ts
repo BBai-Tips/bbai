@@ -52,7 +52,7 @@ export class ConfigManager {
 					  environment: "local"
 					
 					  # The port number for the API to listen on
-					  appPort: 3000
+					  apiPort: 3000
 					
 					  # Set to true to ignore the LLM request cache (useful for development)
 					  ignoreLLMRequestCache: false
@@ -61,6 +61,7 @@ export class ConfigManager {
 					  # Add any CLI-specific configuration options here
 					
 					# Add any shared configuration options here
+					logLevel: info
 					`;
 				await Deno.writeTextFile(userConfigPath, defaultConfig);
 			} else {
@@ -97,9 +98,9 @@ export class ConfigManager {
 			api: {
 				anthropicApiKey: Deno.env.get('ANTHROPIC_API_KEY') || undefined,
 				openaiApiKey: Deno.env.get('OPENAI_API_KEY') || undefined,
-				environment: Deno.env.get('ENVIRONMENT') || undefined,
-				appPort: Deno.env.get('APP_PORT') ? parseInt(Deno.env.get('APP_PORT') || '', 10) : undefined,
-				ignoreLLMRequestCache: Deno.env.get('IGNORE_LLM_REQUEST_CACHE') === 'true' || undefined,
+				environment: Deno.env.get('BBAI_ENVIRONMENT') || undefined,
+				apiPort: Deno.env.get('BBAI_API_PORT') ? parseInt(Deno.env.get('BBAI_API_PORT') || '', 10) : undefined,
+				ignoreLLMRequestCache: Deno.env.get('BBAI_IGNORE_LLM_REQUEST_CACHE') === 'true' || undefined,
 			},
 			// Add CLI-specific env variables here if needed
 		} as Partial<ConfigSchema>;

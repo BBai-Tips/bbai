@@ -1,18 +1,18 @@
-import { readFromCache, removeFromCache, writeToCache } from 'shared/dataDir.ts';
+import { readFromBbaiDir, removeFromBbaiDir, writeToBbaiDir } from 'shared/dataDir.ts';
 
 const PID_FILE_NAME = 'api.pid';
 
 export async function savePid(pid: number): Promise<void> {
-	await writeToCache(PID_FILE_NAME, pid.toString());
+	await writeToBbaiDir(PID_FILE_NAME, pid.toString());
 }
 
 export async function getPid(): Promise<number | null> {
-	const pidString = await readFromCache(PID_FILE_NAME);
+	const pidString = await readFromBbaiDir(PID_FILE_NAME);
 	return pidString ? parseInt(pidString, 10) : null;
 }
 
 export async function removePid(): Promise<void> {
-	await removeFromCache(PID_FILE_NAME);
+	await removeFromBbaiDir(PID_FILE_NAME);
 }
 
 export async function isApiRunning(): Promise<boolean> {

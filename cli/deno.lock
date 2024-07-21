@@ -138,21 +138,5 @@
     "https://esm.sh/v135/debug@4.3.5/denonext/debug.mjs": "630202cad075e6db68a6c0113dcb2cd3a9b2e0a1b63a497a82e76229ef55cb33",
     "https://esm.sh/v135/ms@2.1.2/denonext/ms.mjs": "aa4dc45ba72554c5011168f8910cc646c37af53cfff1a15a4decced838b8eb14",
     "https://esm.sh/v135/simple-git@3.25.0/denonext/simple-git.mjs": "9e3328183265bfb899d74750231fdc035fb023e9e3ddf768e0ff6e3a9bc846b4"
-  },
-  "workspace": {
-    "dependencies": [
-      "jsr:@std/assert@^0.225.3",
-      "jsr:@std/crypto@^0.224.0",
-      "jsr:@std/datetime@^0.224.0",
-      "jsr:@std/dotenv@^0.224.0",
-      "jsr:@std/encoding@^0.224.3",
-      "jsr:@std/fs@^0.224.0",
-      "jsr:@std/io@^0.224.1",
-      "jsr:@std/log@^0.224.1",
-      "jsr:@std/path@^0.225.1",
-      "jsr:@std/testing@^0.224.0",
-      "jsr:@std/ulid@^0.224.1",
-      "jsr:@std/uuid@^0.224.3"
-    ]
   }
 }

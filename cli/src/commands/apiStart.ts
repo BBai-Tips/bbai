@@ -16,10 +16,11 @@ export const apiStart = new Command()
 		}
 
 		const bbaiDir = await getBbaiDir();
-		const logFile = join(bbaiDir, 'api.log');
-		const logLevel = cliLogLevel ?? config.logLevel ?? 'info';
+		const logFile = config.logFile ?? 'api.log';
+		const logFilePath = join(bbaiDir, logFile);
+		const logLevel = cliLogLevel || config.logLevel || 'info';
 
-		logger.info(`Starting bbai API server, logging at level ${logLevel} to ${logFile}`);
+		logger.info(`Starting bbai API server...`);
 
 		const cmdArgs = [
 			'run',
@@ -35,7 +36,7 @@ export const apiStart = new Command()
 		//`--log-level=${logLevel}`,
 
 		const command = new Deno.Command(Deno.execPath(), {
-			args: [...cmdArgs, '../api/src/main.ts', logFile],
+			args: [...cmdArgs, '../api/src/main.ts', logFilePath],
 			cwd: '../api',
 			stdout: 'null',
 			stderr: 'null',
@@ -56,7 +57,7 @@ export const apiStart = new Command()
 		await savePid(pid);
 
 		logger.info(`bbai API server started with PID: ${pid}`);
-		logger.info(`Logs are being written to: ${logFile}`);
+		logger.info(`Logs at level ${logLevel} are being written to: ${logFilePath}`);
 		logger.info("Use 'bbai stop' to stop the server.");
 
 		// Unref the child process to allow the parent to exit
