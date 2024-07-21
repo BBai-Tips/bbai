@@ -14,9 +14,9 @@ export const startConversation = async (ctx: Context) => {
 	try {
 		const body = await ctx.request.body.json();
 		logger.debug('Request body:', body);
-		const { prompt, provider, model, system } = body;
+		const { prompt, provider, model } = body;
 
-		if (!system || !prompt) {
+		if (!prompt) {
 			logger.warn('Missing system or prompt');
 			ctx.response.status = 400;
 			ctx.response.body = { error: 'Missing system or prompt' };
