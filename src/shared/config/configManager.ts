@@ -14,6 +14,10 @@ export class ConfigManager {
 			apiPort: 3000,
 		},
 		cli: {},
+		ctags: {
+			autoGenerate: true,
+			tagsFilePath: '.bbai/tags',
+		},
 	};
 
 	private constructor() {}

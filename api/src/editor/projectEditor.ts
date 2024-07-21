@@ -12,6 +12,7 @@ import { ConversationPersistence } from '../utils/conversationPersistence.utils.
 import { getProjectRoot } from 'shared/dataDir.ts';
 import { createError, ErrorType } from '../utils/error.utils.ts';
 import { FileHandlingErrorOptions } from '../errors/error.ts';
+import { generateCtags, readCtagsFile } from 'shared/utils/ctags.utils.ts';
 
 export class ProjectEditor {
     private conversation: LLMConversation | null = null;
@@ -58,6 +59,9 @@ export class ProjectEditor {
         this.conversation.system = systemPrompt;
         this.conversation.model = model;
         
+        // Add ctags to the system prompt
+        await this.updateCtags();
+
         this.addDefaultTools();
 
         const speakOptions: LLMSpeakWithOptions = {
@@ -308,6 +312,9 @@ export class ProjectEditor {
                 const persistence = new ConversationPersistence(this.conversation.id);
                 await persistence.logPatch(filePath, patch);
             }
+
+            // Update ctags after applying the patch
+            await this.updateCtags();
         } catch (error) {
             if (error instanceof Deno.errors.NotFound) {
                 throw createError(ErrorType.FileHandling, `File not found: ${filePath}`, {
@@ -326,6 +333,14 @@ export class ProjectEditor {
                     operation: 'patch',
                 } as FileHandlingErrorOptions);
             }
+        }
+    }
+
+    private async updateCtags(): Promise<void> {
+        await generateCtags();
+        const ctagsContent = await readCtagsFile();
+        if (ctagsContent && this.conversation) {
+            this.conversation.system += `\n\n<ctags>\n${ctagsContent}\n</ctags>`;
         }
     }
 

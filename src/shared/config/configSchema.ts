@@ -10,6 +10,10 @@ export interface ConfigSchema {
 		ignoreLLMRequestCache?: boolean;
 	};
 	cli: {};
+	ctags: {
+		autoGenerate: boolean;
+		tagsFilePath?: string;
+	};
 	logFile?: string;
 	logLevel: 'debug' | 'info' | 'warn' | 'error';
 }
