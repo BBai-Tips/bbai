@@ -27,7 +27,7 @@ export const startConversation = async (ctx: Context) => {
 		logger.debug('Creating LLM provider:', provider);
 		const llmProvider = LLMFactory.getProvider(provider);
 
-		const systemPrompt = await promptManager.getPrompt('system', { userDefinedContent: system });
+		const systemPrompt = await promptManager.getPrompt('system', { userDefinedContent: "Help me with this code" });
 
 		logger.debug('Calling llmProvider.speakWith');
 		const response = await llmProvider.speakWith({
