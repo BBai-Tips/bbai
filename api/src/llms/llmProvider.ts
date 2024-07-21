@@ -4,12 +4,11 @@ import AnthropicLLM from './providers/anthropicLLM.ts';
 import OpenAILLM from './providers/openAILLM.ts';
 
 export class LLMFactory {
-	static getProvider(providerName: string | undefined): LLM {
-		if (!providerName) {
-			throw new Error('LLM provider name is undefined');
-		}
+	static getProvider(providerName?: string): LLM {
+		const defaultProvider = 'claude';
+		const provider = providerName?.toLowerCase() || defaultProvider;
 		
-		switch (providerName.toLowerCase()) {
+		switch (provider) {
 			case 'claude':
 				return new AnthropicLLM();
 			case 'openai':
