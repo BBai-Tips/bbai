@@ -38,7 +38,7 @@ export class ConversationPersistence {
 			const metadata = {
 				id: conversation.id,
 				providerName: conversation.providerName,
-				system: conversation.system,
+				system: conversation.baseSystem,
 				model: conversation.model,
 				maxTokens: conversation.maxTokens,
 				temperature: conversation.temperature,
@@ -69,8 +69,8 @@ export class ConversationPersistence {
 			for (const [filePath, fileData] of files.entries()) {
 				const fileStoragePath = join(this.filesDir, filePath);
 				await ensureDir(join(fileStoragePath, '..'));
-				await Deno.writeTextFile(fileStoragePath, fileData.content);
-				await Deno.writeTextFile(`${fileStoragePath}.meta`, JSON.stringify(fileData.metadata));
+				await Deno.writeTextFile(fileStoragePath, fileData.content || '');
+				await Deno.writeTextFile(`${fileStoragePath}.meta`, JSON.stringify(fileData));
 			}
 		} catch (error) {
 			if (error instanceof Deno.errors.PermissionDenied) {
@@ -117,7 +117,7 @@ export class ConversationPersistence {
 		const conversation = new LLMConversation(llm);
 
 		conversation.id = metadata.id;
-		conversation.system = metadata.system;
+		conversation.baseSystem = metadata.system;
 		conversation.model = metadata.model;
 		conversation.maxTokens = metadata.maxTokens;
 		conversation.temperature = metadata.temperature;
@@ -139,9 +139,9 @@ export class ConversationPersistence {
 					const metadata = JSON.parse(metadataContent);
 
 					if (metadata.path.startsWith('<file')) {
-						await conversation.addFileToSystemPrompt(entry.name, content, metadata);
+						await conversation.addFileForSystemPrompt(entry.name, metadata);
 					} else {
-						await conversation.addFileToMessageArray(entry.name, content, metadata);
+						await conversation.addFileToMessageArray(entry.name, metadata);
 					}
 					logger.info(`Loaded file: ${entry.name}`);
 				}

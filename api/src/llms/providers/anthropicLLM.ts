@@ -71,7 +71,7 @@ class AnthropicLLM extends LLM {
 		let system = speakOptions?.system || conversation.baseSystem;
 
 		// Add system prompt files
-		for (const filePath of conversation.systemPromptFiles) {
+		for (const filePath of (conversation as any).systemPromptFiles) {
 			const fileMetadata = conversation.getFile(filePath);
 			if (fileMetadata) {
 				const content = await this.readFileContent(filePath);
