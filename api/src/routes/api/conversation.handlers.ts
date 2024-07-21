@@ -14,7 +14,8 @@ export const startConversation = async (ctx: Context) => {
         logger.debug('Request body:', body);
         const { prompt, provider, model, system } = body;
 
-        if (!prompt || !provider) {
+        //if (!prompt || !provider) {
+        if (!system || !prompt) {
             logger.warn('Missing prompt or provider');
             ctx.response.status = 400;
             ctx.response.body = { error: 'Missing prompt or provider' };

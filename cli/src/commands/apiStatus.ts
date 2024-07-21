@@ -1,14 +1,12 @@
 import { Command } from 'cliffy/command/mod.ts';
 import { logger } from 'shared/logger.ts';
 import { getPid, isApiRunning } from '../utils/pid.utils.ts';
-import { ConfigManager } from 'shared/configManager.ts';
+import { config } from 'shared/configManager.ts';
 
 export const apiStatus = new Command()
 	.name('status')
 	.description('Check the status of the bbai API server')
 	.action(async () => {
-		const configManager = await ConfigManager.getInstance();
-		const config = configManager.getConfig();
 		const apiPort = config.api.appPort || 3000;
 
 		if (await isApiRunning()) {

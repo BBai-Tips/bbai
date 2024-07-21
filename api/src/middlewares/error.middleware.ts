@@ -2,7 +2,7 @@ import { Context, State, Status } from '@oak/oak';
 import type { Middleware } from '@oak/oak';
 import { APIError, isAPIError } from '../errors/error.ts';
 import { logger } from 'shared/logger.ts';
-import { ConfigManager } from 'shared/configManager.ts';
+import { config } from 'shared/configManager.ts';
 
 /**
  * Error Handler Middleware function
@@ -10,8 +10,6 @@ import { ConfigManager } from 'shared/configManager.ts';
  * @param next
  * @returns Promise<void>
  */
-const configManager = await ConfigManager.getInstance();
-const config = configManager.getConfig();
 
 export const errorHandler: Middleware = async (
 	ctx: Context<State, Record<string, unknown>>,
@@ -37,7 +35,7 @@ export const errorHandler: Middleware = async (
 				const args: object = error.options?.args || error.options || {};
 
 				if (
-					config.environment === 'localdev' || config.environment === 'development'
+					config.environment === 'local' || config.environment === 'development'
 				) {
 					logger.error(error.message, args);
 				}
@@ -57,7 +55,7 @@ export const errorHandler: Middleware = async (
 			 * do not want to share internal server errors to
 			 * end user in non "development" mode
 			 */
-			const message = config.environment === 'localdev' ||
+			const message = config.environment === 'local' ||
 					config.environment === 'development'
 				? (err.message ?? 'Unknown error occurred')
 				: 'Internal Server Error';

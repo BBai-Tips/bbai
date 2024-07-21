@@ -1,6 +1,6 @@
 import { Command } from 'cliffy/command/mod.ts';
 import { logger } from 'shared/logger.ts';
-import { ConfigManager } from 'shared/configManager.ts';
+import { config } from 'shared/configManager.ts';
 
 import { filesAdd } from './commands/filesAdd.ts';
 import { filesRemove } from './commands/filesRemove.ts';
@@ -19,9 +19,6 @@ import { conversationResume } from './commands/conversationResume.ts';
 import { apiStart } from './commands/apiStart.ts';
 import { apiStop } from './commands/apiStop.ts';
 import { apiStatus } from './commands/apiStatus.ts';
-
-const configManager = await ConfigManager.getInstance();
-const config = configManager.getConfig();
 
 logger.debug('CLI Config:', config.cli);
 

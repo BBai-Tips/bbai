@@ -14,7 +14,7 @@ export interface ConfigSchema {
 
 export const defaultConfig: ConfigSchema = {
 	api: {
-		environment: 'localdev',
+		environment: 'local',
 		appPort: 3000,
 		ignoreLLMRequestCache: false,
 	},

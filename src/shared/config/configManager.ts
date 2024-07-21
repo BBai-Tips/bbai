@@ -48,8 +48,8 @@ export class ConfigManager {
 					  # Your OpenAI API key. Uncomment and replace with your actual key if using OpenAI.
 					  # openaiApiKey: "your-openai-api-key-here"
 					
-					  # The environment the application is running in. Options: localdev, development, production
-					  environment: "localdev"
+					  # The environment the application is running in. Options: local, remote
+					  environment: "local"
 					
 					  # The port number for the API to listen on
 					  appPort: 3000
@@ -116,3 +116,7 @@ export class ConfigManager {
 		return redactedConfig;
 	}
 }
+
+const configManager = await ConfigManager.getInstance();
+export const config = configManager.getConfig();
+export const redactedConfig = configManager.getRedactedConfig();

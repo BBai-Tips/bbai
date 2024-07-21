@@ -9,7 +9,7 @@ export const conversationStart = new Command()
 	.option('-m, --model <string>', 'LLM model to use for the conversation')
 	.action(async (options) => {
 		try {
-			const response = await apiClient.post('/api/v1/conversation/start', {
+			const response = await apiClient.post('/api/v1/conversation', {
 				system: options.system,
 				model: options.model,
 			});
@@ -21,7 +21,7 @@ export const conversationStart = new Command()
 			} else {
 				logger.error(`Failed to start conversation. Status: ${response.status}`);
 				const errorBody = await response.text();
-				logger.debug('Error response body:', errorBody);
+				logger.error('Error response body:', errorBody);
 			}
 		} catch (error) {
 			logger.error(`Error starting conversation: ${error.message}`);

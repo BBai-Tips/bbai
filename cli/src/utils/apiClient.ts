@@ -1,4 +1,5 @@
-import { ConfigManager } from 'shared/configManager.ts';
+import { config } from 'shared/configManager.ts';
+import { logger } from 'shared/logger.ts';
 
 class ApiClient {
 	private baseUrl: string;
@@ -8,8 +9,6 @@ class ApiClient {
 	}
 
 	static async create(): Promise<ApiClient> {
-		const configManager = await ConfigManager.getInstance();
-		const config = configManager.getConfig();
 		const baseUrl = `http://localhost:${config.api.appPort}`;
 		return new ApiClient(baseUrl);
 	}
