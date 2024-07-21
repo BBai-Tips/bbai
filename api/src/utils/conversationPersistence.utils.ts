@@ -29,45 +29,64 @@ export class ConversationPersistence {
 	}
 
 	async saveConversation(conversation: LLMConversation): Promise<void> {
-		await ensureDir(join(this.filePath, '..'));
-		await ensureDir(this.filesDir);
+		try {
+			await ensureDir(join(this.filePath, '..'));
+			await ensureDir(this.filesDir);
 
-		const metadata = {
-			id: conversation.id,
-			providerName: conversation.providerName,
-			system: conversation.system,
-			model: conversation.model,
-			maxTokens: conversation.maxTokens,
-			temperature: conversation.temperature,
-		};
+			const metadata = {
+				id: conversation.id,
+				providerName: conversation.providerName,
+				system: conversation.system,
+				model: conversation.model,
+				maxTokens: conversation.maxTokens,
+				temperature: conversation.temperature,
+			};
 
-		const metadataLine = JSON.stringify(metadata) + '\n';
+			const metadataLine = JSON.stringify(metadata) + '\n';
 
-		if (!await exists(this.filePath)) {
-			await Deno.writeTextFile(this.filePath, metadataLine);
-		}
+			if (!await exists(this.filePath)) {
+				await Deno.writeTextFile(this.filePath, metadataLine);
+			}
 
-		const lastMessage = conversation.getLastMessage();
-		const lastResponse = conversation.getLastMessageProviderResponse();
+			const lastMessage = conversation.getLastMessage();
+			const lastResponse = conversation.getLastMessageProviderResponse();
 
-		const turnData = {
-			turnCount: conversation.turnCount,
-			message: lastMessage,
-			response: lastResponse,
-			tokenUsage: conversation.totalTokenUsage,
-			tools: conversation.getTools(),
-		};
+			const turnData = {
+				turnCount: conversation.turnCount,
+				message: lastMessage,
+				response: lastResponse,
+				tokenUsage: conversation.totalTokenUsage,
+				tools: conversation.getTools(),
+			};
 
-		const turnLine = JSON.stringify(turnData) + '\n';
-		await Deno.writeTextFile(this.filePath, turnLine, { append: true });
+			const turnLine = JSON.stringify(turnData) + '\n';
+			await Deno.writeTextFile(this.filePath, turnLine, { append: true });
 
-		// Save files
-		const files = conversation.getFiles();
-		for (const [filePath, fileData] of files.entries()) {
-			const fileStoragePath = join(this.filesDir, filePath);
-			await ensureDir(join(fileStoragePath, '..'));
-			await Deno.writeTextFile(fileStoragePath, fileData.content);
-			await Deno.writeTextFile(`${fileStoragePath}.meta`, JSON.stringify(fileData.metadata));
+			// Save files
+			const files = conversation.getFiles();
+			for (const [filePath, fileData] of files.entries()) {
+				const fileStoragePath = join(this.filesDir, filePath);
+				await ensureDir(join(fileStoragePath, '..'));
+				await Deno.writeTextFile(fileStoragePath, fileData.content);
+				await Deno.writeTextFile(`${fileStoragePath}.meta`, JSON.stringify(fileData.metadata));
+			}
+		} catch (error) {
+			if (error instanceof Deno.errors.PermissionDenied) {
+				throw createError(
+					ErrorType.FileHandling,
+					`Permission denied when saving conversation: ${this.filePath}`,
+					{
+						filePath: this.filePath,
+						operation: 'write',
+					} as FileHandlingErrorOptions,
+				);
+			} else {
+				logger.error(`Error saving conversation: ${error.message}`);
+				throw createError(ErrorType.FileHandling, `Failed to save conversation: ${this.filePath}`, {
+					filePath: this.filePath,
+					operation: 'write',
+				} as FileHandlingErrorOptions);
+			}
 		}
 	}
 
@@ -107,7 +126,7 @@ export class ConversationPersistence {
 					const content = await Deno.readTextFile(filePath);
 					const metadataContent = await Deno.readTextFile(`${filePath}.meta`);
 					const metadata = JSON.parse(metadataContent);
-					
+
 					if (metadata.path.startsWith('<file')) {
 						await conversation.addFileToSystemPrompt(entry.name, content, metadata);
 					} else {
@@ -139,7 +158,7 @@ export class ConversationPersistence {
 		const content = await Deno.readTextFile(this.patchLogPath);
 		const lines = content.trim().split('\n');
 
-		return lines.map(line => JSON.parse(line));
+		return lines.map((line) => JSON.parse(line));
 	}
 
 	async removeLastPatch(): Promise<void> {
