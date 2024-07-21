@@ -195,13 +195,17 @@ export class ProjectEditor {
             if (storageLocation === 'system') {
                 await this.conversation.addFileToSystemPrompt(filePath, content, metadata);
             } else {
+                await this.conversation.addFileToMessageArray(filePath, content, metadata);
+            }
+
+            if (toolUseId) {
                 const toolResult = {
                     type: 'tool_result',
                     tool_use_id: toolUseId,
                     content: [
                         {
                             type: 'text',
-                            text: `File: ${filePath}\nMetadata: ${JSON.stringify(metadata)}\n\nContent:\n${content}`
+                            text: `File added: ${filePath}`
                         }
                     ]
                 };
