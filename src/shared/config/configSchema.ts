@@ -34,9 +34,11 @@ export function mergeConfigs(...configs: Partial<ConfigSchema>[]): ConfigSchema 
 			if (key === 'cli' || key === 'api') {
 				mergedConfig[key] = {
 					...mergedConfig[key],
-					...Object.fromEntries(
-						Object.entries(value as object).filter(([_, v]) => v !== undefined)
-					),
+					...(typeof value === 'object' && value !== null
+						? Object.fromEntries(
+							Object.entries(value).filter(([_, v]) => v !== undefined)
+						)
+						: {}),
 				};
 			} else if (typeof value === 'object' && value !== null) {
 				mergedConfig[key as keyof ConfigSchema] = {
