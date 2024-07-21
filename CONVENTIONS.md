@@ -4,7 +4,18 @@
 DO NOT MAKE ANY CODE CHANGES UNTIL EXPLICITLY ASKED TO DO SO. The coding assistant will prompt for code changes. Respect those instructions but wait until explicitly told to write code.
 
 ## Project Overview
-`bbai` is a project that provides REST API and CLI tools to modify local files using LLM, inspired by the `aider` tool. It supports vector embeddings for code/text chunks from local repositories, implements RAG (Retrieval-Augmented Generation) for LLM, and provides LLM tools for requesting access to files for review or edit.
+`bbai` is a versatile project that provides REST API and CLI tools to modify and enhance a wide range of text-based projects using LLM technology. Inspired by the `aider` tool, `bbai` is designed to work with various text formats including, but not limited to:
+
+- Programming code in any language
+- Prose and documentation
+- Fiction writing
+- LLM prompts
+- HTML and SVG
+- Markdown and other markup languages
+- Configuration files
+- Data formats (JSON, YAML, etc.)
+
+It supports vector embeddings for code and text chunks from local repositories, implements RAG (Retrieval-Augmented Generation) for LLM, and provides LLM tools for requesting access to files for review or edit. This makes `bbai` a powerful assistant for any text-based project, whether it's software development, content creation, or data analysis.
 
 ## Technology Stack
 - Runtime: Deno with TypeScript (strict mode)
