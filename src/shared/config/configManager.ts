@@ -39,7 +39,7 @@ export class ConfigManager {
 			if (error instanceof Deno.errors.NotFound) {
 				await ensureDir(userConfigDir);
 				const defaultConfig = stripIndent`
-					# BBAI Configuration File
+					# bbai Configuration File
 					
 					api:
 					  # Your Anthropic API key. Replace with your actual key.
@@ -47,6 +47,9 @@ export class ConfigManager {
 					
 					  # Your OpenAI API key. Uncomment and replace with your actual key if using OpenAI.
 					  # openaiApiKey: "your-openai-api-key-here"
+
+					  # Your VoyageAI API key. Uncomment and replace with your actual key if using VoyageAI.
+					  # voyageaiApiKey: "your-voyageai-api-key-here"
 					
 					  # The environment the application is running in. Options: local, remote
 					  environment: "local"
@@ -57,8 +60,8 @@ export class ConfigManager {
 					  # Set to true to ignore the LLM request cache (useful for development)
 					  ignoreLLMRequestCache: false
 					
-					cli:
-					  # Add any CLI-specific configuration options here
+					# Add any CLI-specific configuration options here
+					cli: {}
 					
 					# Add any shared configuration options here
 					logLevel: info
