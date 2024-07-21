@@ -25,7 +25,7 @@ export const defaultConfig: ConfigSchema = {
 };
 
 export function mergeConfigs(...configs: Partial<ConfigSchema>[]): ConfigSchema {
-	return configs.reduce((acc, config) => {
+	return configs.reduce((acc, config): ConfigSchema => {
 		const mergedConfig = { ...acc };
 
 		for (const [key, value] of Object.entries(config)) {
@@ -48,7 +48,7 @@ export function mergeConfigs(...configs: Partial<ConfigSchema>[]): ConfigSchema 
 					),
 				};
 			} else {
-				mergedConfig[key as keyof ConfigSchema] = value;
+				mergedConfig[key as keyof ConfigSchema] = value as ConfigSchema[keyof ConfigSchema];
 			}
 		}
 
