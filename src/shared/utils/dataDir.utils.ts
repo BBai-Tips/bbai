@@ -4,14 +4,19 @@ import { parse as parseYaml } from "yaml";
 import { GitUtils } from './git.utils.ts';
 import { ConfigManager } from 'shared/configManager.ts';
 
+export async function getProjectRoot(): Promise<string> {
+    const gitRoot = await GitUtils.findGitRoot();
+    if (!gitRoot) {
+        throw new Error('Not in a git repository');
+    }
+    return gitRoot;
+}
+
 export async function getBbaiDir(): Promise<string> {
-	const gitRoot = await GitUtils.findGitRoot();
-	if (!gitRoot) {
-		throw new Error('Not in a git repository');
-	}
-	const bbaiDir = join(gitRoot, '.bbai');
-	await ensureDir(bbaiDir);
-	return bbaiDir;
+    const projectRoot = await getProjectRoot();
+    const bbaiDir = join(projectRoot, '.bbai');
+    await ensureDir(bbaiDir);
+    return bbaiDir;
 }
 
 export async function getBbaiCacheDir(): Promise<string> {
