@@ -41,7 +41,6 @@ export const apiStart = new Command()
 			stdout: 'null',
 			stderr: 'null',
 			stdin: 'null',
-			detached: true,
 			env: {
 				...Deno.env.toObject(),
 				//LOG_LEVEL: logLevel,
