@@ -1,6 +1,8 @@
 import { Context } from '@oak/oak';
 import { logger } from 'shared/logger.ts';
 import { ProjectEditor } from '../../editor/projectEditor.ts';
+import { ConversationPersistence } from '../../utils/conversationPersistence.utils.ts';
+import { LLMFactory } from '../../llms/llmProvider.ts';
 
 const projectEditor = new ProjectEditor();
 
@@ -73,7 +75,12 @@ export const listConversations = async (
 	{ request, response }: { request: Context['request']; response: Context['response'] },
 ) => {
 	try {
-		const { page = '1', pageSize = '10', startDate, endDate, providerName } = request.url.searchParams;
+		const params = request.url.searchParams;
+		const page = params.get('page') || '1';
+		const pageSize = params.get('pageSize') || '10';
+		const startDate = params.get('startDate');
+		const endDate = params.get('endDate');
+		const providerName = params.get('providerName');
 
 		// TODO: Implement actual pagination and filtering logic
 		const conversations = await ConversationPersistence.listConversations({
@@ -81,7 +88,7 @@ export const listConversations = async (
 			pageSize: parseInt(pageSize),
 			startDate: startDate ? new Date(startDate) : undefined,
 			endDate: endDate ? new Date(endDate) : undefined,
-			providerName,
+			providerName: providerName || undefined,
 		});
 
 		response.status = 200;

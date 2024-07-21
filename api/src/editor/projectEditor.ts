@@ -14,6 +14,7 @@ export class ProjectEditor {
 
     constructor() {
         this.promptManager = new PromptManager();
+        this.llmProvider = LLMFactory.getProvider(); // Initialize llmProvider
     }
 
     async startConversation(prompt: string, provider: LLMProvider, model: string): Promise<any> {
@@ -37,10 +38,10 @@ export class ProjectEditor {
         if (response.toolsUsed && response.toolsUsed.length > 0) {
             for (const tool of response.toolsUsed) {
                 if (tool.toolName === 'request_files') {
-                    await this.handleRequestFiles(tool.toolInput.fileNames);
+                    await this.handleRequestFiles((tool.toolInput as { fileNames: string[] }).fileNames);
                 } else if (tool.toolName === 'vector_search') {
-                    const searchResults = await this.handleVectorSearch(tool.toolInput.query);
-                    response.searchResults = searchResults;
+                    const searchResults = await this.handleVectorSearch((tool.toolInput as { query: string }).query);
+                    (response as any).searchResults = searchResults; // Use type assertion
                 }
             }
         }
@@ -64,7 +65,8 @@ export class ProjectEditor {
         if (response.toolsUsed && response.toolsUsed.length > 0) {
             for (const tool of response.toolsUsed) {
                 if (tool.toolName === 'apply_patch') {
-                    await this.applyPatch(tool.toolInput.filePath, tool.toolInput.patch);
+                    const { filePath, patch } = tool.toolInput as { filePath: string; patch: string };
+                    await this.applyPatch(filePath, patch);
                 }
             }
         }
@@ -166,7 +168,6 @@ export class ProjectEditor {
             
             const patchedContent = diff.applyPatch(currentContent, patch, {
                 fuzzFactor: 2,
-                autoConvertLineEndings: true,
             });
 
             if (patchedContent === false) {

@@ -5,7 +5,6 @@ import type {
 	LLMSpeakWithOptions,
 	LLMTokenUsage,
 	LLMValidateResponseCallback,
-	ConversationLoadOptions,
 } from 'shared/types.ts';
 import type { LLMMessageContentPart, LLMMessageContentParts, LLMMessageContentPartTextBlock } from '../message.ts';
 import LLMTool from '../tool.ts';
@@ -47,8 +46,8 @@ abstract class LLM {
 		return new LLMConversation(this);
 	}
 
-	async loadConversation(conversationId: string, options?: ConversationLoadOptions): Promise<LLMConversation> {
-		const conversation = await LLMConversation.resume(conversationId, this, options);
+	async loadConversation(conversationId: string): Promise<LLMConversation> {
+		const conversation = await LLMConversation.resume(conversationId, this);
 		return conversation;
 	}
 
