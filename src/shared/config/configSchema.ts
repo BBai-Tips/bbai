@@ -40,6 +40,11 @@ export function mergeConfigs(...configs: Partial<ConfigSchema>[]): ConfigSchema 
                         )
                         : {}),
                 } as ConfigSchema[typeof key];
+                // Ensure required properties are set
+                if (key === 'api') {
+                    mergedConfig.api.environment = mergedConfig.api.environment || defaultConfig.api.environment;
+                    mergedConfig.api.apiPort = mergedConfig.api.apiPort || defaultConfig.api.apiPort;
+                }
                 if (key === 'api' && !mergedConfig.api.environment) {
                     mergedConfig.api.environment = defaultConfig.api.environment;
                 }

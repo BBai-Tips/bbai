@@ -128,9 +128,9 @@ export const removeFile = async (ctx: Context) => {
     }
 };
 
-export const listFiles = async (ctx: Context) => {
+export const listFiles = async (ctx: Context<State, { params: { id: string } }>) => {
     try {
-        const id = ctx.params?.id;
+        const { id } = ctx.params;
 
         // TODO: Implement file listing logic
         // For now, we'll return a mock list of files

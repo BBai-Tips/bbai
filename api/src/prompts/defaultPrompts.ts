@@ -59,7 +59,7 @@ export const addFiles: Prompt = {
     description: "Prompt for adding files to the conversation",
     version: "1.0.0",
   },
-  getContent: ({ fileList }) => stripIndents`
+  getContent: async ({ fileList }) => stripIndents`
     The following files have been added to the conversation:
 
     ${fileList.map((file: string) => `- ${file}`).join('\n')}
