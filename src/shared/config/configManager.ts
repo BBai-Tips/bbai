@@ -115,8 +115,8 @@ export class ConfigManager {
 		const voyageaiApiKey = Deno.env.get('VOYAGEAI_API_KEY');
 		if (voyageaiApiKey) apiConfig.voyageaiApiKey = voyageaiApiKey;
 
-		const environment = Deno.env.get('BBAI_ENVIRONMENT');
-		if (environment) apiConfig.environment = environment;
+		const environment = Deno.env.get('BBAI_ENVIRONMENT') || 'local';
+		apiConfig.environment = environment;
 
 		const apiPort = Deno.env.get('BBAI_API_PORT');
 		if (apiPort) apiConfig.apiPort = parseInt(apiPort, 10);
@@ -124,10 +124,8 @@ export class ConfigManager {
 		const ignoreLLMRequestCache = Deno.env.get('BBAI_IGNORE_LLM_REQUEST_CACHE');
 		if (ignoreLLMRequestCache) apiConfig.ignoreLLMRequestCache = ignoreLLMRequestCache === 'true';
 
-		// Only add the api object if there are any api-related configurations
-		if (Object.keys(apiConfig).length > 0) {
-			config.api = apiConfig;
-		}
+		// Always add the api object, even if only environment is set
+		config.api = apiConfig;
 
 		const logFile = Deno.env.get('BBAI_LOG_FILE');
 		if (logFile) config.logFile = logFile;
