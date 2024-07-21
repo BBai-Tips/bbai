@@ -80,7 +80,8 @@ export class ProjectEditor {
         if (toolFeedback) {
             const feedbackPrompt = `Tool use feedback:\n${toolFeedback}\nPlease acknowledge this feedback and continue the conversation.`;
             const feedbackResponse = await this.conversation.speakWithLLM(feedbackPrompt, speakOptions);
-            (response as any).toolFeedback = feedbackResponse;
+            //response.toolFeedback = feedbackResponse;
+            return feedbackResponse;
         }
 
         return response;
@@ -137,7 +138,8 @@ export class ProjectEditor {
         if (toolFeedback) {
             const feedbackPrompt = `Tool use feedback:\n${toolFeedback}\nPlease acknowledge this feedback and continue the conversation.`;
             const feedbackResponse = await this.conversation.speakWithLLM(feedbackPrompt, speakOptions);
-            (response as any).toolFeedback = feedbackResponse;
+            //response.toolFeedback = feedbackResponse;
+            return feedbackResponse;
         }
 
         return response;
