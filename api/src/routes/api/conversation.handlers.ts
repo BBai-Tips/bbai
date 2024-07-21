@@ -46,38 +46,44 @@ export const startConversation = async (ctx: Context) => {
     logger.debug('Response body:', ctx.response.body);
 };
 
-export const getConversation = async (ctx: Context) => {
+export const getConversation = async (
+    { params, response }: { params: { id: string }; response: Context['response'] }
+) => {
     // Get conversation details
-    const id = (ctx.params as { id: string }).id;
-    ctx.response.body = { message: `Conversation ${id} details` };
+    response.body = { message: `Conversation ${params.id} details` };
 };
 
-export const updateConversation = async (ctx: Context) => {
+export const updateConversation = async (
+    { params, response }: { params: { id: string }; response: Context['response'] }
+) => {
     // Update conversation
-    const id = ctx.params.id;
-    ctx.response.body = { message: `Conversation ${id} updated` };
+    response.body = { message: `Conversation ${params.id} updated` };
 };
 
-export const deleteConversation = async (ctx: Context) => {
+export const deleteConversation = async (
+    { params, response }: { params: { id: string }; response: Context['response'] }
+) => {
     // Delete conversation
-    const id = ctx.params.id;
-    ctx.response.body = { message: `Conversation ${id} deleted` };
+    response.body = { message: `Conversation ${params.id} deleted` };
 };
 
-export const addMessage = async (ctx: Context) => {
+export const addMessage = async (
+    { params, response }: { params: { id: string }; response: Context['response'] }
+) => {
     // Add a message to the conversation
-    const id = ctx.params.id;
-    ctx.response.body = { message: `Message added to conversation ${id}` };
+    response.body = { message: `Message added to conversation ${params.id}` };
 };
 
-export const clearConversation = async (ctx: Context) => {
+export const clearConversation = async (
+    { params, response }: { params: { id: string }; response: Context['response'] }
+) => {
     // Clear conversation history
-    const id = ctx.params.id;
-    ctx.response.body = { message: `Conversation ${id} cleared` };
+    response.body = { message: `Conversation ${params.id} cleared` };
 };
 
-export const undoConversation = async (ctx: Context) => {
+export const undoConversation = async (
+    { params, response }: { params: { id: string }; response: Context['response'] }
+) => {
     // Undo last change in conversation
-    const id = ctx.params.id;
-    ctx.response.body = { message: `Last change in conversation ${id} undone` };
+    response.body = { message: `Last change in conversation ${params.id} undone` };
 };

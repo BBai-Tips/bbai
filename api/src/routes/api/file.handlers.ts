@@ -1,17 +1,22 @@
 import { Context } from '@oak/oak';
 
-export const addFile = async (ctx: Context) => {
+export const addFile = async (
+    { response }: { response: Context['response'] }
+) => {
     // Add file to conversation
-    ctx.response.body = { message: 'File added to conversation' };
+    response.body = { message: 'File added to conversation' };
 };
 
-export const removeFile = async (ctx: Context) => {
+export const removeFile = async (
+    { params, response }: { params: { id: string }; response: Context['response'] }
+) => {
     // Remove file from conversation
-    const id = (ctx.params as { id: string }).id;
-    ctx.response.body = { message: `File ${id} removed from conversation` };
+    response.body = { message: `File ${params.id} removed from conversation` };
 };
 
-export const listFiles = async (ctx: Context) => {
+export const listFiles = async (
+    { response }: { response: Context['response'] }
+) => {
     // List files in conversation
-    ctx.response.body = { message: 'Files in conversation listed' };
+    response.body = { message: 'Files in conversation listed' };
 };
