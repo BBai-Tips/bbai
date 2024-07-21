@@ -29,7 +29,7 @@ export class PromptManager {
     this.userPromptsDir = join(bbaiDir, "prompts");
   }
 
-  async getPrompt(promptName: string): Promise<string> {
+  async getPrompt(promptName: string, variables: Record<string, any> = {}): Promise<string> {
     const userPrompt = await this.loadUserPrompt(promptName);
     const defaultPrompt = defaultPrompts[promptName as keyof typeof defaultPrompts];
 
@@ -37,11 +37,15 @@ export class PromptManager {
       throw new Error(`Prompt '${promptName}' not found`);
     }
 
-    const promptContent = userPrompt?.content || defaultPrompt?.content || '';
-    const userDefinedContent = ''; // This would be populated from somewhere else in your application
+    if (userPrompt) {
+      return this.applyTemplate(userPrompt.content, variables);
+    }
 
-    // Use template literal for interpolation
-    return `${promptContent}\n\n${userDefinedContent}`.trim();
+    if (defaultPrompt) {
+      return defaultPrompt.getContent(variables);
+    }
+
+    throw new Error(`Prompt '${promptName}' content not found`);
   }
 
   private async loadUserPrompt(promptName: string): Promise<Prompt | null> {
