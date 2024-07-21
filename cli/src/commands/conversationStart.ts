@@ -5,12 +5,12 @@ import { apiClient } from '../utils/apiClient.ts';
 export const conversationStart = new Command()
 	.name('start')
 	.description('Start a new conversation')
-	.option('-s, --system <string>', 'System message to start the conversation')
+	.option('-p, --prompt <string>', 'Prompt to start the conversation')
 	.option('-m, --model <string>', 'LLM model to use for the conversation')
 	.action(async (options) => {
 		try {
 			const response = await apiClient.post('/api/v1/conversation', {
-				system: options.system,
+				prompt: options.prompt,
 				model: options.model,
 			});
 

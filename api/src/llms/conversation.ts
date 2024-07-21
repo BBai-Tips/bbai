@@ -9,7 +9,7 @@ import LLMMessage, { LLMMessageContentParts } from './message.ts';
 import type { LLMMessageProviderResponse } from './message.ts';
 import LLMTool from './tool.ts';
 import LLM from './providers/baseLLM.ts';
-import { ConversationPersistence } from '../utils/conversationPersistence.ts';
+import { ConversationPersistence } from '../utils/conversationPersistence.utils.ts';
 import { logger } from 'shared/logger.ts';
 
 import { ulid } from '@std/ulid';
