@@ -156,29 +156,37 @@ export class ProjectEditor {
             throw new Error("Conversation not started. Call startConversation first.");
         }
 
-        const storageLocation = this.determineStorageLocation(filePath, content);
-        const metadata = {
-            path: filePath,
-            size: new TextEncoder().encode(content).length,
-            last_modified: new Date().toISOString(),
-        };
+        try {
+            const storageLocation = this.determineStorageLocation(filePath, content);
+            const metadata = {
+                path: filePath,
+                size: new TextEncoder().encode(content).length,
+                last_modified: new Date().toISOString(),
+            };
 
-        if (storageLocation === 'system') {
-            await this.conversation.addFileToSystemPrompt(filePath, content, metadata);
-        } else {
-            await this.conversation.addFileToMessageArray(filePath, content, metadata);
+            if (storageLocation === 'system') {
+                await this.conversation.addFileToSystemPrompt(filePath, content, metadata);
+            } else {
+                await this.conversation.addFileToMessageArray(filePath, content, metadata);
+            }
+
+            // Add the file to the LLM conversation
+            if (storageLocation === 'system') {
+                const fileContent = `<file path="${metadata.path}" size="${metadata.size}" last_modified="${metadata.last_modified}">\n${content}\n</file>`;
+                this.conversation.system += `\n\n${fileContent}`;
+            } else {
+                const fileMessage = `File added: ${filePath}\nContent:\n${content}`;
+                await this.conversation.speakWithLLM(fileMessage);
+            }
+
+            logger.info(`File ${filePath} added to the project and LLM conversation in ${storageLocation} storage`);
+        } catch (error) {
+            logger.error(`Error adding file ${filePath}: ${error.message}`);
+            throw createError(ErrorType.FileHandling, `Failed to add file ${filePath}`, {
+                filePath,
+                operation: 'write',
+            } as FileHandlingErrorOptions);
         }
-
-        // Add the file to the LLM conversation
-        if (storageLocation === 'system') {
-            const fileContent = `<file path="${metadata.path}" size="${metadata.size}" last_modified="${metadata.last_modified}">\n${content}\n</file>`;
-            this.conversation.system += `\n\n${fileContent}`;
-        } else {
-            const fileMessage = `File added: ${filePath}\nContent:\n${content}`;
-            await this.conversation.speakWithLLM(fileMessage);
-        }
-
-        logger.info(`File ${filePath} added to the project and LLM conversation in ${storageLocation} storage`);
     }
 
     async updateFile(filePath: string, content: string): Promise<void> {
@@ -217,7 +225,10 @@ export class ProjectEditor {
             });
 
             if (patchedContent === false) {
-                throw new Error('Failed to apply patch. The patch does not match the current file content.');
+                throw createError(ErrorType.FileHandling, 'Failed to apply patch. The patch does not match the current file content.', {
+                    filePath,
+                    operation: 'patch',
+                } as FileHandlingErrorOptions);
             }
 
             await Deno.writeTextFile(filePath, patchedContent);
@@ -229,8 +240,23 @@ export class ProjectEditor {
                 await persistence.logPatch(filePath, patch);
             }
         } catch (error) {
-            logger.error(`Error applying patch to ${filePath}: ${error.message}`);
-            throw error;
+            if (error instanceof Deno.errors.NotFound) {
+                throw createError(ErrorType.FileHandling, `File not found: ${filePath}`, {
+                    filePath,
+                    operation: 'read',
+                } as FileHandlingErrorOptions);
+            } else if (error instanceof Deno.errors.PermissionDenied) {
+                throw createError(ErrorType.FileHandling, `Permission denied for file: ${filePath}`, {
+                    filePath,
+                    operation: 'write',
+                } as FileHandlingErrorOptions);
+            } else {
+                logger.error(`Error applying patch to ${filePath}: ${error.message}`);
+                throw createError(ErrorType.FileHandling, `Failed to apply patch to ${filePath}`, {
+                    filePath,
+                    operation: 'patch',
+                } as FileHandlingErrorOptions);
+            }
         }
     }
 
