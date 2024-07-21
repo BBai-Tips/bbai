@@ -1,3 +1,6 @@
+import { join, resolve, normalize } from '@std/path';
+import * as diff from 'diff';
+
 import { LLMFactory } from '../llms/llmProvider.ts';
 import LLMConversation from '../llms/conversation.ts';
 import LLM from '../llms/providers/baseLLM.ts';
@@ -5,10 +8,8 @@ import { logger } from 'shared/logger.ts';
 import { PromptManager } from '../prompts/promptManager.ts';
 import { LLMProvider, LLMSpeakWithOptions } from 'shared/types.ts';
 import LLMTool from '../llms/tool.ts';
-import * as diff from 'diff';
 import { ConversationPersistence } from '../utils/conversationPersistence.utils.ts';
-import { join, resolve, normalize } from '@std/path';
-import { getProjectRoot } from '../utils/dataDir.utils.ts';
+import { getProjectRoot } from 'shared/dataDir.ts';
 
 export class ProjectEditor {
     private conversation: LLMConversation | null = null;
