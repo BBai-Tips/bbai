@@ -103,7 +103,7 @@ export class ConfigManager {
 	}
 
 	private loadEnvConfig(): Partial<ConfigSchema> {
-		const config: Partial<ConfigSchema> = { api: {}, cli: {} };
+		const config: Partial<ConfigSchema> = { };
 
 		const anthropicApiKey = Deno.env.get('ANTHROPIC_API_KEY');
 		if (anthropicApiKey) config.api!.anthropicApiKey = anthropicApiKey;
