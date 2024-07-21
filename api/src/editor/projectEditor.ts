@@ -45,11 +45,20 @@ export class ProjectEditor {
 
         const response = await this.conversation.speakWithLLM(prompt, speakOptions);
 
-        // Handle tool calls
+        // Handle tool calls and collect feedback
+        let toolFeedback = '';
         if (response.toolsUsed && response.toolsUsed.length > 0) {
             for (const tool of response.toolsUsed) {
-                await this.handleToolUse(tool, response);
+                const feedback = await this.handleToolUse(tool, response);
+                toolFeedback += feedback + '\n';
             }
+        }
+
+        // If there's tool feedback, send it back to the LLM
+        if (toolFeedback) {
+            const feedbackPrompt = `Tool use feedback:\n${toolFeedback}\nPlease acknowledge this feedback and continue the conversation.`;
+            const feedbackResponse = await this.conversation.speakWithLLM(feedbackPrompt, speakOptions);
+            response.toolFeedback = feedbackResponse;
         }
 
         return response;
