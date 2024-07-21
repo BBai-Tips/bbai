@@ -3,7 +3,7 @@ import { config } from 'shared/configManager.ts';
 const logLevels = ['debug', 'info', 'warn', 'error'] as const;
 type LogLevel = typeof logLevels[number];
 
-const getLogLevel = async (): LogLevel => {
+const getLogLevel = async (): Promise<LogLevel> => {
 	const envLogLevel = Deno.env.get('LOG_LEVEL');
 	if (envLogLevel && logLevels.includes(envLogLevel as LogLevel)) {
 		return envLogLevel as LogLevel;

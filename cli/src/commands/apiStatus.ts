@@ -7,7 +7,7 @@ export const apiStatus = new Command()
 	.name('status')
 	.description('Check the status of the bbai API server')
 	.action(async () => {
-		const apiPort = config.api.apiPort || 3000;
+		const apiPort = config.api?.apiPort || 3000;
 
 		if (await isApiRunning()) {
 			const pid = await getPid();

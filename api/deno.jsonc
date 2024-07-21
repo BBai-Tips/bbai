@@ -30,5 +30,5 @@
 		"rules": {
 			"exclude": ["require-await", "no-var"]
 		}
-	}
+	},
 }
