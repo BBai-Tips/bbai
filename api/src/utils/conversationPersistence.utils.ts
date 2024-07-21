@@ -7,11 +7,13 @@ import { logger } from 'shared/logger.ts';
 export class ConversationPersistence {
 	private filePath: string;
 	private patchLogPath: string;
+	private filesDir: string;
 
 	constructor(conversationId: string) {
 		const cacheDir = join(Deno.env.get('HOME') || '', '.bbai', 'cache');
 		this.filePath = join(cacheDir, `${conversationId}.jsonl`);
 		this.patchLogPath = join(cacheDir, `${conversationId}_patches.jsonl`);
+		this.filesDir = join(cacheDir, conversationId, 'files');
 	}
 
 	static async listConversations(options: {
@@ -28,6 +30,7 @@ export class ConversationPersistence {
 
 	async saveConversation(conversation: LLMConversation): Promise<void> {
 		await ensureDir(join(this.filePath, '..'));
+		await ensureDir(this.filesDir);
 
 		const metadata = {
 			id: conversation.id,
@@ -57,6 +60,15 @@ export class ConversationPersistence {
 
 		const turnLine = JSON.stringify(turnData) + '\n';
 		await Deno.writeTextFile(this.filePath, turnLine, { append: true });
+
+		// Save files
+		const files = conversation.getFiles();
+		for (const [filePath, fileData] of Object.entries(files)) {
+			const fileStoragePath = join(this.filesDir, filePath);
+			await ensureDir(join(fileStoragePath, '..'));
+			await Deno.writeTextFile(fileStoragePath, fileData.content);
+			await Deno.writeTextFile(`${fileStoragePath}.meta`, JSON.stringify(fileData.metadata));
+		}
 	}
 
 	async loadConversation(llm: LLM): Promise<LLMConversation> {
@@ -85,6 +97,24 @@ export class ConversationPersistence {
 			conversation.addMessage(turnData.message);
 			conversation.updateTotals(turnData.tokenUsage, 1);
 			conversation.addTools(turnData.tools);
+		}
+
+		// Load files
+		if (await exists(this.filesDir)) {
+			for await (const entry of Deno.readDir(this.filesDir)) {
+				if (entry.isFile && !entry.name.endsWith('.meta')) {
+					const filePath = join(this.filesDir, entry.name);
+					const content = await Deno.readTextFile(filePath);
+					const metadataContent = await Deno.readTextFile(`${filePath}.meta`);
+					const metadata = JSON.parse(metadataContent);
+					
+					if (metadata.path.startsWith('<file')) {
+						await conversation.addFileToSystemPrompt(entry.name, content, metadata);
+					} else {
+						await conversation.addFileToMessageArray(entry.name, content, metadata);
+					}
+				}
+			}
 		}
 
 		return conversation;
