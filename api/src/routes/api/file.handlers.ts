@@ -7,7 +7,7 @@ export const addFile = async (ctx: Context) => {
 
 export const removeFile = async (ctx: Context) => {
     // Remove file from conversation
-    const id = ctx.params.id;
+    const id = (ctx.params as { id: string }).id;
     ctx.response.body = { message: `File ${id} removed from conversation` };
 };
 

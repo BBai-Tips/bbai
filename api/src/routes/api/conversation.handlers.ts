@@ -48,7 +48,7 @@ export const startConversation = async (ctx: Context) => {
 
 export const getConversation = async (ctx: Context) => {
     // Get conversation details
-    const id = ctx.params.id;
+    const id = (ctx.params as { id: string }).id;
     ctx.response.body = { message: `Conversation ${id} details` };
 };
 
