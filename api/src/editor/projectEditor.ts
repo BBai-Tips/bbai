@@ -55,22 +55,30 @@ export class ProjectEditor {
         return response;
     }
 
-    private async handleToolUse(tool: any, response: any): Promise<void> {
+    private async handleToolUse(tool: any, response: any): Promise<string> {
+        let feedback = '';
         switch (tool.toolName) {
             case 'request_files':
-                await this.handleRequestFiles((tool.toolInput as { fileNames: string[] }).fileNames);
+                const fileNames = (tool.toolInput as { fileNames: string[] }).fileNames;
+                await this.handleRequestFiles(fileNames);
+                feedback = `Files added to the conversation: ${fileNames.join(', ')}`;
                 break;
             case 'vector_search':
-                const searchResults = await this.handleVectorSearch((tool.toolInput as { query: string }).query);
+                const query = (tool.toolInput as { query: string }).query;
+                const searchResults = await this.handleVectorSearch(query);
                 response.searchResults = searchResults;
+                feedback = `Vector search completed for query: "${query}". ${searchResults.length} results found.`;
                 break;
             case 'apply_patch':
                 const { filePath, patch } = tool.toolInput as { filePath: string; patch: string };
                 await this.applyPatch(filePath, patch);
+                feedback = `Patch applied successfully to file: ${filePath}`;
                 break;
             default:
                 logger.warn(`Unknown tool used: ${tool.toolName}`);
+                feedback = `Unknown tool used: ${tool.toolName}`;
         }
+        return feedback;
     }
 
     async continueConversation(prompt: string): Promise<any> {
@@ -85,11 +93,20 @@ export class ProjectEditor {
 
         const response = await this.conversation.speakWithLLM(prompt, speakOptions);
 
-        // Handle tool calls
+        // Handle tool calls and collect feedback
+        let toolFeedback = '';
         if (response.toolsUsed && response.toolsUsed.length > 0) {
             for (const tool of response.toolsUsed) {
-                await this.handleToolUse(tool, response);
+                const feedback = await this.handleToolUse(tool, response);
+                toolFeedback += feedback + '\n';
             }
+        }
+
+        // If there's tool feedback, send it back to the LLM
+        if (toolFeedback) {
+            const feedbackPrompt = `Tool use feedback:\n${toolFeedback}\nPlease acknowledge this feedback and continue the conversation.`;
+            const feedbackResponse = await this.conversation.speakWithLLM(feedbackPrompt, speakOptions);
+            response.toolFeedback = feedbackResponse;
         }
 
         return response;
