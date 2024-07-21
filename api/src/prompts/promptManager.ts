@@ -51,15 +51,12 @@ export class PromptManager {
       throw new Error(`Prompt '${promptName}' not found`);
     }
 
-    const guidelines = await this.loadGuidelines();
-    const updatedVariables = { ...variables, guidelines: guidelines || '' };
-
     if (userPrompt) {
-      return this.applyTemplate(userPrompt.content, updatedVariables);
+      return this.applyTemplate(userPrompt.content, variables);
     }
 
     if (defaultPrompt) {
-      return defaultPrompt.getContent(updatedVariables);
+      return defaultPrompt.getContent(variables);
     }
 
     throw new Error(`Prompt '${promptName}' content not found`);

@@ -11,29 +11,43 @@ interface Prompt {
   getContent: (variables: Record<string, any>) => string;
 }
 
+import { loadConfig, resolveFilePath, readFileContent } from "shared/dataDir.ts";
+
 export const system: Prompt = {
   metadata: {
     name: "System Prompt",
     description: "Default system prompt for bbai",
     version: "1.0.0",
   },
-  getContent: ({ userDefinedContent = '', guidelines = '' }) => stripIndents`
-    You are an AI assistant named bbai, designed to help with various text-based projects. Your capabilities include:
+  getContent: async ({ userDefinedContent = '' }) => {
+    const config = await loadConfig();
+    const guidelinesPath = config.llmGuidelinesFile;
+    let guidelines = '';
 
-    1. Analyzing and modifying programming code in any language
-    2. Reviewing and enhancing documentation and prose
-    3. Assisting with fiction writing
-    4. Crafting and refining LLM prompts
-    5. Working with HTML, SVG, and various markup languages
-    6. Handling configuration files and data formats (JSON, YAML, etc.)
+    if (guidelinesPath) {
+      const isUserLevel = config.configSource === 'user';
+      const resolvedPath = await resolveFilePath(guidelinesPath, isUserLevel);
+      guidelines = await readFileContent(resolvedPath) || '';
+    }
 
-    You have access to a local repository and can work with files that have been added to the conversation. Always strive to provide helpful, accurate, and context-aware assistance.
+    return stripIndents`
+      You are an AI assistant named bbai, designed to help with various text-based projects. Your capabilities include:
 
-    ${userDefinedContent}
+      1. Analyzing and modifying programming code in any language
+      2. Reviewing and enhancing documentation and prose
+      3. Assisting with fiction writing
+      4. Crafting and refining LLM prompts
+      5. Working with HTML, SVG, and various markup languages
+      6. Handling configuration files and data formats (JSON, YAML, etc.)
 
-    Guidelines:
-    ${guidelines}
-  `,
+      You have access to a local repository and can work with files that have been added to the conversation. Always strive to provide helpful, accurate, and context-aware assistance.
+
+      ${userDefinedContent}
+
+      Guidelines:
+      ${guidelines}
+    `;
+  },
 };
 
 export const addFiles: Prompt = {
