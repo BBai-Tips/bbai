@@ -47,10 +47,22 @@ class LLMConversation {
 	}
 
 	async addFileToMessageArray(filePath: string, content: string, metadata: any): Promise<void> {
-		const fileMessage = new LLMMessage('system', [{ type: 'text', text: `File added: ${filePath}` }]);
-		this.addMessage(fileMessage);
+		const fileContent = `<file path="${metadata.path}" size="${metadata.size}" last_modified="${metadata.last_modified}">\n${content}\n</file>`;
+		const fileMessage = `File added: ${filePath}\n${fileContent}`;
+		this.addMessageWithCorrectRole(fileMessage);
 		this.files[filePath] = { content, metadata };
 		await this.persistence.saveConversation(this);
+	}
+
+	private addMessageWithCorrectRole(content: string): void {
+		const lastMessage = this.messages[this.messages.length - 1];
+		if (lastMessage && lastMessage.role === 'user') {
+			// Append to the last user message
+			lastMessage.content.push({ type: 'text', text: '\n\n' + content });
+		} else {
+			// Add a new user message
+			this.addMessage(new LLMMessage('user', [{ type: 'text', text: content }]));
+		}
 	}
 
 	getFiles(): { [key: string]: { content: string; metadata: any } } {
