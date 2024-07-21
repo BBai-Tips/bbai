@@ -9,7 +9,7 @@ import LLMMessage, { LLMMessageContentParts } from './message.ts';
 import type { LLMMessageProviderResponse } from './message.ts';
 import LLMTool from './tool.ts';
 import LLM from './providers/baseLLM.ts';
-//import LLMConversationRepository from '../repositories/llm_conversation.repository.ts';
+import { ConversationPersistence } from '../utils/conversationPersistence.ts';
 import { logger } from 'shared/logger.ts';
 
 import { ulid } from '@std/ulid';
@@ -22,7 +22,7 @@ class LLMConversation {
 	private messages: LLMMessage[] = [];
 	private tools: LLMTool[] = [];
 
-	private llmConversationRepository: any; // TODO: Replace 'any' with the correct type when available
+	private persistence: ConversationPersistence;
 
 	protected _system: string = '';
 	protected _model: string = '';
@@ -35,8 +35,22 @@ class LLMConversation {
 	constructor(llm: LLM) {
 		this.id = ulid();
 		this.llm = llm;
+		this.persistence = new ConversationPersistence(this.id);
+	}
 
-		this.llmConversationRepository = {}; // TODO: Initialize properly when LLMConversationRepository is implemented
+	async save(): Promise<void> {
+		try {
+			await this.persistence.saveConversation(this);
+		} catch (error) {
+			logger.error(`Failed to save conversation: ${error.message}`);
+			throw new Error('Failed to save conversation. The application will now exit.');
+		}
+	}
+
+	static async resume(id: string, llm: LLM): Promise<LLMConversation> {
+		const persistence = new ConversationPersistence(id);
+		const conversation = await persistence.loadConversation(llm);
+		return conversation;
 	}
 
 	private async logConversation(): Promise<void> {
@@ -180,8 +194,6 @@ class LLMConversation {
 			speakOptions = {} as LLMSpeakWithOptions;
 		}
 
-		//await this.logConversationStart();
-
 		this._turnCount++;
 		this.addMessage(
 			{ role: 'user', content: [{ type: 'text', text: prompt }] as LLMMessageContentParts } as LLMMessage,
@@ -189,9 +201,9 @@ class LLMConversation {
 
 		const llmProviderMessageResponse = await this.llm.speakWithRetry(this, speakOptions);
 
-		await this.logConversation();
+		await this.save();
 
-		return llmProviderMessageResponse; // as LLMProviderMessageResponse;
+		return llmProviderMessageResponse;
 	}
 }
 
