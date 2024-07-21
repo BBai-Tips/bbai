@@ -7,12 +7,14 @@ export enum ErrorType {
 	LLM = 'LLMError',
 	LLMRateLimit = 'RateLimitError',
 	LLMValidation = 'ValidationError',
+	FileHandling = 'FileHandlingError',
 }
 export const ErrorTypes = [
 	ErrorType.API,
 	ErrorType.LLM,
 	ErrorType.LLMRateLimit,
 	ErrorType.LLMValidation,
+	ErrorType.FileHandling,
 ];
 
 export interface ErrorOptions {
@@ -107,3 +109,50 @@ export class ValidationError extends LLMError {
 export const isValidationError = (value: unknown): value is ValidationError => {
 	return value instanceof ValidationError;
 };
+
+export interface FileHandlingErrorOptions extends ErrorOptions {
+	filePath: string;
+	operation: 'read' | 'write' | 'patch' | 'delete';
+}
+
+export class FileHandlingError extends Error {
+	constructor(
+		message: string,
+		public options: FileHandlingErrorOptions,
+	) {
+		super(message);
+		this.name = ErrorType.FileHandling;
+	}
+}
+
+export const isFileHandlingError = (value: unknown): value is FileHandlingError => {
+	return value instanceof FileHandlingError;
+};
+
+export class FilePatchError extends FileHandlingError {
+	constructor(message: string, options: FileHandlingErrorOptions) {
+		super(message, { ...options, operation: 'patch' });
+		this.name = 'FilePatchError';
+	}
+}
+
+export class FileNotFoundError extends FileHandlingError {
+	constructor(message: string, options: FileHandlingErrorOptions) {
+		super(message, { ...options, operation: 'read' });
+		this.name = 'FileNotFoundError';
+	}
+}
+
+export class FileReadError extends FileHandlingError {
+	constructor(message: string, options: FileHandlingErrorOptions) {
+		super(message, { ...options, operation: 'read' });
+		this.name = 'FileReadError';
+	}
+}
+
+export class FileWriteError extends FileHandlingError {
+	constructor(message: string, options: FileHandlingErrorOptions) {
+		super(message, { ...options, operation: 'write' });
+		this.name = 'FileWriteError';
+	}
+}

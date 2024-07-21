@@ -1,16 +1,29 @@
-import { APIError, ErrorType, ErrorTypes, LLMError, RateLimitError, ValidationError } from '../errors/error.ts';
+import {
+	APIError,
+	ErrorType,
+	ErrorTypes,
+	LLMError,
+	RateLimitError,
+	ValidationError,
+	FileHandlingError,
+	FilePatchError,
+	FileNotFoundError,
+	FileReadError,
+	FileWriteError,
+} from '../errors/error.ts';
 import type {
 	APIErrorOptions,
 	ErrorOptions,
 	LLMErrorOptions,
 	LLMRateLimitErrorOptions,
 	LLMValidationErrorOptions,
+	FileHandlingErrorOptions,
 } from '../errors/error.ts';
 
 export const createError = (
 	errorType: ErrorType,
 	message: string,
-	options?: ErrorOptions | APIErrorOptions | LLMErrorOptions | LLMRateLimitErrorOptions | LLMValidationErrorOptions,
+	options?: ErrorOptions | APIErrorOptions | LLMErrorOptions | LLMRateLimitErrorOptions | LLMValidationErrorOptions | FileHandlingErrorOptions,
 ): Error => {
 	if (!ErrorTypes.includes(errorType)) {
 		throw new Error(`Unknown error type: ${errorType}`);
@@ -25,8 +38,20 @@ export const createError = (
 			return new RateLimitError(message, options as LLMRateLimitErrorOptions);
 		case ErrorType.LLMValidation:
 			return new ValidationError(message, options as LLMValidationErrorOptions);
+		case ErrorType.FileHandling:
+			const fileOptions = options as FileHandlingErrorOptions;
+			switch (fileOptions.operation) {
+				case 'patch':
+					return new FilePatchError(message, fileOptions);
+				case 'read':
+					return fileOptions.filePath ? new FileNotFoundError(message, fileOptions) : new FileReadError(message, fileOptions);
+				case 'write':
+					return new FileWriteError(message, fileOptions);
+				default:
+					return new FileHandlingError(message, fileOptions);
+			}
 		default:
-			return new Error(`Unknown error type: ${errorType} - ${message}`); //options as ErrorOptions
+			return new Error(`Unknown error type: ${errorType} - ${message}`);
 	}
 };
 
