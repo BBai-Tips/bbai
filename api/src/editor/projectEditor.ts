@@ -48,16 +48,29 @@ export class ProjectEditor {
         // Handle tool calls
         if (response.toolsUsed && response.toolsUsed.length > 0) {
             for (const tool of response.toolsUsed) {
-                if (tool.toolName === 'request_files') {
-                    await this.handleRequestFiles((tool.toolInput as { fileNames: string[] }).fileNames);
-                } else if (tool.toolName === 'vector_search') {
-                    const searchResults = await this.handleVectorSearch((tool.toolInput as { query: string }).query);
-                    (response as any).searchResults = searchResults; // Use type assertion
-                }
+                await this.handleToolUse(tool, response);
             }
         }
 
         return response;
+    }
+
+    private async handleToolUse(tool: any, response: any): Promise<void> {
+        switch (tool.toolName) {
+            case 'request_files':
+                await this.handleRequestFiles((tool.toolInput as { fileNames: string[] }).fileNames);
+                break;
+            case 'vector_search':
+                const searchResults = await this.handleVectorSearch((tool.toolInput as { query: string }).query);
+                response.searchResults = searchResults;
+                break;
+            case 'apply_patch':
+                const { filePath, patch } = tool.toolInput as { filePath: string; patch: string };
+                await this.applyPatch(filePath, patch);
+                break;
+            default:
+                logger.warn(`Unknown tool used: ${tool.toolName}`);
+        }
     }
 
     async continueConversation(prompt: string): Promise<any> {
@@ -75,10 +88,7 @@ export class ProjectEditor {
         // Handle tool calls
         if (response.toolsUsed && response.toolsUsed.length > 0) {
             for (const tool of response.toolsUsed) {
-                if (tool.toolName === 'apply_patch') {
-                    const { filePath, patch } = tool.toolInput as { filePath: string; patch: string };
-                    await this.applyPatch(filePath, patch);
-                }
+                await this.handleToolUse(tool, response);
             }
         }
 
