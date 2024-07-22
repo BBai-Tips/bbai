@@ -27,7 +27,7 @@ export const defaultConfig: ConfigSchema = {
 	cli: {},
 	ctags: {
 		autoGenerate: true,
-		tagsFilePath: '.bbai/tags',
+		//tagsFilePath: 'tags',
 	},
 	logFile: 'api.log',
 	logLevel: 'info',
