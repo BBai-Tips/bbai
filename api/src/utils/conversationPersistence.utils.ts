@@ -70,6 +70,16 @@ export class ConversationPersistence {
 
 			await Deno.writeTextFile(this.metadataPath, JSON.stringify(metadata, null, 2));
 
+			// Save messages
+			const messages = conversation.getMessages();
+			const messagesContent = messages.map(m => JSON.stringify({
+				role: m.role,
+				content: m.content,
+				id: m.id,
+				providerResponse: m.providerResponse,
+			})).join('\n') + '\n';
+			await Deno.writeTextFile(this.messagesPath, messagesContent);
+
 			// Save files
 			const files = conversation.getFiles();
 			for (const [filePath, fileData] of files.entries()) {
@@ -82,45 +92,7 @@ export class ConversationPersistence {
 		}
 	}
 
-	async saveConversationMessage(message: LLMMessage, response: LLMMessageProviderResponse | undefined): Promise<void> {
-		try {
-			await this.ensureInitialized();
-
-			const messageData = {
-				role: message.role,
-				content: message.content,
-				id: message.id,
-			};
-
-			let messages: any[] = [];
-			if (await exists(this.messagesPath)) {
-				const content = await Deno.readTextFile(this.messagesPath);
-				messages = content.trim().split('\n').map(line => JSON.parse(line));
-			}
-
-			const existingMessageIndex = messages.findIndex(m => m.id === message.id);
-			if (existingMessageIndex !== -1) {
-				// Update existing message
-				messages[existingMessageIndex] = messageData;
-			} else {
-				// Add new message
-				messages.push(messageData);
-			}
-
-			if (response) {
-				messages.push({
-					role: 'assistant',
-					content: response.answerContent,
-					id: response.id,
-				});
-			}
-
-			const messagesContent = messages.map(m => JSON.stringify(m)).join('\n') + '\n';
-			await Deno.writeTextFile(this.messagesPath, messagesContent);
-		} catch (error) {
-			this.handleSaveError(error, this.messagesPath);
-		}
-	}
+	// Remove the saveConversationMessage method as it's no longer needed
 
 	private handleSaveError(error: unknown, filePath: string): never {
 		if (error instanceof Deno.errors.PermissionDenied) {

@@ -87,6 +87,9 @@ export class ProjectEditor {
 			maxTokens: 1000,
 		};
 
+		// TODO: There is a `building-fast` branch that has the previous "optimized, but buggy" solution.
+		// This current implementation is simpler but may be less efficient.
+
 		const maxTurns = 5; // Maximum number of turns for the run loop
 		let currentTurn = 0;
 		let finalResponse: LLMProviderMessageResponse = await this.conversation.speakWithLLM(prompt, speakOptions);
@@ -94,9 +97,9 @@ export class ProjectEditor {
 		while (currentTurn < maxTurns) {
 			// Handle tool calls and collect feedback
 			let toolFeedback = '';
-			if (response.toolsUsed && response.toolsUsed.length > 0) {
-				for (const tool of response.toolsUsed) {
-					const feedback = await this.handleToolUse(tool, response);
+			if (finalResponse.toolsUsed && finalResponse.toolsUsed.length > 0) {
+				for (const tool of finalResponse.toolsUsed) {
+					const feedback = await this.handleToolUse(tool, finalResponse);
 					toolFeedback += feedback + '\n';
 				}
 			}
@@ -106,9 +109,8 @@ export class ProjectEditor {
 				prompt =
 					`Tool use feedback:\n${toolFeedback}\nPlease acknowledge this feedback and continue the conversation.`;
 				currentTurn++;
-				const response = await this.conversation.speakWithLLM(prompt, speakOptions);
-				logger.info('tool resposne', response);
-				finalResponse = response;
+				finalResponse = await this.conversation.speakWithLLM(prompt, speakOptions);
+				logger.info('tool response', finalResponse);
 			} else {
 				// No more tool feedback, exit the loop
 				break;
@@ -117,6 +119,12 @@ export class ProjectEditor {
 
 		if (currentTurn >= maxTurns) {
 			logger.warn(`Reached maximum number of turns (${maxTurns}) in conversation.`);
+		}
+
+		// Persist the entire conversation at the end of the loop
+		if (this.conversation) {
+			const persistence = new ConversationPersistence(this.conversation.id);
+			await persistence.saveConversation(this.conversation);
 		}
 
 		return finalResponse;
