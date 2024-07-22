@@ -11,8 +11,18 @@ export class ConversationPersistence {
 	private filePath!: string;
 	private patchLogPath!: string;
 	private filesDir!: string;
+	private initialized: boolean = false;
 
-	constructor(private conversationId: string) {}
+	constructor(private conversationId: string) {
+		this.ensureInitialized();
+	}
+
+	private async ensureInitialized(): Promise<void> {
+		if (!this.initialized) {
+			await this.init();
+			this.initialized = true;
+		}
+	}
 
 	async init(): Promise<void> {
 		const bbaiDir = await getBbaiDir();
@@ -36,6 +46,7 @@ export class ConversationPersistence {
 
 	async saveConversation(conversation: LLMConversation): Promise<void> {
 		try {
+			await this.init(); // Ensure initialization is complete
 			await ensureDir(join(this.filePath, '..'));
 			await ensureDir(this.filesDir);
 
@@ -106,6 +117,8 @@ export class ConversationPersistence {
 	}
 
 	async loadConversation(llm: LLM): Promise<LLMConversation> {
+		await this.ensureInitialized();
+
 		if (!await exists(this.filePath)) {
 			throw new Error(`Conversation file not found: ${this.filePath}`);
 		}
