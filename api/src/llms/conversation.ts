@@ -67,9 +67,8 @@ class LLMConversation {
 			inSystemPrompt: false,
 		};
 		this._files.set(filePath, fileMetadata);
-		this.addMessageWithCorrectRole(`File added: ${filePath}`);
-		const lastMessage = this.messages[this.messages.length - 1];
-		fileMetadata.messageId = lastMessage.id;
+		const messageId = this.addMessageWithCorrectRole(`File added: ${filePath}`);
+		fileMetadata.messageId = messageId;
 		await this.persistence.saveConversation(this);
 	}
 
@@ -109,14 +108,17 @@ class LLMConversation {
 		return Array.from(this._files.keys());
 	}
 
-	private addMessageWithCorrectRole(content: string): void {
+	private addMessageWithCorrectRole(content: string): string {
 		const lastMessage = this.messages[this.messages.length - 1];
 		if (lastMessage && lastMessage.role === 'user') {
 			// Append to the last user message
 			lastMessage.content.push({ type: 'text', text: '\n\n' + content });
+			return lastMessage.id;
 		} else {
 			// Add a new user message
-			this.addMessage(new LLMMessage('user', [{ type: 'text', text: content }]));
+			const newMessage = new LLMMessage('user', [{ type: 'text', text: content }]);
+			this.addMessage(newMessage);
+			return newMessage.id;
 		}
 	}
 
