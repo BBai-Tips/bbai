@@ -22,6 +22,8 @@ import { createError } from '../../utils/error.utils.ts';
 import kv from '../../utils/kv.utils.ts';
 import { tokenUsageManager } from '../../utils/tokenUsage.utils.ts';
 import { ProjectEditor } from '../../editor/projectEditor.ts';
+import { ConversationPersistence } from '../../utils/conversationPersistence.utils.ts';
+import { readFileContent } from 'shared/dataDir.ts';
 
 const ajv = new Ajv();
 
@@ -29,11 +31,11 @@ class LLM {
 	public providerName: LLMProviderEnum = LLMProviderEnum.ANTHROPIC;
 	public maxSpeakRetries: number = 3;
 	public requestCacheExpiry: number = 3 * (1000 * 60 * 60 * 24); // 3 days in milliseconds
-	protected projectEditor: ProjectEditor;
+	public projectEditor: ProjectEditor;
+	//protected projectRoot: string;
 
 	constructor(projectEditor: ProjectEditor) {
 		this.projectEditor = projectEditor;
-		logger.info(`creating LLMProvider with root: ${this.projectEditor.projectRoot}`);
 	}
 
 	async prepareMessageParams(
@@ -62,14 +64,14 @@ class LLM {
 	}
 
 	async loadConversation(conversationId: string): Promise<LLMConversation> {
-		const persistence = new ConversationPersistence(conversationId);
+		const persistence = new ConversationPersistence(conversationId, this.projectEditor);
 		await persistence.init();
 		const conversation = await LLMConversation.resume(conversationId, this);
 		return conversation;
 	}
 
 	protected async readProjectFileContent(filePath: string): Promise<string> {
-		const fullFilePath = join(this.projectRoot, filePath);
+		const fullFilePath = join(await this.projectEditor.getProjectRoot(), filePath);
 		const content = await readFileContent(fullFilePath);
 		if (content === null) {
 			throw new Error(`File not found: ${fullFilePath}`);
@@ -77,10 +79,10 @@ class LLM {
 		return content;
 	}
 
-	protected async createFileXmlString(filePath: string, content: string, metadata: any): Promise<string | null> {
+	protected async createFileXmlString(filePath: string): Promise<string | null> {
 		try {
 			logger.info('createFileXmlString - filePath', filePath);
-			const fullFilePath = join(this.projectRoot, filePath);
+			const fullFilePath = join(await this.projectEditor.getProjectRoot(), filePath);
 			logger.info('createFileXmlString - fullFilePath', fullFilePath);
 			const content = await this.readProjectFileContent(filePath);
 			const metadata = {
@@ -106,7 +108,7 @@ class LLM {
 	}
 
 	protected async appendFilesToSystem(system: string, conversation: LLMConversation): Promise<string> {
-		for (const filePath of conversation.systemPromptFiles) {
+		for (const filePath of conversation.getSystemPromptFiles()) {
 			const fileXml = await this.createFileXmlString(filePath);
 			if (fileXml) {
 				system += `\n\n${fileXml}`;

@@ -27,6 +27,7 @@ export interface FileMetadata {
 	lastModified: Date;
 	inSystemPrompt: boolean;
 	messageId?: string;
+	toolUseId?: string;
 }
 
 class LLMConversation {
@@ -55,7 +56,7 @@ class LLMConversation {
 	constructor(llm: LLM) {
 		this.id = this.generateShortId();
 		this.llm = llm;
-		this.persistence = new ConversationPersistence(this.id);
+		this.persistence = new ConversationPersistence(this.id, this.llm.projectEditor);
 	}
 
 	private generateShortId(): string {
@@ -89,6 +90,7 @@ class LLMConversation {
 			...metadata,
 			path: filePath,
 			inSystemPrompt: false,
+			toolUseId,
 		};
 		this._files.set(filePath, fileMetadata);
 		const toolResult = {
@@ -197,7 +199,7 @@ class LLMConversation {
 	}
 
 	static async resume(id: string, llm: LLM): Promise<LLMConversation> {
-		const persistence = new ConversationPersistence(id);
+		const persistence = new ConversationPersistence(id, llm.projectEditor);
 		await persistence.init();
 		const conversation = await persistence.loadConversation(llm);
 		return conversation;
@@ -248,6 +250,19 @@ class LLMConversation {
 	set baseSystem(value: string) {
 		this._baseSystem = value;
 	}
+
+	getSystemPromptFiles(): string[] {
+		return this.systemPromptFiles;
+	}
+
+	getLastSystemPromptFile(): string {
+		return this.systemPromptFiles.slice(-1)[0];
+	}
+
+	clearSystemPromptFiles(): void {
+		this.systemPromptFiles = [];
+	}
+
 
 	get ctagsContent(): string {
 		return this._ctagsContent;
