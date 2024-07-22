@@ -10,7 +10,7 @@ export const startConversation = async (ctx: Context) => {
     logger.debug('startConversation called');
 
     try {
-        const body = await ctx.request.body.json();
+        const body = await ctx.request.body().value;
         const { prompt, provider, model } = body;
 
         if (!prompt) {
@@ -23,9 +23,9 @@ export const startConversation = async (ctx: Context) => {
 
         ctx.response.body = response;
     } catch (error) {
-        logger.error(`Error in startConversation: ${error.message}`);
+        logger.error(`Error in startConversation: ${error.message}`, error);
         ctx.response.status = 500;
-        ctx.response.body = { error: 'Failed to generate response' };
+        ctx.response.body = { error: 'Failed to generate response', details: error.message };
     }
 };
 
