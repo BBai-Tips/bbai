@@ -6,7 +6,6 @@ import { apiStart } from './commands/apiStart.ts';
 import { apiStop } from './commands/apiStop.ts';
 import { apiStatus } from './commands/apiStatus.ts';
 import { conversationStart } from './commands/conversationStart.ts';
-import { conversationContinue } from './commands/conversationContinue.ts';
 import { conversationClear } from './commands/conversationClear.ts';
 import { conversationPersist } from './commands/conversationPersist.ts';
 import { conversationResume } from './commands/conversationResume.ts';
@@ -30,7 +29,7 @@ const cli = new Command()
 	.command('remove', filesRemove)
 	.command('list', filesList)
 	.command('chat', conversationStart)
-	.command('continue', conversationContinue)
+	.alias('c', 'chat')
 	.command('clear', conversationClear)
 	.command('request', requestChanges)
 	.command('undo', undoLastChange)
