@@ -20,8 +20,8 @@ import type { LLMProviderMessageRequest, LLMProviderMessageResponse, LLMSpeakWit
 class AnthropicLLM extends LLM {
 	private anthropic!: Anthropic;
 
-	constructor() {
-		super();
+	constructor(projectRoot: string) {
+		super(projectRoot);
 		this.providerName = LLMProvider.ANTHROPIC;
 
 		this.initializeAnthropicClient();

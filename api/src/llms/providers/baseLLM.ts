@@ -24,19 +24,28 @@ import Ajv from 'ajv';
 
 const ajv = new Ajv();
 
-abstract class LLM {
+class LLM {
 	public providerName: LLMProviderEnum = LLMProviderEnum.ANTHROPIC;
 	public maxSpeakRetries: number = 3;
 	public requestCacheExpiry: number = 3 * (1000 * 60 * 60 * 24); // 3 days in milliseconds
+	protected projectRoot: string;
 
-	abstract prepareMessageParams(
+	constructor(projectRoot: string) {
+		this.projectRoot = projectRoot;
+	}
+
+	async prepareMessageParams(
 		conversation: LLMConversation,
 		speakOptions?: LLMSpeakWithOptions,
-	): Promise<object>;
+	): Promise<object> {
+		throw new Error("Method 'prepareMessageParams' must be implemented.");
+	}
 
-	abstract speakWith(
+	async speakWith(
 		messageParams: LLMProviderMessageRequest,
-	): Promise<LLMProviderMessageResponse>;
+	): Promise<LLMProviderMessageResponse> {
+		throw new Error("Method 'speakWith' must be implemented.");
+	}
 
 	protected modifySpeakWithConversationOptions(
 		conversation: LLMConversation,

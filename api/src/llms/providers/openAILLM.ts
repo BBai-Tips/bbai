@@ -16,8 +16,8 @@ import type { LLMProviderMessageRequest, LLMProviderMessageResponse, LLMSpeakWit
 class OpenAILLM extends LLM {
 	private openai!: OpenAI;
 
-	constructor() {
-		super();
+	constructor(projectRoot: string) {
+		super(projectRoot);
 		this.providerName = LLMProvider.OPENAI;
 		this.initializeOpenAIClient();
 	}
