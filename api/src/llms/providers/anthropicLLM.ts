@@ -62,6 +62,11 @@ class AnthropicLLM extends LLM {
 		const tools = this.asProviderToolType(speakOptions?.tools || conversation.getTools());
 		let system = speakOptions?.system || conversation.baseSystem;
 
+		// Add ctags content if not empty
+		if (conversation.ctagsContent) {
+			system += `\n\n<ctags>\n${conversation.ctagsContent}\n</ctags>`;
+		}
+
 		// Add system prompt files
 		for (const filePath of (conversation as any).systemPromptFiles) {
 			const fileMetadata = conversation.getFile(filePath);
