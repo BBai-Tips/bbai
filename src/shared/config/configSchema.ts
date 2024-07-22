@@ -16,6 +16,7 @@ export interface ConfigSchema {
 	};
 	logFile?: string;
 	logLevel: 'debug' | 'info' | 'warn' | 'error';
+	personsName?: string;
 }
 
 export const defaultConfig: ConfigSchema = {
