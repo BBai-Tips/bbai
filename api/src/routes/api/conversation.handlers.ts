@@ -19,11 +19,34 @@ export const startConversation = async (ctx: Context) => {
             return;
         }
 
-        const response = await projectEditor.startConversation(prompt, provider, model);
+        const response = await projectEditor.speakWithLLM(prompt, provider, model);
 
         ctx.response.body = response;
     } catch (error) {
         logger.error(`Error in startConversation: ${error.message}`);
+        ctx.response.status = 500;
+        ctx.response.body = { error: 'Failed to generate response' };
+    }
+};
+
+export const continueConversation = async (ctx: Context) => {
+    logger.debug('continueConversation called');
+
+    try {
+        const body = await ctx.request.body.json();
+        const { prompt, conversationId } = body;
+
+        if (!prompt || !conversationId) {
+            ctx.response.status = 400;
+            ctx.response.body = { error: 'Missing prompt or conversationId' };
+            return;
+        }
+
+        const response = await projectEditor.speakWithLLM(prompt, undefined, undefined, conversationId);
+
+        ctx.response.body = response;
+    } catch (error) {
+        logger.error(`Error in continueConversation: ${error.message}`);
         ctx.response.status = 500;
         ctx.response.body = { error: 'Failed to generate response' };
     }
