@@ -53,31 +53,12 @@ class AnthropicLLM extends LLM {
 		conversation: LLMConversation,
 		speakOptions?: LLMSpeakWithOptions,
 	): Promise<Anthropic.MessageCreateParams> {
-		const messages = await Promise.all(
-			conversation.getMessages().map(async (message: LLMMessage) => {
-				if (message.role === 'user') {
-					const updatedContent: LLMMessageContentParts = await Promise.all(
-						message.content.map(async (contentPart) => {
-							if (contentPart.type === 'text' && contentPart.text.startsWith('File added:')) {
-								const filePath = contentPart.text.split(': ')[1].trim();
-								const fileMetadata = conversation.getFile(filePath);
-								if (fileMetadata) {
-									const content = await this.readFileContent(filePath);
-									return {
-										type: 'text',
-										text: this.createFileXmlString(filePath, content, fileMetadata),
-									};
-								}
-							}
-							return contentPart;
-						}),
-					);
-					return { role: message.role, content: updatedContent } as LLMMessage;
-				}
-				return message;
-			}),
+		const messages = this.asProviderMessageType(
+			await this.hydrateMessages(
+				conversation,
+				speakOptions?.messages || conversation.getMessages(),
+			),
 		);
-
 		const tools = this.asProviderToolType(speakOptions?.tools || conversation.getTools());
 		let system = speakOptions?.system || conversation.baseSystem;
 
@@ -99,7 +80,7 @@ class AnthropicLLM extends LLM {
 		const temperature: number = speakOptions?.temperature || conversation.temperature;
 
 		const messageParams: Anthropic.MessageCreateParams = {
-			messages: this.asProviderMessageType(messages),
+			messages,
 			tools,
 			system,
 			model,
@@ -121,7 +102,7 @@ class AnthropicLLM extends LLM {
 		messageParams: LLMProviderMessageRequest,
 	): Promise<LLMProviderMessageResponse> {
 		try {
-			logger.info('llms-anthropic-speakWith-messageParams', messageParams);
+			//logger.info('llms-anthropic-speakWith-messageParams', messageParams);
 
 			const { data: anthropicMessageStream, response: anthropicResponse } = await this.anthropic.messages.create(
 				messageParams as Anthropic.MessageCreateParams,
