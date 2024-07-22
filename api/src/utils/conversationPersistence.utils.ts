@@ -2,9 +2,8 @@ import { ensureDir, exists } from '@std/fs';
 import { join } from '@std/path';
 import { getBbaiDir } from 'shared/dataDir.ts';
 import LLMConversation from '../llms/conversation.ts';
+import LLMMessage,  { LLMMessageProviderResponse } from '../llms/message.ts';
 import LLM from '../llms/providers/baseLLM.ts';
-import LLMMessage from '../llms/message.ts';
-import { LLMMessageProviderResponse } from '../types.ts';
 import { logger } from 'shared/logger.ts';
 import { createError, ErrorType } from './error.utils.ts';
 import { FileHandlingErrorOptions } from '../errors/error.ts';
@@ -75,12 +74,14 @@ export class ConversationPersistence {
 
 			// Save messages
 			const messages = conversation.getMessages();
-			const messagesContent = messages.map(m => JSON.stringify({
-				role: m.role,
-				content: m.content,
-				id: m.id,
-				providerResponse: m.providerResponse,
-			})).join('\n') + '\n';
+			const messagesContent = messages.map((m) =>
+				JSON.stringify({
+					role: m.role,
+					content: m.content,
+					id: m.id,
+					providerResponse: m.providerResponse,
+				})
+			).join('\n') + '\n';
 			await Deno.writeTextFile(this.messagesPath, messagesContent);
 			logger.info(`Saved messages for conversation: ${conversation.id}`);
 
@@ -92,7 +93,6 @@ export class ConversationPersistence {
 				await Deno.writeTextFile(`${fileStoragePath}.meta`, JSON.stringify(fileData));
 			}
 			logger.info(`Saved files for conversation: ${conversation.id}`);
-
 		} catch (error) {
 			logger.error(`Error saving conversation: ${error.message}`);
 			this.handleSaveError(error, this.metadataPath);

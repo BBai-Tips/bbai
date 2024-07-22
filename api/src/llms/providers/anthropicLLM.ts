@@ -1,7 +1,7 @@
 import Anthropic from 'anthropic';
 import type { ClientOptions } from 'anthropic';
 
-import { AnthropicModel, LLMProvider } from 'shared/types.ts';
+import { AnthropicModel, LLMProvider } from '../../types.ts';
 import LLM from './baseLLM.ts';
 import LLMConversation from '../conversation.ts';
 import LLMMessage, { LLMMessageContentParts } from '../message.ts';
@@ -15,12 +15,13 @@ import { createError } from '../../utils/error.utils.ts';
 import { ErrorType, LLMErrorOptions } from '../../errors/error.ts';
 import { logger } from 'shared/logger.ts';
 import { config } from 'shared/configManager.ts';
-import type { LLMProviderMessageRequest, LLMProviderMessageResponse, LLMSpeakWithOptions } from 'shared/types.ts';
+import type { LLMProviderMessageRequest, LLMProviderMessageResponse, LLMSpeakWithOptions } from '../../types.ts';
 
 class AnthropicLLM extends LLM {
 	private anthropic!: Anthropic;
 
 	constructor(projectRoot: string) {
+		logger.info(`creating AnthropicLLM with root: ${projectRoot}`);
 		super(projectRoot);
 		this.providerName = LLMProvider.ANTHROPIC;
 
@@ -64,7 +65,7 @@ class AnthropicLLM extends LLM {
 			),
 		);
 
-		const tools = this.asProviderToolType(speakOptions?.tools || conversation.getTools());
+		const tools = this.asProviderToolType(speakOptions?.tools || conversation.allTools());
 
 		const model: string = speakOptions?.model || conversation.model || AnthropicModel.CLAUDE_3_5_SONNET;
 		const maxTokens: number = speakOptions?.maxTokens || conversation.maxTokens;

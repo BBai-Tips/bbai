@@ -5,8 +5,14 @@ import type {
 	LLMSpeakWithOptions,
 	LLMTokenUsage,
 } from '../types.ts';
-import type { LLMMessageContentPartToolResultBlock, LLMMessageContentPartType } from './message.ts';
-import LLMMessage, { LLMMessageContentParts } from './message.ts';
+import type {
+	LLMMessageContentPart,
+	LLMMessageContentParts,
+	LLMMessageContentPartTextBlock,
+	LLMMessageContentPartToolResultBlock,
+	LLMMessageContentPartType,
+} from './message.ts';
+import LLMMessage from './message.ts';
 import type { LLMMessageProviderResponse } from './message.ts';
 import LLMTool from './tool.ts';
 import LLM from './providers/baseLLM.ts';
@@ -15,7 +21,7 @@ import { logger } from 'shared/logger.ts';
 
 import { crypto } from '@std/crypto';
 
-interface FileMetadata {
+export interface FileMetadata {
 	path: string;
 	size: number;
 	lastModified: Date;
@@ -98,6 +104,46 @@ class LLMConversation {
 
 		const messageId = this.addMessageForUserRole(toolResult);
 		fileMetadata.messageId = messageId;
+		//await this.persistence.saveConversation(this);
+	}
+
+	async addFilesToMessageArray(
+		filesToAdd: Array<{ fileName: string; metadata: Omit<FileMetadata, 'path' | 'inSystemPrompt'> }>,
+		toolUseId: string,
+	): Promise<void> {
+		const conversationFiles = [];
+		const contentParts = [];
+
+		for (const fileToAdd of filesToAdd) {
+			const filePath = fileToAdd.fileName;
+			const fileMetadata: FileMetadata = {
+				...fileToAdd.metadata,
+				path: filePath,
+				inSystemPrompt: false,
+			};
+			conversationFiles.push({
+				filePath,
+				fileMetadata,
+			});
+			contentParts.push({
+				'type': 'text',
+				'text': `File added: ${filePath}`,
+			} as LLMMessageContentPartTextBlock);
+		}
+
+		const toolResultContentPart = {
+			type: 'tool_result',
+			tool_use_id: toolUseId,
+			content: contentParts,
+		} as LLMMessageContentPartToolResultBlock;
+
+		const messageId = this.addMessageForUserRole(toolResultContentPart);
+
+		for (const fileToAdd of conversationFiles) {
+			fileToAdd.fileMetadata.messageId = messageId;
+			this._files.set(fileToAdd.filePath, fileToAdd.fileMetadata);
+		}
+
 		//await this.persistence.saveConversation(this);
 	}
 
@@ -300,8 +346,14 @@ class LLMConversation {
 		return this.tools.get(name);
 	}
 
+	allTools(): Map<string, LLMTool> {
+		return this.tools;
+	}
 	getTools(): LLMTool[] {
 		return Array.from(this.tools.values());
+	}
+	listTools(): string[] {
+		return Array.from(this.tools.keys());
 	}
 
 	clearTools(): void {

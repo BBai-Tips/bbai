@@ -2,11 +2,11 @@ import { join, normalize, resolve } from '@std/path';
 import * as diff from 'diff';
 
 import { LLMFactory } from '../llms/llmProvider.ts';
-import LLMConversation from '../llms/conversation.ts';
+import LLMConversation, { FileMetadata } from '../llms/conversation.ts';
 import LLM from '../llms/providers/baseLLM.ts';
 import { logger } from 'shared/logger.ts';
 import { PromptManager } from '../prompts/promptManager.ts';
-import { LLMProvider, LLMProviderMessageResponse, LLMSpeakWithOptions } from 'shared/types.ts';
+import { LLMProvider, LLMProviderMessageResponse, LLMSpeakWithOptions } from '../types.ts';
 import LLMTool from '../llms/tool.ts';
 import { ConversationPersistence } from '../utils/conversationPersistence.utils.ts';
 import { getProjectRoot } from 'shared/dataDir.ts';
@@ -17,18 +17,17 @@ import { generateCtags, readCtagsFile } from 'shared/ctags.ts';
 export class ProjectEditor {
 	private conversation: LLMConversation | null = null;
 	private promptManager: PromptManager;
-	private llmProvider: LLM;
+	private llmProvider!: LLM;
 	private projectRoot: string;
 
 	constructor(private cwd: string) {
 		this.promptManager = new PromptManager();
-		this.projectRoot = '';
+		this.projectRoot = '.';
 	}
 
 	public async init(): Promise<void> {
 		try {
-			this.projectRoot = await getProjectRoot() || this.cwd;
-			log.info(`creating LLMProvider with root: ${this.projectRoot}`);
+			this.projectRoot = await getProjectRoot(this.cwd);
 			this.llmProvider = LLMFactory.getProvider(this.projectRoot);
 		} catch (error) {
 			console.error('Failed to initialize LLMProvider:', error);
@@ -113,8 +112,6 @@ export class ProjectEditor {
 	}
 
 	async speakWithLLM(prompt: string, provider?: LLMProvider, model?: string, conversationId?: string): Promise<any> {
-		this.llmProvider = LLMFactory.getProvider(provider);
-
 		if (conversationId) {
 			try {
 				const persistence = new ConversationPersistence(conversationId);
@@ -235,23 +232,28 @@ export class ProjectEditor {
 		return feedback;
 	}
 
-	async handleRequestFiles(fileNames: string[], toolUseId: string): Promise<string[]> {
+	async handleRequestFiles(
+		fileNames: string[],
+		toolUseId: string,
+	): Promise<Array<{ fileName: string; metadata: Omit<FileMetadata, 'path' | 'inSystemPrompt'> }>> {
+		return await this.addFiles(fileNames, 'tool', toolUseId);
+		/*
 		const filesAdded = [];
 		for (const fileName of fileNames) {
-			if (!this.isPathWithinProject(fileName)) {
-				logger.warn(`Access denied: ${fileName} is outside the project directory`);
-				continue;
-			}
 
 			try {
-				await this.addFile(fileName, 'tool', toolUseId);
-				filesAdded.push(fileName);
-				logger.info(`File ${fileName} added to the chat`);
+				const okToAddFile = await this.checkOkToAddFile(fileName);
+				if (okToAddFile) {
+					filesAdded.push(fileName);
+					logger.info(`File ${fileName} added to the chat`);
+				}
 			} catch (error) {
 				logger.error(`Error handling file ${fileName}: ${error.message}`);
 			}
 		}
+		await this.addFiles(fileName, 'tool', toolUseId);
 		return filesAdded;
+		 */
 	}
 
 	async handleVectorSearch(query: string, toolUseId: string): Promise<any> {
@@ -316,47 +318,58 @@ export class ProjectEditor {
 		}
 	}
 
-	async addFile(filePath: string, source: 'tool' | 'user', toolUseId?: string): Promise<void> {
+	async addFiles(
+		fileNames: string[],
+		source: 'tool' | 'user',
+		toolUseId: string,
+	): Promise<Array<{ fileName: string; metadata: Omit<FileMetadata, 'path' | 'inSystemPrompt'> }>> {
 		if (!this.conversation) {
 			throw new Error('Conversation not started. Call startConversation first.');
 		}
 
-		if (!this.isPathWithinProject(filePath)) {
-			throw createError(ErrorType.FileHandling, `Access denied: ${filePath} is outside the project directory`, {
-				filePath,
-				operation: 'write',
-			} as FileHandlingErrorOptions);
-		}
+		const filesAdded: Array<{ fileName: string; metadata: Omit<FileMetadata, 'path' | 'inSystemPrompt'> }> = [];
 
-		try {
-			logger.info(`Checking for files in project root: ${this.projectRoot}`);
-			const fullFilePath = join(this.projectRoot, filePath);
-			logger.info(`Getting content of ${fullFilePath}`);
-			const content = await Deno.readTextFile(fullFilePath);
-			logger.info(`Getting metadata of ${fullFilePath}`);
-			const metadata = {
-				size: new TextEncoder().encode(content).length,
-				lastModified: new Date(),
-			};
-
-			const storageLocation = this.determineStorageLocation(fullFilePath, content, source);
-
-			if (storageLocation === 'system') {
-				logger.info(`Adding File ${filePath} to system prompt in LLM conversation`);
-				await this.conversation.addFileForSystemPrompt(filePath, metadata);
-			} else {
-				logger.info(`Adding File ${filePath} to messages in LLM conversation`);
-				await this.conversation.addFileToMessageArray(filePath, metadata, toolUseId);
+		for (const fileName of fileNames) {
+			if (!this.isPathWithinProject(fileName)) {
+				throw createError(
+					ErrorType.FileHandling,
+					`Access denied: ${fileName} is outside the project directory`,
+					{
+						filePath: fileName,
+						operation: 'write',
+					} as FileHandlingErrorOptions,
+				);
 			}
 
-			logger.info(`File ${filePath} added to LLM conversation by ${source}`);
-		} catch (error) {
-			logger.error(`Error adding file ${filePath}: ${error.message}`);
-			throw createError(ErrorType.FileHandling, `Failed to add file ${filePath}`, {
-				filePath,
-				operation: 'write',
-			} as FileHandlingErrorOptions);
+			try {
+				const fullFilePath = join(this.projectRoot, fileName);
+				const content = await Deno.readTextFile(fullFilePath);
+				const metadata: Omit<FileMetadata, 'path' | 'inSystemPrompt'> = {
+					size: new TextEncoder().encode(content).length,
+					lastModified: new Date(),
+				};
+				filesAdded.push({ fileName, metadata });
+
+				// const storageLocation = this.determineStorageLocation(fullFilePath, content, source);
+				// if (storageLocation === 'system') {
+				// 	await this.conversation.addFileForSystemPrompt(fileName, metadata);
+				// } else {
+				// 	await this.conversation.addFileToMessageArray(fileName, metadata, toolUseId);
+				// }
+
+				logger.info(`File ${fileName} added to nessages by ${source}`);
+			} catch (error) {
+				logger.error(`Error adding file ${fileName}: ${error.message}`);
+				throw createError(ErrorType.FileHandling, `Failed to add file ${fileName}`, {
+					filePath: fileName,
+					operation: 'write',
+				} as FileHandlingErrorOptions);
+			}
 		}
+
+		await this.conversation.addFilesToMessageArray(filesAdded, toolUseId);
+
+		return filesAdded;
 	}
 
 	async updateFile(filePath: string, content: string): Promise<void> {

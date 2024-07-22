@@ -137,7 +137,7 @@ export interface LLMProviderMessageResponseMeta {
 export interface LLMProviderMessageRequest {
 	id?: string;
 	messages: LLMMessage[];
-	tools?: LLMTool[];
+	tools?: Map<string, LLMTool>;
 	system: string;
 	prompt: string;
 	model: string;
@@ -176,7 +176,7 @@ export type LLMValidateResponseCallback = (
 
 export interface LLMSpeakWithOptions {
 	messages?: LLMMessage[];
-	tools?: LLMTool[];
+	tools?: Map<string, LLMTool>;
 	system?: string;
 	model?: string;
 	maxTokens?: number;

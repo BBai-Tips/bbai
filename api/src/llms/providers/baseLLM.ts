@@ -1,14 +1,14 @@
 import { join } from '@std/path';
 import Ajv from 'ajv';
 
-import { LLMProvider as LLMProviderEnum } from 'shared/types.ts';
+import { LLMProvider as LLMProviderEnum } from '../../types.ts';
 import type {
 	LLMProviderMessageRequest,
 	LLMProviderMessageResponse,
 	LLMSpeakWithOptions,
 	LLMTokenUsage,
 	LLMValidateResponseCallback,
-} from 'shared/types.ts';
+} from '../../types.ts';
 import LLMMessage from '../message.ts';
 import type { LLMMessageContentPart, LLMMessageContentParts, LLMMessageContentPartTextBlock } from '../message.ts';
 import LLMTool from '../tool.ts';
@@ -33,6 +33,7 @@ class LLM {
 
 	constructor(projectRoot: string) {
 		this.projectRoot = projectRoot;
+		logger.info(`creating LLMProvider with root: ${this.projectRoot}`);
 	}
 
 	async prepareMessageParams(
@@ -67,7 +68,7 @@ class LLM {
 		return conversation;
 	}
 
-	protected async readFileContent(filePath: string): Promise<string> {
+	protected async readProjectFileContent(filePath: string): Promise<string> {
 		const fullFilePath = join(this.projectRoot, filePath);
 		const content = await readFileContent(fullFilePath);
 		if (content === null) {
@@ -81,7 +82,7 @@ class LLM {
 			logger.info('createFileXmlString - filePath', filePath);
 			const fullFilePath = join(this.projectRoot, filePath);
 			logger.info('createFileXmlString - fullFilePath', fullFilePath);
-			const content = await this.readFileContent(fullFilePath);
+			const content = await this.readProjectFileContent(filePath);
 			const metadata = {
 				size: new TextEncoder().encode(content).length,
 				lastModified: new Date(),

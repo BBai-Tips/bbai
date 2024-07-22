@@ -1,7 +1,7 @@
 import { OpenAI } from 'openai';
 import { ms } from 'ms';
 
-import { LLMProvider, OpenAIModel } from 'shared/types.ts';
+import { LLMProvider, OpenAIModel } from '../../types.ts';
 import LLM from './baseLLM.ts';
 import LLMConversation from '../conversation.ts';
 import LLMMessage, { LLMMessageContentPart, LLMMessageContentParts } from '../message.ts';
@@ -11,7 +11,7 @@ import { createError } from '../../utils/error.utils.ts';
 import { ErrorType, LLMErrorOptions } from '../../errors/error.ts';
 import { logger } from 'shared/logger.ts';
 import { config } from 'shared/configManager.ts';
-import type { LLMProviderMessageRequest, LLMProviderMessageResponse, LLMSpeakWithOptions } from 'shared/types.ts';
+import type { LLMProviderMessageRequest, LLMProviderMessageResponse, LLMSpeakWithOptions } from '../../types.ts';
 
 class OpenAILLM extends LLM {
 	private openai!: OpenAI;
@@ -67,7 +67,7 @@ class OpenAILLM extends LLM {
 		);
 	}
 
-	private asProviderToolType(tools: LLMTool[]): OpenAI.Chat.ChatCompletionTool[] {
+	private asProviderToolType(tools: Map<string, LLMTool>): OpenAI.Chat.ChatCompletionTool[] {
 		return tools.map((tool) => ({
 			'type': 'function',
 			'function': {

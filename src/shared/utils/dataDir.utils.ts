@@ -4,8 +4,8 @@ import { parse as parseYaml } from "yaml";
 import { GitUtils } from './git.utils.ts';
 import { ConfigManager } from 'shared/configManager.ts';
 
-export async function getProjectRoot(): Promise<string> {
-    const gitRoot = await GitUtils.findGitRoot();
+export async function getProjectRoot(cwd: string): Promise<string> {
+    const gitRoot = await GitUtils.findGitRoot(cwd);
     if (!gitRoot) {
         throw new Error('Not in a git repository');
     }
