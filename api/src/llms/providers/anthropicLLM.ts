@@ -16,13 +16,13 @@ import { ErrorType, LLMErrorOptions } from '../../errors/error.ts';
 import { logger } from 'shared/logger.ts';
 import { config } from 'shared/configManager.ts';
 import type { LLMProviderMessageRequest, LLMProviderMessageResponse, LLMSpeakWithOptions } from '../../types.ts';
+import { ProjectEditor } from '../../editor/projectEditor.ts';
 
 class AnthropicLLM extends LLM {
 	private anthropic!: Anthropic;
 
-	constructor(projectRoot: string) {
-		logger.info(`creating AnthropicLLM with root: ${projectRoot}`);
-		super(projectRoot);
+	constructor(projectEditor: ProjectEditor) {
+		super(projectEditor);
 		this.providerName = LLMProvider.ANTHROPIC;
 
 		this.initializeAnthropicClient();

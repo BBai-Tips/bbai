@@ -2,8 +2,9 @@ import { join } from '@std/path';
 import { exists } from '@std/fs';
 import { parse as parseYaml } from 'yaml';
 import { stripIndents } from 'common-tags';
-import { getBbaiDir, loadConfig, readFileContent, resolveFilePath } from 'shared/dataDir.ts';
+import {  loadConfig, readFileContent, resolveFilePath } from 'shared/dataDir.ts';
 import * as defaultPrompts from './defaultPrompts.ts';
+import { ProjectEditor } from '../editor/projectEditor.ts';
 
 interface PromptMetadata {
 	name: string;
@@ -19,15 +20,17 @@ interface Prompt {
 export class PromptManager {
 	private userPromptsDir: string;
 	private config: Record<string, any>;
+	public projectEditor: ProjectEditor;
 
-	constructor() {
+	constructor(projectEditor: ProjectEditor) {
+		this.projectEditor = projectEditor;
 		this.userPromptsDir = '';
 		this.config = {};
 		this.initialize();
 	}
 
 	private async initialize() {
-		const bbaiDir = await getBbaiDir();
+		const bbaiDir = await this.projectEditor.getBbaiDir();
 		this.userPromptsDir = join(bbaiDir, 'prompts');
 		this.config = await loadConfig();
 	}

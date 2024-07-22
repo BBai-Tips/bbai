@@ -10,7 +10,7 @@ import { PromptManager } from '../prompts/promptManager.ts';
 import { LLMProvider, LLMProviderMessageResponse, LLMSpeakWithOptions } from '../types.ts';
 import LLMTool from '../llms/tool.ts';
 import { ConversationPersistence } from '../utils/conversationPersistence.utils.ts';
-import { GitUtils } from 'shared/git.utils.ts';
+import { GitUtils } from 'shared/git.ts';
 import { createError, ErrorType } from '../utils/error.utils.ts';
 import { FileHandlingErrorOptions } from '../errors/error.ts';
 import { generateCtags, readCtagsFile } from 'shared/ctags.ts';
@@ -22,21 +22,21 @@ export class ProjectEditor {
 	private projectRoot: string;
 
 	constructor(private cwd: string) {
-		this.promptManager = new PromptManager();
+		this.promptManager = new PromptManager(this);
 		this.projectRoot = '.';
 	}
 
 	public async init(): Promise<void> {
 		try {
 			this.projectRoot = await this.getProjectRoot();
-			this.llmProvider = LLMFactory.getProvider(this.projectRoot);
+			this.llmProvider = LLMFactory.getProvider(this);
 		} catch (error) {
 			console.error('Failed to initialize LLMProvider:', error);
 			throw error;
 		}
 	}
 
-	private async getProjectRoot(): Promise<string> {
+	public async getProjectRoot(): Promise<string> {
 		const gitRoot = await GitUtils.findGitRoot(this.cwd);
 		if (!gitRoot) {
 			throw new Error('Not in a git repository');
@@ -44,26 +44,26 @@ export class ProjectEditor {
 		return gitRoot;
 	}
 
-	private async getBbaiDir(): Promise<string> {
+	public async getBbaiDir(): Promise<string> {
 		const bbaiDir = join(this.projectRoot, '.bbai');
 		await ensureDir(bbaiDir);
 		return bbaiDir;
 	}
 
-	private async getBbaiCacheDir(): Promise<string> {
+	public async getBbaiCacheDir(): Promise<string> {
 		const bbaiDir = await this.getBbaiDir();
 		const repoCacheDir = join(bbaiDir, 'cache');
 		await ensureDir(repoCacheDir);
 		return repoCacheDir;
 	}
 
-	private async writeToBbaiDir(filename: string, content: string): Promise<void> {
+	public async writeToBbaiDir(filename: string, content: string): Promise<void> {
 		const bbaiDir = await this.getBbaiDir();
 		const filePath = join(bbaiDir, filename);
 		await Deno.writeTextFile(filePath, content);
 	}
 
-	private async readFromBbaiDir(filename: string): Promise<string | null> {
+	public async readFromBbaiDir(filename: string): Promise<string | null> {
 		const bbaiDir = await this.getBbaiDir();
 		const filePath = join(bbaiDir, filename);
 		try {
@@ -76,7 +76,7 @@ export class ProjectEditor {
 		}
 	}
 
-	private async removeFromBbaiDir(filename: string): Promise<void> {
+	public async removeFromBbaiDir(filename: string): Promise<void> {
 		const bbaiDir = await this.getBbaiDir();
 		const filePath = join(bbaiDir, filename);
 		try {
@@ -169,7 +169,7 @@ export class ProjectEditor {
 			try {
 				const persistence = new ConversationPersistence(conversationId, this);
 				await persistence.init();
-				this.conversation = await this.llmProvider.loadConversation(conversationId, this);
+				this.conversation = await this.llmProvider.loadConversation(conversationId);
 				logger.info(`Loaded existing conversation: ${conversationId}`);
 			} catch (error) {
 				logger.warn(`Failed to load conversation ${conversationId}: ${error.message}`);
@@ -209,7 +209,7 @@ export class ProjectEditor {
 
 		// Save the conversation immediately after the first response
 		if (this.conversation) {
-			const persistence = new ConversationPersistence(this.conversation.id);
+			const persistence = new ConversationPersistence(this.conversation.id, this);
 			await persistence.saveConversation(this.conversation);
 			logger.info(`Saved conversation: ${this.conversation.id}`);
 		}
@@ -235,7 +235,7 @@ export class ProjectEditor {
 
 				// Save the conversation after each turn
 				if (this.conversation) {
-					const persistence = new ConversationPersistence(this.conversation.id);
+					const persistence = new ConversationPersistence(this.conversation.id, this);
 					await persistence.saveConversation(this.conversation);
 					logger.info(`Saved conversation after turn ${currentTurn}: ${this.conversation.id}`);
 				}
@@ -251,7 +251,7 @@ export class ProjectEditor {
 
 		// Final save of the entire conversation at the end of the loop
 		if (this.conversation) {
-			const persistence = new ConversationPersistence(this.conversation.id);
+			const persistence = new ConversationPersistence(this.conversation.id, this);
 			await persistence.saveConversation(this.conversation);
 			logger.info(`Final save of conversation: ${this.conversation.id}`);
 		}
@@ -344,7 +344,7 @@ export class ProjectEditor {
 
 			// Log the applied patch
 			if (this.conversation) {
-				const persistence = new ConversationPersistence(this.conversation.id);
+				const persistence = new ConversationPersistence(this.conversation.id, this);
 				await persistence.logPatch(filePath, patch);
 			}
 
@@ -444,8 +444,10 @@ export class ProjectEditor {
 	}
 
 	private async updateCtags(): Promise<void> {
-		await generateCtags();
-		const ctagsContent = await readCtagsFile();
+		const bbaiDir = await this.getBbaiDir();
+		const projectRoot = await this.getProjectRoot();
+		await generateCtags(bbaiDir, projectRoot);
+		const ctagsContent = await readCtagsFile(bbaiDir);
 		if (ctagsContent && this.conversation) {
 			this.conversation.ctagsContent = ctagsContent;
 		}
@@ -456,7 +458,7 @@ export class ProjectEditor {
 			throw new Error('No active conversation. Cannot revert patch.');
 		}
 
-		const persistence = new ConversationPersistence(this.conversation.id);
+		const persistence = new ConversationPersistence(this.conversation.id, this);
 		const patchLog = await persistence.getPatchLog();
 
 		if (patchLog.length === 0) {

@@ -1,10 +1,9 @@
 import { join } from '@std/path';
 import { ensureDir, exists } from '@std/fs';
 import { ConfigManager } from 'shared/configManager.ts';
-import { getBbaiDir, getProjectRoot } from './dataDir.utils.ts';
 import { logger } from './logger.utils.ts';
 
-export async function generateCtags(): Promise<void> {
+export async function generateCtags(bbaiDir: string, projectRoot: string): Promise<void> {
 	const config = await ConfigManager.getInstance();
 	const ctagsConfig = config.getConfig().ctags;
 
@@ -13,8 +12,6 @@ export async function generateCtags(): Promise<void> {
 		return;
 	}
 
-	const bbaiDir = await getBbaiDir();
-	const projectRoot = await getProjectRoot();
 	const tagsFilePath = ctagsConfig?.tagsFilePath ? ctagsConfig.tagsFilePath : join(bbaiDir, 'tags');
 	logger.info('Ctags using tags file: ', tagsFilePath);
 
@@ -54,11 +51,10 @@ export async function generateCtags(): Promise<void> {
 	}
 }
 
-export async function readCtagsFile(): Promise<string | null> {
+export async function readCtagsFile(bbaiDir: string): Promise<string | null> {
 	const config = await ConfigManager.getInstance();
 	const ctagsConfig = config.getConfig().ctags;
 
-	const bbaiDir = await getBbaiDir();
 	const tagsFilePath = ctagsConfig?.tagsFilePath ? join(bbaiDir, ctagsConfig.tagsFilePath) : join(bbaiDir, 'tags');
 
 	if (await exists(tagsFilePath)) {

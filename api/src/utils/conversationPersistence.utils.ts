@@ -172,7 +172,7 @@ export class ConversationPersistence {
 					if (fileMetadata.inSystemPrompt) {
 						await conversation.addFileForSystemPrompt(filePath, fileMetadata);
 					} else {
-						await conversation.addFileToMessageArray(filePath, fileMetadata);
+						await conversation.addFileToMessageArray(filePath, fileMetadata, fileMetadata.toolUseId);
 					}
 					logger.info(`Loaded file: ${filePath}`);
 				}

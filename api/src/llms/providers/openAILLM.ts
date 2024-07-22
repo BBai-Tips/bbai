@@ -12,12 +12,13 @@ import { ErrorType, LLMErrorOptions } from '../../errors/error.ts';
 import { logger } from 'shared/logger.ts';
 import { config } from 'shared/configManager.ts';
 import type { LLMProviderMessageRequest, LLMProviderMessageResponse, LLMSpeakWithOptions } from '../../types.ts';
+import { ProjectEditor } from '../../editor/projectEditor.ts';
 
 class OpenAILLM extends LLM {
 	private openai!: OpenAI;
 
-	constructor(projectRoot: string) {
-		super(projectRoot);
+	constructor(projectEditor: ProjectEditor) {
+		super(projectEditor);
 		this.providerName = LLMProvider.OPENAI;
 		this.initializeOpenAIClient();
 	}
@@ -68,7 +69,7 @@ class OpenAILLM extends LLM {
 	}
 
 	private asProviderToolType(tools: Map<string, LLMTool>): OpenAI.Chat.ChatCompletionTool[] {
-		return tools.map((tool) => ({
+		return Array.from(tools.values()).map((tool) => ({
 			'type': 'function',
 			'function': {
 				name: tool.name,
@@ -108,7 +109,7 @@ class OpenAILLM extends LLM {
 		speakOptions?: LLMSpeakWithOptions,
 	): Promise<OpenAI.Chat.ChatCompletionCreateParams> {
 		const messages = this.asProviderMessageType(speakOptions?.messages || conversation.getMessages());
-		const tools = this.asProviderToolType(speakOptions?.tools || conversation.getTools());
+		const tools = this.asProviderToolType(speakOptions?.tools || conversation.allTools());
 		const system: string = speakOptions?.system || conversation.baseSystem;
 		const model: string = speakOptions?.model || conversation.model || OpenAIModel.GPT_4o;
 		const maxTokens: number = speakOptions?.maxTokens || conversation.maxTokens;

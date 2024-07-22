@@ -124,7 +124,6 @@ class LLM {
 				if (message.role === 'user') {
 					const updatedContent: LLMMessageContentParts = await Promise.all(
 						message.content.map(async (contentPart): Promise<LLMMessageContentPart> => {
-						message.content.map(async (contentPart) => {
 							if (contentPart.type === 'text' && contentPart.text.startsWith('File added:')) {
 								const filePath = contentPart.text.split(': ')[1].trim();
 								const fileXml = await this.createFileXmlString(filePath);

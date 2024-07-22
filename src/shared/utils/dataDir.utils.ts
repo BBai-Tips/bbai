@@ -4,6 +4,7 @@ import { parse as parseYaml } from "yaml";
 import { GitUtils } from './git.utils.ts';
 import { ConfigManager } from 'shared/configManager.ts';
 
+/* 
 export async function getProjectRoot(cwd: string): Promise<string> {
     const gitRoot = await GitUtils.findGitRoot(cwd);
     if (!gitRoot) {
@@ -87,6 +88,7 @@ export async function removeFromBbaiCacheDir(filename: string): Promise<void> {
 		}
 	}
 }
+ */
 
 export async function loadConfig(): Promise<Record<string, any>> {
 	const configManager = await ConfigManager.getInstance();

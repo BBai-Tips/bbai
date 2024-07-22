@@ -36,6 +36,7 @@
 		"shared/logger.ts": "./src/shared/utils/logger.utils.ts",
 		"shared/dataDir.ts": "./src/shared/utils/dataDir.utils.ts",
 		"shared/ctags.ts": "./src/shared/utils/ctags.utils.ts",
+		"shared/git.ts": "./src/shared/utils/git.utils.ts",
 		"shared/configManager.ts": "./src/shared/config/configManager.ts"
 	}
 }
