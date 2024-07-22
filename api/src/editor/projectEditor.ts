@@ -22,11 +22,10 @@ export class ProjectEditor {
 
     constructor() {
         this.promptManager = new PromptManager();
-        this.llmProvider = LLMFactory.getProvider(); 
-        this.initializeProjectRoot();
+        this.llmProvider = LLMFactory.getProvider();
     }
 
-    private async initializeProjectRoot() {
+    public async init(): Promise<void> {
         try {
             this.projectRoot = await getProjectRoot();
         } catch (error) {
