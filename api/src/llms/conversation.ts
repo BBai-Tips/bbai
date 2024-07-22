@@ -232,15 +232,21 @@ class LLMConversation {
 		return this._totalProviderRequests;
 	}
 
-	updateTotals(tokenUsage: LLMTokenUsage, providerRequests: number): void {
+	async updateTotals(tokenUsage: LLMTokenUsage, providerRequests: number): Promise<void> {
 		this._totalTokenUsage.totalTokens += tokenUsage.totalTokens;
 		this._totalTokenUsage.inputTokens += tokenUsage.inputTokens;
 		this._totalTokenUsage.outputTokens += tokenUsage.outputTokens;
 		this._totalProviderRequests += providerRequests;
+		if (this.persistence) {
+			await this.persistence.saveConversation(this);
+		}
 	}
 
-	addMessage(message: LLMMessage): void {
+	async addMessage(message: LLMMessage): Promise<void> {
 		this.messages.push(message);
+		if (this.persistence) {
+			await this.persistence.saveConversationMessage(message, message.providerResponse);
+		}
 	}
 
 	getMessages(): LLMMessage[] {
