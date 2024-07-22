@@ -15,8 +15,8 @@ export class ConversationPersistence {
 	constructor(private conversationId: string) {}
 
 	async init(): Promise<void> {
-		const cacheDir = await getBbaiDir();
-		const cacheDir = join(cacheDir, 'cache');
+		const bbaiDir = await getBbaiDir();
+		const cacheDir = join(bbaiDir, 'cache');
 		this.filePath = join(cacheDir, `${this.conversationId}.jsonl`);
 		this.patchLogPath = join(cacheDir, `${this.conversationId}_patches.jsonl`);
 		this.filesDir = join(cacheDir, this.conversationId, 'files');
