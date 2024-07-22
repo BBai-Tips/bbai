@@ -71,13 +71,13 @@ class LLMConversation {
 			// Append contentPart to the content array of the last user message
 			logger.error('Adding content to existing user message', contentPart);
 			lastMessage.content.push(contentPart);
-			return lastMessage.id;
+			return lastMessage.id ?? '';
 		} else {
 			// Add a new user message
 			logger.error('Adding content to new user message', contentPart);
 			const newMessage = new LLMMessage('user', [contentPart]);
 			this.addMessage(newMessage);
-			return newMessage.id;
+			return newMessage.id ?? '';
 		}
 	}
 

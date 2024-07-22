@@ -123,6 +123,7 @@ class LLM {
 				let updatedMessage: LLMMessage;
 				if (message.role === 'user') {
 					const updatedContent: LLMMessageContentParts = await Promise.all(
+						message.content.map(async (contentPart): Promise<LLMMessageContentPart> => {
 						message.content.map(async (contentPart) => {
 							if (contentPart.type === 'text' && contentPart.text.startsWith('File added:')) {
 								const filePath = contentPart.text.split(': ')[1].trim();
@@ -134,7 +135,7 @@ class LLM {
 									};
 								}
 							} else if (contentPart.type === 'tool_result') {
-								const updatedContentParts = contentPart.content.map(async (toolContentPart) => {
+								const updatedContentParts = contentPart.content?.map(async (toolContentPart) => {
 									if (
 										toolContentPart.type === 'text' &&
 										toolContentPart.text.startsWith('File added:')
@@ -331,7 +332,7 @@ class LLM {
 			llmProviderMessageResponse.toolsUsed.length > 0
 		) {
 			for (const toolUse of llmProviderMessageResponse.toolsUsed) {
-				const tool = conversation.getTool(toolUse.toolName);
+				const tool = conversation.getTool(toolUse.toolName ?? '');
 				if (tool) {
 					const inputSchema: LLMToolInputSchema = tool.input_schema;
 					const validate = ajv.compile(inputSchema);
