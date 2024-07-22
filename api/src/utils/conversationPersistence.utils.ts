@@ -1,5 +1,6 @@
 import { ensureDir, exists } from '@std/fs';
 import { join } from '@std/path';
+import { getBbaiDir } from 'shared/dataDir.ts';
 import LLMConversation from '../llms/conversation.ts';
 import LLM from '../llms/providers/baseLLM.ts';
 import { logger } from 'shared/logger.ts';
@@ -12,7 +13,7 @@ export class ConversationPersistence {
 	private filesDir: string;
 
 	constructor(conversationId: string) {
-		const cacheDir = join(Deno.env.get('HOME') || '', '.bbai', 'cache');
+		const cacheDir = join(getBbaiDir(), 'cache');
 		this.filePath = join(cacheDir, `${conversationId}.jsonl`);
 		this.patchLogPath = join(cacheDir, `${conversationId}_patches.jsonl`);
 		this.filesDir = join(cacheDir, conversationId, 'files');
