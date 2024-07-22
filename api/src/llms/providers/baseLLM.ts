@@ -1,3 +1,6 @@
+import { join } from '@std/path';
+import Ajv from 'ajv';
+
 import { LLMProvider as LLMProviderEnum } from 'shared/types.ts';
 import type {
 	LLMProviderMessageRequest,
@@ -19,8 +22,6 @@ import { createError } from '../../utils/error.utils.ts';
 import kv from '../../utils/kv.utils.ts';
 import { tokenUsageManager } from '../../utils/tokenUsage.utils.ts';
 import { readFileContent } from 'shared/dataDir.ts';
-
-import Ajv from 'ajv';
 
 const ajv = new Ajv();
 
@@ -67,16 +68,20 @@ class LLM {
 	}
 
 	protected async readFileContent(filePath: string): Promise<string> {
-		const content = await readFileContent(filePath);
+		const fullFilePath = join(this.projectRoot, filePath);
+		const content = await readFileContent(fullFilePath);
 		if (content === null) {
-			throw new Error(`File not found: ${filePath}`);
+			throw new Error(`File not found: ${fullFilePath}`);
 		}
 		return content;
 	}
 
 	protected async createFileXmlString(filePath: string, content: string, metadata: any): Promise<string | null> {
 		try {
-			const content = await this.readFileContent(filePath);
+			logger.info('createFileXmlString - filePath', filePath);
+			const fullFilePath = join(this.projectRoot, filePath);
+			logger.info('createFileXmlString - fullFilePath', fullFilePath);
+			const content = await this.readFileContent(fullFilePath);
 			const metadata = {
 				size: new TextEncoder().encode(content).length,
 				lastModified: new Date(),

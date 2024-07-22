@@ -4,15 +4,15 @@ import AnthropicLLM from './providers/anthropicLLM.ts';
 import OpenAILLM from './providers/openAILLM.ts';
 
 export class LLMFactory {
-	static getProvider(providerName?: string): LLM {
+	static getProvider(projectRoot: string, providerName?: string): LLM {
 		const defaultProvider = 'claude';
 		const provider = providerName?.toLowerCase() || defaultProvider;
 
 		switch (provider) {
 			case 'claude':
-				return new AnthropicLLM();
+				return new AnthropicLLM(projectRoot);
 			case 'openai':
-				return new OpenAILLM();
+				return new OpenAILLM(projectRoot);
 			default:
 				throw new Error(`Unsupported LLM provider: ${providerName}`);
 		}

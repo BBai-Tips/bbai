@@ -4,9 +4,6 @@ import { ProjectEditor } from '../../editor/projectEditor.ts';
 import { ConversationPersistence } from '../../utils/conversationPersistence.utils.ts';
 import { LLMFactory } from '../../llms/llmProvider.ts';
 
-const projectEditor = new ProjectEditor();
-await projectEditor.init();
-
 export const startConversation = async (ctx: Context) => {
 	logger.debug('startConversation called');
 
@@ -19,6 +16,9 @@ export const startConversation = async (ctx: Context) => {
 			ctx.response.body = { error: 'Missing prompt' };
 			return;
 		}
+
+		const projectEditor = new ProjectEditor();
+		await projectEditor.init();
 
 		const response = await projectEditor.speakWithLLM(prompt, provider, model);
 
@@ -42,6 +42,9 @@ export const continueConversation = async (ctx: Context) => {
 			ctx.response.body = { error: 'Missing prompt or conversationId' };
 			return;
 		}
+
+		const projectEditor = new ProjectEditor();
+		await projectEditor.init();
 
 		const response = await projectEditor.speakWithLLM(prompt, undefined, undefined, conversationId);
 
