@@ -153,6 +153,8 @@ class LLM {
 								return updatedContentParts 
 									? Promise.all(updatedContentParts).then(parts => parts.filter((part): part is LLMMessageContentPart => part !== undefined)) 
 									: Promise.resolve(contentPart.content || []);
+									? Promise.all(updatedContentParts).then(parts => parts.filter((part): part is LLMMessageContentPart => part !== undefined)) 
+									: Promise.resolve(contentPart.content || []);
 							}
 							return contentPart;
 						}),
