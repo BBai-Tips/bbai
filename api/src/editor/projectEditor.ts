@@ -55,6 +55,8 @@ export class ProjectEditor {
 
 		if (conversationId) {
 			try {
+				const persistence = new ConversationPersistence(conversationId);
+				await persistence.init();
 				this.conversation = await this.llmProvider.loadConversation(conversationId);
 				logger.info(`Loaded existing conversation: ${conversationId}`);
 			} catch (error) {
