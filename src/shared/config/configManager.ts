@@ -16,7 +16,7 @@ export class ConfigManager {
 		cli: {},
 		ctags: {
 			autoGenerate: true,
-			tagsFilePath: '.bbai/tags',
+			//tagsFilePath: 'tags',
 		},
 	};
 

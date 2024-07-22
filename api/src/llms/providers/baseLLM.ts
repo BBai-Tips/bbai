@@ -6,6 +6,7 @@ import type {
 	LLMTokenUsage,
 	LLMValidateResponseCallback,
 } from 'shared/types.ts';
+import LLMMessage from '../message.ts';
 import type { LLMMessageContentPart, LLMMessageContentParts, LLMMessageContentPartTextBlock } from '../message.ts';
 import LLMTool from '../tool.ts';
 import type { LLMToolInputSchema } from '../tool.ts';
@@ -22,7 +23,6 @@ import { readFileContent } from 'shared/dataDir.ts';
 import Ajv from 'ajv';
 
 const ajv = new Ajv();
-
 
 abstract class LLM {
 	protected modifySpeakWithConversationOptions(
@@ -64,6 +64,36 @@ abstract class LLM {
 
 	protected createFileXmlString(filePath: string, content: string, metadata: any): string {
 		return `<file path="${metadata.path}" size="${metadata.size}" last_modified="${metadata.lastModified.toISOString()}">\n${content}\n</file>`;
+	}
+
+	protected async hydrateMessages(conversation: LLMConversation, messages: LLMMessage[]): Promise<LLMMessage[]> {
+		return await Promise.all(
+			messages.map(async (message: LLMMessage) => {
+				let updatedMessage: LLMMessage;
+				if (message.role === 'user') {
+					const updatedContent: LLMMessageContentParts = await Promise.all(
+						message.content.map(async (contentPart) => {
+							if (contentPart.type === 'text' && contentPart.text.startsWith('File added:')) {
+								const filePath = contentPart.text.split(': ')[1].trim();
+								const fileMetadata = conversation.getFile(filePath);
+								if (fileMetadata) {
+									const content = await this.readFileContent(filePath);
+									return {
+										type: 'text',
+										text: this.createFileXmlString(filePath, content, fileMetadata),
+									};
+								}
+							}
+							return contentPart;
+						}),
+					);
+					updatedMessage = { role: message.role, content: updatedContent } as LLMMessage;
+				} else {
+					updatedMessage = message;
+				}
+				return updatedMessage;
+			}),
+		);
 	}
 
 	protected createRequestCacheKey(

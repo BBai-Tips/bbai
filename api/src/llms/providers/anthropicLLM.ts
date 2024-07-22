@@ -53,20 +53,11 @@ class AnthropicLLM extends LLM {
 		conversation: LLMConversation,
 		speakOptions?: LLMSpeakWithOptions,
 	): Promise<Anthropic.MessageCreateParams> {
-		const messages = this.asProviderMessageType(
-			await this.hydrateMessages(
-				conversation,
-				speakOptions?.messages || conversation.getMessages(),
-			),
-		);
-		const tools = this.asProviderToolType(speakOptions?.tools || conversation.getTools());
 		let system = speakOptions?.system || conversation.baseSystem;
-
 		// Add ctags content if not empty
 		if (conversation.ctagsContent) {
 			system += `\n\n<ctags>\n${conversation.ctagsContent}\n</ctags>`;
 		}
-
 		// Add system prompt files
 		for (const filePath of (conversation as any).systemPromptFiles) {
 			const fileMetadata = conversation.getFile(filePath);
@@ -77,8 +68,14 @@ class AnthropicLLM extends LLM {
 			}
 		}
 
-		// Add ctags content
-		system += `\n\n${conversation.ctagsContent}`;
+		const messages = this.asProviderMessageType(
+			await this.hydrateMessages(
+				conversation,
+				speakOptions?.messages || conversation.getMessages(),
+			),
+		);
+
+		const tools = this.asProviderToolType(speakOptions?.tools || conversation.getTools());
 
 		const model: string = speakOptions?.model || conversation.model || AnthropicModel.CLAUDE_3_5_SONNET;
 		const maxTokens: number = speakOptions?.maxTokens || conversation.maxTokens;
