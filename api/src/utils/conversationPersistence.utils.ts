@@ -46,7 +46,7 @@ export class ConversationPersistence {
 
 	async saveConversation(conversation: LLMConversation): Promise<void> {
 		try {
-			await this.init(); // Ensure initialization is complete
+			await this.ensureInitialized(); // Ensure initialization is complete
 			await ensureDir(join(this.filePath, '..'));
 			await ensureDir(this.filesDir);
 
