@@ -13,7 +13,7 @@ export class ConversationPersistence {
 	private filesDir: string;
 
 	constructor(conversationId: string) {
-		const cacheDir = join(getBbaiDir(), 'cache');
+		const cacheDir = join(await getBbaiDir(), 'cache');
 		this.filePath = join(cacheDir, `${conversationId}.jsonl`);
 		this.patchLogPath = join(cacheDir, `${conversationId}_patches.jsonl`);
 		this.filesDir = join(cacheDir, conversationId, 'files');
