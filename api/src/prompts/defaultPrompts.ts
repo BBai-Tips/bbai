@@ -52,10 +52,8 @@ export const system: Prompt = {
 
       Always strive to provide helpful, accurate, and context-aware assistance.
 
-      ${userDefinedContent}
-
-      Guidelines:
-      ${guidelines}
+      ${userDefinedContent ? `\n${userDefinedContent}\n` : ''}
+      ${guidelines ? `Guidelines:\n${guidelines}` : ''}
     `;
 	},
 };
