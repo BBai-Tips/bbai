@@ -27,7 +27,7 @@ export class ProjectEditor {
 
 	public async init(): Promise<void> {
 		try {
-			this.projectRoot = await GitUtils.findGitRoot(this.cwd) || this.cwd;
+			this.projectRoot = await getProjectRoot() || this.cwd;
 			log.info(`creating LLMProvider with root: ${this.projectRoot}`);
 			this.llmProvider = LLMFactory.getProvider(this.projectRoot);
 		} catch (error) {
