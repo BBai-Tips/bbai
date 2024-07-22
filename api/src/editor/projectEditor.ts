@@ -107,6 +107,7 @@ export class ProjectEditor {
 					`Tool use feedback:\n${toolFeedback}\nPlease acknowledge this feedback and continue the conversation.`;
 				currentTurn++;
 				const response = await this.conversation.speakWithLLM(prompt, speakOptions);
+				logger.info('tool resposne', response);
 				finalResponse = response;
 			} else {
 				// No more tool feedback, exit the loop
@@ -164,6 +165,7 @@ export class ProjectEditor {
 			},
 		};
 
+/* 
 		const vectorSearchTool: LLMTool = {
 			name: 'vector_search',
 			description: 'Perform a vector search on the project files',
@@ -178,6 +180,7 @@ export class ProjectEditor {
 				required: ['query'],
 			},
 		};
+ */
 
 		const applyPatchTool: LLMTool = {
 			name: 'apply_patch',
@@ -199,7 +202,7 @@ export class ProjectEditor {
 		};
 
 		this.conversation?.addTool(requestFilesTool);
-		this.conversation?.addTool(vectorSearchTool);
+		//this.conversation?.addTool(vectorSearchTool);
 		this.conversation?.addTool(applyPatchTool);
 	}
 

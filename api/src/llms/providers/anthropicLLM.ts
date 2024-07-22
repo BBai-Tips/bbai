@@ -41,8 +41,8 @@ class AnthropicLLM extends LLM {
 		} as Anthropic.MessageParam));
 	}
 
-	private asProviderToolType(tools: LLMTool[]): Anthropic.Tool[] {
-		return tools.map((tool) => ({
+	private asProviderToolType(tools: Map<string, LLMTool>): Anthropic.Tool[] {
+		return Array.from(tools.values()).map((tool) => ({
 			name: tool.name,
 			description: tool.description,
 			input_schema: tool.input_schema,
