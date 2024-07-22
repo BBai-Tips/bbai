@@ -234,6 +234,7 @@ abstract class LLM {
 
 				if (validationFailedReason === null) {
 					conversation.updateTotals(totalTokenUsage, totalProviderRequests);
+					await conversation.save(); // Persist the conversation after successful response
 					return llmProviderMessageResponse;
 				}
 
@@ -255,6 +256,7 @@ abstract class LLM {
 		}
 
 		conversation.updateTotals(totalTokenUsage, totalProviderRequests);
+		await conversation.save(); // Persist the conversation even if all retries failed
 		logger.error(
 			`provider[${this.providerName}] Max retries reached. Request to ${this.providerName} failed.`,
 		);

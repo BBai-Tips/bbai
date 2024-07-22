@@ -51,13 +51,19 @@ export class ProjectEditor {
     }
 
     async speakWithLLM(prompt: string, provider?: LLMProvider, model?: string, conversationId?: string): Promise<any> {
-        if (conversationId && !this.conversation) {
-            logger.warn(`Conversation ID ${conversationId} not found. Starting a new conversation.`);
-            conversationId = undefined;
+        this.llmProvider = LLMFactory.getProvider(provider);
+
+        if (conversationId) {
+            try {
+                this.conversation = await this.llmProvider.loadConversation(conversationId);
+                logger.info(`Loaded existing conversation: ${conversationId}`);
+            } catch (error) {
+                logger.warn(`Failed to load conversation ${conversationId}: ${error.message}`);
+                this.conversation = null;
+            }
         }
 
-        if (!this.conversation || !conversationId) {
-            this.llmProvider = LLMFactory.getProvider(provider);
+        if (!this.conversation) {
             const systemPrompt = await this.promptManager.getPrompt('system', { userDefinedContent: "You are an AI assistant helping with code and project management." });
 
             this.conversation = this.llmProvider.createConversation();
@@ -68,6 +74,8 @@ export class ProjectEditor {
             await this.updateCtags();
 
             this.addDefaultTools();
+
+            logger.info(`Created new conversation: ${this.conversation.id}`);
         }
 
         const speakOptions: LLMSpeakWithOptions = {
