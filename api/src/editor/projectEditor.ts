@@ -20,13 +20,14 @@ export class ProjectEditor {
 	private llmProvider: LLM;
 	private projectRoot: string;
 
-	constructor(cwd: string) {
+	constructor(private cwd: string) {
 		this.promptManager = new PromptManager();
-		this.projectRoot = cwd;
+		this.projectRoot = '';
 	}
 
 	public async init(): Promise<void> {
 		try {
+			this.projectRoot = await GitUtils.findGitRoot(this.cwd) || this.cwd;
 			log.info(`creating LLMProvider with root: ${this.projectRoot}`);
 			this.llmProvider = LLMFactory.getProvider(this.projectRoot);
 		} catch (error) {
