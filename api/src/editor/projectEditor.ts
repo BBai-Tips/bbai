@@ -22,7 +22,7 @@ export class ProjectEditor {
 
     constructor() {
         this.promptManager = new PromptManager();
-        this.llmProvider = LLMFactory.getProvider(); // Initialize llmProvider
+        this.llmProvider = LLMFactory.getProvider(); 
         this.initializeProjectRoot();
     }
 
@@ -271,7 +271,7 @@ export class ProjectEditor {
                 await this.addFile(fileName, content, 'tool', toolUseId);
                 logger.info(`File ${fileName} added to the chat`);
             } catch (error) {
-                logger.error(`Error adding file ${fileName}: ${error.message}`);
+                logger.error(`Error handling file ${fileName}: ${error.message}`);
             }
         }
     }
