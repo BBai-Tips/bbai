@@ -1,5 +1,7 @@
 # bbai - Your Intelligent Project Assistant
 
+(The name is also a respectful nod to BBEdit, the beloved text editor by Bare Bones Software)
+
 ## Be Better at Everything You Do with Text
 
 `bbai` (pronounced b-b-ay) is an advanced AI-powered assistant designed to revolutionize how you work with text-based projects. Whether you're coding, writing, or managing complex documentation, bbai is here to help you "be better" at every step.
@@ -11,7 +13,7 @@ In a world where AI assistants are becoming commonplace, bbai stands out by offe
 ### Key Features
 
 - **Universal Text Support**: From code to prose, bbai handles it all.
-- **Project-Wide Understanding**: Utilizes advanced techniques like RAG and embeddings for holistic project comprehension.
+- **Project-Wide Understanding**: Uses `ctags` for initial project comprehension, with plans for advanced techniques like RAG and embeddings in the future.
 - **Intelligent Tools**: Employs LLM tools for clear, purpose-driven interactions.
 - **First-Class Project Discussions**: Makes conversations about your project as important as the changes themselves.
 - **Multiple Interface Options**: CLI, API, and future browser support for flexible usage.
@@ -74,7 +76,8 @@ bbai excels in various scenarios:
 
 bbai is continuously evolving. Future plans include:
 
-- Enhanced RAG and embedding capabilities for even better project understanding
+- Implementation of RAG and embedding capabilities for enhanced project understanding
+- Integration of `ctags` and embeddings for comprehensive project visibility
 - Browser-based interface for increased accessibility
 - Support for additional LLM providers
 - Expanded tool ecosystem for more specialized tasks
@@ -88,5 +91,3 @@ Start your journey with bbai today and transform the way you work with text!
 ---
 
 *bbai: Be Better at Everything You Do with Text*
-
-(The name is also a respectful nod to BBEdit, the beloved text editor by Bare Bones Software)
