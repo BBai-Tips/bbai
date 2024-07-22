@@ -131,6 +131,7 @@ class LLMConversation {
 
 	static async resume(id: string, llm: LLM): Promise<LLMConversation> {
 		const persistence = new ConversationPersistence(id);
+		await persistence.init();
 		const conversation = await persistence.loadConversation(llm);
 		return conversation;
 	}
