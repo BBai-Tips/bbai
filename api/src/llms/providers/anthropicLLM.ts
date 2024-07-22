@@ -54,19 +54,8 @@ class AnthropicLLM extends LLM {
 		speakOptions?: LLMSpeakWithOptions,
 	): Promise<Anthropic.MessageCreateParams> {
 		let system = speakOptions?.system || conversation.baseSystem;
-		// Add ctags content if not empty
-		if (conversation.ctagsContent) {
-			system += `\n\n<ctags>\n${conversation.ctagsContent}\n</ctags>`;
-		}
-		// Add system prompt files
-		for (const filePath of (conversation as any).systemPromptFiles) {
-			const fileMetadata = conversation.getFile(filePath);
-			if (fileMetadata) {
-				const content = await this.readFileContent(filePath);
-				const fileXml = this.createFileXmlString(filePath, content, fileMetadata);
-				system += `\n\n${fileXml}`;
-			}
-		}
+		system = await this.appendCtagsToSystem(system, conversation.ctagsContent);
+		system = await this.appendFilesToSystem(system, conversation);
 
 		const messages = this.asProviderMessageType(
 			await this.hydrateMessages(

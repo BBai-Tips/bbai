@@ -66,6 +66,25 @@ abstract class LLM {
 		return `<file path="${metadata.path}" size="${metadata.size}" last_modified="${metadata.lastModified.toISOString()}">\n${content}\n</file>`;
 	}
 
+	protected async appendCtagsToSystem(system: string, ctagsContent: string | null): Promise<string> {
+		if (ctagsContent) {
+			system += `\n\n<ctags>\n${ctagsContent}\n</ctags>`;
+		}
+		return system;
+	}
+
+	protected async appendFilesToSystem(system: string, conversation: LLMConversation): Promise<string> {
+		for (const filePath of conversation.systemPromptFiles) {
+			const fileMetadata = conversation.getFile(filePath);
+			if (fileMetadata) {
+				const content = await this.readFileContent(filePath);
+				const fileXml = this.createFileXmlString(filePath, content, fileMetadata);
+				system += `\n\n${fileXml}`;
+			}
+		}
+		return system;
+	}
+
 	protected async hydrateMessages(conversation: LLMConversation, messages: LLMMessage[]): Promise<LLMMessage[]> {
 		return await Promise.all(
 			messages.map(async (message: LLMMessage) => {
