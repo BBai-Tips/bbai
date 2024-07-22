@@ -5,7 +5,7 @@ import type {
 	LLMSpeakWithOptions,
 	LLMTokenUsage,
 } from '../types.ts';
-import type { LLMMessageContentPartToolResultBlock } from './message.ts';
+import type { LLMMessageContentPartToolResultBlock, LLMMessageContentPartType } from './message.ts';
 import LLMMessage, { LLMMessageContentParts } from './message.ts';
 import type { LLMMessageProviderResponse } from './message.ts';
 import LLMTool from './tool.ts';
@@ -57,9 +57,27 @@ class LLMConversation {
 		return uuid.replace(/-/g, '').substring(0, 8);
 	}
 
+	private addMessageForUserRole(contentPart: LLMMessageContentPart): string {
+		const lastMessage = this.messages[this.messages.length - 1];
+		logger.error('lastMessage', lastMessage);
+		if (lastMessage && lastMessage.role === 'user') {
+			// Append contentPart to the content array of the last user message
+			logger.error('Adding content to existing user message', contentPart);
+			lastMessage.content.push(contentPart);
+			return lastMessage.id;
+		} else {
+			// Add a new user message
+			logger.error('Adding content to new user message', contentPart);
+			const newMessage = new LLMMessage('user', [contentPart]);
+			this.addMessage(newMessage);
+			return newMessage.id;
+		}
+	}
+
 	async addFileToMessageArray(
 		filePath: string,
 		metadata: Omit<FileMetadata, 'path' | 'inSystemPrompt'>,
+		toolUseId: string,
 	): Promise<void> {
 		const fileMetadata: FileMetadata = {
 			...metadata,
@@ -67,9 +85,20 @@ class LLMConversation {
 			inSystemPrompt: false,
 		};
 		this._files.set(filePath, fileMetadata);
-		const messageId = this.addMessageWithCorrectRole(`File added: ${filePath}`);
+		const toolResult = {
+			type: 'tool_result',
+			tool_use_id: toolUseId,
+			content: [
+				{
+					'type': 'text',
+					'text': `File added: ${filePath}`,
+				} as LLMMessageContentPartTextBlock,
+			],
+		} as LLMMessageContentPartToolResultBlock;
+
+		const messageId = this.addMessageForUserRole(toolResult);
 		fileMetadata.messageId = messageId;
-		await this.persistence.saveConversation(this);
+		//await this.persistence.saveConversation(this);
 	}
 
 	async addFileForSystemPrompt(
@@ -83,7 +112,7 @@ class LLMConversation {
 		};
 		this._files.set(filePath, fileMetadata);
 		this.systemPromptFiles.push(filePath);
-		await this.persistence.saveConversation(this);
+		//await this.persistence.saveConversation(this);
 	}
 
 	removeFile(filePath: string): boolean {
@@ -104,26 +133,12 @@ class LLMConversation {
 		return this._files.get(filePath);
 	}
 
-	listFiles(): string[] {
-		return Array.from(this._files.keys());
-	}
-
-	private addMessageWithCorrectRole(content: string): string {
-		const lastMessage = this.messages[this.messages.length - 1];
-		if (lastMessage && lastMessage.role === 'user') {
-			// Append to the last user message
-			lastMessage.content.push({ type: 'text', text: '\n\n' + content });
-			return lastMessage.id;
-		} else {
-			// Add a new user message
-			const newMessage = new LLMMessage('user', [{ type: 'text', text: content }]);
-			this.addMessage(newMessage);
-			return newMessage.id;
-		}
-	}
-
 	getFiles(): Map<string, FileMetadata> {
 		return this._files;
+	}
+
+	listFiles(): string[] {
+		return Array.from(this._files.keys());
 	}
 
 	async save(): Promise<void> {
@@ -237,15 +252,15 @@ class LLMConversation {
 		this._totalTokenUsage.inputTokens += tokenUsage.inputTokens;
 		this._totalTokenUsage.outputTokens += tokenUsage.outputTokens;
 		this._totalProviderRequests += providerRequests;
-		if (this.persistence) {
-			await this.persistence.saveConversation(this);
-		}
+		// if (this.persistence) {
+		// 	await this.persistence.saveConversation(this);
+		// }
 	}
 
 	async addMessage(message: LLMMessage): Promise<void> {
 		this.messages.push(message);
 		if (this.persistence) {
-			await this.persistence.saveConversationMessage(message, message.providerResponse);
+			//await this.persistence.saveConversationMessage(message, message.providerResponse);
 		}
 	}
 
@@ -302,15 +317,20 @@ class LLMConversation {
 		}
 
 		this._turnCount++;
-		this.addMessageWithCorrectRole(prompt);
+		this.addMessageForUserRole({ type: 'text', text: prompt });
 
 		const llmProviderMessageResponse = await this.llm.speakWithRetry(this, speakOptions);
 
 		// Create and save the assistant's message
-		const assistantMessage = new LLMMessage('assistant', llmProviderMessageResponse.answerContent, undefined, llmProviderMessageResponse);
+		const assistantMessage = new LLMMessage(
+			'assistant',
+			llmProviderMessageResponse.answerContent,
+			undefined,
+			llmProviderMessageResponse,
+		);
 		await this.addMessage(assistantMessage);
 
-		await this.save();
+		//await this.save();
 
 		return llmProviderMessageResponse;
 	}

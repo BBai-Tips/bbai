@@ -1,5 +1,5 @@
 import { join } from '@std/path';
-import { exists, ensureDir } from '@std/fs';
+import { ensureDir, exists } from '@std/fs';
 import { ConfigManager } from 'shared/configManager.ts';
 import { getBbaiDir, getProjectRoot } from './dataDir.utils.ts';
 import { logger } from './logger.utils.ts';
@@ -39,6 +39,7 @@ export async function generateCtags(): Promise<void> {
 
 	const command = new Deno.Command('ctags', {
 		args: ['-R', '--fields=+l', '--languages=all', '-f', tagsFilePath, '--exclude=@' + ignoreFile, '.'],
+		cwd: projectRoot,
 	});
 
 	try {

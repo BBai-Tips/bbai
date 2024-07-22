@@ -5,6 +5,7 @@ import { ConversationPersistence } from '../../utils/conversationPersistence.uti
 import { LLMFactory } from '../../llms/llmProvider.ts';
 
 const projectEditor = new ProjectEditor();
+await projectEditor.init();
 
 export const startConversation = async (ctx: Context) => {
 	logger.debug('startConversation called');
