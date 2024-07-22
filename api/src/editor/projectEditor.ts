@@ -94,6 +94,13 @@ export class ProjectEditor {
 		let currentTurn = 0;
 		let finalResponse: LLMProviderMessageResponse = await this.conversation.speakWithLLM(prompt, speakOptions);
 
+		// Save the conversation immediately after the first response
+		if (this.conversation) {
+			const persistence = new ConversationPersistence(this.conversation.id);
+			await persistence.saveConversation(this.conversation);
+			logger.info(`Saved conversation: ${this.conversation.id}`);
+		}
+
 		while (currentTurn < maxTurns) {
 			// Handle tool calls and collect feedback
 			let toolFeedback = '';
@@ -111,6 +118,13 @@ export class ProjectEditor {
 				currentTurn++;
 				finalResponse = await this.conversation.speakWithLLM(prompt, speakOptions);
 				logger.info('tool response', finalResponse);
+
+				// Save the conversation after each turn
+				if (this.conversation) {
+					const persistence = new ConversationPersistence(this.conversation.id);
+					await persistence.saveConversation(this.conversation);
+					logger.info(`Saved conversation after turn ${currentTurn}: ${this.conversation.id}`);
+				}
 			} else {
 				// No more tool feedback, exit the loop
 				break;
@@ -121,10 +135,11 @@ export class ProjectEditor {
 			logger.warn(`Reached maximum number of turns (${maxTurns}) in conversation.`);
 		}
 
-		// Persist the entire conversation at the end of the loop
+		// Final save of the entire conversation at the end of the loop
 		if (this.conversation) {
 			const persistence = new ConversationPersistence(this.conversation.id);
 			await persistence.saveConversation(this.conversation);
+			logger.info(`Final save of conversation: ${this.conversation.id}`);
 		}
 
 		return finalResponse;

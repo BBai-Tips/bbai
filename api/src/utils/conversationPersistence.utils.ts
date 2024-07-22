@@ -71,6 +71,7 @@ export class ConversationPersistence {
 			};
 
 			await Deno.writeTextFile(this.metadataPath, JSON.stringify(metadata, null, 2));
+			logger.info(`Saved metadata for conversation: ${conversation.id}`);
 
 			// Save messages
 			const messages = conversation.getMessages();
@@ -81,6 +82,7 @@ export class ConversationPersistence {
 				providerResponse: m.providerResponse,
 			})).join('\n') + '\n';
 			await Deno.writeTextFile(this.messagesPath, messagesContent);
+			logger.info(`Saved messages for conversation: ${conversation.id}`);
 
 			// Save files
 			const files = conversation.getFiles();
@@ -89,7 +91,10 @@ export class ConversationPersistence {
 				await ensureDir(join(fileStoragePath, '..'));
 				await Deno.writeTextFile(`${fileStoragePath}.meta`, JSON.stringify(fileData));
 			}
+			logger.info(`Saved files for conversation: ${conversation.id}`);
+
 		} catch (error) {
+			logger.error(`Error saving conversation: ${error.message}`);
 			this.handleSaveError(error, this.metadataPath);
 		}
 	}
