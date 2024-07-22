@@ -25,13 +25,6 @@ import Ajv from 'ajv';
 const ajv = new Ajv();
 
 abstract class LLM {
-	protected modifySpeakWithConversationOptions(
-		conversation: LLMConversation,
-		speakOptions: LLMSpeakWithOptions,
-		validationFailedReason: string,
-	): void {
-		// Default implementation, can be overridden by subclasses
-	}
 	public providerName: LLMProviderEnum = LLMProviderEnum.ANTHROPIC;
 	public maxSpeakRetries: number = 3;
 	public requestCacheExpiry: number = 3 * (1000 * 60 * 60 * 24); // 3 days in milliseconds
@@ -44,6 +37,14 @@ abstract class LLM {
 	abstract speakWith(
 		messageParams: LLMProviderMessageRequest,
 	): Promise<LLMProviderMessageResponse>;
+
+	protected modifySpeakWithConversationOptions(
+		conversation: LLMConversation,
+		speakOptions: LLMSpeakWithOptions,
+		validationFailedReason: string,
+	): void {
+		// Default implementation, can be overridden by subclasses
+	}
 
 	createConversation(): LLMConversation {
 		return new LLMConversation(this);
@@ -64,8 +65,22 @@ abstract class LLM {
 		return content;
 	}
 
-	protected createFileXmlString(filePath: string, content: string, metadata: any): string {
-		return `<file path="${metadata.path}" size="${metadata.size}" last_modified="${metadata.lastModified.toISOString()}">\n${content}\n</file>`;
+	protected async createFileXmlString(filePath: string, content: string, metadata: any): Promise<string | null> {
+		try {
+			const content = await this.readFileContent(filePath);
+			const metadata = {
+				size: new TextEncoder().encode(content).length,
+				lastModified: new Date(),
+			};
+			return `<file path="${filePath}" size="${metadata.size}" last_modified="${metadata.lastModified.toISOString()}">\n${content}\n</file>`;
+		} catch (error) {
+			logger.error(`Error creating XML string for ${filePath}: ${error.message}`);
+			//throw createError(ErrorType.FileHandling, `Failed to create xmlString for ${filePath}`, {
+			//	filePath,
+			//	operation: 'write',
+			//} as FileHandlingErrorOptions);
+		}
+		return null;
 	}
 
 	protected async appendCtagsToSystem(system: string, ctagsContent: string | null): Promise<string> {
@@ -77,10 +92,8 @@ abstract class LLM {
 
 	protected async appendFilesToSystem(system: string, conversation: LLMConversation): Promise<string> {
 		for (const filePath of conversation.systemPromptFiles) {
-			const fileMetadata = conversation.getFile(filePath);
-			if (fileMetadata) {
-				const content = await this.readFileContent(filePath);
-				const fileXml = this.createFileXmlString(filePath, content, fileMetadata);
+			const fileXml = await this.createFileXmlString(filePath);
+			if (fileXml) {
 				system += `\n\n${fileXml}`;
 			}
 		}
@@ -96,14 +109,30 @@ abstract class LLM {
 						message.content.map(async (contentPart) => {
 							if (contentPart.type === 'text' && contentPart.text.startsWith('File added:')) {
 								const filePath = contentPart.text.split(': ')[1].trim();
-								const fileMetadata = conversation.getFile(filePath);
-								if (fileMetadata) {
-									const content = await this.readFileContent(filePath);
+								const fileXml = await this.createFileXmlString(filePath);
+								if (fileXml) {
 									return {
 										type: 'text',
-										text: this.createFileXmlString(filePath, content, fileMetadata),
+										text: fileXml,
 									};
 								}
+							} else if (contentPart.type === 'tool_result') {
+								const updatedContentParts = contentPart.content.map(async (toolContentPart) => {
+									if (
+										toolContentPart.type === 'text' &&
+										toolContentPart.text.startsWith('File added:')
+									) {
+										const filePath = toolContentPart.text.split(': ')[1].trim();
+										const fileXml = await this.createFileXmlString(filePath);
+										if (fileXml) {
+											return {
+												type: 'text',
+												text: fileXml,
+											};
+										}
+									}
+								});
+								return updatedContentParts;
 							}
 							return contentPart;
 						}),
