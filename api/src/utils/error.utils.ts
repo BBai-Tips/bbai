@@ -2,30 +2,36 @@ import {
 	APIError,
 	ErrorType,
 	ErrorTypes,
+	FileHandlingError,
+	FileNotFoundError,
+	FilePatchError,
+	FileReadError,
+	FileWriteError,
 	LLMError,
 	RateLimitError,
 	ValidationError,
-	FileHandlingError,
-	FilePatchError,
-	FileNotFoundError,
-	FileReadError,
-	FileWriteError,
 } from '../errors/error.ts';
 
 export { ErrorType };
 import type {
 	APIErrorOptions,
 	ErrorOptions,
+	FileHandlingErrorOptions,
 	LLMErrorOptions,
 	LLMRateLimitErrorOptions,
 	LLMValidationErrorOptions,
-	FileHandlingErrorOptions,
 } from '../errors/error.ts';
 
 export const createError = (
 	errorType: ErrorType,
 	message: string,
-	options?: ErrorOptions | APIErrorOptions | LLMErrorOptions | LLMRateLimitErrorOptions | LLMValidationErrorOptions | FileHandlingErrorOptions,
+	options?:
+		| ErrorOptions
+		| APIErrorOptions
+		| LLMErrorOptions
+		| LLMRateLimitErrorOptions
+		| LLMValidationErrorOptions
+		| FileHandlingErrorOptions,
 ): Error => {
 	if (!ErrorTypes.includes(errorType)) {
 		throw new Error(`Unknown error type: ${errorType}`);
@@ -46,7 +52,9 @@ export const createError = (
 				case 'patch':
 					return new FilePatchError(message, fileOptions);
 				case 'read':
-					return fileOptions.filePath ? new FileNotFoundError(message, fileOptions) : new FileReadError(message, fileOptions);
+					return fileOptions.filePath
+						? new FileNotFoundError(message, fileOptions)
+						: new FileReadError(message, fileOptions);
 				case 'write':
 					return new FileWriteError(message, fileOptions);
 				default:

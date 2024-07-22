@@ -7,49 +7,49 @@ import { LLMFactory } from '../../llms/llmProvider.ts';
 const projectEditor = new ProjectEditor();
 
 export const startConversation = async (ctx: Context) => {
-    logger.debug('startConversation called');
+	logger.debug('startConversation called');
 
-    try {
-        const body = await ctx.request.body().value;
-        const { prompt, provider, model } = body;
+	try {
+		const body = await ctx.request.body().value;
+		const { prompt, provider, model } = body;
 
-        if (!prompt) {
-            ctx.response.status = 400;
-            ctx.response.body = { error: 'Missing prompt' };
-            return;
-        }
+		if (!prompt) {
+			ctx.response.status = 400;
+			ctx.response.body = { error: 'Missing prompt' };
+			return;
+		}
 
-        const response = await projectEditor.speakWithLLM(prompt, provider, model);
+		const response = await projectEditor.speakWithLLM(prompt, provider, model);
 
-        ctx.response.body = response;
-    } catch (error) {
-        logger.error(`Error in startConversation: ${error.message}`, error);
-        ctx.response.status = 500;
-        ctx.response.body = { error: 'Failed to generate response', details: error.message };
-    }
+		ctx.response.body = response;
+	} catch (error) {
+		logger.error(`Error in startConversation: ${error.message}`, error);
+		ctx.response.status = 500;
+		ctx.response.body = { error: 'Failed to generate response', details: error.message };
+	}
 };
 
 export const continueConversation = async (ctx: Context) => {
-    logger.debug('continueConversation called');
+	logger.debug('continueConversation called');
 
-    try {
-        const body = await ctx.request.body.json();
-        const { prompt, conversationId } = body;
+	try {
+		const body = await ctx.request.body.json();
+		const { prompt, conversationId } = body;
 
-        if (!prompt || !conversationId) {
-            ctx.response.status = 400;
-            ctx.response.body = { error: 'Missing prompt or conversationId' };
-            return;
-        }
+		if (!prompt || !conversationId) {
+			ctx.response.status = 400;
+			ctx.response.body = { error: 'Missing prompt or conversationId' };
+			return;
+		}
 
-        const response = await projectEditor.speakWithLLM(prompt, undefined, undefined, conversationId);
+		const response = await projectEditor.speakWithLLM(prompt, undefined, undefined, conversationId);
 
-        ctx.response.body = response;
-    } catch (error) {
-        logger.error(`Error in continueConversation: ${error.message}`);
-        ctx.response.status = 500;
-        ctx.response.body = { error: 'Failed to generate response' };
-    }
+		ctx.response.body = response;
+	} catch (error) {
+		logger.error(`Error in continueConversation: ${error.message}`);
+		ctx.response.status = 500;
+		ctx.response.body = { error: 'Failed to generate response' };
+	}
 };
 
 export const getConversation = async (

@@ -52,7 +52,10 @@ class LLMConversation {
 		this.persistence = new ConversationPersistence(this.id);
 	}
 
-	async addFileToMessageArray(filePath: string, metadata: Omit<FileMetadata, 'path' | 'inSystemPrompt'>): Promise<void> {
+	async addFileToMessageArray(
+		filePath: string,
+		metadata: Omit<FileMetadata, 'path' | 'inSystemPrompt'>,
+	): Promise<void> {
 		const fileMetadata: FileMetadata = {
 			...metadata,
 			path: filePath,
@@ -66,7 +69,10 @@ class LLMConversation {
 		await this.persistence.saveConversation(this);
 	}
 
-	async addFileForSystemPrompt(filePath: string, metadata: Omit<FileMetadata, 'path' | 'inSystemPrompt'>): Promise<void> {
+	async addFileForSystemPrompt(
+		filePath: string,
+		metadata: Omit<FileMetadata, 'path' | 'inSystemPrompt'>,
+	): Promise<void> {
 		const fileMetadata: FileMetadata = {
 			...metadata,
 			path: filePath,
@@ -81,10 +87,10 @@ class LLMConversation {
 		const fileMetadata = this._files.get(filePath);
 		if (fileMetadata) {
 			if (!fileMetadata.inSystemPrompt && fileMetadata.messageId) {
-				this.messages = this.messages.filter(message => message.id !== fileMetadata.messageId);
+				this.messages = this.messages.filter((message) => message.id !== fileMetadata.messageId);
 			}
 			if (fileMetadata.inSystemPrompt) {
-				this.systemPromptFiles = this.systemPromptFiles.filter(path => path !== filePath);
+				this.systemPromptFiles = this.systemPromptFiles.filter((path) => path !== filePath);
 			}
 			return this._files.delete(filePath);
 		}
@@ -199,9 +205,7 @@ class LLMConversation {
 		this._maxTokens = value;
 	}
 
-	get temperature():
-
- number {
+	get temperature(): number {
 		return this._temperature;
 	}
 

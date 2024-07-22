@@ -71,7 +71,7 @@ class LLMMessage {
 		public content: LLMMessageContentParts,
 		public tool_call_id?: string,
 		public providerResponse?: LLMMessageProviderResponse,
-		public id?: string
+		public id?: string,
 	) {}
 }
 
