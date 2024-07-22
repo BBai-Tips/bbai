@@ -50,44 +50,63 @@ export class ProjectEditor {
         return 'message';
     }
 
-    async startConversation(prompt: string, provider: LLMProvider, model: string): Promise<any> {
-        this.llmProvider = LLMFactory.getProvider(provider);
-        const systemPrompt = await this.promptManager.getPrompt('system', { userDefinedContent: "You are an AI assistant helping with code and project management." });
+    async speakWithLLM(prompt: string, provider?: LLMProvider, model?: string, conversationId?: string): Promise<any> {
+        if (conversationId && !this.conversation) {
+            logger.warn(`Conversation ID ${conversationId} not found. Starting a new conversation.`);
+            conversationId = undefined;
+        }
 
-        this.conversation = this.llmProvider.createConversation();
-        this.conversation.baseSystem = systemPrompt;
-        this.conversation.model = model;
-        
-        // Update ctags
-        await this.updateCtags();
+        if (!this.conversation || !conversationId) {
+            this.llmProvider = LLMFactory.getProvider(provider);
+            const systemPrompt = await this.promptManager.getPrompt('system', { userDefinedContent: "You are an AI assistant helping with code and project management." });
 
-        this.addDefaultTools();
+            this.conversation = this.llmProvider.createConversation();
+            this.conversation.baseSystem = systemPrompt;
+            if (model) this.conversation.model = model;
+            
+            // Update ctags
+            await this.updateCtags();
+
+            this.addDefaultTools();
+        }
 
         const speakOptions: LLMSpeakWithOptions = {
             temperature: 0.7,
             maxTokens: 1000,
         };
 
-        const response = await this.conversation.speakWithLLM(prompt, speakOptions);
+        const maxTurns = 5; // Maximum number of turns for the run loop
+        let currentTurn = 0;
+        let finalResponse: LLMProviderMessageResponse | null = null;
 
-        // Handle tool calls and collect feedback
-        let toolFeedback = '';
-        if (response.toolsUsed && response.toolsUsed.length > 0) {
-            for (const tool of response.toolsUsed) {
-                const feedback = await this.handleToolUse(tool, response);
-                toolFeedback += feedback + '\n';
+        while (currentTurn < maxTurns) {
+            const response = await this.conversation.speakWithLLM(prompt, speakOptions);
+            finalResponse = response;
+
+            // Handle tool calls and collect feedback
+            let toolFeedback = '';
+            if (response.toolsUsed && response.toolsUsed.length > 0) {
+                for (const tool of response.toolsUsed) {
+                    const feedback = await this.handleToolUse(tool, response);
+                    toolFeedback += feedback + '\n';
+                }
+            }
+
+            // If there's tool feedback, send it back to the LLM
+            if (toolFeedback) {
+                prompt = `Tool use feedback:\n${toolFeedback}\nPlease acknowledge this feedback and continue the conversation.`;
+                currentTurn++;
+            } else {
+                // No more tool feedback, exit the loop
+                break;
             }
         }
 
-        // If there's tool feedback, send it back to the LLM
-        if (toolFeedback) {
-            const feedbackPrompt = `Tool use feedback:\n${toolFeedback}\nPlease acknowledge this feedback and continue the conversation.`;
-            const feedbackResponse = await this.conversation.speakWithLLM(feedbackPrompt, speakOptions);
-            //response.toolFeedback = feedbackResponse;
-            return feedbackResponse;
+        if (currentTurn >= maxTurns) {
+            logger.warn(`Reached maximum number of turns (${maxTurns}) in conversation.`);
         }
 
-        return response;
+        return finalResponse;
     }
 
     private async handleToolUse(tool: any, response: any): Promise<string> {
@@ -116,37 +135,6 @@ export class ProjectEditor {
         return feedback;
     }
 
-    async continueConversation(prompt: string): Promise<any> {
-        if (!this.conversation) {
-            throw new Error("Conversation not started. Call startConversation first.");
-        }
-
-        const speakOptions: LLMSpeakWithOptions = {
-            temperature: 0.7,
-            maxTokens: 1000,
-        };
-
-        const response = await this.conversation.speakWithLLM(prompt, speakOptions);
-
-        // Handle tool calls and collect feedback
-        let toolFeedback = '';
-        if (response.toolsUsed && response.toolsUsed.length > 0) {
-            for (const tool of response.toolsUsed) {
-                const feedback = await this.handleToolUse(tool, response);
-                toolFeedback += feedback + '\n';
-            }
-        }
-
-        // If there's tool feedback, send it back to the LLM
-        if (toolFeedback) {
-            const feedbackPrompt = `Tool use feedback:\n${toolFeedback}\nPlease acknowledge this feedback and continue the conversation.`;
-            const feedbackResponse = await this.conversation.speakWithLLM(feedbackPrompt, speakOptions);
-            //response.toolFeedback = feedbackResponse;
-            return feedbackResponse;
-        }
-
-        return response;
-    }
 
     private addDefaultTools(): void {
         const requestFilesTool: LLMTool = {
