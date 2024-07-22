@@ -3,6 +3,8 @@ import { join } from '@std/path';
 import { getBbaiDir } from 'shared/dataDir.ts';
 import LLMConversation from '../llms/conversation.ts';
 import LLM from '../llms/providers/baseLLM.ts';
+import LLMMessage from '../llms/message.ts';
+import { LLMMessageProviderResponse } from '../types.ts';
 import { logger } from 'shared/logger.ts';
 import { createError, ErrorType } from './error.utils.ts';
 import { FileHandlingErrorOptions } from '../errors/error.ts';
@@ -80,17 +82,41 @@ export class ConversationPersistence {
 		}
 	}
 
-	async saveConversationMessage(message: any, response: any): Promise<void> {
+	async saveConversationMessage(message: LLMMessage, response: LLMMessageProviderResponse | undefined): Promise<void> {
 		try {
 			await this.ensureInitialized();
 
-			const turnData = {
-				message,
-				response,
+			const messageData = {
+				role: message.role,
+				content: message.content,
+				id: message.id,
 			};
 
-			const turnLine = JSON.stringify(turnData) + '\n';
-			await Deno.writeTextFile(this.messagesPath, turnLine, { append: true });
+			let messages: any[] = [];
+			if (await exists(this.messagesPath)) {
+				const content = await Deno.readTextFile(this.messagesPath);
+				messages = content.trim().split('\n').map(line => JSON.parse(line));
+			}
+
+			const existingMessageIndex = messages.findIndex(m => m.id === message.id);
+			if (existingMessageIndex !== -1) {
+				// Update existing message
+				messages[existingMessageIndex] = messageData;
+			} else {
+				// Add new message
+				messages.push(messageData);
+			}
+
+			if (response) {
+				messages.push({
+					role: 'assistant',
+					content: response.answerContent,
+					id: response.id,
+				});
+			}
+
+			const messagesContent = messages.map(m => JSON.stringify(m)).join('\n') + '\n';
+			await Deno.writeTextFile(this.messagesPath, messagesContent);
 		} catch (error) {
 			this.handleSaveError(error, this.messagesPath);
 		}
