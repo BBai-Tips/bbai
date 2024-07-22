@@ -67,10 +67,9 @@ class LLMConversation {
 			inSystemPrompt: false,
 		};
 		this._files.set(filePath, fileMetadata);
-		const message = new LLMMessage('user', [{ type: 'text', text: `File added: ${filePath}` }]);
-		message.id = ulid();
-		this.messages.push(message);
-		fileMetadata.messageId = message.id;
+		this.addMessageWithCorrectRole(`File added: ${filePath}`);
+		const lastMessage = this.messages[this.messages.length - 1];
+		fileMetadata.messageId = lastMessage.id;
 		await this.persistence.saveConversation(this);
 	}
 
