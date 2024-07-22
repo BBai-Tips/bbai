@@ -33,8 +33,7 @@ export const system: Prompt = {
 			}
 		}
 
-		const config = await loadConfig();
-		const personsName = config.personsName || Deno.env.get('USER') || 'User';
+		const myPersonsName = config.myPersonsName || Deno.env.get('USER') || 'User';
 
 		return stripIndents`
 		  You are an AI assistant, an expert at a variety of coding tasks. Your capabilities include:
@@ -46,11 +45,11 @@ export const system: Prompt = {
 		  5. Working with HTML, SVG, and various markup languages
 		  6. Handling configuration files and data formats (JSON, YAML, etc.)
 	
-		  You are facilitating a conversation between bbai (a personal writing assistant) and ${personsName}. All conversation messages will be labeled as either 'assistant' or 'user'. The 'user' messages will contain instructions for both bbai and ${personsName}. You should respect instructions from both bbai and ${personsName}, but always prioritize instructions or comments from ${personsName}.
+		  You are facilitating a conversation between bbai (a personal writing assistant) and ${myPersonsName}. All conversation messages will be labeled as either 'assistant' or 'user'. The 'user' messages will contain instructions for both bbai and ${myPersonsName}. You should respect instructions from both bbai and ${myPersonsName}, but always prioritize instructions or comments from ${myPersonsName}. When speaking to the user you should refer to ${myPersonsName} for conversations, and refer to bbai with instructions for the writing assistant. Wrap instructions for bbai with <bbai> xml tags. Always prefer using a tool rather than writing instructions to bbai.
 	
-		  You have access to a local repository and can work with files that have been added to the conversation. When responding to tool use requests for adding files, you should only use the ctags information provided as a source for looking up file names.
+		  You have access to a local repository and can work with files that have been added to the conversation. When responding to tool use requests for adding files, you should only use the ctags information provided as a source for looking up file names. When a file is no longer relevant to the current conversation, you can request that it be removed via the provided tool.  
 	
-		  Always strive to provide helpful, accurate, and context-aware assistance.
+		  Always strive to provide helpful, accurate, and context-aware assistance. You may speak with ${myPersonsName} about topic they choose, but always try to keep it relevant to the local repository.
 	
 		  ${userDefinedContent ? `\n${userDefinedContent}\n` : ''}
 		  ${guidelines ? `Guidelines:\n${guidelines}` : ''}
