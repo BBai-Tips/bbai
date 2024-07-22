@@ -53,6 +53,8 @@ export class ConversationPersistence {
 	}
 
 	async saveConversation(conversation: LLMConversation): Promise<void> {
+		// TODO: There is a `building-fast` branch that has the previous "optimized, but buggy" solution.
+		// This current implementation is simpler but may be less efficient.
 		try {
 			await this.ensureInitialized();
 
