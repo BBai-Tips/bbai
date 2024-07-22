@@ -29,7 +29,7 @@ class LLMConversation {
 	private _conversationId: ConversationId = '';
 	private _turnCount: number = 0;
 	private messages: LLMMessage[] = [];
-	private tools: LLMTool[] = [];
+	private tools: Map<string, LLMTool> = new Map();
 	private _files: Map<string, FileMetadata> = new Map();
 	private systemPromptFiles: string[] = [];
 
@@ -272,21 +272,25 @@ class LLMConversation {
 	}
 
 	addTool(tool: LLMTool): void {
-		this.tools.push(tool);
+		this.tools.set(tool.name, tool);
 	}
 
 	addTools(tools: LLMTool[]): void {
 		tools.forEach((tool: LLMTool) => {
-			this.tools.push(tool);
+			this.tools.set(tool.name, tool);
 		});
 	}
 
+	getTool(name: string): LLMTool | undefined {
+		return this.tools.get(name);
+	}
+
 	getTools(): LLMTool[] {
-		return this.tools;
+		return Array.from(this.tools.values());
 	}
 
 	clearTools(): void {
-		this.tools = [];
+		this.tools.clear();
 	}
 
 	async speakWithLLM(

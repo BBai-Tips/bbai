@@ -284,15 +284,19 @@ abstract class LLM {
 			llmProviderMessageResponse.toolsUsed &&
 			llmProviderMessageResponse.toolsUsed.length > 0
 		) {
-			const tool: LLMTool = conversation.getTools()[0];
+			const toolUse = llmProviderMessageResponse.toolsUsed[0];
+			const tool = conversation.getTool(toolUse.toolName);
 			if (tool) {
 				const inputSchema: LLMToolInputSchema = tool.input_schema;
 				const validate = ajv.compile(inputSchema);
-				const valid = validate(llmProviderMessageResponse.toolsUsed[0].toolInput);
+				const valid = validate(toolUse.toolInput);
 				if (!valid) {
 					logger.error(`Tool input validation failed: ${ajv.errorsText(validate.errors)}`);
 					return `Tool input validation failed: ${ajv.errorsText(validate.errors)}`;
 				}
+			} else {
+				logger.error(`Tool not found: ${toolUse.toolName}`);
+				return `Tool not found: ${toolUse.toolName}`;
 			}
 		}
 
