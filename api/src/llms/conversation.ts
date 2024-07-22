@@ -13,7 +13,7 @@ import LLM from './providers/baseLLM.ts';
 import { ConversationPersistence } from '../utils/conversationPersistence.utils.ts';
 import { logger } from 'shared/logger.ts';
 
-import { ulid } from '@std/ulid';
+import { crypto } from '@std/crypto';
 
 interface FileMetadata {
 	path: string;
@@ -47,9 +47,14 @@ class LLMConversation {
 	private _currentPrompt: string = '';
 
 	constructor(llm: LLM) {
-		this.id = ulid();
+		this.id = this.generateShortId();
 		this.llm = llm;
 		this.persistence = new ConversationPersistence(this.id);
+	}
+
+	private generateShortId(): string {
+		const uuid = crypto.randomUUID();
+		return uuid.replace(/-/g, '').substring(0, 8);
 	}
 
 	async addFileToMessageArray(
