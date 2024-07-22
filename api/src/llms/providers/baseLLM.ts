@@ -50,6 +50,8 @@ abstract class LLM {
 	}
 
 	async loadConversation(conversationId: string): Promise<LLMConversation> {
+		const persistence = new ConversationPersistence(conversationId);
+		await persistence.init();
 		const conversation = await LLMConversation.resume(conversationId, this);
 		return conversation;
 	}

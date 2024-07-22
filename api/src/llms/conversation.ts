@@ -298,9 +298,6 @@ class LLMConversation {
 		}
 
 		this._turnCount++;
-		// 		this.addMessage(
-		// 			{ role: 'user', content: [{ type: 'text', text: prompt }] as LLMMessageContentParts } as LLMMessage,
-		// 		);
 		this.addMessageWithCorrectRole(prompt);
 
 		const llmProviderMessageResponse = await this.llm.speakWithRetry(this, speakOptions);

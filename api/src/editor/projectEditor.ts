@@ -89,12 +89,9 @@ export class ProjectEditor {
 
 		const maxTurns = 5; // Maximum number of turns for the run loop
 		let currentTurn = 0;
-		let finalResponse: LLMProviderMessageResponse | null = null;
+		let finalResponse: LLMProviderMessageResponse = await this.conversation.speakWithLLM(prompt, speakOptions);
 
 		while (currentTurn < maxTurns) {
-			const response = await this.conversation.speakWithLLM(prompt, speakOptions);
-			finalResponse = response;
-
 			// Handle tool calls and collect feedback
 			let toolFeedback = '';
 			if (response.toolsUsed && response.toolsUsed.length > 0) {
@@ -109,6 +106,8 @@ export class ProjectEditor {
 				prompt =
 					`Tool use feedback:\n${toolFeedback}\nPlease acknowledge this feedback and continue the conversation.`;
 				currentTurn++;
+				const response = await this.conversation.speakWithLLM(prompt, speakOptions);
+				finalResponse = response;
 			} else {
 				// No more tool feedback, exit the loop
 				break;
