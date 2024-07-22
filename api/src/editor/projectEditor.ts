@@ -1,5 +1,6 @@
 import { join, normalize, resolve } from '@std/path';
 import * as diff from 'diff';
+import { ensureDir, exists } from '@std/fs';
 
 import { LLMFactory } from '../llms/llmProvider.ts';
 import LLMConversation, { FileMetadata } from '../llms/conversation.ts';
@@ -9,7 +10,7 @@ import { PromptManager } from '../prompts/promptManager.ts';
 import { LLMProvider, LLMProviderMessageResponse, LLMSpeakWithOptions } from '../types.ts';
 import LLMTool from '../llms/tool.ts';
 import { ConversationPersistence } from '../utils/conversationPersistence.utils.ts';
-import { getProjectRoot } from 'shared/dataDir.ts';
+import { GitUtils } from 'shared/git.utils.ts';
 import { createError, ErrorType } from '../utils/error.utils.ts';
 import { FileHandlingErrorOptions } from '../errors/error.ts';
 import { generateCtags, readCtagsFile } from 'shared/ctags.ts';
@@ -27,11 +28,63 @@ export class ProjectEditor {
 
 	public async init(): Promise<void> {
 		try {
-			this.projectRoot = await getProjectRoot(this.cwd);
+			this.projectRoot = await this.getProjectRoot();
 			this.llmProvider = LLMFactory.getProvider(this.projectRoot);
 		} catch (error) {
 			console.error('Failed to initialize LLMProvider:', error);
 			throw error;
+		}
+	}
+
+	private async getProjectRoot(): Promise<string> {
+		const gitRoot = await GitUtils.findGitRoot(this.cwd);
+		if (!gitRoot) {
+			throw new Error('Not in a git repository');
+		}
+		return gitRoot;
+	}
+
+	private async getBbaiDir(): Promise<string> {
+		const bbaiDir = join(this.projectRoot, '.bbai');
+		await ensureDir(bbaiDir);
+		return bbaiDir;
+	}
+
+	private async getBbaiCacheDir(): Promise<string> {
+		const bbaiDir = await this.getBbaiDir();
+		const repoCacheDir = join(bbaiDir, 'cache');
+		await ensureDir(repoCacheDir);
+		return repoCacheDir;
+	}
+
+	private async writeToBbaiDir(filename: string, content: string): Promise<void> {
+		const bbaiDir = await this.getBbaiDir();
+		const filePath = join(bbaiDir, filename);
+		await Deno.writeTextFile(filePath, content);
+	}
+
+	private async readFromBbaiDir(filename: string): Promise<string | null> {
+		const bbaiDir = await this.getBbaiDir();
+		const filePath = join(bbaiDir, filename);
+		try {
+			return await Deno.readTextFile(filePath);
+		} catch (error) {
+			if (error instanceof Deno.errors.NotFound) {
+				return null;
+			}
+			throw error;
+		}
+	}
+
+	private async removeFromBbaiDir(filename: string): Promise<void> {
+		const bbaiDir = await this.getBbaiDir();
+		const filePath = join(bbaiDir, filename);
+		try {
+			await Deno.remove(filePath);
+		} catch (error) {
+			if (!(error instanceof Deno.errors.NotFound)) {
+				throw error;
+			}
 		}
 	}
 
@@ -114,9 +167,9 @@ export class ProjectEditor {
 	async speakWithLLM(prompt: string, provider?: LLMProvider, model?: string, conversationId?: string): Promise<any> {
 		if (conversationId) {
 			try {
-				const persistence = new ConversationPersistence(conversationId);
+				const persistence = new ConversationPersistence(conversationId, this);
 				await persistence.init();
-				this.conversation = await this.llmProvider.loadConversation(conversationId);
+				this.conversation = await this.llmProvider.loadConversation(conversationId, this);
 				logger.info(`Loaded existing conversation: ${conversationId}`);
 			} catch (error) {
 				logger.warn(`Failed to load conversation ${conversationId}: ${error.message}`);

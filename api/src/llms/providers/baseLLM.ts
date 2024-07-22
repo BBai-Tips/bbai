@@ -21,7 +21,7 @@ import { createError } from '../../utils/error.utils.ts';
 //import { metricsService } from '../../services/metrics.service.ts';
 import kv from '../../utils/kv.utils.ts';
 import { tokenUsageManager } from '../../utils/tokenUsage.utils.ts';
-import { readFileContent } from 'shared/dataDir.ts';
+import { ProjectEditor } from '../../editor/projectEditor.ts';
 
 const ajv = new Ajv();
 
@@ -29,11 +29,11 @@ class LLM {
 	public providerName: LLMProviderEnum = LLMProviderEnum.ANTHROPIC;
 	public maxSpeakRetries: number = 3;
 	public requestCacheExpiry: number = 3 * (1000 * 60 * 60 * 24); // 3 days in milliseconds
-	protected projectRoot: string;
+	protected projectEditor: ProjectEditor;
 
-	constructor(projectRoot: string) {
-		this.projectRoot = projectRoot;
-		logger.info(`creating LLMProvider with root: ${this.projectRoot}`);
+	constructor(projectEditor: ProjectEditor) {
+		this.projectEditor = projectEditor;
+		logger.info(`creating LLMProvider with root: ${this.projectEditor.projectRoot}`);
 	}
 
 	async prepareMessageParams(

@@ -1,12 +1,12 @@
 import { ensureDir, exists } from '@std/fs';
 import { join } from '@std/path';
-import { getBbaiDir } from 'shared/dataDir.ts';
 import LLMConversation from '../llms/conversation.ts';
 import LLMMessage,  { LLMMessageProviderResponse } from '../llms/message.ts';
 import LLM from '../llms/providers/baseLLM.ts';
 import { logger } from 'shared/logger.ts';
 import { createError, ErrorType } from './error.utils.ts';
 import { FileHandlingErrorOptions } from '../errors/error.ts';
+import { ProjectEditor } from '../editor/projectEditor.ts';
 
 export class ConversationPersistence {
 	private conversationDir!: string;
@@ -16,7 +16,7 @@ export class ConversationPersistence {
 	private filesDir!: string;
 	private initialized: boolean = false;
 
-	constructor(private conversationId: string) {
+	constructor(private conversationId: string, private projectEditor: ProjectEditor) {
 		this.ensureInitialized();
 	}
 
@@ -28,7 +28,7 @@ export class ConversationPersistence {
 	}
 
 	async init(): Promise<void> {
-		const bbaiDir = await getBbaiDir();
+		const bbaiDir = await this.projectEditor.getBbaiDir();
 		const conversationsDir = join(bbaiDir, 'cache', 'conversations');
 		this.conversationDir = join(conversationsDir, this.conversationId);
 		this.metadataPath = join(this.conversationDir, 'metadata.json');
