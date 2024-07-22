@@ -10,7 +10,7 @@ export const startConversation = async (ctx: Context) => {
 	logger.debug('startConversation called');
 
 	try {
-		const body = await ctx.request.body().value;
+        const body = await ctx.request.body.json();
 		const { prompt, provider, model } = body;
 
 		if (!prompt) {
