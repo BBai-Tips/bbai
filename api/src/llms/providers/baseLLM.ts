@@ -134,7 +134,7 @@ class LLM {
 									};
 								}
 							} else if (contentPart.type === 'tool_result') {
-								const updatedContentParts: Promise<LLMMessageContentPart>[] | undefined = contentPart.content?.map(async (toolContentPart) => {
+								const updatedContentParts: Promise<LLMMessageContentPart | undefined>[] | undefined = contentPart.content?.map(async (toolContentPart) => {
 									if (
 										toolContentPart.type === 'text' &&
 										toolContentPart.text.startsWith('File added:')
@@ -148,8 +148,9 @@ class LLM {
 											};
 										}
 									}
+									return toolContentPart;
 								});
-								return updatedContentParts ?? contentPart;
+								return updatedContentParts ? Promise.all(updatedContentParts).then(parts => parts.filter((part): part is LLMMessageContentPart => part !== undefined)) : contentPart;
 							}
 							return contentPart;
 						}),
