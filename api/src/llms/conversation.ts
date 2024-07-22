@@ -306,6 +306,10 @@ class LLMConversation {
 
 		const llmProviderMessageResponse = await this.llm.speakWithRetry(this, speakOptions);
 
+		// Create and save the assistant's message
+		const assistantMessage = new LLMMessage('assistant', llmProviderMessageResponse.answerContent, undefined, llmProviderMessageResponse);
+		await this.addMessage(assistantMessage);
+
 		await this.save();
 
 		return llmProviderMessageResponse;
