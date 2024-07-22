@@ -9,7 +9,7 @@ export const startConversation = async (ctx: Context) => {
 
 	try {
 		const body = await ctx.request.body.json();
-		const { prompt, provider, model } = body;
+		const { prompt, provider, model, cwd } = body;
 
 		if (!prompt) {
 			ctx.response.status = 400;
@@ -17,7 +17,13 @@ export const startConversation = async (ctx: Context) => {
 			return;
 		}
 
-		const projectEditor = new ProjectEditor();
+		if (!cwd) {
+			ctx.response.status = 400;
+			ctx.response.body = { error: 'Missing cwd' };
+			return;
+		}
+
+		const projectEditor = new ProjectEditor(cwd);
 		await projectEditor.init();
 
 		const response = await projectEditor.speakWithLLM(prompt, provider, model);
@@ -35,7 +41,7 @@ export const continueConversation = async (ctx: Context) => {
 
 	try {
 		const body = await ctx.request.body.json();
-		const { prompt, conversationId } = body;
+		const { prompt, conversationId, cwd } = body;
 
 		if (!prompt || !conversationId) {
 			ctx.response.status = 400;
@@ -43,7 +49,13 @@ export const continueConversation = async (ctx: Context) => {
 			return;
 		}
 
-		const projectEditor = new ProjectEditor();
+		if (!cwd) {
+			ctx.response.status = 400;
+			ctx.response.body = { error: 'Missing cwd' };
+			return;
+		}
+
+		const projectEditor = new ProjectEditor(cwd);
 		await projectEditor.init();
 
 		const response = await projectEditor.speakWithLLM(prompt, undefined, undefined, conversationId);

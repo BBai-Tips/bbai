@@ -18,20 +18,20 @@ export class ProjectEditor {
 	private conversation: LLMConversation | null = null;
 	private promptManager: PromptManager;
 	private llmProvider: LLM;
-	private projectRoot: string = '';
+	private projectRoot: string;
 
-	constructor() {
+	constructor(cwd: string) {
 		this.promptManager = new PromptManager();
+		this.projectRoot = cwd;
 	}
 
 	public async init(): Promise<void> {
 		try {
-			this.projectRoot = await getProjectRoot();
 			log.info(`creating LLMProvider with root: ${this.projectRoot}`);
 			this.llmProvider = LLMFactory.getProvider(this.projectRoot);
 		} catch (error) {
-			console.error('Failed to get project root:', error);
-			this.projectRoot = Deno.env.get('HOME') || Deno.cwd(); // Fallback to user's home directory, or cwd if HOME is not set
+			console.error('Failed to initialize LLMProvider:', error);
+			throw error;
 		}
 	}
 

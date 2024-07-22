@@ -10,16 +10,19 @@ export const conversationStart = new Command()
 	.option('-m, --model <string>', 'LLM model to use for the conversation')
 	.action(async (options) => {
 		try {
+			const cwd = Deno.cwd();
 			let response;
 			if (options.id) {
 				response = await apiClient.post(`/api/v1/conversation/${options.id}`, {
 					prompt: options.prompt,
 					model: options.model,
+					cwd: cwd,
 				});
 			} else {
 				response = await apiClient.post('/api/v1/conversation', {
 					prompt: options.prompt,
 					model: options.model,
+					cwd: cwd,
 				});
 			}
 
