@@ -1,10 +1,11 @@
 # bbai - Your Intelligent Project Assistant
 
-(The name is also a respectful nod to BBEdit, the beloved text editor by Bare Bones Software)
+## Be Better at ... Everything You Do with Text
 
-## Be Better at Everything You Do with Text
+bbai (pronounced b-b-aye) is an advanced AI-powered assistant designed to revolutionize how you work with text-based projects. Whether you're coding, writing, or managing complex documentation, bbai is here to help you "be better" at every step.
 
-`bbai` (pronounced b-b-ay) is an advanced AI-powered assistant designed to revolutionize how you work with text-based projects. Whether you're coding, writing, or managing complex documentation, bbai is here to help you "be better" at every step.
+_(The name is also a respectful nod to [BBEdit](https://www.barebones.com/products/bbedit/index.html), my beloved text editor by Bare Bones Software)_
+
 
 ## Why bbai?
 
@@ -90,4 +91,4 @@ Start your journey with bbai today and transform the way you work with text!
 
 ---
 
-*bbai: Be Better at Everything You Do with Text*
+*bbai: Be Better at ... Everything You Do with Text*
