@@ -40,6 +40,22 @@ It supports vector embeddings for code and text chunks from local repositories, 
 - API tests: `hurl/`
 - Configuration: Separate `deno.jsonc` files for `api` and `cli`
 
+## Glossary of Terms
+
+- **Conversation**: An ongoing interaction between a user and the bbai system, which may include multiple statements and turns.
+- **Statement**: A single request or input from the user to the bbai system.
+- **Turn**: A single request-response cycle between bbai and the LLM.
+- **Session**: The entire duration of a user's interaction with bbai, which may include multiple conversations.
+- **Project**: The collection of files and resources that bbai is working with.
+- **Tool**: A specific function or capability that the LLM can use to perform actions or retrieve information.
+- **Patch**: A set of changes to be applied to a file.
+- **Commit**: A saved state of the project in the version control system.
+- **Embedding**: A numerical representation of text used for semantic search and comparison.
+- **Token**: The basic unit of text processing for the LLM, typically a word or part of a word.
+- **Prompt**: The input provided to the LLM to guide its response.
+- **System Prompt**: The initial instructions given to the LLM to set its behavior and context.
+- **RAG (Retrieval-Augmented Generation)**: A technique that combines retrieval of relevant information with text generation.
+
 ## API Design
 - RESTful principles with primary endpoints at /api/v1
 - JSON request/response format
