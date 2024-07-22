@@ -8,15 +8,18 @@ import { createError, ErrorType } from './error.utils.ts';
 import { FileHandlingErrorOptions } from '../errors/error.ts';
 
 export class ConversationPersistence {
-	private filePath: string;
-	private patchLogPath: string;
-	private filesDir: string;
+	private filePath!: string;
+	private patchLogPath!: string;
+	private filesDir!: string;
 
-	constructor(conversationId: string) {
-		const cacheDir = join(await getBbaiDir(), 'cache');
-		this.filePath = join(cacheDir, `${conversationId}.jsonl`);
-		this.patchLogPath = join(cacheDir, `${conversationId}_patches.jsonl`);
-		this.filesDir = join(cacheDir, conversationId, 'files');
+	constructor(private conversationId: string) {}
+
+	async init(): Promise<void> {
+		const cacheDir = await getBbaiDir();
+		const cacheDir = join(cacheDir, 'cache');
+		this.filePath = join(cacheDir, `${this.conversationId}.jsonl`);
+		this.patchLogPath = join(cacheDir, `${this.conversationId}_patches.jsonl`);
+		this.filesDir = join(cacheDir, this.conversationId, 'files');
 	}
 
 	static async listConversations(options: {
