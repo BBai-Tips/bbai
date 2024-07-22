@@ -1,7 +1,7 @@
 import { join } from '@std/path';
-import { exists } from '@std/fs';
+import { exists, ensureDir } from '@std/fs';
 import { ConfigManager } from 'shared/configManager.ts';
-import { getBbaiDir } from './dataDir.utils.ts';
+import { getBbaiDir, getProjectRoot } from './dataDir.utils.ts';
 import { logger } from './logger.utils.ts';
 
 export async function generateCtags(): Promise<void> {
@@ -14,11 +14,31 @@ export async function generateCtags(): Promise<void> {
 	}
 
 	const bbaiDir = await getBbaiDir();
+	const projectRoot = await getProjectRoot();
 	const tagsFilePath = ctagsConfig?.tagsFilePath ? ctagsConfig.tagsFilePath : join(bbaiDir, 'tags');
 	logger.info('Ctags using tags file: ', tagsFilePath);
 
+	// Check for tags.ignore or .gitignore
+	let ignoreFile = join(projectRoot, 'tags.ignore');
+	if (!await exists(ignoreFile)) {
+		ignoreFile = join(projectRoot, '.gitignore');
+	}
+
+	// If neither file exists, create .bbai/tags.ignore
+	if (!await exists(ignoreFile)) {
+		ignoreFile = join(bbaiDir, 'tags.ignore');
+		await ensureDir(bbaiDir);
+		await Deno.writeTextFile(ignoreFile, '.bbai/*\n');
+	} else {
+		// Check if .bbai/* is in the ignore file, add if missing
+		const ignoreContent = await Deno.readTextFile(ignoreFile);
+		if (!ignoreContent.includes('.bbai/*')) {
+			await Deno.writeTextFile(ignoreFile, ignoreContent + '\n.bbai/*\n');
+		}
+	}
+
 	const command = new Deno.Command('ctags', {
-		args: ['-R', '--fields=+l', '--languages=all', '-f', tagsFilePath, '.'],
+		args: ['-R', '--fields=+l', '--languages=all', '-f', tagsFilePath, '--exclude=@' + ignoreFile, '.'],
 	});
 
 	try {
