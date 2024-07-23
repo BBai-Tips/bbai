@@ -245,7 +245,8 @@ export class ProjectEditor {
 			case 'request_files':
 				const fileNames = (tool.toolInput as { fileNames: string[] }).fileNames;
 				const filesAdded = await this.handleRequestFiles(fileNames, tool.toolUseId);
-				feedback = `Files added to the conversation: ${filesAdded.join(', ')}`;
+				const addedFileNames = filesAdded.map(file => file.fileName).join(', ');
+				feedback = `Files added to the conversation: ${addedFileNames}`;
 				break;
 			case 'vector_search':
 				const query = (tool.toolInput as { query: string }).query;
