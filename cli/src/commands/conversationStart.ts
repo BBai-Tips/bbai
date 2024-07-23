@@ -37,11 +37,15 @@ export const conversationStart = new Command()
 					status: response.status,
 					body: errorBody
 				}, null, 2));
+				logger.error(`API request failed: ${response.status} ${response.statusText}`);
+				logger.error(`Error body: ${errorBody}`);
 			}
 		} catch (error) {
 			console.error(JSON.stringify({
 				error: 'Error in conversation',
 				message: error.message
 			}, null, 2));
+			logger.error(`Unexpected error: ${error.message}`);
+			logger.error(`Stack trace: ${error.stack}`);
 		}
 	});
