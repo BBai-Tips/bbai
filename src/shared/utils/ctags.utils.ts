@@ -92,19 +92,7 @@ export async function generateCtags(bbaiDir: string, projectRoot: string): Promi
 	return null;
 }
 
-async function generateFileListing(projectRoot: string, tokenLimit: number): Promise<string> {
-	const excludeOptions = await getExcludeOptions(projectRoot);
-	
-	for (const tier of FILE_LISTING_TIERS) {
-		const listing = await generateFileListingTier(projectRoot, excludeOptions, tier.depth, tier.includeMetadata);
-		if (countTokens(listing) <= tokenLimit) {
-			return `<file-listing>\n${listing}\n</file-listing>`;
-		}
-	}
-
-	logger.error(`Failed to generate file listing within token limit (${tokenLimit}) after all tiers`);
-	return `<file-listing>\nProject file listing exceeds token limit.\n</file-listing>`;
-}
+// This function has been moved to fileListing.utils.ts
 
 async function generateFileListingTier(projectRoot: string, excludeOptions: string[], maxDepth: number, includeMetadata: boolean): Promise<string> {
 	let listing = '';
@@ -130,7 +118,7 @@ function shouldExclude(path: string, excludeOptions: string[]): boolean {
 	});
 }
 
-export async function readCtagsOrFileListing(bbaiDir: string, projectRoot: string): Promise<string | null> {
+export async function readCtagsFile(bbaiDir: string): Promise<string | null> {
 	const config = await ConfigManager.getInstance();
 	const ctagsConfig = config.getConfig().ctags;
 
@@ -138,14 +126,10 @@ export async function readCtagsOrFileListing(bbaiDir: string, projectRoot: strin
 
 	if (await exists(tagsFilePath)) {
 		try {
-			const content = await Deno.readTextFile(tagsFilePath);
-			return `<ctags>\n${content}\n</ctags>`;
+			return await Deno.readTextFile(tagsFilePath);
 		} catch (error) {
 			logger.error(`Error reading ctags file: ${error.message}`);
 		}
-	} else {
-		logger.warn(`Ctags file not found at ${tagsFilePath}. Generating file listing.`);
-		return await generateCtags(bbaiDir, projectRoot);
 	}
 
 	return null;

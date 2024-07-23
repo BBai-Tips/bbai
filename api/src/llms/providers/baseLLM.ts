@@ -100,9 +100,11 @@ class LLM {
 		return null;
 	}
 
-	protected async appendCtagsToSystem(system: string, ctagsContent: string | null): Promise<string> {
+	protected async appendCtagsOrFileListingToSystem(system: string, ctagsContent: string | null, fileListingContent: string | null): Promise<string> {
 		if (ctagsContent) {
 			system += `\n\n<ctags>\n${ctagsContent}\n</ctags>`;
+		} else if (fileListingContent) {
+			system += `\n\n<file-listing>\n${fileListingContent}\n</file-listing>`;
 		}
 		return system;
 	}
@@ -115,6 +117,24 @@ class LLM {
 			}
 		}
 		return system;
+	}
+
+	protected async getRepositoryInfo(bbaiDir: string, projectRoot: string): Promise<string> {
+		const ctagsContent = await readCtagsFile(bbaiDir);
+		if (ctagsContent) {
+			return ctagsContent;
+		}
+
+		const config = await ConfigManager.getInstance();
+		const ctagsConfig = config.getConfig().ctags;
+		const tokenLimit = ctagsConfig?.tokenLimit || 1024;
+
+		const fileListingContent = await generateFileListing(projectRoot, tokenLimit);
+		if (fileListingContent) {
+			return fileListingContent;
+		}
+
+		return '';
 	}
 
 	protected async hydrateMessages(conversation: LLMConversation, messages: LLMMessage[]): Promise<LLMMessage[]> {
