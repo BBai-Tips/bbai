@@ -162,7 +162,11 @@ class LLM {
 			return contentPart;
 		};
 
-		const processMessage = async (message: LLMMessage): Promise<LLMMessage> => {
+		const processMessage = async (message: LLMMessage): Promise<LLMMessage | null> => {
+			if (!message || typeof message !== 'object') {
+				logger.error(`Invalid message encountered: ${JSON.stringify(message)}`);
+				return null;
+			}
 			if (message.role === 'user') {
 				const updatedContent = await Promise.all(message.content.map(processContentPart));
 				return { ...message, content: updatedContent };
@@ -170,7 +174,8 @@ class LLM {
 			return message;
 		};
 
-		return Promise.all(messages.map(processMessage));
+		const processedMessages = await Promise.all(messages.map(processMessage));
+		return processedMessages.filter((message): message is LLMMessage => message !== null);
 	}
 
 	protected createRequestCacheKey(
