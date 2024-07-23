@@ -130,6 +130,9 @@
       "@std/media-types@0.224.1": {
         "integrity": "9e69a5daed37c5b5c6d3ce4731dc191f80e67f79bed392b0957d1d03b87f11e1"
       },
+      "@std/media-types@1.0.2": {
+        "integrity": "abb78dc8f7d88141cba8c4d60fc1e8b421e5c7b0d7c84f2f708bc666cad46784"
+      },
       "@std/path@0.223.0": {
         "integrity": "593963402d7e6597f5a6e620931661053572c982fc014000459edc1f93cc3989",
         "dependencies": [
