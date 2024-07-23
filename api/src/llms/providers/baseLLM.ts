@@ -118,52 +118,28 @@ class LLM {
 	}
 
 	protected async hydrateMessages(conversation: LLMConversation, messages: LLMMessage[]): Promise<LLMMessage[]> {
-		return await Promise.all(
-			messages.map(async (message: LLMMessage) => {
-				let updatedMessage: LLMMessage;
-				if (message.role === 'user') {
-					const updatedContent: LLMMessageContentParts = await Promise.all(
-						message.content.map(async (contentPart): Promise<LLMMessageContentPart> => {
-							if (contentPart.type === 'text' && contentPart.text.startsWith('File added:')) {
-								const filePath = contentPart.text.split(': ')[1].trim();
-								const fileXml = await this.createFileXmlString(filePath);
-								if (fileXml) {
-									return {
-										type: 'text',
-										text: fileXml,
-									};
-								}
-							} else if (contentPart.type === 'tool_result') {
-								const updatedContentParts = contentPart.content?.map(async (toolContentPart): Promise<LLMMessageContentPart | undefined> => {
-									if (
-										toolContentPart.type === 'text' &&
-										toolContentPart.text.startsWith('File added:')
-									) {
-										const filePath = toolContentPart.text.split(': ')[1].trim();
-										const fileXml = await this.createFileXmlString(filePath);
-										if (fileXml) {
-											return {
-												type: 'text',
-												text: fileXml,
-											};
-										}
-									}
-									return toolContentPart;
-								});
-								return updatedContentParts 
-									? Promise.all(updatedContentParts).then(parts => parts.filter((part): part is LLMMessageContentPart => part !== undefined)) 
-									: Promise.resolve(contentPart.content || []) as Promise<LLMMessageContentPart>;
-							}
-							return contentPart;
-						}),
-					);
-					updatedMessage = { role: message.role, content: updatedContent } as LLMMessage;
-				} else {
-					updatedMessage = message;
-				}
-				return updatedMessage;
-			}),
-		);
+		const processContentPart = async (contentPart: LLMMessageContentPart): Promise<LLMMessageContentPart> => {
+			if (contentPart.type === 'text' && contentPart.text.startsWith('File added:')) {
+				const filePath = contentPart.text.split(': ')[1].trim();
+				const fileXml = await this.createFileXmlString(filePath);
+				return fileXml ? { type: 'text', text: fileXml } : contentPart;
+			}
+			if (contentPart.type === 'tool_result' && Array.isArray(contentPart.content)) {
+				const updatedContent = await Promise.all(contentPart.content.map(processContentPart));
+				return { ...contentPart, content: updatedContent };
+			}
+			return contentPart;
+		};
+
+		const processMessage = async (message: LLMMessage): Promise<LLMMessage> => {
+			if (message.role === 'user') {
+				const updatedContent = await Promise.all(message.content.map(processContentPart));
+				return { ...message, content: updatedContent };
+			}
+			return message;
+		};
+
+		return Promise.all(messages.map(processMessage));
 	}
 
 	protected createRequestCacheKey(
