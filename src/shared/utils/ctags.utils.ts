@@ -2,8 +2,8 @@ import { join } from '@std/path';
 import { ensureDir, exists } from '@std/fs';
 import { ConfigManager } from 'shared/configManager.ts';
 import { logger } from './logger.utils.ts';
+import { countTokens } from 'anthropic-tokenizer';
 
-const MAX_FILE_SIZE = 1024 * 1024; // 1MB
 const TIERS = [
 	{ args: ['-R', '--fields=+l', '--languages=all'] },
 	{ args: ['-R', '--fields=+l', '--languages=c,cpp,javascript,typescript,python,java,go'] },
@@ -12,7 +12,7 @@ const TIERS = [
 	{ args: ['-R', '--fields=+l', '--languages=c,cpp,javascript,typescript,python,java,go', '--kinds-all=f,c,m'] },
 ];
 
-async function generateCtagsTier(projectRoot: string, tagsFilePath: string, tier: number): Promise<boolean> {
+async function generateCtagsTier(projectRoot: string, tagsFilePath: string, tier: number, tokenLimit: number): Promise<boolean> {
 	const excludeOptions = await getExcludeOptions(projectRoot);
 
 	const command = new Deno.Command('ctags', {
@@ -27,8 +27,9 @@ async function generateCtagsTier(projectRoot: string, tagsFilePath: string, tier
 			return false;
 		}
 
-		const fileInfo = await Deno.stat(tagsFilePath);
-		return fileInfo.size <= MAX_FILE_SIZE;
+		const content = await Deno.readTextFile(tagsFilePath);
+		const tokenCount = countTokens(content);
+		return tokenCount <= tokenLimit;
 	} catch (error) {
 		logger.error(`Error executing ctags command: ${error.message}`);
 		return false;
@@ -66,17 +67,18 @@ export async function generateCtags(bbaiDir: string, projectRoot: string): Promi
 	}
 
 	const tagsFilePath = ctagsConfig?.tagsFilePath ? ctagsConfig.tagsFilePath : join(bbaiDir, 'tags');
-	logger.info('Ctags using tags file: ', tagsFilePath);
+	const tokenLimit = ctagsConfig?.tokenLimit || 1024;
+	logger.info(`Ctags using tags file: ${tagsFilePath}, token limit: ${tokenLimit}`);
 
 	for (let tier = 0; tier < TIERS.length; tier++) {
 		logger.info(`Attempting to generate ctags with tier ${tier}`);
-		if (await generateCtagsTier(projectRoot, tagsFilePath, tier)) {
+		if (await generateCtagsTier(projectRoot, tagsFilePath, tier, tokenLimit)) {
 			logger.info(`Ctags file generated successfully at ${tagsFilePath} using tier ${tier}`);
 			return;
 		}
 	}
 
-	logger.error('Failed to generate ctags file within size limit after all tiers');
+	logger.error(`Failed to generate ctags file within token limit (${tokenLimit}) after all tiers`);
 }
 
 export async function readCtagsFile(bbaiDir: string): Promise<string | null> {

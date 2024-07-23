@@ -29,6 +29,7 @@ export const defaultConfig: ConfigSchema = {
 	ctags: {
 		autoGenerate: true,
 		//tagsFilePath: 'tags',
+		tokenLimit: 1024,
 	},
 	logFile: 'api.log',
 	logLevel: 'info',
