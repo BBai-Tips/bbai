@@ -10,7 +10,7 @@ export const viewLogs = new Command()
 	.option('-n, --lines <number:number>', 'Number of lines to display (default: 20)', { default: 20 })
 	.option('-f, --follow', 'Follow the log output')
 	.action(async (options) => {
-		const bbaiDir = await getBbaiDir();
+		const bbaiDir = await getBbaiDir(Deno.cwd());
 		const logFile = config.logFile ?? 'api.log';
 		const logFilePath = join(bbaiDir, logFile);
 

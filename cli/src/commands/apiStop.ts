@@ -6,7 +6,7 @@ export const apiStop = new Command()
 	.name('stop')
 	.description('Stop the bbai API server')
 	.action(async () => {
-		if (!(await isApiRunning())) {
+		if (!(await isApiRunning(Deno.cwd()))) {
 			logger.info('bbai API server is not running.');
 			return;
 		}
@@ -22,7 +22,7 @@ export const apiStop = new Command()
 
 		try {
 			Deno.kill(pid, 'SIGTERM');
-			await removePid();
+			await removePid(Deno.cwd());
 			logger.info('bbai API server stopped successfully.');
 		} catch (error) {
 			logger.error(`Error stopping bbai API server: ${error.message}`);
