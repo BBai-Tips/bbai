@@ -335,9 +335,9 @@ export class ProjectEditor {
 				break;
 			case 'vector_search':
 				const query = (tool.toolInput as { query: string }).query;
-				const searchResults = await this.handleVectorSearch(query, tool.toolUseId);
-				response.searchResults = searchResults;
-				feedback = `Vector search completed for query: "${query}". ${searchResults.length} results found.`;
+				const vectorSearchResults = await this.handleVectorSearch(query, tool.toolUseId);
+				response.vectorSearchResults = vectorSearchResults;
+				feedback = `Vector search completed for query: "${query}". ${vectorSearchResults.length} results found.`;
 				break;
 			case 'apply_patch':
 				const { filePath, patch } = tool.toolInput as { filePath: string; patch: string };
@@ -346,8 +346,8 @@ export class ProjectEditor {
 				break;
 			case 'search_repository':
 				const { pattern, file_pattern } = tool.toolInput as { pattern: string; file_pattern?: string };
-				const searchResults = await this.handleSearchRepository(pattern, file_pattern, tool.toolUseId);
-				feedback = `Repository search completed. ${searchResults.length} files found matching the pattern.`;
+				const repoSearchResults = await this.handleSearchRepository(pattern, file_pattern, tool.toolUseId);
+				feedback = `Repository search completed. ${repoSearchResults.length} files found matching the pattern.`;
 				break;
 			default:
 				logger.warn(`Unknown tool used: ${tool.toolName}`);
