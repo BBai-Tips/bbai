@@ -85,23 +85,7 @@ Thumbs.db
 }
 
 export async function createDefaultConfig(cwd: string): Promise<void> {
-  const configPath = join(cwd, '.bbai', 'config.yaml');
-  const defaultConfig = {
-    api: {
-      environment: 'local',
-      apiPort: 3000,
-      ignoreLLMRequestCache: false,
-    },
-    cli: {},
-    logLevel: 'info',
-  };
-
-  try {
-    await ensureFile(configPath);
-    await Deno.writeTextFile(configPath, stringifyYaml(defaultConfig));
-    logger.info('Created default config file');
-  } catch (error) {
-    logger.error(`Failed to create default config file: ${error.message}`);
-    throw error;
-  }
+  const configManager = await ConfigManager.getInstance();
+  await configManager.ensureUserConfig(cwd);
+  logger.info('Created default config file');
 }

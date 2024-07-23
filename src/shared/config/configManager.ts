@@ -39,9 +39,10 @@ export class ConfigManager {
 		this.config = mergeConfigs(userConfig, projectConfig, envConfig);
 	}
 
-	private async ensureUserConfig(): Promise<void> {
+	public async ensureUserConfig(cwd: string): Promise<void> {
 		const userConfigDir = join(Deno.env.get('HOME') || '', '.config', 'bbai');
 		const userConfigPath = join(userConfigDir, 'config.yaml');
+		const projectConfigPath = join(cwd, '.bbai', 'config.yaml');
 
 		try {
 			await Deno.stat(userConfigPath);
@@ -80,6 +81,24 @@ export class ConfigManager {
 			} else {
 				throw error;
 			}
+		}
+
+		// Create or update project-specific config
+		try {
+			await ensureDir(join(cwd, '.bbai'));
+			const projectConfig = {
+				api: {
+					environment: 'local',
+					apiPort: 3000,
+					ignoreLLMRequestCache: false,
+				},
+				cli: {},
+				logLevel: 'info',
+			};
+			await Deno.writeTextFile(projectConfigPath, stringifyYaml(projectConfig));
+		} catch (error) {
+			logger.error(`Failed to create or update project config file: ${error.message}`);
+			throw error;
 		}
 	}
 
