@@ -15,7 +15,7 @@ export async function generateCtags(bbaiDir: string, projectRoot: string): Promi
 	const tagsFilePath = ctagsConfig?.tagsFilePath ? ctagsConfig.tagsFilePath : join(bbaiDir, 'tags');
 	logger.info('Ctags using tags file: ', tagsFilePath);
 
-	// Check for tags.ignore and .gitignore
+	// Check for tags.ignore, .gitignore, and .bbai/tags.ignore
 	const tagsIgnoreFile = join(projectRoot, 'tags.ignore');
 	const gitIgnoreFile = join(projectRoot, '.gitignore');
 	const bbaiIgnoreFile = join(bbaiDir, 'tags.ignore');
@@ -30,21 +30,13 @@ export async function generateCtags(bbaiDir: string, projectRoot: string): Promi
 		excludeOptions.push(`--exclude=@${gitIgnoreFile}`);
 	}
 
-	// If neither file exists, create .bbai/tags.ignore
-	if (excludeOptions.length === 0) {
-		await ensureDir(bbaiDir);
-		await Deno.writeTextFile(bbaiIgnoreFile, '.bbai/*\n');
+	if (await exists(bbaiIgnoreFile)) {
 		excludeOptions.push(`--exclude=@${bbaiIgnoreFile}`);
-	} else {
-		// Check if .bbai/* is in the ignore files, add if missing
-		for (const file of [tagsIgnoreFile, gitIgnoreFile]) {
-			if (await exists(file)) {
-				const ignoreContent = await Deno.readTextFile(file);
-				if (!ignoreContent.includes('.bbai/*')) {
-					await Deno.writeTextFile(file, ignoreContent + '\n.bbai/*\n');
-				}
-			}
-		}
+	}
+
+	// Ensure .bbai/* is excluded
+	if (excludeOptions.length === 0) {
+		excludeOptions.push('--exclude=.bbai/*');
 	}
 
 	const command = new Deno.Command('ctags', {
