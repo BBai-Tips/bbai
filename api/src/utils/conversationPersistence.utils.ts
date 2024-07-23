@@ -17,7 +17,7 @@ export class ConversationPersistence {
 	private initialized: boolean = false;
 
 	constructor(private conversationId: string, private projectEditor: ProjectEditor) {
-		this.ensureInitialized();
+		//this.ensureInitialized();
 	}
 
 	private async ensureInitialized(): Promise<void> {
@@ -31,11 +31,12 @@ export class ConversationPersistence {
 		const bbaiDir = await this.projectEditor.getBbaiDir();
 		const conversationsDir = join(bbaiDir, 'cache', 'conversations');
 		this.conversationDir = join(conversationsDir, this.conversationId);
+		await ensureDir(this.conversationDir);
+
 		this.metadataPath = join(this.conversationDir, 'metadata.json');
 		this.messagesPath = join(this.conversationDir, 'messages.jsonl');
 		this.patchLogPath = join(this.conversationDir, 'patches.jsonl');
 		this.filesDir = join(this.conversationDir, 'files');
-		await ensureDir(this.conversationDir);
 		await ensureDir(this.filesDir);
 	}
 
@@ -67,9 +68,13 @@ export class ConversationPersistence {
 				tools: conversation.getTools(),
 				repositoryInfo: {
 					type: conversation.ctagsContent ? 'ctags' : 'fileListing',
-					content: conversation.ctagsContent ? 'ctags' : conversation.fileListingContent ? 'fileListing' : null,
-					tier: conversation.repositoryInfoTier
-				}
+					content: conversation.ctagsContent
+						? 'ctags'
+						: conversation.fileListingContent
+						? 'fileListing'
+						: null,
+					tier: conversation.repositoryInfoTier,
+				},
 			};
 
 			await Deno.writeTextFile(this.metadataPath, JSON.stringify(metadata, null, 2));
@@ -90,7 +95,8 @@ export class ConversationPersistence {
 					return null;
 				}
 			}).filter(Boolean).join('\n') + '\n';
-			await Deno.writeTextFile(this.messagesPath, messagesContent, { append: true });
+			// 			await Deno.writeTextFile(this.messagesPath, messagesContent, { append: true });
+			await Deno.writeTextFile(this.messagesPath, messagesContent);
 			logger.info(`Saved messages for conversation: ${conversation.id}`);
 
 			// Save files
@@ -210,11 +216,14 @@ export class ConversationPersistence {
 	}
 
 	async logPatch(filePath: string, patch: string): Promise<void> {
+		await this.ensureInitialized();
+
 		const patchEntry = JSON.stringify({
 			timestamp: new Date().toISOString(),
 			filePath,
 			patch,
 		}) + '\n';
+		logger.info(`Writing patch file: ${this.patchLogPath}`);
 
 		await Deno.writeTextFile(this.patchLogPath, patchEntry, { append: true });
 	}
