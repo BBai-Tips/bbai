@@ -15,27 +15,40 @@ export async function generateCtags(bbaiDir: string, projectRoot: string): Promi
 	const tagsFilePath = ctagsConfig?.tagsFilePath ? ctagsConfig.tagsFilePath : join(bbaiDir, 'tags');
 	logger.info('Ctags using tags file: ', tagsFilePath);
 
-	// Check for tags.ignore or .gitignore
-	let ignoreFile = join(projectRoot, 'tags.ignore');
-	if (!await exists(ignoreFile)) {
-		ignoreFile = join(projectRoot, '.gitignore');
+	// Check for tags.ignore and .gitignore
+	const tagsIgnoreFile = join(projectRoot, 'tags.ignore');
+	const gitIgnoreFile = join(projectRoot, '.gitignore');
+	const bbaiIgnoreFile = join(bbaiDir, 'tags.ignore');
+
+	let excludeOptions = [];
+
+	if (await exists(tagsIgnoreFile)) {
+		excludeOptions.push(`--exclude=@${tagsIgnoreFile}`);
+	}
+
+	if (await exists(gitIgnoreFile)) {
+		excludeOptions.push(`--exclude=@${gitIgnoreFile}`);
 	}
 
 	// If neither file exists, create .bbai/tags.ignore
-	if (!await exists(ignoreFile)) {
-		ignoreFile = join(bbaiDir, 'tags.ignore');
+	if (excludeOptions.length === 0) {
 		await ensureDir(bbaiDir);
-		await Deno.writeTextFile(ignoreFile, '.bbai/*\n');
+		await Deno.writeTextFile(bbaiIgnoreFile, '.bbai/*\n');
+		excludeOptions.push(`--exclude=@${bbaiIgnoreFile}`);
 	} else {
-		// Check if .bbai/* is in the ignore file, add if missing
-		const ignoreContent = await Deno.readTextFile(ignoreFile);
-		if (!ignoreContent.includes('.bbai/*')) {
-			await Deno.writeTextFile(ignoreFile, ignoreContent + '\n.bbai/*\n');
+		// Check if .bbai/* is in the ignore files, add if missing
+		for (const file of [tagsIgnoreFile, gitIgnoreFile]) {
+			if (await exists(file)) {
+				const ignoreContent = await Deno.readTextFile(file);
+				if (!ignoreContent.includes('.bbai/*')) {
+					await Deno.writeTextFile(file, ignoreContent + '\n.bbai/*\n');
+				}
+			}
 		}
 	}
 
 	const command = new Deno.Command('ctags', {
-		args: ['-R', '--fields=+l', '--languages=all', '-f', tagsFilePath, '--exclude=@' + ignoreFile, '.'],
+		args: ['-R', '--fields=+l', '--languages=all', '-f', tagsFilePath, ...excludeOptions, '.'],
 		cwd: projectRoot,
 	});
 
