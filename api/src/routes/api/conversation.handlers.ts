@@ -43,28 +43,35 @@ export const continueConversation = async (ctx: Context) => {
 		const body = await ctx.request.body.json();
 		const { prompt, conversationId, cwd } = body;
 
+		logger.info(`Continuing conversation. ConversationId: ${conversationId}, Prompt: "${prompt.substring(0, 50)}..."`);
+
 		if (!prompt || !conversationId) {
+			logger.warn('Missing prompt or conversationId');
 			ctx.response.status = 400;
 			ctx.response.body = { error: 'Missing prompt or conversationId' };
 			return;
 		}
 
 		if (!cwd) {
+			logger.warn('Missing cwd');
 			ctx.response.status = 400;
 			ctx.response.body = { error: 'Missing cwd' };
 			return;
 		}
 
+		logger.debug(`Creating ProjectEditor with cwd: ${cwd}`);
 		const projectEditor = new ProjectEditor(cwd);
 		await projectEditor.init();
 
+		logger.info(`Calling speakWithLLM for conversation: ${conversationId}`);
 		const response = await projectEditor.speakWithLLM(prompt, undefined, undefined, conversationId);
 
+		logger.debug('Response received from speakWithLLM');
 		ctx.response.body = response;
 	} catch (error) {
-		logger.error(`Error in continueConversation: ${error.message}`);
+		logger.error(`Error in continueConversation: ${error.message}`, error);
 		ctx.response.status = 500;
-		ctx.response.body = { error: 'Failed to generate response' };
+		ctx.response.body = { error: 'Failed to generate response', details: error.message };
 	}
 };
 
