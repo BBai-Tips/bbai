@@ -98,13 +98,6 @@ export const getConversation = async (
 	}
 };
 
-export const updateConversation = async (
-	{ params, response }: { params: { id: string }; response: Context['response'] },
-) => {
-	// Update conversation
-	response.body = { message: `Conversation ${params.id} updated` };
-};
-
 export const deleteConversation = async (
 	{ params, response }: { params: { id: string }; response: Context['response'] },
 ) => {
