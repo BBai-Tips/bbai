@@ -16,17 +16,35 @@ class ApiClient {
 	}
 
 	async get(endpoint: string) {
-		return await fetch(`${this.baseUrl}${endpoint}`);
+		try {
+			const response = await fetch(`${this.baseUrl}${endpoint}`);
+			if (!response.ok) {
+				throw new Error(`HTTP error! status: ${response.status}`);
+			}
+			return response;
+		} catch (error) {
+			logger.error(`GET request failed for ${endpoint}: ${error.message}`);
+			throw error;
+		}
 	}
 
 	async post(endpoint: string, data: Record<string, unknown>) {
-		return await fetch(`${this.baseUrl}${endpoint}`, {
-			method: 'POST',
-			headers: {
-				'Content-Type': 'application/json',
-			},
-			body: JSON.stringify(data),
-		});
+		try {
+			const response = await fetch(`${this.baseUrl}${endpoint}`, {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+				},
+				body: JSON.stringify(data),
+			});
+			if (!response.ok) {
+				throw new Error(`HTTP error! status: ${response.status}`);
+			}
+			return response;
+		} catch (error) {
+			logger.error(`POST request failed for ${endpoint}: ${error.message}`);
+			throw error;
+		}
 	}
 }
 
