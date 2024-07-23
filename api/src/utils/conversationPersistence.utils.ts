@@ -52,8 +52,6 @@ export class ConversationPersistence {
 	}
 
 	async saveConversation(conversation: LLMConversation): Promise<void> {
-		// TODO: There is a `building-fast` branch that has the previous "optimized, but buggy" solution.
-		// This current implementation is simpler but may be less efficient.
 		try {
 			await this.ensureInitialized();
 
@@ -79,14 +77,19 @@ export class ConversationPersistence {
 
 			// Save messages
 			const messages = conversation.getMessages();
-			const messagesContent = messages.map((m) =>
-				JSON.stringify({
-					role: m.role,
-					content: m.content,
-					id: m.id,
-					providerResponse: m.providerResponse,
-				})
-			).join('\n') + '\n';
+			const messagesContent = messages.map((m) => {
+				if (m && typeof m === 'object') {
+					return JSON.stringify({
+						role: m.role,
+						content: m.content,
+						id: m.id,
+						providerResponse: m.providerResponse,
+					});
+				} else {
+					logger.warn(`Invalid message encountered: ${JSON.stringify(m)}`);
+					return null;
+				}
+			}).filter(Boolean).join('\n') + '\n';
 			await Deno.writeTextFile(this.messagesPath, messagesContent);
 			logger.info(`Saved messages for conversation: ${conversation.id}`);
 
@@ -175,10 +178,17 @@ export class ConversationPersistence {
 			const messageLines = messagesContent.trim().split('\n');
 
 			for (const line of messageLines) {
-				const turnData = JSON.parse(line);
-				conversation.addMessage(turnData.message);
-				if (turnData.response) {
-					conversation.addMessage(turnData.response);
+				try {
+					const turnData = JSON.parse(line);
+					if (turnData.message && typeof turnData.message === 'object') {
+						conversation.addMessage(turnData.message);
+					}
+					if (turnData.response && typeof turnData.response === 'object') {
+						conversation.addMessage(turnData.response);
+					}
+				} catch (error) {
+					logger.error(`Error parsing message: ${error.message}`);
+					// Continue to the next message if there's an error
 				}
 			}
 		}

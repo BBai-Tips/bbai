@@ -173,18 +173,17 @@ export class ProjectEditor {
 				logger.debug(`Stack trace:`, error.stack);
 				this.conversation = null;
 			}
-		} else {
-			logger.info(`No conversation ID provided. Will create a new conversation.`);
 		}
 
 		if (!this.conversation) {
-			logger.info(`No existing conversation. Creating a new one.`);
+			logger.info(`Creating a new conversation.`);
 			try {
 				const systemPrompt = await this.promptManager.getPrompt('system', {
 					userDefinedContent: 'You are an AI assistant helping with code and project management.',
 				});
 
 				this.conversation = this.llmProvider.createConversation();
+				this.conversation.id = conversationId || this.conversation.id; // Use provided ID or generated one
 				this.conversation.baseSystem = systemPrompt;
 				if (model) this.conversation.model = model;
 
