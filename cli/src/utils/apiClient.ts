@@ -11,7 +11,6 @@ class ApiClient {
 	static async create(): Promise<ApiClient> {
 		const apiPort = config.api?.apiPort || 3000;
 		const baseUrl = `http://localhost:${apiPort}`;
-		logger.info(`Creating API client with base URL: ${baseUrl}`);
 		return new ApiClient(baseUrl);
 	}
 

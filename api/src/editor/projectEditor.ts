@@ -183,7 +183,7 @@ export class ProjectEditor {
 				});
 
 				this.conversation = this.llmProvider.createConversation();
-				this.conversation.id = conversationId || LLMConversation.generateShortId();
+				//this.conversation.id = conversationId || LLMConversation.generateShortId();
 				this.conversation.baseSystem = systemPrompt;
 				if (model) this.conversation.model = model;
 
