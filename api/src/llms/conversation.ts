@@ -28,6 +28,7 @@ export interface FileMetadata {
 	inSystemPrompt: boolean;
 	messageId?: string;
 	toolUseId?: string;
+	error?: string | null;
 }
 
 class LLMConversation {
@@ -143,16 +144,17 @@ class LLMConversation {
 			}
 		}
 
-		const filesSummary = filesToAdd.map(file => `${file.fileName} (${file.metadata.error ? 'Error' : 'Success'})`).join(', ');
+		const filesSummary = filesToAdd.map((file) => `${file.fileName} (${file.metadata.error ? 'Error' : 'Success'})`)
+			.join(', ');
 		const toolResultContentPart = {
 			type: 'tool_result',
 			tool_use_id: toolUseId,
 			content: [
 				{
 					type: 'text',
-					text: `Files added to the conversation: ${filesSummary}`
+					text: `Files added to the conversation: ${filesSummary}`,
 				} as LLMMessageContentPartTextBlock,
-				...contentParts
+				...contentParts,
 			],
 			is_error: allFilesFailed,
 		} as LLMMessageContentPartToolResultBlock;

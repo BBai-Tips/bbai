@@ -13,6 +13,7 @@ export interface ConfigSchema {
 	ctags: {
 		autoGenerate: boolean;
 		tagsFilePath?: string;
+		tokenLimit?: number;
 	};
 	logFile?: string;
 	logLevel: 'debug' | 'info' | 'warn' | 'error';

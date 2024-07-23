@@ -391,6 +391,13 @@ export class ProjectEditor {
 			}
 		}
 
+		// const storageLocation = this.determineStorageLocation(fullFilePath, content, source);
+		// if (storageLocation === 'system') {
+		// 	await this.conversation.addFileForSystemPrompt(fileName, metadata);
+		// } else {
+		// 	await this.conversation.addFileToMessageArray(fileName, metadata, toolUseId);
+		// }
+
 		await this.conversation.addFilesToMessageArray(filesAdded, toolUseId);
 
 		return filesAdded;

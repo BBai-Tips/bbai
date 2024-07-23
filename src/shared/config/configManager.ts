@@ -5,6 +5,7 @@ import { stripIndent } from 'common-tags';
 
 import { GitUtils } from '../utils/git.utils.ts';
 import { ConfigSchema, mergeConfigs } from './configSchema.ts';
+import { logger } from 'shared/logger.ts';
 
 export class ConfigManager {
 	private static instance: ConfigManager;
@@ -39,7 +40,7 @@ export class ConfigManager {
 		this.config = mergeConfigs(userConfig, projectConfig, envConfig);
 	}
 
-	public async ensureUserConfig(cwd: string): Promise<void> {
+	public async ensureUserConfig(): Promise<void> {
 		const userConfigDir = join(Deno.env.get('HOME') || '', '.config', 'bbai');
 		const userConfigPath = join(userConfigDir, 'config.yaml');
 
