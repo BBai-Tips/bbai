@@ -370,7 +370,7 @@ export class ProjectEditor {
 		return await this.searchEmbeddings(query);
 	}
 
-	async handleSearchRepository(pattern: string, toolUseId: string, file_pattern?: string): Promise<string[]> {
+	async handleSearchRepository(pattern: string, file_pattern: string | undefined, toolUseId: string): Promise<string[]> {
 		const projectRoot = await this.getProjectRoot();
 		let command = ['grep', '-r', '-l', pattern];
 
