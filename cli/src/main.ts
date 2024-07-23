@@ -52,3 +52,29 @@ export const main = async () => {
 if (import.meta.main) {
 	main();
 }
+
+// Add this function to handle the conversation output
+function handleConversationOutput(response: any, options: any) {
+	const isNewConversation = !options.id;
+	const conversationId = response.conversationId;
+	const statementNumber = response.statementNumber;
+	const turnNumber = response.turnNumber;
+
+	if (options.json) {
+		console.log(JSON.stringify({
+			...response,
+			isNewConversation,
+			conversationId,
+			statementNumber,
+			turnNumber
+		}, null, 2));
+	} else {
+		console.log(response.response.answerContent[0].text);
+		
+		if (isNewConversation) {
+			console.log(`\nNew conversation started. Conversation ID: ${conversationId}`);
+			console.log(`To continue this conversation, use:`);
+			console.log(`bbai chat -i ${conversationId} -p "Your next question"`);
+		}
+	}
+}

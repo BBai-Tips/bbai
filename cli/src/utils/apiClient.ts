@@ -46,6 +46,12 @@ class ApiClient {
 			throw error;
 		}
 	}
+
+	async sendPrompt(prompt: string, conversationId?: string): Promise<any> {
+		const endpoint = conversationId ? `/api/v1/prompt/${conversationId}` : '/api/v1/prompt';
+		const response = await this.post(endpoint, { prompt });
+		return await response.json();
+	}
 }
 
 export const apiClient = await ApiClient.create();
