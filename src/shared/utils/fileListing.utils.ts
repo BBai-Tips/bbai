@@ -1,11 +1,11 @@
 import { join, relative } from '@std/path';
-import { walk } from '@std/fs';
+import { exists, walk } from '@std/fs';
 import { ConfigManager } from 'shared/configManager.ts';
 import { logger } from './logger.utils.ts';
 import { countTokens } from 'anthropic-tokenizer';
 import { contentType } from '@std/media-types';
 
-const FILE_LISTING_TIERS = [
+export const FILE_LISTING_TIERS = [
 	{ depth: Infinity, includeMetadata: true },
 	{ depth: Infinity, includeMetadata: false },
 	{ depth: 5, includeMetadata: false },

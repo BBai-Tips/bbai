@@ -139,7 +139,7 @@ class LLM {
 		const fileListingContent = await generateFileListing(projectRoot);
 		if (fileListingContent) {
 			// Determine which tier was used for file listing
-			const tier = FILE_LISTING_TIERS.findIndex((t) => t.depth === Infinity && t.includeMetadata === true);
+			const tier = FILE_LISTING_TIERS.findIndex((t: { depth: number; includeMetadata: boolean }) => t.depth === Infinity && t.includeMetadata === true);
 			conversation.repositoryInfoTier = tier !== -1 ? tier : null;
 			return fileListingContent;
 		}
