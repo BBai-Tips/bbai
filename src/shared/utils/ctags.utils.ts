@@ -7,10 +7,10 @@ import { contentType } from '@std/media-types';
 
 const TIERS = [
 	{ args: ['-R', '--fields=+l', '--languages=all'] },
-	{ args: ['-R', '--fields=+l', '--languages=c,cpp,javascript,typescript,python,java,go'] },
-	{ args: ['-R', '--fields=+l', '--languages=c,cpp,javascript,typescript,python,java,go', '--kinds-all=-v'] },
-	{ args: ['-R', '--fields=+l', '--languages=c,cpp,javascript,typescript,python,java,go', '--kinds-all=-v,-p'] },
-	{ args: ['-R', '--fields=+l', '--languages=c,cpp,javascript,typescript,python,java,go', '--kinds-all=f,c,m'] },
+	{ args: ['-R', '--fields=+l', '--languages=c,c++,javascript,typescript,python,java,go'] },
+	{ args: ['-R', '--fields=+l', '--languages=c,c++,javascript,typescript,python,java,go', '--kinds-c-=-v', '--kinds-c++=-v', '--kinds-javascript=-v', '--kinds-typescript=-v', '--kinds-python=-v', '--kinds-java=-v', '--kinds-go=-v'] },
+	{ args: ['-R', '--fields=+l', '--languages=c,c++,javascript,typescript,python,java,go', '--kinds-c-=-v,-p', '--kinds-c++=-v,-p', '--kinds-javascript=-v,-p', '--kinds-typescript=-v,-p', '--kinds-python=-v,-p', '--kinds-java=-v,-p', '--kinds-go=-v,-p'] },
+	{ args: ['-R', '--fields=+l', '--languages=c,c++,javascript,typescript,python,java,go', '--kinds-c-=f,c,m', '--kinds-c++=f,c,m', '--kinds-javascript=f,c,m', '--kinds-typescript=f,c,m', '--kinds-python=f,c,m', '--kinds-java=f,c,m', '--kinds-go=f,c,m'] },
 ];
 
 const FILE_LISTING_TIERS = [
