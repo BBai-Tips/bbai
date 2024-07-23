@@ -47,6 +47,7 @@ class LLMConversation {
 
 	protected _baseSystem: string = '';
 	protected _ctagsContent: string = '';
+	protected _fileListingContent: string = '';
 	protected _model: string = '';
 	protected _maxTokens: number = 4000;
 	protected _temperature: number = 0.2;
@@ -291,6 +292,14 @@ class LLMConversation {
 
 	set ctagsContent(value: string) {
 		this._ctagsContent = value;
+	}
+
+	get fileListingContent(): string {
+		return this._fileListingContent;
+	}
+
+	set fileListingContent(value: string) {
+		this._fileListingContent = value;
 	}
 
 	get model(): string {

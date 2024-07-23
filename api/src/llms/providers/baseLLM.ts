@@ -119,22 +119,18 @@ class LLM {
 		return system;
 	}
 
-	protected async getRepositoryInfo(bbaiDir: string, projectRoot: string): Promise<string> {
+	protected async getRepositoryInfo(bbaiDir: string, projectRoot: string): Promise<string | null> {
 		const ctagsContent = await readCtagsFile(bbaiDir);
 		if (ctagsContent) {
 			return ctagsContent;
 		}
 
-		const config = await ConfigManager.getInstance();
-		const ctagsConfig = config.getConfig().ctags;
-		const tokenLimit = ctagsConfig?.tokenLimit || 1024;
-
-		const fileListingContent = await generateFileListing(projectRoot, tokenLimit);
+		const fileListingContent = await generateFileListing(projectRoot);
 		if (fileListingContent) {
 			return fileListingContent;
 		}
 
-		return '';
+		return null;
 	}
 
 	protected async hydrateMessages(conversation: LLMConversation, messages: LLMMessage[]): Promise<LLMMessage[]> {

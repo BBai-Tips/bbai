@@ -14,7 +14,11 @@ const FILE_LISTING_TIERS = [
 	{ depth: 1, includeMetadata: false },
 ];
 
-export async function generateFileListing(projectRoot: string, tokenLimit: number): Promise<string | null> {
+export async function generateFileListing(projectRoot: string): Promise<string | null> {
+	const config = await ConfigManager.getInstance();
+	const ctagsConfig = config.getConfig().ctags;
+	const tokenLimit = ctagsConfig?.tokenLimit || 1024;
+
 	const excludeOptions = await getExcludeOptions(projectRoot);
 	
 	for (const tier of FILE_LISTING_TIERS) {
