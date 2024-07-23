@@ -17,7 +17,7 @@ export class ConversationPersistence {
 	private initialized: boolean = false;
 
 	constructor(private conversationId: string, private projectEditor: ProjectEditor) {
-		this.ensureInitialized();
+		//this.ensureInitialized();
 	}
 
 	private async ensureInitialized(): Promise<void> {
@@ -31,11 +31,12 @@ export class ConversationPersistence {
 		const bbaiDir = await this.projectEditor.getBbaiDir();
 		const conversationsDir = join(bbaiDir, 'cache', 'conversations');
 		this.conversationDir = join(conversationsDir, this.conversationId);
+		await ensureDir(this.conversationDir);
+
 		this.metadataPath = join(this.conversationDir, 'metadata.json');
 		this.messagesPath = join(this.conversationDir, 'messages.jsonl');
 		this.patchLogPath = join(this.conversationDir, 'patches.jsonl');
 		this.filesDir = join(this.conversationDir, 'files');
-		await ensureDir(this.conversationDir);
 		await ensureDir(this.filesDir);
 	}
 
@@ -52,8 +53,6 @@ export class ConversationPersistence {
 	}
 
 	async saveConversation(conversation: LLMConversation): Promise<void> {
-		// TODO: There is a `building-fast` branch that has the previous "optimized, but buggy" solution.
-		// This current implementation is simpler but may be less efficient.
 		try {
 			await this.ensureInitialized();
 
@@ -67,6 +66,15 @@ export class ConversationPersistence {
 				turnCount: conversation.turnCount,
 				totalTokenUsage: conversation.totalTokenUsage,
 				tools: conversation.getTools(),
+				repositoryInfo: {
+					type: conversation.ctagsContent ? 'ctags' : 'fileListing',
+					content: conversation.ctagsContent
+						? 'ctags'
+						: conversation.fileListingContent
+						? 'fileListing'
+						: null,
+					tier: conversation.repositoryInfoTier,
+				},
 			};
 
 			await Deno.writeTextFile(this.metadataPath, JSON.stringify(metadata, null, 2));
@@ -74,14 +82,20 @@ export class ConversationPersistence {
 
 			// Save messages
 			const messages = conversation.getMessages();
-			const messagesContent = messages.map((m) =>
-				JSON.stringify({
-					role: m.role,
-					content: m.content,
-					id: m.id,
-					providerResponse: m.providerResponse,
-				})
-			).join('\n') + '\n';
+			const messagesContent = messages.map((m) => {
+				if (m && typeof m === 'object') {
+					return JSON.stringify({
+						role: m.role,
+						content: m.content,
+						id: m.id,
+						providerResponse: m.providerResponse,
+					});
+				} else {
+					logger.warn(`Invalid message encountered: ${JSON.stringify(m)}`);
+					return null;
+				}
+			}).filter(Boolean).join('\n') + '\n';
+			// 			await Deno.writeTextFile(this.messagesPath, messagesContent, { append: true });
 			await Deno.writeTextFile(this.messagesPath, messagesContent);
 			logger.info(`Saved messages for conversation: ${conversation.id}`);
 
@@ -97,6 +111,23 @@ export class ConversationPersistence {
 			logger.error(`Error saving conversation: ${error.message}`);
 			this.handleSaveError(error, this.metadataPath);
 		}
+	}
+
+	async saveMetadata(metadata: { statementCount: number; totalTurnCount: number }): Promise<void> {
+		await this.ensureInitialized();
+		const existingMetadata = await this.getMetadata();
+		const updatedMetadata = { ...existingMetadata, ...metadata };
+		await Deno.writeTextFile(this.metadataPath, JSON.stringify(updatedMetadata, null, 2));
+		logger.info(`Metadata saved for conversation: ${this.conversationId}`);
+	}
+
+	async getMetadata(): Promise<any> {
+		await this.ensureInitialized();
+		if (await exists(this.metadataPath)) {
+			const metadataContent = await Deno.readTextFile(this.metadataPath);
+			return JSON.parse(metadataContent);
+		}
+		return {};
 	}
 
 	// Remove the saveConversationMessage method as it's no longer needed
@@ -153,10 +184,12 @@ export class ConversationPersistence {
 			const messageLines = messagesContent.trim().split('\n');
 
 			for (const line of messageLines) {
-				const turnData = JSON.parse(line);
-				conversation.addMessage(turnData.message);
-				if (turnData.response) {
-					conversation.addMessage(turnData.response);
+				try {
+					const messageData = JSON.parse(line);
+					conversation.addMessage(messageData);
+				} catch (error) {
+					logger.error(`Error parsing message: ${error.message}`);
+					// Continue to the next message if there's an error
 				}
 			}
 		}
@@ -183,11 +216,14 @@ export class ConversationPersistence {
 	}
 
 	async logPatch(filePath: string, patch: string): Promise<void> {
+		await this.ensureInitialized();
+
 		const patchEntry = JSON.stringify({
 			timestamp: new Date().toISOString(),
 			filePath,
 			patch,
 		}) + '\n';
+		logger.info(`Writing patch file: ${this.patchLogPath}`);
 
 		await Deno.writeTextFile(this.patchLogPath, patchEntry, { append: true });
 	}

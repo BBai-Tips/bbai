@@ -26,6 +26,7 @@
 		"@std/path": "jsr:@std/path@^0.225.1",
 		"@std/io": "jsr:@std/io@^0.224.1",
 		"@std/log": "jsr:@std/log@^0.224.1",
+		"@std/media-types": "jsr:@std/media-types@^1.0.2",
 		"@std/ulid": "jsr:@std/ulid@^0.224.1",
 		"@std/uuid": "jsr:@std/uuid@^0.224.3",
 		"@std/crypto": "jsr:@std/crypto@^0.224.0",
@@ -36,6 +37,7 @@
 		"shared/logger.ts": "./src/shared/utils/logger.utils.ts",
 		"shared/dataDir.ts": "./src/shared/utils/dataDir.utils.ts",
 		"shared/ctags.ts": "./src/shared/utils/ctags.utils.ts",
+		"shared/fileListing.ts": "./src/shared/utils/fileListing.utils.ts",
 		"shared/git.ts": "./src/shared/utils/git.utils.ts",
 		"shared/configManager.ts": "./src/shared/config/configManager.ts"
 	}

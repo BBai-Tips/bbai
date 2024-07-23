@@ -28,6 +28,7 @@ export interface FileMetadata {
 	inSystemPrompt: boolean;
 	messageId?: string;
 	toolUseId?: string;
+	error?: string | null;
 }
 
 class LLMConversation {
@@ -40,13 +41,19 @@ class LLMConversation {
 	private _files: Map<string, FileMetadata> = new Map();
 	private systemPromptFiles: string[] = [];
 
+	static generateShortId(): string {
+		return Math.random().toString(36).substring(2, 15);
+	}
+
 	private _system: string = '';
 
 	private persistence: ConversationPersistence;
 
 	protected _baseSystem: string = '';
 	protected _ctagsContent: string = '';
+	protected _fileListingContent: string = '';
 	protected _model: string = '';
+	protected _repositoryInfoTier: number | null = null;
 	protected _maxTokens: number = 4000;
 	protected _temperature: number = 0.2;
 	private _totalTokenUsage: LLMTokenUsage = { totalTokens: 0, inputTokens: 0, outputTokens: 0 };
@@ -54,27 +61,27 @@ class LLMConversation {
 	private _currentPrompt: string = '';
 
 	constructor(llm: LLM) {
-		this.id = this.generateShortId();
+		this.id = LLMConversation.generateShortId();
 		this.llm = llm;
 		this.persistence = new ConversationPersistence(this.id, this.llm.projectEditor);
 	}
 
-	private generateShortId(): string {
+	private static generateShortId(): string {
 		const uuid = crypto.randomUUID();
 		return uuid.replace(/-/g, '').substring(0, 8);
 	}
 
 	private addMessageForUserRole(contentPart: LLMMessageContentPart): string {
 		const lastMessage = this.messages[this.messages.length - 1];
-		logger.error('lastMessage', lastMessage);
+		logger.debug('lastMessage', lastMessage);
 		if (lastMessage && lastMessage.role === 'user') {
 			// Append contentPart to the content array of the last user message
-			logger.error('Adding content to existing user message', contentPart);
+			logger.debug('Adding content to existing user message', JSON.stringify(contentPart, null, 2));
 			lastMessage.content.push(contentPart);
 			return lastMessage.id ?? '';
 		} else {
 			// Add a new user message
-			logger.error('Adding content to new user message', contentPart);
+			logger.debug('Adding content to new user message', JSON.stringify(contentPart, null, 2));
 			const newMessage = new LLMMessage('user', [contentPart]);
 			this.addMessage(newMessage);
 			return newMessage.id ?? '';
@@ -115,6 +122,7 @@ class LLMConversation {
 	): Promise<void> {
 		const conversationFiles = [];
 		const contentParts = [];
+		let allFilesFailed = true;
 
 		for (const fileToAdd of filesToAdd) {
 			const filePath = fileToAdd.fileName;
@@ -127,23 +135,43 @@ class LLMConversation {
 				filePath,
 				fileMetadata,
 			});
-			contentParts.push({
-				'type': 'text',
-				'text': `File added: ${filePath}`,
-			} as LLMMessageContentPartTextBlock);
+
+			if (fileMetadata.error) {
+				contentParts.push({
+					'type': 'text',
+					'text': `Error adding file ${filePath}: ${fileMetadata.error}`,
+				} as LLMMessageContentPartTextBlock);
+			} else {
+				contentParts.push({
+					'type': 'text',
+					'text': `File added: ${filePath}`,
+				} as LLMMessageContentPartTextBlock);
+				allFilesFailed = false;
+			}
 		}
 
+		const filesSummary = filesToAdd.map((file) => `${file.fileName} (${file.metadata.error ? 'Error' : 'Success'})`)
+			.join(', ');
 		const toolResultContentPart = {
 			type: 'tool_result',
 			tool_use_id: toolUseId,
-			content: contentParts,
+			content: [
+				{
+					type: 'text',
+					text: `Files added to the conversation: ${filesSummary}`,
+				} as LLMMessageContentPartTextBlock,
+				...contentParts,
+			],
+			is_error: allFilesFailed,
 		} as LLMMessageContentPartToolResultBlock;
 
 		const messageId = this.addMessageForUserRole(toolResultContentPart);
 
 		for (const fileToAdd of conversationFiles) {
-			fileToAdd.fileMetadata.messageId = messageId;
-			this._files.set(fileToAdd.filePath, fileToAdd.fileMetadata);
+			if (!fileToAdd.fileMetadata.error) {
+				fileToAdd.fileMetadata.messageId = messageId;
+				this._files.set(fileToAdd.filePath, fileToAdd.fileMetadata);
+			}
 		}
 
 		//await this.persistence.saveConversation(this);
@@ -269,6 +297,22 @@ class LLMConversation {
 
 	set ctagsContent(value: string) {
 		this._ctagsContent = value;
+	}
+
+	get fileListingContent(): string {
+		return this._fileListingContent;
+	}
+
+	set fileListingContent(value: string) {
+		this._fileListingContent = value;
+	}
+
+	get repositoryInfoTier(): number | null {
+		return this._repositoryInfoTier;
+	}
+
+	set repositoryInfoTier(value: number | null) {
+		this._repositoryInfoTier = value;
 	}
 
 	get model(): string {

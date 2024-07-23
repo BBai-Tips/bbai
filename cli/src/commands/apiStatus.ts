@@ -1,34 +1,44 @@
 import { Command } from 'cliffy/command/mod.ts';
-import { logger } from 'shared/logger.ts';
 import { getPid, isApiRunning } from '../utils/pid.utils.ts';
 import { config } from 'shared/configManager.ts';
 
 export const apiStatus = new Command()
 	.name('status')
 	.description('Check the status of the bbai API server')
-	.action(async () => {
+	.option('--text', 'Return plain text instead of JSON')
+	.action(async (options) => {
 		const apiPort = config.api?.apiPort || 3000;
-
 		const cwd = Deno.cwd();
-		if (await isApiRunning(cwd)) {
+		const isRunning = await isApiRunning(cwd);
+		const status: {
+			running: boolean;
+			pid?: number;
+			apiUrl?: string;
+			apiStatus?: unknown;
+			error?: string;
+		} = { running: isRunning };
+
+		if (isRunning) {
 			const pid = await getPid(cwd);
-			logger.info(`bbai API server is running with PID: ${pid}`);
+			status.pid = pid !== null ? pid : undefined;
+			status.apiUrl = `http://localhost:${apiPort}`;
 
 			try {
 				const response = await fetch(`http://localhost:${apiPort}/api/v1/status`);
 				if (response.ok) {
-					const status = await response.json();
-					logger.info('API Status:');
-					logger.info(`  Status: ${status.status}`);
-					logger.info(`  Message: ${status.message}`);
-					logger.info(`  API URL: http://localhost:${apiPort}`);
+					const apiStatus = await response.json();
+					status.apiStatus = apiStatus;
 				} else {
-					logger.error(`Error fetching API status: ${response.statusText}`);
+					status.error = `Error fetching API status: ${response.statusText}`;
 				}
 			} catch (error) {
-				logger.error(`Error connecting to API: ${error.message}`);
+				status.error = `Error connecting to API: ${error instanceof Error ? error.message : String(error)}`;
 			}
+		}
+
+		if (options.text) {
+			console.log(JSON.stringify(status, null, 2));
 		} else {
-			logger.info('bbai API server is not running.');
+			console.log(JSON.stringify(status));
 		}
 	});

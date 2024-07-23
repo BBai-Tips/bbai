@@ -36,35 +36,45 @@ export const startConversation = async (ctx: Context) => {
 	}
 };
 
-export const continueConversation = async (ctx: Context) => {
+export const continueConversation = async (
+	{ params, request, response }: { params: { id: string }; request: Context['request']; response: Context['response'] },
+) => {
 	logger.debug('continueConversation called');
 
 	try {
-		const body = await ctx.request.body.json();
-		const { prompt, conversationId, cwd } = body;
+		const { id: conversationId } = params;
+		const body = await request.body.json();
+		const { prompt, cwd } = body;
 
-		if (!prompt || !conversationId) {
-			ctx.response.status = 400;
-			ctx.response.body = { error: 'Missing prompt or conversationId' };
+		logger.info(`Continuing conversation. ConversationId: ${conversationId}, Prompt: "${prompt?.substring(0, 50)}..."`);
+
+		if (!prompt) {
+			logger.warn('Missing prompt');
+			response.status = 400;
+			response.body = { error: 'Missing prompt' };
 			return;
 		}
 
 		if (!cwd) {
-			ctx.response.status = 400;
-			ctx.response.body = { error: 'Missing cwd' };
+			logger.warn('Missing cwd');
+			response.status = 400;
+			response.body = { error: 'Missing cwd' };
 			return;
 		}
 
+		logger.debug(`Creating ProjectEditor with cwd: ${cwd}`);
 		const projectEditor = new ProjectEditor(cwd);
 		await projectEditor.init();
 
-		const response = await projectEditor.speakWithLLM(prompt, undefined, undefined, conversationId);
+		logger.info(`Calling speakWithLLM for conversation: ${conversationId}`);
+		const result = await projectEditor.speakWithLLM(prompt, undefined, undefined, conversationId);
 
-		ctx.response.body = response;
+		logger.debug('Response received from speakWithLLM');
+		response.body = result;
 	} catch (error) {
-		logger.error(`Error in continueConversation: ${error.message}`);
-		ctx.response.status = 500;
-		ctx.response.body = { error: 'Failed to generate response' };
+		logger.error(`Error in continueConversation: ${error.message}`, error);
+		response.status = 500;
+		response.body = { error: 'Failed to generate response', details: error.message };
 	}
 };
 
@@ -96,13 +106,6 @@ export const getConversation = async (
 		response.status = 404;
 		response.body = { error: 'Conversation not found' };
 	}
-};
-
-export const updateConversation = async (
-	{ params, response }: { params: { id: string }; response: Context['response'] },
-) => {
-	// Update conversation
-	response.body = { message: `Conversation ${params.id} updated` };
 };
 
 export const deleteConversation = async (

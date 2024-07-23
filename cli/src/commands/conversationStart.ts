@@ -8,6 +8,7 @@ export const conversationStart = new Command()
 	.option('-p, --prompt <string>', 'Prompt to start or continue the conversation')
 	.option('-i, --id <string>', 'Conversation ID to continue')
 	.option('-m, --model <string>', 'LLM model to use for the conversation')
+	.option('--text', 'Return plain text instead of JSON')
 	.action(async (options) => {
 		try {
 			const cwd = Deno.cwd();
@@ -28,16 +29,23 @@ export const conversationStart = new Command()
 
 			if (response.ok) {
 				const data = await response.json();
-				logger.info(
-					`Conversation ${options.id ? 'continued' : 'started'}. Conversation ID: ${data.conversationId}`,
-				);
-				logger.debug('Response body:', data);
+				apiClient.handleConversationOutput(data, options);
 			} else {
-				logger.error(`Failed to ${options.id ? 'continue' : 'start'} conversation. Status: ${response.status}`);
 				const errorBody = await response.text();
-				logger.error('Error response body:', errorBody);
+				console.error(JSON.stringify({
+					error: `Failed to ${options.id ? 'continue' : 'start'} conversation`,
+					status: response.status,
+					body: errorBody
+				}, null, 2));
+				logger.error(`API request failed: ${response.status} ${response.statusText}`);
+				logger.error(`Error body: ${errorBody}`);
 			}
 		} catch (error) {
-			logger.error(`Error in conversation: ${error.message}`);
+			console.error(JSON.stringify({
+				error: 'Error in conversation',
+				message: error.message
+			}, null, 2));
+			logger.error(`Unexpected error: ${error.message}`);
+			logger.error(`Stack trace: ${error.stack}`);
 		}
 	});

@@ -8,7 +8,7 @@ import {
 	getConversation,
 	startConversation,
 	undoConversation,
-	updateConversation,
+	continueConversation,
 } from './api/conversation.handlers.ts';
 import { addFile, listFiles, removeFile } from './api/file.handlers.ts';
 import { getTokenUsage } from './api/token.handlers.ts';
@@ -25,7 +25,7 @@ apiRouter
 	// Conversation endpoints
 	.post('/v1/conversation', startConversation)
 	.get('/v1/conversation/:id', getConversation)
-	.put('/v1/conversation/:id', updateConversation)
+	.post('/v1/conversation/:id', continueConversation)
 	.delete('/v1/conversation/:id', deleteConversation)
 	.post('/v1/conversation/:id/message', addMessage)
 	.post('/v1/conversation/:id/clear', clearConversation)

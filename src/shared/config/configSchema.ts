@@ -13,6 +13,7 @@ export interface ConfigSchema {
 	ctags: {
 		autoGenerate: boolean;
 		tagsFilePath?: string;
+		tokenLimit?: number;
 	};
 	logFile?: string;
 	logLevel: 'debug' | 'info' | 'warn' | 'error';
@@ -29,6 +30,7 @@ export const defaultConfig: ConfigSchema = {
 	ctags: {
 		autoGenerate: true,
 		//tagsFilePath: 'tags',
+		tokenLimit: 1024,
 	},
 	logFile: 'api.log',
 	logLevel: 'info',

@@ -24,6 +24,8 @@ import { tokenUsageManager } from '../../utils/tokenUsage.utils.ts';
 import { ProjectEditor } from '../../editor/projectEditor.ts';
 import { ConversationPersistence } from '../../utils/conversationPersistence.utils.ts';
 import { readFileContent } from 'shared/dataDir.ts';
+import { readCtagsFile } from 'shared/ctags.ts';
+import { FILE_LISTING_TIERS, generateFileListing } from 'shared/fileListing.ts';
 
 const ajv = new Ajv();
 
@@ -100,9 +102,15 @@ class LLM {
 		return null;
 	}
 
-	protected async appendCtagsToSystem(system: string, ctagsContent: string | null): Promise<string> {
+	protected async appendCtagsOrFileListingToSystem(
+		system: string,
+		ctagsContent: string | null,
+		fileListingContent: string | null,
+	): Promise<string> {
 		if (ctagsContent) {
 			system += `\n\n<ctags>\n${ctagsContent}\n</ctags>`;
+		} else if (fileListingContent) {
+			system += `\n\n<file-listing>\n${fileListingContent}\n</file-listing>`;
 		}
 		return system;
 	}
@@ -115,6 +123,29 @@ class LLM {
 			}
 		}
 		return system;
+	}
+
+	protected async getRepositoryInfo(
+		bbaiDir: string,
+		projectRoot: string,
+		conversation: LLMConversation,
+	): Promise<string | null> {
+		const ctagsContent = await readCtagsFile(bbaiDir);
+		if (ctagsContent) {
+			conversation.repositoryInfoTier = 0; // Assuming ctags is always tier 0
+			return ctagsContent;
+		}
+
+		const fileListingContent = await generateFileListing(projectRoot);
+		if (fileListingContent) {
+			// Determine which tier was used for file listing
+			const tier = FILE_LISTING_TIERS.findIndex((t: { depth: number; includeMetadata: boolean }) => t.depth === Infinity && t.includeMetadata === true);
+			conversation.repositoryInfoTier = tier !== -1 ? tier : null;
+			return fileListingContent;
+		}
+
+		conversation.repositoryInfoTier = null;
+		return null;
 	}
 
 	protected async hydrateMessages(conversation: LLMConversation, messages: LLMMessage[]): Promise<LLMMessage[]> {
@@ -131,7 +162,11 @@ class LLM {
 			return contentPart;
 		};
 
-		const processMessage = async (message: LLMMessage): Promise<LLMMessage> => {
+		const processMessage = async (message: LLMMessage): Promise<LLMMessage | null> => {
+			if (!message || typeof message !== 'object') {
+				logger.error(`Invalid message encountered: ${JSON.stringify(message)}`);
+				return null;
+			}
 			if (message.role === 'user') {
 				const updatedContent = await Promise.all(message.content.map(processContentPart));
 				return { ...message, content: updatedContent };
@@ -139,7 +174,8 @@ class LLM {
 			return message;
 		};
 
-		return Promise.all(messages.map(processMessage));
+		const processedMessages = await Promise.all(messages.map(processMessage));
+		return processedMessages.filter((message): message is LLMMessage => message !== null);
 	}
 
 	protected createRequestCacheKey(

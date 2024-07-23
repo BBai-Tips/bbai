@@ -39,7 +39,7 @@ export class ConfigManager {
 		this.config = mergeConfigs(userConfig, projectConfig, envConfig);
 	}
 
-	private async ensureUserConfig(): Promise<void> {
+	public async ensureUserConfig(): Promise<void> {
 		const userConfigDir = join(Deno.env.get('HOME') || '', '.config', 'bbai');
 		const userConfigPath = join(userConfigDir, 'config.yaml');
 
@@ -80,6 +80,33 @@ export class ConfigManager {
 			} else {
 				throw error;
 			}
+		}
+	}
+
+	public async ensureProjectConfig(cwd: string): Promise<void> {
+		const projectConfigPath = join(cwd, '.bbai', 'config.yaml');
+
+		try {
+			await ensureDir(join(cwd, '.bbai'));
+			const projectConfig = stripIndent`
+				# bbai Project Configuration File
+
+				api:
+				  # Your Anthropic API key. Replace with your actual key.
+				  anthropicApiKey: "your-anthropic-api-key-here"
+				
+				  # Your OpenAI API key. Uncomment and replace with your actual key if using OpenAI.
+				  # openaiApiKey: "your-openai-api-key-here"
+
+				  # Your VoyageAI API key. Uncomment and replace with your actual key if using VoyageAI.
+				  # voyageaiApiKey: "your-voyageai-api-key-here"
+
+				# Add any project-specific configuration options here
+				logLevel: info
+				`;
+			await Deno.writeTextFile(projectConfigPath, projectConfig);
+		} catch (error) {
+			throw error;
 		}
 	}
 
