@@ -13,7 +13,7 @@ In a world where AI assistants are becoming commonplace, BBai stands out by offe
 
 ### Key Features
 
-- **Universal Text Support**: From code to prose, bbai handles it all.
+- **Universal Text Support**: From code to prose, BBai handles it all.
 - **Project-Wide Understanding**: Uses `ctags` for initial project comprehension, with plans for advanced techniques like RAG and embeddings in the future.
 - **Intelligent Tools**: Employs LLM tools for clear, purpose-driven interactions.
 - **First-Class Project Discussions**: Makes conversations about your project as important as the changes themselves.
