@@ -1,10 +1,10 @@
-# `bbai` Project Conventions
+# BBai Project Conventions
 
 ## IMPORTANT NOTE FOR ASSISTANT
 DO NOT MAKE ANY CODE CHANGES UNTIL EXPLICITLY ASKED TO DO SO. The coding assistant will prompt for code changes. Respect those instructions but wait until explicitly told to write code.
 
 ## Project Overview
-`bbai` is a versatile project that provides REST API and CLI tools to modify and enhance a wide range of text-based projects using LLM technology. Inspired by the `aider` tool, `bbai` is designed to work with various text formats including, but not limited to:
+BBai is a versatile project that provides REST API and CLI tools to modify and enhance a wide range of text-based projects using LLM technology. Inspired by the `aider` tool, BBai is designed to work with various text formats including, but not limited to:
 
 - Programming code in any language
 - Prose and documentation
@@ -96,6 +96,7 @@ Key API Endpoints:
 - Ensure cross-platform compatibility
 - Use descriptive names for CLI-specific components
 - Prefix CLI-specific types with `CLI`
+- The CLI tool is named `bbai` (lowercase)
 
 ## Configuration
 - Use `deno.jsonc` for project configuration
