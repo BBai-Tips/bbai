@@ -37,7 +37,11 @@ export const startConversation = async (ctx: Context) => {
 };
 
 export const continueConversation = async (
-	{ params, request, response }: { params: { id: string }; request: Context['request']; response: Context['response'] },
+	{ params, request, response }: {
+		params: { id: string };
+		request: Context['request'];
+		response: Context['response'];
+	},
 ) => {
 	logger.debug('continueConversation called');
 
@@ -46,7 +50,9 @@ export const continueConversation = async (
 		const body = await request.body.json();
 		const { prompt, cwd } = body;
 
-		logger.info(`Continuing conversation. ConversationId: ${conversationId}, Prompt: "${prompt?.substring(0, 50)}..."`);
+		logger.info(
+			`Continuing conversation. ConversationId: ${conversationId}, Prompt: "${prompt?.substring(0, 50)}..."`,
+		);
 
 		if (!prompt) {
 			logger.warn('Missing prompt');

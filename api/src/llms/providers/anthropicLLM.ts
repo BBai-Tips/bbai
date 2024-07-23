@@ -55,7 +55,11 @@ class AnthropicLLM extends LLM {
 		speakOptions?: LLMSpeakWithOptions,
 	): Promise<Anthropic.MessageCreateParams> {
 		let system = speakOptions?.system || conversation.baseSystem;
-		const repositoryInfo = await this.getRepositoryInfo(await this.projectEditor.getBbaiDir(), await this.projectEditor.getProjectRoot(), conversation);
+		const repositoryInfo = await this.getRepositoryInfo(
+			await this.projectEditor.getBbaiDir(),
+			await this.projectEditor.getProjectRoot(),
+			conversation,
+		);
 		if (repositoryInfo) {
 			if (conversation.ctagsContent) {
 				conversation.ctagsContent = repositoryInfo;
@@ -63,7 +67,11 @@ class AnthropicLLM extends LLM {
 				conversation.fileListingContent = repositoryInfo;
 			}
 		}
-		system = await this.appendCtagsOrFileListingToSystem(system, conversation.ctagsContent, conversation.fileListingContent);
+		system = await this.appendCtagsOrFileListingToSystem(
+			system,
+			conversation.ctagsContent,
+			conversation.fileListingContent,
+		);
 		system = await this.appendFilesToSystem(system, conversation);
 
 		const messages = this.asProviderMessageType(

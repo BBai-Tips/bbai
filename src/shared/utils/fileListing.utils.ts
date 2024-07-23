@@ -20,7 +20,7 @@ export async function generateFileListing(projectRoot: string): Promise<string |
 	const tokenLimit = ctagsConfig?.tokenLimit || 1024;
 
 	const excludeOptions = await getExcludeOptions(projectRoot);
-	
+
 	for (const tier of FILE_LISTING_TIERS) {
 		const listing = await generateFileListingTier(projectRoot, excludeOptions, tier.depth, tier.includeMetadata);
 		if (countTokens(listing) <= tokenLimit) {
@@ -32,7 +32,12 @@ export async function generateFileListing(projectRoot: string): Promise<string |
 	return null;
 }
 
-async function generateFileListingTier(projectRoot: string, excludeOptions: string[], maxDepth: number, includeMetadata: boolean): Promise<string> {
+async function generateFileListingTier(
+	projectRoot: string,
+	excludeOptions: string[],
+	maxDepth: number,
+	includeMetadata: boolean,
+): Promise<string> {
 	let listing = '';
 	for await (const entry of walk(projectRoot, { maxDepth, includeDirs: false })) {
 		const relativePath = relative(projectRoot, entry.path);
@@ -50,7 +55,7 @@ async function generateFileListingTier(projectRoot: string, excludeOptions: stri
 }
 
 function shouldExclude(path: string, excludeOptions: string[]): boolean {
-	return excludeOptions.some(option => {
+	return excludeOptions.some((option) => {
 		const pattern = option.replace('--exclude=', '').replace(/\*/g, '.*');
 		return new RegExp(pattern).test(path);
 	});

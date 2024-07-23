@@ -20,11 +20,10 @@ if (logFile) {
 	const encoder = new TextEncoder();
 
 	consoleFunctions.forEach((funcName) => {
-		console[funcName] = (...args) => {
+		(console as any)[funcName] = (...args: any[]) => {
 			const prefix = funcName === 'log' ? '' : `[${funcName.toUpperCase()}] `;
-			const message = prefix + args.map((arg) => 
-				typeof arg === 'string' ? arg : JSON.stringify(arg)
-			).join(' ') + '\n';
+			const message = prefix + args.map((arg) => typeof arg === 'string' ? arg : JSON.stringify(arg)).join(' ') +
+				'\n';
 			logFileStream.write(encoder.encode(message));
 		};
 	});

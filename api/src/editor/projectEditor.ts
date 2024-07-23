@@ -14,6 +14,7 @@ import { GitUtils } from 'shared/git.ts';
 import { createError, ErrorType } from '../utils/error.utils.ts';
 import { FileHandlingErrorOptions } from '../errors/error.ts';
 import { generateCtags, readCtagsFile } from 'shared/ctags.ts';
+import { LLMMessageContentPartTextBlock, LLMMessageContentPartToolResultBlock } from '../llms/message.ts';
 import {
 	getBbaiCacheDir,
 	getBbaiDir,
@@ -133,7 +134,8 @@ export class ProjectEditor {
 					},
 					file_pattern: {
 						type: 'string',
-						description: 'Optional file pattern to limit the search to specific file types (e.g., "*.ts" for TypeScript files)',
+						description:
+							'Optional file pattern to limit the search to specific file types (e.g., "*.ts" for TypeScript files)',
 					},
 				},
 				required: ['pattern'],
@@ -305,7 +307,7 @@ export class ProjectEditor {
 
 		// Final save of the entire conversation at the end of the loop
 		if (this.conversation) {
-				logger.info(`Saving conversation at end of statement: ${this.conversation.id}`);
+			logger.info(`Saving conversation at end of statement: ${this.conversation.id}`);
 			const persistence = new ConversationPersistence(this.conversation.id, this);
 			await persistence.saveConversation(this.conversation);
 			await persistence.saveMetadata({
@@ -335,9 +337,10 @@ export class ProjectEditor {
 				break;
 			case 'vector_search':
 				const query = (tool.toolInput as { query: string }).query;
-				const searchResults = await this.handleVectorSearch(query, tool.toolUseId);
-				response.searchResults = searchResults;
-				feedback = `Vector search completed for query: "${query}". ${searchResults.length} results found.`;
+				const vectorSearchResults = await this.handleVectorSearch(query, tool.toolUseId);
+				response.vectorSearchResults = vectorSearchResults;
+				feedback =
+					`Vector search completed for query: "${query}". ${vectorSearchResults.length} results found.`;
 				break;
 			case 'apply_patch':
 				const { filePath, patch } = tool.toolInput as { filePath: string; patch: string };
@@ -346,8 +349,8 @@ export class ProjectEditor {
 				break;
 			case 'search_repository':
 				const { pattern, file_pattern } = tool.toolInput as { pattern: string; file_pattern?: string };
-				const searchResults = await this.handleSearchRepository(pattern, file_pattern, tool.toolUseId);
-				feedback = `Repository search completed. ${searchResults.length} files found matching the pattern.`;
+				const repoSearchResults = await this.handleSearchRepository(pattern, file_pattern || undefined, tool.toolUseId);
+				feedback = `Repository search completed. ${repoSearchResults.length} files found matching the pattern.`;
 				break;
 			default:
 				logger.warn(`Unknown tool used: ${tool.toolName}`);
@@ -367,14 +370,14 @@ export class ProjectEditor {
 		return await this.searchEmbeddings(query);
 	}
 
-	async handleSearchRepository(pattern: string, file_pattern?: string, toolUseId: string): Promise<string[]> {
+	async handleSearchRepository(pattern: string, file_pattern: string | undefined, toolUseId: string): Promise<string[]> {
 		const projectRoot = await this.getProjectRoot();
 		let command = ['grep', '-r', '-l', pattern];
-		
+
 		if (file_pattern) {
 			command.push('--include', file_pattern);
 		}
-		
+
 		command.push('.');
 
 		const process = Deno.run({
@@ -392,44 +395,22 @@ export class ProjectEditor {
 		if (code === 0) {
 			const output = new TextDecoder().decode(rawOutput).trim();
 			const files = output.split('\n').filter(Boolean);
-			
+
 			// Add tool result message
-			const resultMessage = `Found ${files.length} files matching the pattern "${pattern}"${file_pattern ? ` with file pattern "${file_pattern}"` : ''}:\n${files.join('\n')}`;
-			await this.addToolResultToMessagesArray(toolUseId, resultMessage);
-			
+			const resultMessage = `Found ${files.length} files matching the pattern "${pattern}"${
+				file_pattern ? ` with file pattern "${file_pattern}"` : ''
+			}:\n${files.join('\n')}`;
+			await this.conversation?.addToolResultToMessagesArray(toolUseId, resultMessage);
+
 			return files;
 		} else {
 			const errorMessage = new TextDecoder().decode(rawError).trim();
 			logger.error(`Error searching repository: ${errorMessage}`);
-			
+
 			// Add error tool result message
-			await this.addToolResultToMessagesArray(toolUseId, `Error searching repository: ${errorMessage}`, true);
+			await this.conversation?.addToolResultToMessagesArray(toolUseId, `Error searching repository: ${errorMessage}`, true);
 			return [];
 		}
-	}
-
-	async addToolResultToMessagesArray(
-		toolUseId: string,
-		content: string,
-		isError: boolean = false
-	): Promise<void> {
-		if (!this.conversation) {
-			throw new Error('No active conversation. Cannot add tool result.');
-		}
-
-		const toolResult = {
-			type: 'tool_result',
-			tool_use_id: toolUseId,
-			content: [
-				{
-					'type': 'text',
-					'text': content,
-				} as LLMMessageContentPartTextBlock,
-			],
-			is_error: isError,
-		} as LLMMessageContentPartToolResultBlock;
-
-		this.conversation.addMessageForUserRole(toolResult);
 	}
 
 	async handleApplyPatch(filePath: string, patch: string, toolUseId: string): Promise<void> {
@@ -475,7 +456,7 @@ export class ProjectEditor {
 			await this.updateCtags();
 
 			// Add tool result message
-			await this.addToolResultToMessagesArray(toolUseId, `Patch applied successfully to file: ${filePath}`);
+			await this.conversation?.addToolResultToMessagesArray(toolUseId, `Patch applied successfully to file: ${filePath}`);
 		} catch (error) {
 			let errorMessage: string;
 			if (error instanceof Deno.errors.NotFound) {
@@ -488,7 +469,7 @@ export class ProjectEditor {
 			logger.error(errorMessage);
 
 			// Add error tool result message
-			await this.addToolResultToMessagesArray(toolUseId, errorMessage, true);
+			await this.conversation?.addToolResultToMessagesArray(toolUseId, errorMessage, true);
 
 			throw createError(ErrorType.FileHandling, errorMessage, {
 				filePath: filePath,

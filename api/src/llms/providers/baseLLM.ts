@@ -139,7 +139,9 @@ class LLM {
 		const fileListingContent = await generateFileListing(projectRoot);
 		if (fileListingContent) {
 			// Determine which tier was used for file listing
-			const tier = FILE_LISTING_TIERS.findIndex((t: { depth: number; includeMetadata: boolean }) => t.depth === Infinity && t.includeMetadata === true);
+			const tier = FILE_LISTING_TIERS.findIndex((t: { depth: number; includeMetadata: boolean }) =>
+				t.depth === Infinity && t.includeMetadata === true
+			);
 			conversation.repositoryInfoTier = tier !== -1 ? tier : null;
 			return fileListingContent;
 		}
@@ -349,10 +351,12 @@ class LLM {
 		) {
 			for (const toolUse of llmProviderMessageResponse.toolsUsed) {
 				const tool = conversation.getTool(toolUse.toolName ?? '');
+				//logger.error(`Validating Tool: ${toolUse.toolName}`);
 				if (tool) {
 					const inputSchema: LLMToolInputSchema = tool.input_schema;
 					const validate = ajv.compile(inputSchema);
 					const valid = validate(toolUse.toolInput);
+					//logger.error(`Tool is valid: ${toolUse.toolName}`);
 					if (!valid) {
 						logger.error(`Tool input validation failed: ${ajv.errorsText(validate.errors)}`);
 						return `Tool input validation failed: ${ajv.errorsText(validate.errors)}`;

@@ -1,0 +1,23 @@
+{
+	"name": "bbai",
+	"version": "0.0.1",
+	"exports": "./cli/src/main.ts",
+	"tasks": {
+		"format": "deno fmt src/ && deno task -c ./cli/deno.jsonc format && deno task -c ./api/deno.jsonc format",
+		"check-types": "deno task -c ./cli/deno.jsonc check-types && deno task -c ./api/deno.jsonc check-types",
+		"check-format": "deno task -c ./cli/deno.jsonc check-format && deno task -c ./api/deno.jsonc check-format",
+		"build": "deno task -c ./cli/deno.jsonc build && deno task -c ./api/deno.jsonc build",
+		"test": "deno task -c ./cli/deno.jsonc test && deno task -c ./api/deno.jsonc test"
+	},
+	"importMap": "./import_map.json",
+	"fmt": {
+		"useTabs": true,
+		"lineWidth": 120,
+		"indentWidth": 4,
+		"semiColons": true,
+		"singleQuote": true,
+		"proseWrap": "preserve",
+		"include": ["src/", "cli/src/", "api/src/"],
+		"exclude": ["src/testdata/", "src/fixtures/**/*.ts"]
+	}
+}
