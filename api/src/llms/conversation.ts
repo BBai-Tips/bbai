@@ -61,12 +61,12 @@ class LLMConversation {
 	private _currentPrompt: string = '';
 
 	constructor(llm: LLM) {
-		this.id = this.generateShortId();
+		this.id = LLMConversation.generateShortId();
 		this.llm = llm;
 		this.persistence = new ConversationPersistence(this.id, this.llm.projectEditor);
 	}
 
-	private generateShortId(): string {
+	private static generateShortId(): string {
 		const uuid = crypto.randomUUID();
 		return uuid.replace(/-/g, '').substring(0, 8);
 	}
