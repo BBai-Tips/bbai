@@ -263,7 +263,6 @@ class LLMConversation {
 		this.systemPromptFiles = [];
 	}
 
-
 	get ctagsContent(): string {
 		return this._ctagsContent;
 	}

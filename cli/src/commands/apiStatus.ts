@@ -9,7 +9,7 @@ export const apiStatus = new Command()
 	.action(async () => {
 		const apiPort = config.api?.apiPort || 3000;
 
-			const cwd = Deno.cwd();
+		const cwd = Deno.cwd();
 		if (await isApiRunning(cwd)) {
 			const pid = await getPid(cwd);
 			logger.info(`bbai API server is running with PID: ${pid}`);

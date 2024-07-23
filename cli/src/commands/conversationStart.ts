@@ -28,7 +28,9 @@ export const conversationStart = new Command()
 
 			if (response.ok) {
 				const data = await response.json();
-				logger.info(`Conversation ${options.id ? 'continued' : 'started'}. Conversation ID: ${data.conversationId}`);
+				logger.info(
+					`Conversation ${options.id ? 'continued' : 'started'}. Conversation ID: ${data.conversationId}`,
+				);
 				logger.debug('Response body:', data);
 			} else {
 				logger.error(`Failed to ${options.id ? 'continue' : 'start'} conversation. Status: ${response.status}`);

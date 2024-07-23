@@ -2,7 +2,7 @@ import { join } from '@std/path';
 import { exists } from '@std/fs';
 import { parse as parseYaml } from 'yaml';
 import { stripIndents } from 'common-tags';
-import {  loadConfig, readFileContent, resolveFilePath } from 'shared/dataDir.ts';
+import { loadConfig, readFileContent, resolveFilePath } from 'shared/dataDir.ts';
 import * as defaultPrompts from './defaultPrompts.ts';
 import { ProjectEditor } from '../editor/projectEditor.ts';
 
