@@ -126,7 +126,7 @@ class LLM {
 			}
 			if (contentPart.type === 'tool_result' && Array.isArray(contentPart.content)) {
 				const updatedContent = await Promise.all(contentPart.content.map(processContentPart));
-				return { ...contentPart, content: updatedContent as (LLMMessageContentPartTextBlock | LLMMessageContentPartImageBlock | LLMMessageContentPartToolUseBlock)[] };
+				return { ...contentPart, content: updatedContent as LLMMessageContentPart[] };
 			}
 			return contentPart;
 		};
