@@ -147,6 +147,8 @@ export class ProjectEditor {
 	}
 
 	async speakWithLLM(prompt: string, provider?: LLMProvider, model?: string, conversationId?: string): Promise<any> {
+		logger.info(`Starting speakWithLLM. Prompt: "${prompt.substring(0, 50)}...", ConversationId: ${conversationId}`);
+		
 		if (conversationId) {
 			try {
 				const persistence = new ConversationPersistence(conversationId, this);
@@ -156,29 +158,37 @@ export class ProjectEditor {
 				const metadata = await persistence.getMetadata();
 				this.statementCount = metadata.statementCount || 0;
 				this.totalTurnCount = metadata.totalTurnCount || 0;
+				logger.info(`Conversation metadata loaded. StatementCount: ${this.statementCount}, TotalTurnCount: ${this.totalTurnCount}`);
 			} catch (error) {
 				logger.warn(`Failed to load conversation ${conversationId}: ${error.message}`);
+				logger.error(`Error details:`, error);
 				this.conversation = null;
 			}
 		}
 
 		if (!this.conversation) {
-			const systemPrompt = await this.promptManager.getPrompt('system', {
-				userDefinedContent: 'You are an AI assistant helping with code and project management.',
-			});
+			logger.info(`No existing conversation. Creating a new one.`);
+			try {
+				const systemPrompt = await this.promptManager.getPrompt('system', {
+					userDefinedContent: 'You are an AI assistant helping with code and project management.',
+				});
 
-			this.conversation = this.llmProvider.createConversation();
-			this.conversation.baseSystem = systemPrompt;
-			if (model) this.conversation.model = model;
+				this.conversation = this.llmProvider.createConversation();
+				this.conversation.baseSystem = systemPrompt;
+				if (model) this.conversation.model = model;
 
-			// Update ctags
-			await this.updateCtags();
+				// Update ctags
+				await this.updateCtags();
 
-			this.addDefaultTools();
+				this.addDefaultTools();
 
-			logger.info(`Created new conversation: ${this.conversation.id}`);
-			this.statementCount = 0;
-			this.totalTurnCount = 0;
+				logger.info(`Created new conversation: ${this.conversation.id}`);
+				this.statementCount = 0;
+				this.totalTurnCount = 0;
+			} catch (error) {
+				logger.error(`Error creating new conversation:`, error);
+				throw error;
+			}
 		}
 
 		this.statementCount++;
@@ -189,17 +199,26 @@ export class ProjectEditor {
 
 		const maxTurns = 5; // Maximum number of turns for the run loop
 		let turnCount = 0;
-		let currentResponse: LLMProviderMessageResponse = await this.conversation.speakWithLLM(prompt, speakOptions);
-		logger.info('currentResponse', currentResponse);
-		this.totalTurnCount++;
-		turnCount++;
+		let currentResponse: LLMProviderMessageResponse;
+		
+		try {
+			logger.info(`Calling speakWithLLM with prompt: "${prompt.substring(0, 50)}..."`);
+			currentResponse = await this.conversation.speakWithLLM(prompt, speakOptions);
+			logger.info('Received response from LLM');
+			logger.debug('LLM Response:', currentResponse);
+			this.totalTurnCount++;
+			turnCount++;
 
-		// Save the conversation immediately after the first response
-		if (this.conversation) {
-			const persistence = new ConversationPersistence(this.conversation.id, this);
-			await persistence.saveConversation(this.conversation);
-			await persistence.saveMetadata({ statementCount: this.statementCount, totalTurnCount: this.totalTurnCount });
-			logger.info(`Saved conversation: ${this.conversation.id}`);
+			// Save the conversation immediately after the first response
+			if (this.conversation) {
+				const persistence = new ConversationPersistence(this.conversation.id, this);
+				await persistence.saveConversation(this.conversation);
+				await persistence.saveMetadata({ statementCount: this.statementCount, totalTurnCount: this.totalTurnCount });
+				logger.info(`Saved conversation: ${this.conversation.id}`);
+			}
+		} catch (error) {
+			logger.error(`Error in LLM communication:`, error);
+			throw error;
 		}
 
 		while (turnCount < maxTurns) {
