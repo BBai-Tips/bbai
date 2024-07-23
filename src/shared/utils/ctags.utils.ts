@@ -67,13 +67,13 @@ async function getExcludeOptions(projectRoot: string): Promise<string[]> {
 	return excludeOptions;
 }
 
-export async function generateCtags(bbaiDir: string, projectRoot: string): Promise<string> {
+export async function generateCtags(bbaiDir: string, projectRoot: string): Promise<string | null> {
 	const config = await ConfigManager.getInstance();
 	const ctagsConfig = config.getConfig().ctags;
 
 	if (ctagsConfig?.autoGenerate === false) {
 		logger.info('Ctags auto-generation is disabled');
-		return '';
+		return null;
 	}
 
 	const tagsFilePath = ctagsConfig?.tagsFilePath ? ctagsConfig.tagsFilePath : join(bbaiDir, 'tags');
@@ -84,12 +84,12 @@ export async function generateCtags(bbaiDir: string, projectRoot: string): Promi
 		logger.info(`Attempting to generate ctags with tier ${tier}`);
 		if (await generateCtagsTier(projectRoot, tagsFilePath, tier, tokenLimit)) {
 			logger.info(`Ctags file generated successfully at ${tagsFilePath} using tier ${tier}`);
-			return `<ctags>\n${await Deno.readTextFile(tagsFilePath)}\n</ctags>`;
+			return await Deno.readTextFile(tagsFilePath);
 		}
 	}
 
-	logger.warn(`Failed to generate ctags file within token limit (${tokenLimit}) after all tiers. Falling back to file listing.`);
-	return await generateFileListing(projectRoot, tokenLimit);
+	logger.warn(`Failed to generate ctags file within token limit (${tokenLimit}) after all tiers.`);
+	return null;
 }
 
 async function generateFileListing(projectRoot: string, tokenLimit: number): Promise<string> {
