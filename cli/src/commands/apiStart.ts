@@ -15,7 +15,8 @@ export const apiStart = new Command()
 			return;
 		}
 
-		const bbaiDir = await getBbaiDir();
+			const cwd = Deno.cwd();
+		const bbaiDir = await getBbaiDir(cwd);
 		const logFile = config.logFile ?? 'api.log';
 		const logFilePath = join(bbaiDir, logFile);
 		const logLevel = cliLogLevel || config.logLevel || 'info';
@@ -53,7 +54,7 @@ export const apiStart = new Command()
 		await new Promise((resolve) => setTimeout(resolve, 1000));
 
 		const pid = process.pid;
-		await savePid(pid);
+		await savePid(cwd, pid);
 
 		logger.info(`bbai API server started with PID: ${pid}`);
 		logger.info(`Logs at level ${logLevel} are being written to: ${logFilePath}`);

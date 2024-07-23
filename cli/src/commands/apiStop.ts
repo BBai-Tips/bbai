@@ -13,7 +13,8 @@ export const apiStop = new Command()
 
 		logger.info('Stopping bbai API server...');
 
-		const pid = await getPid();
+			const cwd = Deno.cwd();
+		const pid = await getPid(cwd);
 		if (pid === null) {
 			logger.error('Unable to find API server PID.');
 			return;
