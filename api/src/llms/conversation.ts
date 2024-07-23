@@ -115,6 +115,7 @@ class LLMConversation {
 	): Promise<void> {
 		const conversationFiles = [];
 		const contentParts = [];
+		let allFilesFailed = true;
 
 		for (const fileToAdd of filesToAdd) {
 			const filePath = fileToAdd.fileName;
@@ -127,23 +128,35 @@ class LLMConversation {
 				filePath,
 				fileMetadata,
 			});
-			contentParts.push({
-				'type': 'text',
-				'text': `File added: ${filePath}`,
-			} as LLMMessageContentPartTextBlock);
+
+			if (fileMetadata.error) {
+				contentParts.push({
+					'type': 'text',
+					'text': `Error adding file ${filePath}: ${fileMetadata.error}`,
+				} as LLMMessageContentPartTextBlock);
+			} else {
+				contentParts.push({
+					'type': 'text',
+					'text': `File added: ${filePath}`,
+				} as LLMMessageContentPartTextBlock);
+				allFilesFailed = false;
+			}
 		}
 
 		const toolResultContentPart = {
 			type: 'tool_result',
 			tool_use_id: toolUseId,
 			content: contentParts,
+			is_error: allFilesFailed,
 		} as LLMMessageContentPartToolResultBlock;
 
 		const messageId = this.addMessageForUserRole(toolResultContentPart);
 
 		for (const fileToAdd of conversationFiles) {
-			fileToAdd.fileMetadata.messageId = messageId;
-			this._files.set(fileToAdd.filePath, fileToAdd.fileMetadata);
+			if (!fileToAdd.fileMetadata.error) {
+				fileToAdd.fileMetadata.messageId = messageId;
+				this._files.set(fileToAdd.filePath, fileToAdd.fileMetadata);
+			}
 		}
 
 		//await this.persistence.saveConversation(this);

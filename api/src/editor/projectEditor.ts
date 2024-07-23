@@ -363,40 +363,31 @@ export class ProjectEditor {
 		const filesAdded: Array<{ fileName: string; metadata: Omit<FileMetadata, 'path' | 'inSystemPrompt'> }> = [];
 
 		for (const fileName of fileNames) {
-			if (!this.isPathWithinProject(fileName)) {
-				throw createError(
-					ErrorType.FileHandling,
-					`Access denied: ${fileName} is outside the project directory`,
-					{
-						filePath: fileName,
-						operation: 'write',
-					} as FileHandlingErrorOptions,
-				);
-			}
-
 			try {
+				if (!this.isPathWithinProject(fileName)) {
+					throw new Error(`Access denied: ${fileName} is outside the project directory`);
+				}
+
 				const fullFilePath = join(this.projectRoot, fileName);
 				const content = await Deno.readTextFile(fullFilePath);
 				const metadata: Omit<FileMetadata, 'path' | 'inSystemPrompt'> = {
 					size: new TextEncoder().encode(content).length,
 					lastModified: new Date(),
+					error: null,
 				};
 				filesAdded.push({ fileName, metadata });
-
-				// const storageLocation = this.determineStorageLocation(fullFilePath, content, source);
-				// if (storageLocation === 'system') {
-				// 	await this.conversation.addFileForSystemPrompt(fileName, metadata);
-				// } else {
-				// 	await this.conversation.addFileToMessageArray(fileName, metadata, toolUseId);
-				// }
 
 				logger.info(`File ${fileName} added to messages by ${source}`);
 			} catch (error) {
 				logger.error(`Error adding file ${fileName}: ${error.message}`);
-				throw createError(ErrorType.FileHandling, `Failed to add file ${fileName}`, {
-					filePath: fileName,
-					operation: 'write',
-				} as FileHandlingErrorOptions);
+				filesAdded.push({
+					fileName,
+					metadata: {
+						size: 0,
+						lastModified: new Date(),
+						error: error.message,
+					},
+				});
 			}
 		}
 
