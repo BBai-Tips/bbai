@@ -49,6 +49,7 @@ class LLMConversation {
 	protected _ctagsContent: string = '';
 	protected _fileListingContent: string = '';
 	protected _model: string = '';
+	protected _repositoryInfoTier: number | null = null;
 	protected _maxTokens: number = 4000;
 	protected _temperature: number = 0.2;
 	private _totalTokenUsage: LLMTokenUsage = { totalTokens: 0, inputTokens: 0, outputTokens: 0 };
@@ -300,6 +301,14 @@ class LLMConversation {
 
 	set fileListingContent(value: string) {
 		this._fileListingContent = value;
+	}
+
+	get repositoryInfoTier(): number | null {
+		return this._repositoryInfoTier;
+	}
+
+	set repositoryInfoTier(value: number | null) {
+		this._repositoryInfoTier = value;
 	}
 
 	get model(): string {

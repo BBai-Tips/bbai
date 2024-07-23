@@ -67,6 +67,11 @@ export class ConversationPersistence {
 				turnCount: conversation.turnCount,
 				totalTokenUsage: conversation.totalTokenUsage,
 				tools: conversation.getTools(),
+				repositoryInfo: {
+					type: conversation.ctagsContent ? 'ctags' : 'fileListing',
+					content: conversation.ctagsContent ? 'ctags' : conversation.fileListingContent ? 'fileListing' : null,
+					tier: conversation.repositoryInfoTier
+				}
 			};
 
 			await Deno.writeTextFile(this.metadataPath, JSON.stringify(metadata, null, 2));

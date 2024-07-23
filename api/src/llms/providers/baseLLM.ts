@@ -119,17 +119,22 @@ class LLM {
 		return system;
 	}
 
-	protected async getRepositoryInfo(bbaiDir: string, projectRoot: string): Promise<string | null> {
+	protected async getRepositoryInfo(bbaiDir: string, projectRoot: string, conversation: LLMConversation): Promise<string | null> {
 		const ctagsContent = await readCtagsFile(bbaiDir);
 		if (ctagsContent) {
+			conversation.repositoryInfoTier = 0; // Assuming ctags is always tier 0
 			return ctagsContent;
 		}
 
 		const fileListingContent = await generateFileListing(projectRoot);
 		if (fileListingContent) {
+			// Determine which tier was used for file listing
+			const tier = FILE_LISTING_TIERS.findIndex(t => t.depth === Infinity && t.includeMetadata === true);
+			conversation.repositoryInfoTier = tier !== -1 ? tier : null;
 			return fileListingContent;
 		}
 
+		conversation.repositoryInfoTier = null;
 		return null;
 	}
 
