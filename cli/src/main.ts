@@ -53,35 +53,3 @@ if (import.meta.main) {
 	main();
 }
 
-// Add this function to handle the conversation output
-export function handleConversationOutput(response: any, options: any) {
-	const isNewConversation = !options.id;
-	const conversationId = response.conversationId;
-	const statementCount = response.statementCount;
-	const turnCount = response.turnCount;
-	const totalTurnCount = response.totalTurnCount;
-
-	if (options.json) {
-		console.log(JSON.stringify({
-			...response,
-			isNewConversation,
-			conversationId,
-			statementCount,
-			turnCount,
-			totalTurnCount
-		}, null, 2));
-	} else {
-		console.log(response.response.answerContent[0].text);
-		
-		console.log(`\nConversation ID: ${conversationId}`);
-		console.log(`Statement Count: ${statementCount}`);
-		console.log(`Turn Count: ${turnCount}`);
-		console.log(`Total Turn Count: ${totalTurnCount}`);
-		
-		if (isNewConversation) {
-			console.log(`\nNew conversation started.`);
-			console.log(`To continue this conversation, use:`);
-			console.log(`bbai chat -i ${conversationId} -p "Your next question"`);
-		}
-	}
-}

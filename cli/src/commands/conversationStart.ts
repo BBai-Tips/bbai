@@ -1,7 +1,6 @@
 import { Command } from 'cliffy/command/mod.ts';
 import { logger } from 'shared/logger.ts';
 import { apiClient } from '../utils/apiClient.ts';
-import { handleConversationOutput } from '../main.ts';
 
 export const conversationStart = new Command()
 	.name('chat')
@@ -30,7 +29,7 @@ export const conversationStart = new Command()
 
 			if (response.ok) {
 				const data = await response.json();
-				handleConversationOutput(data, options);
+				apiClient.handleConversationOutput(data, options);
 			} else {
 				const errorBody = await response.text();
 				console.error(JSON.stringify({
