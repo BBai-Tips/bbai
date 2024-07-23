@@ -10,12 +10,12 @@ export const apiStart = new Command()
 	.description('Start the bbai API server')
 	.option('--log-level <level:string>', 'Set the log level for the API server', { default: undefined })
 	.action(async ({ logLevel: cliLogLevel }) => {
-		if (await isApiRunning(Deno.cwd())) {
+		const cwd = Deno.cwd();
+		if (await isApiRunning(cwd)) {
 			logger.info('bbai API server is already running.');
 			return;
 		}
 
-			const cwd = Deno.cwd();
 		const bbaiDir = await getBbaiDir(cwd);
 		const logFile = config.logFile ?? 'api.log';
 		const logFilePath = join(bbaiDir, logFile);

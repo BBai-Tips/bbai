@@ -14,6 +14,14 @@ import { GitUtils } from 'shared/git.ts';
 import { createError, ErrorType } from '../utils/error.utils.ts';
 import { FileHandlingErrorOptions } from '../errors/error.ts';
 import { generateCtags, readCtagsFile } from 'shared/ctags.ts';
+import {
+	getBbaiCacheDir,
+	getBbaiDir,
+	getProjectRoot,
+	readFromBbaiDir,
+	removeFromBbaiDir,
+	writeToBbaiDir,
+} from 'shared/dataDir.ts';
 
 export class ProjectEditor {
 	private conversation: LLMConversation | null = null;
@@ -37,55 +45,27 @@ export class ProjectEditor {
 	}
 
 	public async getProjectRoot(): Promise<string> {
-		const gitRoot = await GitUtils.findGitRoot(this.cwd);
-		if (!gitRoot) {
-			throw new Error('Not in a git repository');
-		}
-		return gitRoot;
+		return await getProjectRoot(this.cwd);
 	}
 
 	public async getBbaiDir(): Promise<string> {
-		const bbaiDir = join(this.projectRoot, '.bbai');
-		await ensureDir(bbaiDir);
-		return bbaiDir;
+		return await getBbaiDir(this.cwd);
 	}
 
 	public async getBbaiCacheDir(): Promise<string> {
-		const bbaiDir = await this.getBbaiDir();
-		const repoCacheDir = join(bbaiDir, 'cache');
-		await ensureDir(repoCacheDir);
-		return repoCacheDir;
+		return await getBbaiCacheDir(this.cwd);
 	}
 
 	public async writeToBbaiDir(filename: string, content: string): Promise<void> {
-		const bbaiDir = await this.getBbaiDir();
-		const filePath = join(bbaiDir, filename);
-		await Deno.writeTextFile(filePath, content);
+		return await writeToBbaiDir(this.cwd, filename, content);
 	}
 
 	public async readFromBbaiDir(filename: string): Promise<string | null> {
-		const bbaiDir = await this.getBbaiDir();
-		const filePath = join(bbaiDir, filename);
-		try {
-			return await Deno.readTextFile(filePath);
-		} catch (error) {
-			if (error instanceof Deno.errors.NotFound) {
-				return null;
-			}
-			throw error;
-		}
+		return await readFromBbaiDir(this.cwd, filename);
 	}
 
 	public async removeFromBbaiDir(filename: string): Promise<void> {
-		const bbaiDir = await this.getBbaiDir();
-		const filePath = join(bbaiDir, filename);
-		try {
-			await Deno.remove(filePath);
-		} catch (error) {
-			if (!(error instanceof Deno.errors.NotFound)) {
-				throw error;
-			}
-		}
+		return await removeFromBbaiDir(this.cwd, filename);
 	}
 
 	private addDefaultTools(): void {

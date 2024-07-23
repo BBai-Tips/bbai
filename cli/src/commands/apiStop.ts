@@ -6,14 +6,14 @@ export const apiStop = new Command()
 	.name('stop')
 	.description('Stop the bbai API server')
 	.action(async () => {
-		if (!(await isApiRunning(Deno.cwd()))) {
+		const cwd = Deno.cwd();
+		if (!(await isApiRunning(cwd))) {
 			logger.info('bbai API server is not running.');
 			return;
 		}
 
 		logger.info('Stopping bbai API server...');
 
-			const cwd = Deno.cwd();
 		const pid = await getPid(cwd);
 		if (pid === null) {
 			logger.error('Unable to find API server PID.');
@@ -22,7 +22,7 @@ export const apiStop = new Command()
 
 		try {
 			Deno.kill(pid, 'SIGTERM');
-			await removePid(Deno.cwd());
+			await removePid(cwd);
 			logger.info('bbai API server stopped successfully.');
 		} catch (error) {
 			logger.error(`Error stopping bbai API server: ${error.message}`);
