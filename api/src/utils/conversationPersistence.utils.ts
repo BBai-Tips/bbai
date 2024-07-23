@@ -104,6 +104,14 @@ export class ConversationPersistence {
 		}
 	}
 
+	async saveMetadata(metadata: { statementCount: number; totalTurnCount: number }): Promise<void> {
+		await this.ensureInitialized();
+		const existingMetadata = await this.getMetadata();
+		const updatedMetadata = { ...existingMetadata, ...metadata };
+		await Deno.writeTextFile(this.metadataPath, JSON.stringify(updatedMetadata, null, 2));
+		logger.info(`Metadata saved for conversation: ${this.conversationId}`);
+	}
+
 	// Remove the saveConversationMessage method as it's no longer needed
 
 	private handleSaveError(error: unknown, filePath: string): never {
