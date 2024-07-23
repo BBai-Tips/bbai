@@ -40,7 +40,7 @@ async function generateFileListingTier(projectRoot: string, excludeOptions: stri
 
 		if (includeMetadata) {
 			const stat = await Deno.stat(entry.path);
-			const mimeType = getMimeType(entry.path) || 'application/octet-stream';
+			const mimeType = contentType(entry.path) || 'application/octet-stream';
 			listing += `${relativePath} (${mimeType}, ${stat.size} bytes, modified: ${stat.mtime?.toISOString()})\n`;
 		} else {
 			listing += `${relativePath}\n`;
