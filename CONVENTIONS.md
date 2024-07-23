@@ -1,5 +1,8 @@
 # BBai Project Conventions
 
+## Note to Users
+This document is primarily intended for the AI assistant to understand the project's conventions and guidelines. While you're welcome to read it, please be aware that changes to this file should only be made when explicitly instructed, as they directly affect how the AI interprets and works with the project.
+
 ## IMPORTANT NOTE FOR ASSISTANT
 DO NOT MAKE ANY CODE CHANGES UNTIL EXPLICITLY ASKED TO DO SO. The coding assistant will prompt for code changes. Respect those instructions but wait until explicitly told to write code.
 
