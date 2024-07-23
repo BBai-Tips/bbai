@@ -369,7 +369,7 @@ export class ProjectEditor {
 		return await this.searchEmbeddings(query);
 	}
 
-	async handleSearchRepository(pattern: string, file_pattern?: string, toolUseId: string): Promise<string[]> {
+	async handleSearchRepository(pattern: string, toolUseId: string, file_pattern?: string): Promise<string[]> {
 		const projectRoot = await this.getProjectRoot();
 		let command = ['grep', '-r', '-l', pattern];
 
@@ -433,7 +433,7 @@ export class ProjectEditor {
 			is_error: isError,
 		} as LLMMessageContentPartToolResultBlock;
 
-		this.conversation.addMessageForUserRole(toolResult);
+		this.conversation.addMessage('user', toolResult);
 	}
 
 	async handleApplyPatch(filePath: string, patch: string, toolUseId: string): Promise<void> {
