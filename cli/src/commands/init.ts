@@ -33,13 +33,30 @@ export const init = new Command()
         logger.info('Git repository already initialized');
       }
 
-      await createGitIgnore(cwd);
-
-      // Populate .gitignore with default content
       const gitIgnorePath = join(cwd, '.gitignore');
-      const defaultGitIgnore = getDefaultGitIgnore();
-      await Deno.writeTextFile(gitIgnorePath, defaultGitIgnore, { append: true });
-      logger.info('Updated .gitignore with default content');
+      let gitIgnoreContent = '';
+
+      try {
+        gitIgnoreContent = await Deno.readTextFile(gitIgnorePath);
+        logger.info('.gitignore file already exists');
+      } catch (error) {
+        if (error instanceof Deno.errors.NotFound) {
+          await createGitIgnore(cwd);
+          gitIgnoreContent = getDefaultGitIgnore();
+          await Deno.writeTextFile(gitIgnorePath, gitIgnoreContent);
+          logger.info('Created .gitignore with default content');
+        } else {
+          throw error;
+        }
+      }
+
+      if (!gitIgnoreContent.includes('.bbai/*')) {
+        gitIgnoreContent += '\n.bbai/*\n';
+        await Deno.writeTextFile(gitIgnorePath, gitIgnoreContent);
+        logger.info('Updated .gitignore to include .bbai/*');
+      } else {
+        logger.info('.gitignore already includes .bbai/*');
+      }
 
       logger.info('bbai initialization complete');
     } catch (error) {
