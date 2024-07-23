@@ -10,7 +10,13 @@ export const apiStatus = new Command()
 		const apiPort = config.api?.apiPort || 3000;
 		const cwd = Deno.cwd();
 		const isRunning = await isApiRunning(cwd);
-		const status = { running: isRunning };
+		const status: {
+			running: boolean;
+			pid?: number;
+			apiUrl?: string;
+			apiStatus?: unknown;
+			error?: string;
+		} = { running: isRunning };
 
 		if (isRunning) {
 			const pid = await getPid(cwd);
@@ -26,7 +32,7 @@ export const apiStatus = new Command()
 					status.error = `Error fetching API status: ${response.statusText}`;
 				}
 			} catch (error) {
-				status.error = `Error connecting to API: ${error.message}`;
+				status.error = `Error connecting to API: ${error instanceof Error ? error.message : String(error)}`;
 			}
 		}
 
