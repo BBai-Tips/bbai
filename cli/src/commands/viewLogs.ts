@@ -17,7 +17,7 @@ export const viewLogs = new Command()
 		try {
 			const fileInfo = await Deno.stat(logFilePath);
 			if (!fileInfo.isFile) {
-				logger.error(`Log file not found: ${logFilePath}`);
+				console.error(JSON.stringify({ error: `Log file not found: ${logFilePath}` }));
 				return;
 			}
 
@@ -40,12 +40,12 @@ export const viewLogs = new Command()
 				const { stdout, stderr } = await command.output();
 
 				if (stderr.length > 0) {
-					logger.error(new TextDecoder().decode(stderr));
+					console.error(JSON.stringify({ error: new TextDecoder().decode(stderr) }));
 				} else {
 					console.log(new TextDecoder().decode(stdout));
 				}
 			}
 		} catch (error) {
-			logger.error(`Error reading log file: ${error.message}`);
+			console.error(JSON.stringify({ error: `Error reading log file: ${error.message}` }));
 		}
 	});
