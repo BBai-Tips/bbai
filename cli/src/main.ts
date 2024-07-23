@@ -18,6 +18,7 @@ import { showTokenUsage } from './commands/showTokenUsage.ts';
 import { runCommand } from './commands/runCommand.ts';
 import { loadExternalContent } from './commands/loadExternalContent.ts';
 import { viewLogs } from './commands/viewLogs.ts';
+import { init } from './commands/init.ts';
 
 //logger.debug('CLI Config:', config.cli);
 
@@ -25,6 +26,7 @@ const cli = new Command()
 	.name('bbai')
 	.version('0.1.0')
 	.description('CLI tool for bbai project')
+	.command('init', init)
 	.command('add', filesAdd)
 	.command('remove', filesRemove)
 	.command('list', filesList)
