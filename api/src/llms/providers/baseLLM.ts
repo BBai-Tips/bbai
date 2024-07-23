@@ -118,15 +118,15 @@ class LLM {
 	}
 
 	protected async hydrateMessages(conversation: LLMConversation, messages: LLMMessage[]): Promise<LLMMessage[]> {
-		const processContentPart = async (contentPart: LLMMessageContentPart): Promise<LLMMessageContentPart> => {
+		const processContentPart = async <T extends LLMMessageContentPart>(contentPart: T): Promise<T> => {
 			if (contentPart.type === 'text' && contentPart.text.startsWith('File added:')) {
 				const filePath = contentPart.text.split(': ')[1].trim();
 				const fileXml = await this.createFileXmlString(filePath);
-				return fileXml ? { type: 'text', text: fileXml } : contentPart;
+				return fileXml ? { ...contentPart, text: fileXml } as T : contentPart;
 			}
 			if (contentPart.type === 'tool_result' && Array.isArray(contentPart.content)) {
 				const updatedContent = await Promise.all(contentPart.content.map(processContentPart));
-				return { ...contentPart, content: updatedContent };
+				return { ...contentPart, content: updatedContent } as T;
 			}
 			return contentPart;
 		};
