@@ -126,7 +126,7 @@ class LLM {
 			}
 			if (contentPart.type === 'tool_result' && Array.isArray(contentPart.content)) {
 				const updatedContent = await Promise.all(contentPart.content.map(processContentPart));
-				return { ...contentPart, content: updatedContent as LLMMessageContentPart[] };
+				return { ...contentPart, content: updatedContent as (LLMMessageContentPartTextBlock | LLMMessageContentPartImageBlock | LLMMessageContentPartToolUseBlock | LLMMessageContentPartToolResultBlock)[] };
 			}
 			return contentPart;
 		};
@@ -197,7 +197,7 @@ class LLM {
 				llmProviderMessageResponse.toolsUsed = llmProviderMessageResponse.toolsUsed || [];
 				this.extractToolUse(llmProviderMessageResponse);
 			} else {
-				const answerPart = llmProviderMessageResponse.answerContent[0] as LLMMessageContentPartTextBlock;
+				const answerPart = llmProviderMessageResponse.answerContent[0] as LLMMessageContentPart;
 				llmProviderMessageResponse.answer = answerPart?.text;
 			}
 
