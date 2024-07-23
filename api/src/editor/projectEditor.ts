@@ -121,9 +121,29 @@ export class ProjectEditor {
 			},
 		};
 
+		const searchRepositoryTool: LLMTool = {
+			name: 'search_repository',
+			description: 'Search the repository for files matching a pattern',
+			input_schema: {
+				type: 'object',
+				properties: {
+					pattern: {
+						type: 'string',
+						description: 'The search pattern to use (grep-compatible regular expression)',
+					},
+					file_pattern: {
+						type: 'string',
+						description: 'Optional file pattern to limit the search to specific file types (e.g., "*.ts" for TypeScript files)',
+					},
+				},
+				required: ['pattern'],
+			},
+		};
+
 		this.conversation?.addTool(requestFilesTool);
 		//this.conversation?.addTool(vectorSearchTool);
 		this.conversation?.addTool(applyPatchTool);
+		this.conversation?.addTool(searchRepositoryTool);
 	}
 
 	private isPathWithinProject(filePath: string): boolean {
@@ -324,6 +344,11 @@ export class ProjectEditor {
 				await this.handleApplyPatch(filePath, patch, tool.toolUseId);
 				feedback = `Patch applied successfully to file: ${filePath}`;
 				break;
+			case 'search_repository':
+				const { pattern, file_pattern } = tool.toolInput as { pattern: string; file_pattern?: string };
+				const searchResults = await this.handleSearchRepository(pattern, file_pattern, tool.toolUseId);
+				feedback = `Repository search completed. ${searchResults.length} files found matching the pattern.`;
+				break;
 			default:
 				logger.warn(`Unknown tool used: ${tool.toolName}`);
 				feedback = `Unknown tool used: ${tool.toolName}`;
@@ -340,6 +365,47 @@ export class ProjectEditor {
 
 	async handleVectorSearch(query: string, toolUseId: string): Promise<any> {
 		return await this.searchEmbeddings(query);
+	}
+
+	async handleSearchRepository(pattern: string, file_pattern?: string, toolUseId: string): Promise<string[]> {
+		const projectRoot = await this.getProjectRoot();
+		let command = ['grep', '-r', '-l', pattern];
+		
+		if (file_pattern) {
+			command.push('--include', file_pattern);
+		}
+		
+		command.push('.');
+
+		const process = Deno.run({
+			cmd: command,
+			cwd: projectRoot,
+			stdout: 'piped',
+			stderr: 'piped',
+		});
+
+		const { code } = await process.status();
+		const rawOutput = await process.output();
+		const rawError = await process.stderrOutput();
+		process.close();
+
+		if (code === 0) {
+			const output = new TextDecoder().decode(rawOutput).trim();
+			const files = output.split('\n').filter(Boolean);
+			
+			// Add tool result message
+			const resultMessage = `Found ${files.length} files matching the pattern "${pattern}"${file_pattern ? ` with file pattern "${file_pattern}"` : ''}:\n${files.join('\n')}`;
+			await this.addToolResultToMessagesArray(toolUseId, resultMessage);
+			
+			return files;
+		} else {
+			const errorMessage = new TextDecoder().decode(rawError).trim();
+			logger.error(`Error searching repository: ${errorMessage}`);
+			
+			// Add error tool result message
+			await this.addToolResultToMessagesArray(toolUseId, `Error searching repository: ${errorMessage}`, true);
+			return [];
+		}
 	}
 
 	async addToolResultToMessagesArray(
