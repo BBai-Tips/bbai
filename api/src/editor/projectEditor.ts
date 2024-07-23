@@ -148,22 +148,33 @@ export class ProjectEditor {
 
 	async speakWithLLM(prompt: string, provider?: LLMProvider, model?: string, conversationId?: string): Promise<any> {
 		logger.info(`Starting speakWithLLM. Prompt: "${prompt.substring(0, 50)}...", ConversationId: ${conversationId}`);
+		logger.debug(`Full prompt: ${prompt}`);
+		logger.debug(`Provider: ${provider}, Model: ${model}`);
 		
 		if (conversationId) {
+			logger.info(`Attempting to load existing conversation: ${conversationId}`);
 			try {
 				const persistence = new ConversationPersistence(conversationId, this);
 				await persistence.init();
+				logger.debug(`ConversationPersistence initialized for ${conversationId}`);
+				
 				this.conversation = await this.llmProvider.loadConversation(conversationId);
 				logger.info(`Loaded existing conversation: ${conversationId}`);
+				
 				const metadata = await persistence.getMetadata();
+				logger.debug(`Retrieved metadata for conversation ${conversationId}:`, metadata);
+				
 				this.statementCount = metadata.statementCount || 0;
 				this.totalTurnCount = metadata.totalTurnCount || 0;
 				logger.info(`Conversation metadata loaded. StatementCount: ${this.statementCount}, TotalTurnCount: ${this.totalTurnCount}`);
 			} catch (error) {
 				logger.warn(`Failed to load conversation ${conversationId}: ${error.message}`);
 				logger.error(`Error details:`, error);
+				logger.debug(`Stack trace:`, error.stack);
 				this.conversation = null;
 			}
+		} else {
+			logger.info(`No conversation ID provided. Will create a new conversation.`);
 		}
 
 		if (!this.conversation) {
