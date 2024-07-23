@@ -147,26 +147,31 @@ export class ProjectEditor {
 	}
 
 	async speakWithLLM(prompt: string, provider?: LLMProvider, model?: string, conversationId?: string): Promise<any> {
-		logger.info(`Starting speakWithLLM. Prompt: "${prompt.substring(0, 50)}...", ConversationId: ${conversationId}`);
+		logger.info(
+			`Starting speakWithLLM. Prompt: "${prompt.substring(0, 50)}...", ConversationId: ${conversationId}`,
+		);
 		logger.debug(`Full prompt: ${prompt}`);
 		logger.debug(`Provider: ${provider}, Model: ${model}`);
-		
+
 		if (conversationId) {
 			logger.info(`Attempting to load existing conversation: ${conversationId}`);
 			try {
 				const persistence = new ConversationPersistence(conversationId, this);
 				await persistence.init();
 				logger.debug(`ConversationPersistence initialized for ${conversationId}`);
-				
+
 				this.conversation = await persistence.loadConversation(this.llmProvider);
 				logger.info(`Loaded existing conversation: ${conversationId}`);
-				
+
 				const metadata = await persistence.getMetadata();
-				logger.debug(`Retrieved metadata for conversation ${conversationId}:`, metadata);
-				
+				logger.debug(`Retrieved metadata for conversation ${conversationId}`);
+				// logger.debug(`Retrieved metadata for conversation ${conversationId}:`, metadata);
+
 				this.statementCount = metadata.statementCount || 0;
 				this.totalTurnCount = metadata.totalTurnCount || 0;
-				logger.info(`Conversation metadata loaded. StatementCount: ${this.statementCount}, TotalTurnCount: ${this.totalTurnCount}`);
+				logger.info(
+					`Conversation metadata loaded. StatementCount: ${this.statementCount}, TotalTurnCount: ${this.totalTurnCount}`,
+				);
 			} catch (error) {
 				logger.warn(`Failed to load conversation ${conversationId}: ${error.message}`);
 				logger.error(`Error details:`, error);
@@ -210,7 +215,7 @@ export class ProjectEditor {
 		const maxTurns = 5; // Maximum number of turns for the run loop
 		let turnCount = 0;
 		let currentResponse: LLMProviderMessageResponse;
-		
+
 		try {
 			logger.info(`Calling speakWithLLM with prompt: "${prompt.substring(0, 50)}..."`);
 			currentResponse = await this.conversation.speakWithLLM(prompt, speakOptions);
@@ -221,9 +226,13 @@ export class ProjectEditor {
 
 			// Save the conversation immediately after the first response
 			if (this.conversation) {
+				logger.info(`Saving conversation at beginning of statement: ${this.conversation.id}`);
 				const persistence = new ConversationPersistence(this.conversation.id, this);
 				await persistence.saveConversation(this.conversation);
-				await persistence.saveMetadata({ statementCount: this.statementCount, totalTurnCount: this.totalTurnCount });
+				await persistence.saveMetadata({
+					statementCount: this.statementCount,
+					totalTurnCount: this.totalTurnCount,
+				});
 				logger.info(`Saved conversation: ${this.conversation.id}`);
 			}
 		} catch (error) {
@@ -252,12 +261,18 @@ export class ProjectEditor {
 				logger.info('tool response', currentResponse);
 
 				// Save the conversation after each turn
+				// CNG - Why?? What are these saves achieving, other than in case of error??
+				/*
 				if (this.conversation) {
 					const persistence = new ConversationPersistence(this.conversation.id, this);
 					await persistence.saveConversation(this.conversation);
-					await persistence.saveMetadata({ statementCount: this.statementCount, totalTurnCount: this.totalTurnCount });
+					await persistence.saveMetadata({
+						statementCount: this.statementCount,
+						totalTurnCount: this.totalTurnCount,
+					});
 					logger.info(`Saved conversation after turn ${turnCount}: ${this.conversation.id}`);
 				}
+				 */
 			} else {
 				// No more tool feedback, exit the loop
 				break;
@@ -270,9 +285,13 @@ export class ProjectEditor {
 
 		// Final save of the entire conversation at the end of the loop
 		if (this.conversation) {
+				logger.info(`Saving conversation at end of statement: ${this.conversation.id}`);
 			const persistence = new ConversationPersistence(this.conversation.id, this);
 			await persistence.saveConversation(this.conversation);
-			await persistence.saveMetadata({ statementCount: this.statementCount, totalTurnCount: this.totalTurnCount });
+			await persistence.saveMetadata({
+				statementCount: this.statementCount,
+				totalTurnCount: this.totalTurnCount,
+			});
 			logger.info(`Final save of conversation: ${this.conversation.id}`);
 		}
 
@@ -291,7 +310,7 @@ export class ProjectEditor {
 			case 'request_files':
 				const fileNames = (tool.toolInput as { fileNames: string[] }).fileNames;
 				const filesAdded = await this.handleRequestFiles(fileNames, tool.toolUseId);
-				const addedFileNames = filesAdded.map(file => file.fileName).join(', ');
+				const addedFileNames = filesAdded.map((file) => file.fileName).join(', ');
 				feedback = `Files added to the conversation: ${addedFileNames}`;
 				break;
 			case 'vector_search':
@@ -317,23 +336,6 @@ export class ProjectEditor {
 		toolUseId: string,
 	): Promise<Array<{ fileName: string; metadata: Omit<FileMetadata, 'path' | 'inSystemPrompt'> }>> {
 		return await this.addFiles(fileNames, 'tool', toolUseId);
-		/*
-		const filesAdded = [];
-		for (const fileName of fileNames) {
-
-			try {
-				const okToAddFile = await this.checkOkToAddFile(fileName);
-				if (okToAddFile) {
-					filesAdded.push(fileName);
-					logger.info(`File ${fileName} added to the chat`);
-				}
-			} catch (error) {
-				logger.error(`Error handling file ${fileName}: ${error.message}`);
-			}
-		}
-		await this.addFiles(fileName, 'tool', toolUseId);
-		return filesAdded;
-		 */
 	}
 
 	async handleVectorSearch(query: string, toolUseId: string): Promise<any> {
@@ -349,6 +351,7 @@ export class ProjectEditor {
 		}
 
 		const fullFilePath = join(this.projectRoot, filePath);
+		logger.info(`Patching file: ${fullFilePath}\nWith patch:\n${patch}`);
 
 		try {
 			const currentContent = await Deno.readTextFile(fullFilePath);
@@ -368,11 +371,12 @@ export class ProjectEditor {
 				);
 			}
 
-			await Deno.writeTextFile(filePath, patchedContent);
+			await Deno.writeTextFile(fullFilePath, patchedContent);
 			logger.info(`Patch applied to file: ${filePath}`);
 
 			// Log the applied patch
 			if (this.conversation) {
+				logger.info(`Saving conversation patch: ${this.conversation.id}`);
 				const persistence = new ConversationPersistence(this.conversation.id, this);
 				await persistence.logPatch(filePath, patch);
 			}
