@@ -1,0 +1,19 @@
+{
+	"name": "bbai",
+	"importMap": "./import_map.json",
+	"tasks": {
+		"format": "deno fmt src/ && deno task -c ./cli/deno.jsonc format && deno task -c ./api/deno.jsonc format",
+		"check-types": "deno task -c ./cli/deno.jsonc check-types && deno task -c ./api/deno.jsonc check-types",
+		"build": "deno bundle cli/src/main.ts build/bbai && deno bundle api/src/main.ts build/bbai-api"
+	},
+	"fmt": {
+		"useTabs": true,
+		"lineWidth": 120,
+		"indentWidth": 4,
+		"semiColons": true,
+		"singleQuote": true,
+		"proseWrap": "preserve",
+		"include": ["src/", "cli/src/", "api/src/"],
+		"exclude": ["src/testdata/", "src/fixtures/**/*.ts"]
+	}
+}
