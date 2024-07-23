@@ -112,6 +112,15 @@ export class ConversationPersistence {
 		logger.info(`Metadata saved for conversation: ${this.conversationId}`);
 	}
 
+	async getMetadata(): Promise<any> {
+		await this.ensureInitialized();
+		if (await exists(this.metadataPath)) {
+			const metadataContent = await Deno.readTextFile(this.metadataPath);
+			return JSON.parse(metadataContent);
+		}
+		return {};
+	}
+
 	// Remove the saveConversationMessage method as it's no longer needed
 
 	private handleSaveError(error: unknown, filePath: string): never {
