@@ -3,6 +3,59 @@ import { ensureDir, exists } from '@std/fs';
 import { ConfigManager } from 'shared/configManager.ts';
 import { logger } from './logger.utils.ts';
 
+const MAX_FILE_SIZE = 1024 * 1024; // 1MB
+const TIERS = [
+	{ args: ['-R', '--fields=+l', '--languages=all'] },
+	{ args: ['-R', '--fields=+l', '--languages=c,cpp,javascript,typescript,python,java,go'] },
+	{ args: ['-R', '--fields=+l', '--languages=c,cpp,javascript,typescript,python,java,go', '--kinds-all=-v'] },
+	{ args: ['-R', '--fields=+l', '--languages=c,cpp,javascript,typescript,python,java,go', '--kinds-all=-v,-p'] },
+	{ args: ['-R', '--fields=+l', '--languages=c,cpp,javascript,typescript,python,java,go', '--kinds-all=f,c,m'] },
+];
+
+async function generateCtagsTier(projectRoot: string, tagsFilePath: string, tier: number): Promise<boolean> {
+	const excludeOptions = await getExcludeOptions(projectRoot);
+
+	const command = new Deno.Command('ctags', {
+		args: [...TIERS[tier].args, '-f', tagsFilePath, ...excludeOptions, '.'],
+		cwd: projectRoot,
+	});
+
+	try {
+		const { code, stderr } = await command.output();
+		if (code !== 0) {
+			logger.error(`Failed to generate ctags: ${new TextDecoder().decode(stderr)}`);
+			return false;
+		}
+
+		const fileInfo = await Deno.stat(tagsFilePath);
+		return fileInfo.size <= MAX_FILE_SIZE;
+	} catch (error) {
+		logger.error(`Error executing ctags command: ${error.message}`);
+		return false;
+	}
+}
+
+async function getExcludeOptions(projectRoot: string): Promise<string[]> {
+	const excludeFiles = [
+		join(projectRoot, 'tags.ignore'),
+		join(projectRoot, '.gitignore'),
+		join(projectRoot, '.bbai', 'tags.ignore'),
+	];
+
+	const excludeOptions = [];
+	for (const file of excludeFiles) {
+		if (await exists(file)) {
+			excludeOptions.push(`--exclude=@${file}`);
+		}
+	}
+
+	if (excludeOptions.length === 0) {
+		excludeOptions.push('--exclude=.bbai/*');
+	}
+
+	return excludeOptions;
+}
+
 export async function generateCtags(bbaiDir: string, projectRoot: string): Promise<void> {
 	const config = await ConfigManager.getInstance();
 	const ctagsConfig = config.getConfig().ctags;
@@ -15,45 +68,15 @@ export async function generateCtags(bbaiDir: string, projectRoot: string): Promi
 	const tagsFilePath = ctagsConfig?.tagsFilePath ? ctagsConfig.tagsFilePath : join(bbaiDir, 'tags');
 	logger.info('Ctags using tags file: ', tagsFilePath);
 
-	// Check for tags.ignore, .gitignore, and .bbai/tags.ignore
-	const tagsIgnoreFile = join(projectRoot, 'tags.ignore');
-	const gitIgnoreFile = join(projectRoot, '.gitignore');
-	const bbaiIgnoreFile = join(bbaiDir, 'tags.ignore');
-
-	let excludeOptions = [];
-
-	if (await exists(tagsIgnoreFile)) {
-		excludeOptions.push(`--exclude=@${tagsIgnoreFile}`);
-	}
-
-	if (await exists(gitIgnoreFile)) {
-		excludeOptions.push(`--exclude=@${gitIgnoreFile}`);
-	}
-
-	if (await exists(bbaiIgnoreFile)) {
-		excludeOptions.push(`--exclude=@${bbaiIgnoreFile}`);
-	}
-
-	// Ensure .bbai/* is excluded
-	if (excludeOptions.length === 0) {
-		excludeOptions.push('--exclude=.bbai/*');
-	}
-
-	const command = new Deno.Command('ctags', {
-		args: ['-R', '--fields=+l', '--languages=all', '-f', tagsFilePath, ...excludeOptions, '.'],
-		cwd: projectRoot,
-	});
-
-	try {
-		const { code, stdout, stderr } = await command.output();
-		if (code === 0) {
-			logger.info(`Ctags file generated successfully at ${tagsFilePath}`);
-		} else {
-			logger.error(`Failed to generate ctags: ${new TextDecoder().decode(stderr)}`);
+	for (let tier = 0; tier < TIERS.length; tier++) {
+		logger.info(`Attempting to generate ctags with tier ${tier}`);
+		if (await generateCtagsTier(projectRoot, tagsFilePath, tier)) {
+			logger.info(`Ctags file generated successfully at ${tagsFilePath} using tier ${tier}`);
+			return;
 		}
-	} catch (error) {
-		logger.error(`Error executing ctags command: ${error.message}`);
 	}
+
+	logger.error('Failed to generate ctags file within size limit after all tiers');
 }
 
 export async function readCtagsFile(bbaiDir: string): Promise<string | null> {
