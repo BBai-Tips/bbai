@@ -14,6 +14,7 @@ import { GitUtils } from 'shared/git.ts';
 import { createError, ErrorType } from '../utils/error.utils.ts';
 import { FileHandlingErrorOptions } from '../errors/error.ts';
 import { generateCtags, readCtagsFile } from 'shared/ctags.ts';
+import { LLMMessageContentPartTextBlock, LLMMessageContentPartToolResultBlock } from '../llms/message.ts';
 import {
 	getBbaiCacheDir,
 	getBbaiDir,

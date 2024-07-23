@@ -41,7 +41,7 @@ class LLMConversation {
 	private _files: Map<string, FileMetadata> = new Map();
 	private systemPromptFiles: string[] = [];
 
-	static generateShortId(): string {
+	private static generateShortId(): string {
 		return Math.random().toString(36).substring(2, 15);
 	}
 
