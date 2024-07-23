@@ -9,6 +9,10 @@ import { BbAiState } from './types.ts';
 
 const { environment, apiPort } = config.api || {};
 
+// Add more detailed logging for configuration
+logger.info(`API Configuration:`, JSON.stringify(config.api, null, 2));
+logger.info(`API Port: ${apiPort}`);
+
 // Get the log file path from command line arguments
 const logFile = Deno.args[0];
 
@@ -63,12 +67,36 @@ app.addEventListener('listen', ({ hostname, port, secure }: { hostname: string; 
 	logger.info(`Listening on: ${secure ? 'https://' : 'http://'}${hostname ?? 'localhost'}:${port}`);
 });
 app.addEventListener('error', (evt: ErrorEvent) => {
-	// Will log the thrown error to the console.
-	logger.info(evt.error);
+	logger.error(`Application error:`, evt.error);
+});
+
+// Add a basic health check endpoint
+app.use(async (context, next) => {
+	if (context.request.url.pathname === "/health") {
+		context.response.body = "OK";
+	} else {
+		await next();
+	}
+});
+
+// Log all incoming requests
+app.use(async (context, next) => {
+	const start = Date.now();
+	await next();
+	const ms = Date.now() - start;
+	logger.info(`${context.request.method} ${context.request.url.pathname} - ${ms}ms`);
 });
 
 if (import.meta.main) {
-	await app.listen({ port: apiPort });
+	try {
+		logger.info(`Attempting to start server on port: ${apiPort}`);
+		await app.listen({ port: apiPort });
+		logger.info(`Server successfully started. Listening on port: ${apiPort}`);
+	} catch (error) {
+		logger.error(`Failed to start server: ${error.message}`);
+		logger.error(`Stack trace: ${error.stack}`);
+		Deno.exit(1);
+	}
 }
 
 export { app };
