@@ -381,19 +381,19 @@ export class ProjectEditor {
 			await this.updateCtags();
 		} catch (error) {
 			if (error instanceof Deno.errors.NotFound) {
-				throw createError(ErrorType.FileHandling, `File not found: ${fullFilePath}`, {
-					filePath: fullFilePath,
+				throw createError(ErrorType.FileHandling, `File not found: ${filePath}`, {
+					filePath: filePath,
 					operation: 'read',
 				} as FileHandlingErrorOptions);
 			} else if (error instanceof Deno.errors.PermissionDenied) {
-				throw createError(ErrorType.FileHandling, `Permission denied for file: ${fullFilePath}`, {
-					filePath: fullFilePath,
+				throw createError(ErrorType.FileHandling, `Permission denied for file: ${filePath}`, {
+					filePath: filePath,
 					operation: 'write',
 				} as FileHandlingErrorOptions);
 			} else {
-				logger.error(`Error applying patch to ${fullFilePath}: ${error.message}`);
-				throw createError(ErrorType.FileHandling, `Failed to apply patch to ${fullFilePath}`, {
-					filePath: fullFilePath,
+				logger.error(`Error applying patch to ${filePath}: ${error.message}`);
+				throw createError(ErrorType.FileHandling, `Failed to apply patch to ${filePath}`, {
+					filePath: filePath,
 					operation: 'patch',
 				} as FileHandlingErrorOptions);
 			}
