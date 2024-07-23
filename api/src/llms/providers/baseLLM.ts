@@ -24,6 +24,7 @@ import { tokenUsageManager } from '../../utils/tokenUsage.utils.ts';
 import { ProjectEditor } from '../../editor/projectEditor.ts';
 import { ConversationPersistence } from '../../utils/conversationPersistence.utils.ts';
 import { readFileContent } from 'shared/dataDir.ts';
+import { readCtagsFile, generateFileListing, FILE_LISTING_TIERS } from 'shared/utils/fileListing.utils.ts';
 
 const ajv = new Ajv();
 
