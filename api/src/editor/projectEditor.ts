@@ -236,7 +236,12 @@ export class ProjectEditor {
 			logger.info(`Final save of conversation: ${this.conversation.id}`);
 		}
 
-		return currentResponse;
+		return {
+			response: currentResponse,
+			conversationId: this.conversation?.id || '',
+			statementNumber: this.conversation?.messages.length || 0,
+			turnNumber: currentTurn,
+		};
 	}
 
 	private async handleToolUse(tool: any, response: any): Promise<string> {

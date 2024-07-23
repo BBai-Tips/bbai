@@ -5,7 +5,6 @@ import { stripIndent } from 'common-tags';
 
 import { GitUtils } from '../utils/git.utils.ts';
 import { ConfigSchema, mergeConfigs } from './configSchema.ts';
-import { logger } from 'shared/logger.ts';
 
 export class ConfigManager {
 	private static instance: ConfigManager;
@@ -107,7 +106,6 @@ export class ConfigManager {
 				`;
 			await Deno.writeTextFile(projectConfigPath, projectConfig);
 		} catch (error) {
-			logger.error(`Failed to create or update project config file: ${error.message}`);
 			throw error;
 		}
 	}
