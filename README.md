@@ -1,5 +1,16 @@
 # BBai - Your Intelligent Project Assistant
 
+## Project Status: Alpha
+
+BBai is currently in an alpha stage of development. While we're excited about its potential, please be aware that you may encounter bugs or incomplete features. We're actively working on improvements and new functionalities.
+
+**We're Seeking Testers and Contributors!**
+If you're interested in being part of the BBai journey, we'd love to hear from you. Whether you want to test the tool, contribute code, or share ideas, please reach out. Your input can help shape the future of BBai.
+
+To get involved, please [insert contact method or link here].
+
+---
+
 ## Be Better at ... Everything You Do with Text
 
 BBai _(pronounced b-b-aye)_ is an advanced AI-powered assistant designed to revolutionize how you work with text-based projects. Whether you're coding, writing, or managing complex documentation, BBai is here to help you "be better" at every step.
@@ -88,18 +99,5 @@ BBai is continuously evolving. Future plans include:
 BBai is more than just a tool; it's a growing community of professionals pushing the boundaries of what's possible with AI-assisted work. Whether you're a seasoned developer or a curious writer, BBai is here to help you be better at what you do.
 
 Start your journey with BBai today and transform the way you work with text!
-
----
-
-## Project Status: Alpha
-
-BBai is currently in an alpha stage of development. While we're excited about its potential, please be aware that you may encounter bugs or incomplete features. We're actively working on improvements and new functionalities.
-
-**We're Seeking Testers and Contributors!**
-If you're interested in being part of the BBai journey, we'd love to hear from you. Whether you want to test the tool, contribute code, or share ideas, please reach out. Your input can help shape the future of BBai.
-
-To get involved, please [insert contact method or link here].
-
----
 
 *BBai: Be Better at ... Everything You Do with Text*
