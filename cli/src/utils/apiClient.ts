@@ -59,6 +59,7 @@ class ApiClient {
 		const statementCount = response.statementCount;
 		const turnCount = response.turnCount;
 		const totalTurnCount = response.totalTurnCount;
+		const tokenUsage = response.response.usage;
 
 		if (options.json) {
 			console.log(JSON.stringify({
@@ -67,7 +68,8 @@ class ApiClient {
 				conversationId,
 				statementCount,
 				turnCount,
-				totalTurnCount
+				totalTurnCount,
+				tokenUsage
 			}, null, 2));
 		} else {
 			console.log(response.response.answerContent[0].text);
@@ -76,6 +78,7 @@ class ApiClient {
 			console.log(`Statement Count: ${statementCount}`);
 			console.log(`Turn Count: ${turnCount}`);
 			console.log(`Total Turn Count: ${totalTurnCount}`);
+			console.log(`Token Usage: Input: ${tokenUsage.inputTokens}, Output: ${tokenUsage.outputTokens}, Total: ${tokenUsage.totalTokens}`);
 			
 			if (isNewConversation) {
 				console.log(`\nNew conversation started.`);
