@@ -24,7 +24,8 @@ import { tokenUsageManager } from '../../utils/tokenUsage.utils.ts';
 import { ProjectEditor } from '../../editor/projectEditor.ts';
 import { ConversationPersistence } from '../../utils/conversationPersistence.utils.ts';
 import { readFileContent } from 'shared/dataDir.ts';
-import { readCtagsFile, generateFileListing, FILE_LISTING_TIERS } from 'shared/utils/fileListing.utils.ts';
+import { readCtagsFile } from 'shared/ctags.ts';
+import { FILE_LISTING_TIERS, generateFileListing } from 'shared/fileListing.ts';
 
 const ajv = new Ajv();
 
@@ -101,7 +102,11 @@ class LLM {
 		return null;
 	}
 
-	protected async appendCtagsOrFileListingToSystem(system: string, ctagsContent: string | null, fileListingContent: string | null): Promise<string> {
+	protected async appendCtagsOrFileListingToSystem(
+		system: string,
+		ctagsContent: string | null,
+		fileListingContent: string | null,
+	): Promise<string> {
 		if (ctagsContent) {
 			system += `\n\n<ctags>\n${ctagsContent}\n</ctags>`;
 		} else if (fileListingContent) {
@@ -120,7 +125,11 @@ class LLM {
 		return system;
 	}
 
-	protected async getRepositoryInfo(bbaiDir: string, projectRoot: string, conversation: LLMConversation): Promise<string | null> {
+	protected async getRepositoryInfo(
+		bbaiDir: string,
+		projectRoot: string,
+		conversation: LLMConversation,
+	): Promise<string | null> {
 		const ctagsContent = await readCtagsFile(bbaiDir);
 		if (ctagsContent) {
 			conversation.repositoryInfoTier = 0; // Assuming ctags is always tier 0
@@ -130,7 +139,7 @@ class LLM {
 		const fileListingContent = await generateFileListing(projectRoot);
 		if (fileListingContent) {
 			// Determine which tier was used for file listing
-			const tier = FILE_LISTING_TIERS.findIndex(t => t.depth === Infinity && t.includeMetadata === true);
+			const tier = FILE_LISTING_TIERS.findIndex((t) => t.depth === Infinity && t.includeMetadata === true);
 			conversation.repositoryInfoTier = tier !== -1 ? tier : null;
 			return fileListingContent;
 		}
