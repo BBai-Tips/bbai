@@ -3,8 +3,7 @@
 // import LLMMessage, { LLMMessageContentPart, LLMMessageContentParts } from '../../api/src/llms/message.ts';
 
 export interface VectorEmbedding {
-  id: string;
-  vector: number[];
-  metadata: Record<string, unknown>;
+	id: string;
+	vector: number[];
+	metadata: Record<string, unknown>;
 }
-

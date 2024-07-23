@@ -23,16 +23,24 @@ export const requestChanges = new Command()
 				}
 			} else {
 				const errorBody = await response.text();
-				console.error(JSON.stringify({
-					error: 'Failed to request changes',
-					status: response.status,
-					body: errorBody
-				}, null, 2));
+				console.error(JSON.stringify(
+					{
+						error: 'Failed to request changes',
+						status: response.status,
+						body: errorBody,
+					},
+					null,
+					2,
+				));
 			}
 		} catch (error) {
-			console.error(JSON.stringify({
-				error: 'Error requesting changes',
-				message: error.message
-			}, null, 2));
+			console.error(JSON.stringify(
+				{
+					error: 'Error requesting changes',
+					message: error.message,
+				},
+				null,
+				2,
+			));
 		}
 	});

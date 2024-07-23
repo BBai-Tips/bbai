@@ -1,23 +1,22 @@
 import { ensureDir, exists } from '@std/fs';
 import { join, resolve } from '@std/path';
-import { parse as parseYaml } from "yaml";
+import { parse as parseYaml } from 'yaml';
 import { GitUtils } from './git.utils.ts';
 import { ConfigManager } from 'shared/configManager.ts';
 
-
 export async function getProjectRoot(cwd: string): Promise<string> {
-    const gitRoot = await GitUtils.findGitRoot(cwd);
-    if (!gitRoot) {
-        throw new Error('Not in a git repository');
-    }
-    return gitRoot;
+	const gitRoot = await GitUtils.findGitRoot(cwd);
+	if (!gitRoot) {
+		throw new Error('Not in a git repository');
+	}
+	return gitRoot;
 }
 
 export async function getBbaiDir(cwd: string): Promise<string> {
-    const projectRoot = await getProjectRoot(cwd);
-    const bbaiDir = join(projectRoot, '.bbai');
-    await ensureDir(bbaiDir);
-    return bbaiDir;
+	const projectRoot = await getProjectRoot(cwd);
+	const bbaiDir = join(projectRoot, '.bbai');
+	await ensureDir(bbaiDir);
+	return bbaiDir;
 }
 
 export async function getBbaiCacheDir(cwd: string): Promise<string> {

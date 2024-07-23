@@ -32,19 +32,27 @@ export const conversationStart = new Command()
 				apiClient.handleConversationOutput(data, options);
 			} else {
 				const errorBody = await response.text();
-				console.error(JSON.stringify({
-					error: `Failed to ${options.id ? 'continue' : 'start'} conversation`,
-					status: response.status,
-					body: errorBody
-				}, null, 2));
+				console.error(JSON.stringify(
+					{
+						error: `Failed to ${options.id ? 'continue' : 'start'} conversation`,
+						status: response.status,
+						body: errorBody,
+					},
+					null,
+					2,
+				));
 				logger.error(`API request failed: ${response.status} ${response.statusText}`);
 				logger.error(`Error body: ${errorBody}`);
 			}
 		} catch (error) {
-			console.error(JSON.stringify({
-				error: 'Error in conversation',
-				message: error.message
-			}, null, 2));
+			console.error(JSON.stringify(
+				{
+					error: 'Error in conversation',
+					message: error.message,
+				},
+				null,
+				2,
+			));
 			logger.error(`Unexpected error: ${error.message}`);
 			logger.error(`Stack trace: ${error.stack}`);
 		}

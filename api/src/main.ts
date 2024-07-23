@@ -22,9 +22,8 @@ if (logFile) {
 	consoleFunctions.forEach((funcName) => {
 		console[funcName] = (...args) => {
 			const prefix = funcName === 'log' ? '' : `[${funcName.toUpperCase()}] `;
-			const message = prefix + args.map((arg) => 
-				typeof arg === 'string' ? arg : JSON.stringify(arg)
-			).join(' ') + '\n';
+			const message = prefix + args.map((arg) => typeof arg === 'string' ? arg : JSON.stringify(arg)).join(' ') +
+				'\n';
 			logFileStream.write(encoder.encode(message));
 		};
 	});

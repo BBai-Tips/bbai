@@ -4,11 +4,11 @@ import { logger } from 'shared/logger.ts';
 import {
 	addMessage,
 	clearConversation,
+	continueConversation,
 	deleteConversation,
 	getConversation,
 	startConversation,
 	undoConversation,
-	continueConversation,
 } from './api/conversation.handlers.ts';
 import { addFile, listFiles, removeFile } from './api/file.handlers.ts';
 import { getTokenUsage } from './api/token.handlers.ts';

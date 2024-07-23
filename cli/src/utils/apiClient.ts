@@ -61,24 +61,30 @@ class ApiClient {
 		const tokenUsage = response.response.usage;
 
 		if (options.json) {
-			console.log(JSON.stringify({
-				...response,
-				isNewConversation,
-				conversationId,
-				statementCount,
-				turnCount,
-				totalTurnCount,
-				tokenUsage
-			}, null, 2));
+			console.log(JSON.stringify(
+				{
+					...response,
+					isNewConversation,
+					conversationId,
+					statementCount,
+					turnCount,
+					totalTurnCount,
+					tokenUsage,
+				},
+				null,
+				2,
+			));
 		} else {
 			console.log(response.response.answerContent[0].text);
-			
+
 			console.log(`\nConversation ID: ${conversationId}`);
 			console.log(`Statement Count: ${statementCount}`);
 			console.log(`Turn Count: ${turnCount}`);
 			console.log(`Total Turn Count: ${totalTurnCount}`);
-			console.log(`Token Usage: Input: ${tokenUsage.inputTokens}, Output: ${tokenUsage.outputTokens}, Total: ${tokenUsage.totalTokens}`);
-			
+			console.log(
+				`Token Usage: Input: ${tokenUsage.inputTokens}, Output: ${tokenUsage.outputTokens}, Total: ${tokenUsage.totalTokens}`,
+			);
+
 			if (isNewConversation) {
 				console.log(`\nNew conversation started.`);
 				console.log(`To continue this conversation, use:`);
