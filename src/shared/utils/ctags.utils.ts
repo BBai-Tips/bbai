@@ -3,7 +3,7 @@ import { ensureDir, exists, walk } from '@std/fs';
 import { ConfigManager } from 'shared/configManager.ts';
 import { logger } from './logger.utils.ts';
 import { countTokens } from 'anthropic-tokenizer';
-import { getMimeType } from 'mime';
+import { getMimeType } from '@std/mime';
 
 const TIERS = [
 	{ args: ['-R', '--fields=+l', '--languages=all'] },
