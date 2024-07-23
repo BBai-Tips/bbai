@@ -348,8 +348,10 @@ export class ProjectEditor {
 			} as FileHandlingErrorOptions);
 		}
 
+		const fullFilePath = join(this.projectRoot, filePath);
+
 		try {
-			const currentContent = await Deno.readTextFile(filePath);
+			const currentContent = await Deno.readTextFile(fullFilePath);
 
 			const patchedContent = diff.applyPatch(currentContent, patch, {
 				fuzzFactor: 2,
@@ -379,19 +381,19 @@ export class ProjectEditor {
 			await this.updateCtags();
 		} catch (error) {
 			if (error instanceof Deno.errors.NotFound) {
-				throw createError(ErrorType.FileHandling, `File not found: ${filePath}`, {
-					filePath,
+				throw createError(ErrorType.FileHandling, `File not found: ${fullFilePath}`, {
+					filePath: fullFilePath,
 					operation: 'read',
 				} as FileHandlingErrorOptions);
 			} else if (error instanceof Deno.errors.PermissionDenied) {
-				throw createError(ErrorType.FileHandling, `Permission denied for file: ${filePath}`, {
-					filePath,
+				throw createError(ErrorType.FileHandling, `Permission denied for file: ${fullFilePath}`, {
+					filePath: fullFilePath,
 					operation: 'write',
 				} as FileHandlingErrorOptions);
 			} else {
-				logger.error(`Error applying patch to ${filePath}: ${error.message}`);
-				throw createError(ErrorType.FileHandling, `Failed to apply patch to ${filePath}`, {
-					filePath,
+				logger.error(`Error applying patch to ${fullFilePath}: ${error.message}`);
+				throw createError(ErrorType.FileHandling, `Failed to apply patch to ${fullFilePath}`, {
+					filePath: fullFilePath,
 					operation: 'patch',
 				} as FileHandlingErrorOptions);
 			}
