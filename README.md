@@ -2,7 +2,7 @@
 
 ## Be Better at ... Everything You Do with Text
 
-BBai (pronounced b-b-aye) is an advanced AI-powered assistant designed to revolutionize how you work with text-based projects. Whether you're coding, writing, or managing complex documentation, BBai is here to help you "be better" at every step.
+BBai _(pronounced b-b-aye)_ is an advanced AI-powered assistant designed to revolutionize how you work with text-based projects. Whether you're coding, writing, or managing complex documentation, BBai is here to help you "be better" at every step.
 
 _(The name is also a respectful nod to [BBEdit](https://www.barebones.com/products/bbedit/index.html), my beloved text editor by Bare Bones Software)_
 
