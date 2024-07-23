@@ -28,6 +28,8 @@ export class ProjectEditor {
 	private promptManager: PromptManager;
 	private llmProvider!: LLM;
 	private projectRoot: string;
+	private statementCount: number = 0;
+	private totalTurnCount: number = 0;
 
 	constructor(private cwd: string) {
 		this.promptManager = new PromptManager(this);
@@ -151,6 +153,9 @@ export class ProjectEditor {
 				await persistence.init();
 				this.conversation = await this.llmProvider.loadConversation(conversationId);
 				logger.info(`Loaded existing conversation: ${conversationId}`);
+				const metadata = await persistence.getMetadata();
+				this.statementCount = metadata.statementCount || 0;
+				this.totalTurnCount = metadata.totalTurnCount || 0;
 			} catch (error) {
 				logger.warn(`Failed to load conversation ${conversationId}: ${error.message}`);
 				this.conversation = null;
@@ -172,29 +177,32 @@ export class ProjectEditor {
 			this.addDefaultTools();
 
 			logger.info(`Created new conversation: ${this.conversation.id}`);
+			this.statementCount = 0;
+			this.totalTurnCount = 0;
 		}
 
+		this.statementCount++;
 		const speakOptions: LLMSpeakWithOptions = {
 			temperature: 0.7,
 			maxTokens: 1000,
 		};
 
-		// TODO: There is a `building-fast` branch that has the previous "optimized, but buggy" solution.
-		// This current implementation is simpler but may be less efficient.
-
 		const maxTurns = 5; // Maximum number of turns for the run loop
-		let currentTurn = 0;
+		let turnCount = 0;
 		let currentResponse: LLMProviderMessageResponse = await this.conversation.speakWithLLM(prompt, speakOptions);
 		logger.info('currentResponse', currentResponse);
+		this.totalTurnCount++;
+		turnCount++;
 
 		// Save the conversation immediately after the first response
 		if (this.conversation) {
 			const persistence = new ConversationPersistence(this.conversation.id, this);
 			await persistence.saveConversation(this.conversation);
+			await persistence.saveMetadata({ statementCount: this.statementCount, totalTurnCount: this.totalTurnCount });
 			logger.info(`Saved conversation: ${this.conversation.id}`);
 		}
 
-		while (currentTurn < maxTurns) {
+		while (turnCount < maxTurns) {
 			// Handle tool calls and collect feedback
 			let toolFeedback = '';
 			if (currentResponse.toolsUsed && currentResponse.toolsUsed.length > 0) {
@@ -209,7 +217,8 @@ export class ProjectEditor {
 			if (toolFeedback) {
 				prompt =
 					`Tool use feedback:\n${toolFeedback}\nPlease acknowledge this feedback and continue the conversation.`;
-				currentTurn++;
+				turnCount++;
+				this.totalTurnCount++;
 				currentResponse = await this.conversation.speakWithLLM(prompt, speakOptions);
 				logger.info('tool response', currentResponse);
 
@@ -217,7 +226,8 @@ export class ProjectEditor {
 				if (this.conversation) {
 					const persistence = new ConversationPersistence(this.conversation.id, this);
 					await persistence.saveConversation(this.conversation);
-					logger.info(`Saved conversation after turn ${currentTurn}: ${this.conversation.id}`);
+					await persistence.saveMetadata({ statementCount: this.statementCount, totalTurnCount: this.totalTurnCount });
+					logger.info(`Saved conversation after turn ${turnCount}: ${this.conversation.id}`);
 				}
 			} else {
 				// No more tool feedback, exit the loop
@@ -225,7 +235,7 @@ export class ProjectEditor {
 			}
 		}
 
-		if (currentTurn >= maxTurns) {
+		if (turnCount >= maxTurns) {
 			logger.warn(`Reached maximum number of turns (${maxTurns}) in conversation.`);
 		}
 
@@ -233,14 +243,16 @@ export class ProjectEditor {
 		if (this.conversation) {
 			const persistence = new ConversationPersistence(this.conversation.id, this);
 			await persistence.saveConversation(this.conversation);
+			await persistence.saveMetadata({ statementCount: this.statementCount, totalTurnCount: this.totalTurnCount });
 			logger.info(`Final save of conversation: ${this.conversation.id}`);
 		}
 
 		return {
 			response: currentResponse,
 			conversationId: this.conversation?.id || '',
-			statementNumber: this.conversation?.messages.length || 0,
-			turnNumber: currentTurn,
+			statementCount: this.statementCount,
+			turnCount,
+			totalTurnCount: this.totalTurnCount,
 		};
 	}
 
