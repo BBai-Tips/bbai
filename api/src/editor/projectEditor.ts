@@ -342,6 +342,30 @@ export class ProjectEditor {
 		return await this.searchEmbeddings(query);
 	}
 
+	async addToolResultToMessagesArray(
+		toolUseId: string,
+		content: string,
+		isError: boolean = false
+	): Promise<void> {
+		if (!this.conversation) {
+			throw new Error('No active conversation. Cannot add tool result.');
+		}
+
+		const toolResult = {
+			type: 'tool_result',
+			tool_use_id: toolUseId,
+			content: [
+				{
+					'type': 'text',
+					'text': content,
+				} as LLMMessageContentPartTextBlock,
+			],
+			is_error: isError,
+		} as LLMMessageContentPartToolResultBlock;
+
+		this.conversation.addMessageForUserRole(toolResult);
+	}
+
 	async handleApplyPatch(filePath: string, patch: string, toolUseId: string): Promise<void> {
 		if (!this.isPathWithinProject(filePath)) {
 			throw createError(ErrorType.FileHandling, `Access denied: ${filePath} is outside the project directory`, {
@@ -383,24 +407,27 @@ export class ProjectEditor {
 
 			// Update ctags after applying the patch
 			await this.updateCtags();
+
+			// Add tool result message
+			await this.addToolResultToMessagesArray(toolUseId, `Patch applied successfully to file: ${filePath}`);
 		} catch (error) {
+			let errorMessage: string;
 			if (error instanceof Deno.errors.NotFound) {
-				throw createError(ErrorType.FileHandling, `File not found: ${filePath}`, {
-					filePath: filePath,
-					operation: 'read',
-				} as FileHandlingErrorOptions);
+				errorMessage = `File not found: ${filePath}`;
 			} else if (error instanceof Deno.errors.PermissionDenied) {
-				throw createError(ErrorType.FileHandling, `Permission denied for file: ${filePath}`, {
-					filePath: filePath,
-					operation: 'write',
-				} as FileHandlingErrorOptions);
+				errorMessage = `Permission denied for file: ${filePath}`;
 			} else {
-				logger.error(`Error applying patch to ${filePath}: ${error.message}`);
-				throw createError(ErrorType.FileHandling, `Failed to apply patch to ${filePath}`, {
-					filePath: filePath,
-					operation: 'patch',
-				} as FileHandlingErrorOptions);
+				errorMessage = `Failed to apply patch to ${filePath}: ${error.message}`;
 			}
+			logger.error(errorMessage);
+
+			// Add error tool result message
+			await this.addToolResultToMessagesArray(toolUseId, errorMessage, true);
+
+			throw createError(ErrorType.FileHandling, errorMessage, {
+				filePath: filePath,
+				operation: 'patch',
+			} as FileHandlingErrorOptions);
 		}
 	}
 
