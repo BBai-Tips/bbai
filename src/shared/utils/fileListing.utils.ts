@@ -3,7 +3,7 @@ import { walk } from '@std/fs';
 import { ConfigManager } from 'shared/configManager.ts';
 import { logger } from './logger.utils.ts';
 import { countTokens } from 'anthropic-tokenizer';
-import { getMimeType } from 'mime';
+import { contentType } from '@std/media-types';
 
 const FILE_LISTING_TIERS = [
 	{ depth: Infinity, includeMetadata: true },
