@@ -66,15 +66,15 @@ class LLMConversation {
 
 	private addMessageForUserRole(contentPart: LLMMessageContentPart): string {
 		const lastMessage = this.messages[this.messages.length - 1];
-		logger.error('lastMessage', lastMessage);
+		logger.debug('lastMessage', lastMessage);
 		if (lastMessage && lastMessage.role === 'user') {
 			// Append contentPart to the content array of the last user message
-			logger.error('Adding content to existing user message', contentPart);
+			logger.debug('Adding content to existing user message', JSON.stringify(contentPart, null, 2));
 			lastMessage.content.push(contentPart);
 			return lastMessage.id ?? '';
 		} else {
 			// Add a new user message
-			logger.error('Adding content to new user message', contentPart);
+			logger.debug('Adding content to new user message', JSON.stringify(contentPart, null, 2));
 			const newMessage = new LLMMessage('user', [contentPart]);
 			this.addMessage(newMessage);
 			return newMessage.id ?? '';
@@ -143,10 +143,17 @@ class LLMConversation {
 			}
 		}
 
+		const filesSummary = filesToAdd.map(file => `${file.fileName} (${file.metadata.error ? 'Error' : 'Success'})`).join(', ');
 		const toolResultContentPart = {
 			type: 'tool_result',
 			tool_use_id: toolUseId,
-			content: contentParts,
+			content: [
+				{
+					type: 'text',
+					text: `Files added to the conversation: ${filesSummary}`
+				} as LLMMessageContentPartTextBlock,
+				...contentParts
+			],
 			is_error: allFilesFailed,
 		} as LLMMessageContentPartToolResultBlock;
 
