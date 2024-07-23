@@ -1,0 +1,34 @@
+{
+	"name": "bbai-api",
+	"version": "0.0.1-alpha",
+	"exports": "./src/main.ts",
+	"tasks": {
+		"start": "deno run --allow-read --allow-write --allow-run --allow-net --allow-env src/main.ts",
+		"dev": "deno run --watch --allow-read --allow-write --allow-run --allow-net --allow-env src/main.ts",
+		"debug": "LOG_LEVEL=debug deno run --allow-read --allow-write --allow-run --allow-net --allow-env src/main.ts",
+		"test": "deno test --allow-read --allow-run --allow-net --allow-env",
+		"format": "deno fmt",
+		"check-types": "deno check src/main.ts",
+		"update-deps": "deno cache src/main.ts && deno cache tests/deps.ts"
+	},
+	"importMap": "../import_map.json",
+	"unstable": ["kv"],
+	"fmt": {
+		"useTabs": true,
+		"lineWidth": 120,
+		"indentWidth": 4,
+		"semiColons": true,
+		"singleQuote": true,
+		"proseWrap": "preserve",
+		"include": ["src/", "tests/"],
+		"exclude": ["src/testdata/", "src/fixtures/**/*.ts"]
+	},
+	"lint": {
+		"files": {
+			"include": ["tests/pipelineProvider.js"]
+		},
+		"rules": {
+			"exclude": ["require-await", "no-var"]
+		}
+	},
+}
