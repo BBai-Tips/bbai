@@ -1,5 +1,6 @@
 import { ensureDir, ensureFile } from '@std/fs';
 import { join } from '@std/path';
+import { ConfigManager } from 'shared/configManager.ts';
 import { logger } from 'shared/logger.ts';
 import { stringify as stringifyYaml } from 'yaml';
 
@@ -15,7 +16,7 @@ export async function createBbaiDir(cwd: string): Promise<void> {
 }
 
 export async function createTagIgnore(cwd: string): Promise<void> {
-  const tagIgnorePath = join(cwd, '.bbai', 'tag.ignore');
+  const tagIgnorePath = join(cwd, '.bbai', 'tags.ignore');
   try {
     await ensureFile(tagIgnorePath);
     await Deno.writeTextFile(tagIgnorePath, '.bbai/*');
