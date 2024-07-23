@@ -22,7 +22,12 @@ const FILE_LISTING_TIERS = [
 	{ depth: 1, includeMetadata: false },
 ];
 
-async function generateCtagsTier(projectRoot: string, tagsFilePath: string, tier: number, tokenLimit: number): Promise<boolean> {
+async function generateCtagsTier(
+	projectRoot: string,
+	tagsFilePath: string,
+	tier: number,
+	tokenLimit: number,
+): Promise<boolean> {
 	const excludeOptions = await getExcludeOptions(projectRoot);
 
 	const command = new Deno.Command('ctags', {
@@ -90,32 +95,6 @@ export async function generateCtags(bbaiDir: string, projectRoot: string): Promi
 
 	logger.warn(`Failed to generate ctags file within token limit (${tokenLimit}) after all tiers.`);
 	return null;
-}
-
-// This function has been moved to fileListing.utils.ts
-
-async function generateFileListingTier(projectRoot: string, excludeOptions: string[], maxDepth: number, includeMetadata: boolean): Promise<string> {
-	let listing = '';
-	for await (const entry of walk(projectRoot, { maxDepth, includeDirs: false })) {
-		const relativePath = relative(projectRoot, entry.path);
-		if (shouldExclude(relativePath, excludeOptions)) continue;
-
-		if (includeMetadata) {
-			const stat = await Deno.stat(entry.path);
-			const mimeType = contentType(entry.name) || 'application/octet-stream';
-			listing += `${relativePath} (${mimeType}, ${stat.size} bytes, modified: ${stat.mtime?.toISOString()})\n`;
-		} else {
-			listing += `${relativePath}\n`;
-		}
-	}
-	return listing;
-}
-
-function shouldExclude(path: string, excludeOptions: string[]): boolean {
-	return excludeOptions.some(option => {
-		const pattern = option.replace('--exclude=', '').replace(/\*/g, '.*');
-		return new RegExp(pattern).test(path);
-	});
 }
 
 export async function readCtagsFile(bbaiDir: string): Promise<string | null> {
