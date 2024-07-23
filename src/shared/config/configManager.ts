@@ -42,7 +42,6 @@ export class ConfigManager {
 	public async ensureUserConfig(cwd: string): Promise<void> {
 		const userConfigDir = join(Deno.env.get('HOME') || '', '.config', 'bbai');
 		const userConfigPath = join(userConfigDir, 'config.yaml');
-		const projectConfigPath = join(cwd, '.bbai', 'config.yaml');
 
 		try {
 			await Deno.stat(userConfigPath);
@@ -82,20 +81,30 @@ export class ConfigManager {
 				throw error;
 			}
 		}
+	}
 
-		// Create or update project-specific config
+	public async ensureProjectConfig(cwd: string): Promise<void> {
+		const projectConfigPath = join(cwd, '.bbai', 'config.yaml');
+
 		try {
 			await ensureDir(join(cwd, '.bbai'));
-			const projectConfig = {
-				api: {
-					environment: 'local',
-					apiPort: 3000,
-					ignoreLLMRequestCache: false,
-				},
-				cli: {},
-				logLevel: 'info',
-			};
-			await Deno.writeTextFile(projectConfigPath, stringifyYaml(projectConfig));
+			const projectConfig = stripIndent`
+				# bbai Project Configuration File
+
+				api:
+				  # Your Anthropic API key. Replace with your actual key.
+				  anthropicApiKey: "your-anthropic-api-key-here"
+				
+				  # Your OpenAI API key. Uncomment and replace with your actual key if using OpenAI.
+				  # openaiApiKey: "your-openai-api-key-here"
+
+				  # Your VoyageAI API key. Uncomment and replace with your actual key if using VoyageAI.
+				  # voyageaiApiKey: "your-voyageai-api-key-here"
+
+				# Add any project-specific configuration options here
+				logLevel: info
+				`;
+			await Deno.writeTextFile(projectConfigPath, projectConfig);
 		} catch (error) {
 			logger.error(`Failed to create or update project config file: ${error.message}`);
 			throw error;

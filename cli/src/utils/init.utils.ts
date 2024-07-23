@@ -87,5 +87,6 @@ Thumbs.db
 export async function createDefaultConfig(cwd: string): Promise<void> {
   const configManager = await ConfigManager.getInstance();
   await configManager.ensureUserConfig(cwd);
-  logger.info('Created default config file');
+  await configManager.ensureProjectConfig(cwd);
+  logger.info('Created default config files');
 }
