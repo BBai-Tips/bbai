@@ -20,7 +20,7 @@ export const apiStatus = new Command()
 
 		if (isRunning) {
 			const pid = await getPid(cwd);
-			status.pid = pid;
+			status.pid = pid !== null ? pid : undefined;
 			status.apiUrl = `http://localhost:${apiPort}`;
 
 			try {
