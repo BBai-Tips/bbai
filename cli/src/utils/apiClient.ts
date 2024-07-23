@@ -1,5 +1,6 @@
 import { config } from 'shared/configManager.ts';
 import { logger } from 'shared/logger.ts';
+import { logger } from 'shared/logger.ts';
 
 class ApiClient {
 	private baseUrl: string;
@@ -9,7 +10,9 @@ class ApiClient {
 	}
 
 	static async create(): Promise<ApiClient> {
-		const baseUrl = `http://localhost:${config.api?.apiPort || 3000}`;
+		const apiPort = config.api?.apiPort || 3000;
+		const baseUrl = `http://localhost:${apiPort}`;
+		logger.info(`Creating API client with base URL: ${baseUrl}`);
 		return new ApiClient(baseUrl);
 	}
 
