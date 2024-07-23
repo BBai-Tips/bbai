@@ -41,10 +41,6 @@ class LLMConversation {
 	private _files: Map<string, FileMetadata> = new Map();
 	private systemPromptFiles: string[] = [];
 
-	private static generateShortId(): string {
-		return Math.random().toString(36).substring(2, 15);
-	}
-
 	private _system: string = '';
 
 	private persistence: ConversationPersistence;
@@ -86,6 +82,26 @@ class LLMConversation {
 			this.addMessage(newMessage);
 			return newMessage.id ?? '';
 		}
+	}
+
+	async addToolResultToMessagesArray(
+		toolUseId: string,
+		content: string,
+		isError: boolean = false,
+	): Promise<void> {
+		const toolResult = {
+			type: 'tool_result',
+			tool_use_id: toolUseId,
+			content: [
+				{
+					'type': 'text',
+					'text': content,
+				} as LLMMessageContentPartTextBlock,
+			],
+			is_error: isError,
+		} as LLMMessageContentPartToolResultBlock;
+
+		this.addMessageForUserRole(toolResult);
 	}
 
 	async addFileToMessageArray(
