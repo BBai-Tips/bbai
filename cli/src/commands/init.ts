@@ -1,5 +1,5 @@
 import { Command } from 'cliffy/command/mod.ts';
-import { GitUtils } from 'shared/utils/git.utils.ts';
+import { GitUtils } from 'shared/git.ts';
 import { logger } from 'shared/logger.ts';
 import { createBbaiDir, createTagIgnore, createGitIgnore, getDefaultGitIgnore, createDefaultConfig } from '../utils/init.utils.ts';
 import { join } from '@std/path';
