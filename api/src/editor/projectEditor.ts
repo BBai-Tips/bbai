@@ -390,7 +390,7 @@ export class ProjectEditor {
 				// 	await this.conversation.addFileToMessageArray(fileName, metadata, toolUseId);
 				// }
 
-				logger.info(`File ${fileName} added to nessages by ${source}`);
+				logger.info(`File ${fileName} added to messages by ${source}`);
 			} catch (error) {
 				logger.error(`Error adding file ${fileName}: ${error.message}`);
 				throw createError(ErrorType.FileHandling, `Failed to add file ${fileName}`, {
