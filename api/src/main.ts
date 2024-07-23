@@ -14,34 +14,20 @@ const logFile = Deno.args[0];
 
 if (logFile) {
 	// Redirect console.log and console.error to the log file
+	const consoleFunctions = ['log', 'debug', 'info', 'warn', 'error'];
+
 	const logFileStream = await Deno.open(logFile, { write: true, create: true, append: true });
 	const encoder = new TextEncoder();
 
-	console.log = (...args) => {
-		const message = args.map((arg) => typeof arg === 'string' ? arg : JSON.stringify(arg)).join(' ') + '\n';
-		logFileStream.write(encoder.encode(message));
-	};
-
-	console.debug = (...args) => {
-		const message = '[DEBUG] ' + args.map((arg) => typeof arg === 'string' ? arg : JSON.stringify(arg)).join(' ') +
-			'\n';
-		logFileStream.write(encoder.encode(message));
-	};
-	console.info = (...args) => {
-		const message = '[INFO] ' + args.map((arg) => typeof arg === 'string' ? arg : JSON.stringify(arg)).join(' ') +
-			'\n';
-		logFileStream.write(encoder.encode(message));
-	};
-	console.warn = (...args) => {
-		const message = '[WARN] ' + args.map((arg) => typeof arg === 'string' ? arg : JSON.stringify(arg)).join(' ') +
-			'\n';
-		logFileStream.write(encoder.encode(message));
-	};
-	console.error = (...args) => {
-		const message = '[ERROR] ' + args.map((arg) => typeof arg === 'string' ? arg : JSON.stringify(arg)).join(' ') +
-			'\n';
-		logFileStream.write(encoder.encode(message));
-	};
+	consoleFunctions.forEach((funcName) => {
+		console[funcName] = (...args) => {
+			const prefix = funcName === 'log' ? '' : `[${funcName.toUpperCase()}] `;
+			const message = prefix + args.map((arg) => 
+				typeof arg === 'string' ? arg : JSON.stringify(arg)
+			).join(' ') + '\n';
+			logFileStream.write(encoder.encode(message));
+		};
+	});
 }
 
 const app = new Application<BbAiState>();
