@@ -349,7 +349,7 @@ export class ProjectEditor {
 				break;
 			case 'search_repository':
 				const { pattern, file_pattern } = tool.toolInput as { pattern: string; file_pattern?: string };
-				const repoSearchResults = await this.handleSearchRepository(pattern, file_pattern, tool.toolUseId);
+				const repoSearchResults = await this.handleSearchRepository(pattern, file_pattern || undefined, tool.toolUseId);
 				feedback = `Repository search completed. ${repoSearchResults.length} files found matching the pattern.`;
 				break;
 			default:
@@ -400,7 +400,7 @@ export class ProjectEditor {
 			const resultMessage = `Found ${files.length} files matching the pattern "${pattern}"${
 				file_pattern ? ` with file pattern "${file_pattern}"` : ''
 			}:\n${files.join('\n')}`;
-			await this.conversation.addToolResultToMessagesArray(toolUseId, resultMessage);
+			await this.conversation?.addToolResultToMessagesArray(toolUseId, resultMessage);
 
 			return files;
 		} else {
@@ -408,7 +408,7 @@ export class ProjectEditor {
 			logger.error(`Error searching repository: ${errorMessage}`);
 
 			// Add error tool result message
-			await this.conversation.addToolResultToMessagesArray(toolUseId, `Error searching repository: ${errorMessage}`, true);
+			await this.conversation?.addToolResultToMessagesArray(toolUseId, `Error searching repository: ${errorMessage}`, true);
 			return [];
 		}
 	}
@@ -456,7 +456,7 @@ export class ProjectEditor {
 			await this.updateCtags();
 
 			// Add tool result message
-			await this.conversation.addToolResultToMessagesArray(toolUseId, `Patch applied successfully to file: ${filePath}`);
+			await this.conversation?.addToolResultToMessagesArray(toolUseId, `Patch applied successfully to file: ${filePath}`);
 		} catch (error) {
 			let errorMessage: string;
 			if (error instanceof Deno.errors.NotFound) {
@@ -469,7 +469,7 @@ export class ProjectEditor {
 			logger.error(errorMessage);
 
 			// Add error tool result message
-			await this.conversation.addToolResultToMessagesArray(toolUseId, errorMessage, true);
+			await this.conversation?.addToolResultToMessagesArray(toolUseId, errorMessage, true);
 
 			throw createError(ErrorType.FileHandling, errorMessage, {
 				filePath: filePath,
