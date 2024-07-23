@@ -54,7 +54,7 @@ if (import.meta.main) {
 }
 
 // Add this function to handle the conversation output
-function handleConversationOutput(response: any, options: any) {
+export function handleConversationOutput(response: any, options: any) {
 	const isNewConversation = !options.id;
 	const conversationId = response.conversationId;
 	const statementCount = response.statementCount;
