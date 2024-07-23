@@ -10,7 +10,7 @@ import type {
 	LLMValidateResponseCallback,
 } from '../../types.ts';
 import LLMMessage from '../message.ts';
-import type { LLMMessageContentPart, LLMMessageContentParts, LLMMessageContentPartTextBlock } from '../message.ts';
+import type { LLMMessageContentPart, LLMMessageContentParts } from '../message.ts';
 import LLMTool from '../tool.ts';
 import type { LLMToolInputSchema } from '../tool.ts';
 import LLMConversation from '../conversation.ts';
@@ -126,7 +126,7 @@ class LLM {
 			}
 			if (contentPart.type === 'tool_result' && Array.isArray(contentPart.content)) {
 				const updatedContent = await Promise.all(contentPart.content.map(processContentPart));
-				return { ...contentPart, content: updatedContent as (LLMMessageContentPartTextBlock | LLMMessageContentPartImageBlock | LLMMessageContentPartToolUseBlock)[] };
+				return { ...contentPart, content: updatedContent as LLMMessageContentPart[] };
 			}
 			return contentPart;
 		};
