@@ -7,7 +7,7 @@ BBai is currently in an alpha stage of development. While we're excited about it
 **We're Seeking Testers and Contributors!**
 If you're interested in being part of the BBai journey, we'd love to hear from you. Whether you want to test the tool, contribute code, or share ideas, please reach out. Your input can help shape the future of BBai.
 
-To get involved, please [insert contact method or link here].
+To get involved, please submit an issue, or contact me directly.
 
 ---
 
