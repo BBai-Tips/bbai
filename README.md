@@ -91,4 +91,15 @@ Start your journey with BBai today and transform the way you work with text!
 
 ---
 
+## Project Status: Alpha
+
+BBai is currently in an alpha stage of development. While we're excited about its potential, please be aware that you may encounter bugs or incomplete features. We're actively working on improvements and new functionalities.
+
+**We're Seeking Testers and Contributors!**
+If you're interested in being part of the BBai journey, we'd love to hear from you. Whether you want to test the tool, contribute code, or share ideas, please reach out. Your input can help shape the future of BBai.
+
+To get involved, please [insert contact method or link here].
+
+---
+
 *BBai: Be Better at ... Everything You Do with Text*
