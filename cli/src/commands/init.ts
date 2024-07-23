@@ -1,7 +1,8 @@
 import { Command } from 'cliffy/command/mod.ts';
 import { GitUtils } from 'shared/utils/git.utils.ts';
 import { logger } from 'shared/logger.ts';
-import { createBbaiDir, createTagIgnore, createGitIgnore, getDefaultGitIgnore } from '../utils/init.utils.ts';
+import { createBbaiDir, createTagIgnore, createGitIgnore, getDefaultGitIgnore, createDefaultConfig } from '../utils/init.utils.ts';
+import { join } from '@std/path';
 
 export const init = new Command()
   .name('init')
@@ -12,6 +13,7 @@ export const init = new Command()
     try {
       await createBbaiDir(cwd);
       await createTagIgnore(cwd);
+      await createDefaultConfig(cwd);
 
       // Check if in a git repository
       const gitRoot = await GitUtils.findGitRoot(cwd);
