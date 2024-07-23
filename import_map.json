@@ -1,5 +1,6 @@
 {
 	"imports": {
+		"emit": "https://deno.land/x/emit/mod.ts",
 		"cliffy/": "https://deno.land/x/cliffy@v0.25.7/",
 		"anthropic": "https://esm.sh/@anthropic-ai/sdk@0.22.0",
 		"anthropic-tokenizer": "npm:@anthropic-ai/tokenizer",
