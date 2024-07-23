@@ -158,7 +158,7 @@ export class ProjectEditor {
 				await persistence.init();
 				logger.debug(`ConversationPersistence initialized for ${conversationId}`);
 				
-				this.conversation = await this.llmProvider.loadConversation(conversationId);
+				this.conversation = await persistence.loadConversation(this.llmProvider);
 				logger.info(`Loaded existing conversation: ${conversationId}`);
 				
 				const metadata = await persistence.getMetadata();
@@ -183,7 +183,7 @@ export class ProjectEditor {
 				});
 
 				this.conversation = this.llmProvider.createConversation();
-				this.conversation.id = conversationId || this.conversation.id; // Use provided ID or generated one
+				this.conversation.id = conversationId || crypto.randomUUID();
 				this.conversation.baseSystem = systemPrompt;
 				if (model) this.conversation.model = model;
 

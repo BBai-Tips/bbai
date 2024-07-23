@@ -90,7 +90,7 @@ export class ConversationPersistence {
 					return null;
 				}
 			}).filter(Boolean).join('\n') + '\n';
-			await Deno.writeTextFile(this.messagesPath, messagesContent);
+			await Deno.writeTextFile(this.messagesPath, messagesContent, { append: true });
 			logger.info(`Saved messages for conversation: ${conversation.id}`);
 
 			// Save files
@@ -179,13 +179,8 @@ export class ConversationPersistence {
 
 			for (const line of messageLines) {
 				try {
-					const turnData = JSON.parse(line);
-					if (turnData.message && typeof turnData.message === 'object') {
-						conversation.addMessage(turnData.message);
-					}
-					if (turnData.response && typeof turnData.response === 'object') {
-						conversation.addMessage(turnData.response);
-					}
+					const messageData = JSON.parse(line);
+					conversation.addMessage(messageData);
 				} catch (error) {
 					logger.error(`Error parsing message: ${error.message}`);
 					// Continue to the next message if there's an error
