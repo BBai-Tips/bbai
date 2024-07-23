@@ -36,26 +36,29 @@ export const startConversation = async (ctx: Context) => {
 	}
 };
 
-export const continueConversation = async (ctx: Context) => {
+export const continueConversation = async (
+	{ params, request, response }: { params: { id: string }; request: Context['request']; response: Context['response'] },
+) => {
 	logger.debug('continueConversation called');
 
 	try {
-		const body = await ctx.request.body.json();
-		const { prompt, conversationId, cwd } = body;
+		const { id: conversationId } = params;
+		const body = await request.body.json();
+		const { prompt, cwd } = body;
 
-		logger.info(`Continuing conversation. ConversationId: ${conversationId}, Prompt: "${prompt.substring(0, 50)}..."`);
+		logger.info(`Continuing conversation. ConversationId: ${conversationId}, Prompt: "${prompt?.substring(0, 50)}..."`);
 
-		if (!prompt || !conversationId) {
-			logger.warn('Missing prompt or conversationId');
-			ctx.response.status = 400;
-			ctx.response.body = { error: 'Missing prompt or conversationId' };
+		if (!prompt) {
+			logger.warn('Missing prompt');
+			response.status = 400;
+			response.body = { error: 'Missing prompt' };
 			return;
 		}
 
 		if (!cwd) {
 			logger.warn('Missing cwd');
-			ctx.response.status = 400;
-			ctx.response.body = { error: 'Missing cwd' };
+			response.status = 400;
+			response.body = { error: 'Missing cwd' };
 			return;
 		}
 
@@ -64,14 +67,14 @@ export const continueConversation = async (ctx: Context) => {
 		await projectEditor.init();
 
 		logger.info(`Calling speakWithLLM for conversation: ${conversationId}`);
-		const response = await projectEditor.speakWithLLM(prompt, undefined, undefined, conversationId);
+		const result = await projectEditor.speakWithLLM(prompt, undefined, undefined, conversationId);
 
 		logger.debug('Response received from speakWithLLM');
-		ctx.response.body = response;
+		response.body = result;
 	} catch (error) {
 		logger.error(`Error in continueConversation: ${error.message}`, error);
-		ctx.response.status = 500;
-		ctx.response.body = { error: 'Failed to generate response', details: error.message };
+		response.status = 500;
+		response.body = { error: 'Failed to generate response', details: error.message };
 	}
 };
 
