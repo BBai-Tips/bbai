@@ -14,7 +14,11 @@ import { GitUtils } from 'shared/git.ts';
 import { createError, ErrorType } from '../utils/error.utils.ts';
 import { FileHandlingErrorOptions } from '../errors/error.ts';
 import { generateCtags, readCtagsFile } from 'shared/ctags.ts';
-import { LLMMessageContentPartTextBlock, LLMMessageContentPartToolResultBlock } from '../llms/message.ts';
+import {
+	LLMAnswerToolUse,
+	LLMMessageContentPartTextBlock,
+	LLMMessageContentPartToolResultBlock,
+} from '../llms/message.ts';
 import {
 	getBbaiCacheDir,
 	getBbaiDir,
@@ -329,14 +333,14 @@ export class ProjectEditor {
 	}
 
 	private async handleToolUse(
-		tool: { toolInput: unknown; toolName: string; toolUseId: string },
+		tool: LLMAnswerToolUse,
 		response: unknown,
 	): Promise<string> {
 		let feedback = '';
 		switch (tool.toolName) {
 			case 'request_files': {
 				const fileNames = (tool.toolInput as { fileNames: string[] }).fileNames;
-				const filesAdded = await this.handleRequestFiles(fileNames, tool.toolUseId);
+				const filesAdded = await this.handleRequestFiles(fileNames, tool.toolUseId || '');
 				const addedFileNames = filesAdded.map((file) => file.fileName).join(', ');
 				feedback = `Files added to the conversation: ${addedFileNames}`;
 				break;
@@ -344,7 +348,6 @@ export class ProjectEditor {
 			case 'vector_search': {
 				const query = (tool.toolInput as { query: string }).query;
 				const vectorSearchResults = await this.handleVectorSearch(query, tool.toolUseId);
-				response.vectorSearchResults = vectorSearchResults;
 				feedback =
 					`Vector search completed for query: "${query}". ${vectorSearchResults.length} results found.`;
 				break;
@@ -389,7 +392,7 @@ export class ProjectEditor {
 		file_pattern: string | undefined,
 		toolUseId: string,
 	): Promise<string[]> {
-		let command = ['grep', '-r', '-l', pattern];
+		const command = ['grep', '-r', '-l', pattern];
 
 		if (file_pattern) {
 			command.push('--include', file_pattern);
