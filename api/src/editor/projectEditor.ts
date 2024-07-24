@@ -1,6 +1,7 @@
 import { join, normalize, resolve } from '@std/path';
 import * as diff from 'diff';
 import { ensureDir, exists } from '@std/fs';
+import { searchFiles } from 'shared/utils/fileListing.utils.ts';
 
 import { LLMFactory } from '../llms/llmProvider.ts';
 import LLMConversation, { FileMetadata } from '../llms/conversation.ts';
@@ -392,39 +393,18 @@ export class ProjectEditor {
 		file_pattern: string | undefined,
 		toolUseId: string,
 	): Promise<string[]> {
-		const command = ['grep', '-r', '-l', pattern];
-
-		if (file_pattern) {
-			command.push('--include', file_pattern);
-		}
-
-		command.push('.');
-
-		const process = Deno.run({
-			cmd: command,
-			cwd: this.projectRoot,
-			stdout: 'piped',
-			stderr: 'piped',
-		});
-
-		const { code } = await process.status();
-		const rawOutput = await process.output();
-		const rawError = await process.stderrOutput();
-		process.close();
-
-		if (code === 0) {
-			const output = new TextDecoder().decode(rawOutput).trim();
-			const files = output.split('\n').filter(Boolean);
+		try {
+			const files = await searchFiles(this.projectRoot, pattern, file_pattern);
 
 			// Add tool result message
 			const resultMessage = `Found ${files.length} files matching the pattern "${pattern}"${
 				file_pattern ? ` with file pattern "${file_pattern}"` : ''
 			}:\n${files.join('\n')}`;
 			this.conversation?.addMessageForToolResult(toolUseId, resultMessage);
-
+			
 			return files;
-		} else {
-			const errorMessage = new TextDecoder().decode(rawError).trim();
+		} catch (error) {
+			const errorMessage = error.message;
 			logger.error(`Error searching repository: ${errorMessage}`);
 
 			// Add error tool result message
