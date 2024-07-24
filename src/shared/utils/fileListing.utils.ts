@@ -81,3 +81,40 @@ async function getExcludeOptions(projectRoot: string): Promise<string[]> {
 
 	return excludeOptions;
 }
+
+export async function searchFiles(projectRoot: string, pattern: string, filePattern?: string): Promise<{ files: string[], error: string | null }> {
+	const excludeOptions = await getExcludeOptions(projectRoot);
+	let command = ['grep', '-r', '-l', pattern];
+
+	if (filePattern) {
+		command.push('--include', filePattern);
+	}
+
+	// Add exclude options
+	for (const option of excludeOptions) {
+		command.push(option.replace('--exclude=', '--exclude-dir='));
+	}
+
+	command.push('.');
+
+	const process = Deno.run({
+		cmd: command,
+		cwd: projectRoot,
+		stdout: 'piped',
+		stderr: 'piped',
+	});
+
+	const { code } = await process.status();
+	const rawOutput = await process.output();
+	const rawError = await process.stderrOutput();
+	process.close();
+
+	if (code === 0 || code === 1) { // grep returns 1 if no matches found, which is not an error for us
+		const output = new TextDecoder().decode(rawOutput).trim();
+		const files = output.split('\n').filter(Boolean);
+		return { files, error: null };
+	} else {
+		const errorMessage = new TextDecoder().decode(rawError).trim();
+		return { files: [], error: errorMessage };
+	}
+}

@@ -2,7 +2,6 @@ import { Context } from '@oak/oak';
 import { logger } from 'shared/logger.ts';
 import { ProjectEditor } from '../../editor/projectEditor.ts';
 import { ConversationPersistence } from '../../utils/conversationPersistence.utils.ts';
-import { LLMFactory } from '../../llms/llmProvider.ts';
 
 export const startConversation = async (ctx: Context) => {
 	logger.debug('startConversation called');
@@ -23,6 +22,7 @@ export const startConversation = async (ctx: Context) => {
 			return;
 		}
 
+		logger.debug(`Creating ProjectEditor for dir: ${cwd}`);
 		const projectEditor = new ProjectEditor(cwd);
 		await projectEditor.init();
 
@@ -68,7 +68,7 @@ export const continueConversation = async (
 			return;
 		}
 
-		logger.debug(`Creating ProjectEditor with cwd: ${cwd}`);
+		logger.debug(`Creating ProjectEditor for dir: ${cwd}`);
 		const projectEditor = new ProjectEditor(cwd);
 		await projectEditor.init();
 

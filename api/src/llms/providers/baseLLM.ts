@@ -23,7 +23,6 @@ import kv from '../../utils/kv.utils.ts';
 import { tokenUsageManager } from '../../utils/tokenUsage.utils.ts';
 import { ProjectEditor } from '../../editor/projectEditor.ts';
 import { ConversationPersistence } from '../../utils/conversationPersistence.utils.ts';
-import { readFileContent } from 'shared/dataDir.ts';
 import { readCtagsFile } from 'shared/ctags.ts';
 import { FILE_LISTING_TIERS, generateFileListing } from 'shared/fileListing.ts';
 
@@ -53,6 +52,10 @@ class LLM {
 		throw new Error("Method 'speakWith' must be implemented.");
 	}
 
+	protected checkStopReason(llmProviderMessageResponse: LLMProviderMessageResponse): void {
+		throw new Error("Method 'checkStopReason' must be implemented.");
+	}
+
 	protected modifySpeakWithConversationOptions(
 		conversation: LLMConversation,
 		speakOptions: LLMSpeakWithOptions,
@@ -65,28 +68,22 @@ class LLM {
 		return new LLMConversation(this);
 	}
 
+	/*
+	// you should probably be using ProjectEditor to load conversations
 	async loadConversation(conversationId: string): Promise<LLMConversation> {
 		const persistence = new ConversationPersistence(conversationId, this.projectEditor);
 		await persistence.init();
-		const conversation = await LLMConversation.resume(conversationId, this);
+		const conversation = await persistence.loadConversation(this);
 		return conversation;
 	}
-
-	protected async readProjectFileContent(filePath: string): Promise<string> {
-		const fullFilePath = join(await this.projectEditor.getProjectRoot(), filePath);
-		const content = await readFileContent(fullFilePath);
-		if (content === null) {
-			throw new Error(`File not found: ${fullFilePath}`);
-		}
-		return content;
-	}
+	 */
 
 	protected async createFileXmlString(filePath: string): Promise<string | null> {
 		try {
 			logger.info('createFileXmlString - filePath', filePath);
-			const fullFilePath = join(await this.projectEditor.getProjectRoot(), filePath);
-			logger.info('createFileXmlString - fullFilePath', fullFilePath);
-			const content = await this.readProjectFileContent(filePath);
+			//const fullFilePath = join(this.projectEditor.projectRoot, filePath);
+			//logger.info('createFileXmlString - fullFilePath', fullFilePath);
+			const content = await this.projectEditor.readProjectFileContent(filePath);
 			const metadata = {
 				size: new TextEncoder().encode(content).length,
 				lastModified: new Date(),
@@ -102,11 +99,11 @@ class LLM {
 		return null;
 	}
 
-	protected async appendCtagsOrFileListingToSystem(
+	protected appendCtagsOrFileListingToSystem(
 		system: string,
 		ctagsContent: string | null,
 		fileListingContent: string | null,
-	): Promise<string> {
+	): string {
 		if (ctagsContent) {
 			system += `\n\n<ctags>\n${ctagsContent}\n</ctags>`;
 		} else if (fileListingContent) {
@@ -154,6 +151,8 @@ class LLM {
 		const processContentPart = async <T extends LLMMessageContentPart>(contentPart: T): Promise<T> => {
 			if (contentPart.type === 'text' && contentPart.text.startsWith('File added:')) {
 				const filePath = contentPart.text.split(': ')[1].trim();
+				logger.error(`Hydrating message for file: ${filePath} - extracted from: ${contentPart.text}`);
+
 				const fileXml = await this.createFileXmlString(filePath);
 				return fileXml ? { ...contentPart, text: fileXml } as T : contentPart;
 			}
@@ -192,15 +191,14 @@ class LLM {
 		conversation: LLMConversation,
 		speakOptions?: LLMSpeakWithOptions,
 	): Promise<LLMProviderMessageResponse> {
-		const start = Date.now();
+		//const start = Date.now();
 
 		const llmProviderMessageRequest = await this.prepareMessageParams(
 			conversation,
 			speakOptions,
 		) as LLMProviderMessageRequest;
 
-		let llmProviderMessageResponse: LLMProviderMessageResponse | undefined;
-		let llmProviderMessageRequestId: string;
+		let llmProviderMessageResponse!: LLMProviderMessageResponse;
 
 		const cacheKey = !config.api?.ignoreLLMRequestCache
 			? this.createRequestCacheKey(llmProviderMessageRequest)
@@ -219,7 +217,71 @@ class LLM {
 		}
 
 		if (!llmProviderMessageResponse) {
-			llmProviderMessageResponse = await this.speakWith(llmProviderMessageRequest);
+			const maxRetries = this.maxSpeakRetries;
+			let retries = 0;
+			let delay = 1000; // Start with a 1-second delay
+
+			while (retries < maxRetries) {
+				try {
+					llmProviderMessageResponse = await this.speakWith(llmProviderMessageRequest);
+
+					const status = llmProviderMessageResponse.providerMessageResponseMeta.status;
+
+					if (status >= 200 && status < 300) {
+						break; // Successful response, break out of the retry loop
+					} else if (status === 429) {
+						// Rate limit exceeded
+						const rateLimit = llmProviderMessageResponse.rateLimit.requestsResetDate.getTime() - Date.now();
+						const waitTime = Math.max(rateLimit, delay);
+						logger.warn(`Rate limit exceeded. Waiting for ${waitTime}ms before retrying.`);
+						await new Promise((resolve) => setTimeout(resolve, waitTime));
+					} else if (status >= 500) {
+						// Server error, use exponential backoff
+						logger.warn(`Server error (${status}). Retrying in ${delay}ms.`);
+						await new Promise((resolve) => setTimeout(resolve, delay));
+						delay *= 2; // Double the delay for next time
+					} else {
+						// For other errors, throw and don't retry
+						throw createError(
+							ErrorType.LLM,
+							`Error calling LLM service: ${llmProviderMessageResponse.providerMessageResponseMeta.statusText}`,
+							{
+								model: conversation.model,
+								provider: this.providerName,
+								args: { status },
+								conversationId: conversation.id,
+							} as LLMErrorOptions,
+						);
+					}
+
+					retries++;
+				} catch (error) {
+					// Handle any unexpected errors
+					throw createError(
+						ErrorType.LLM,
+						`Unexpected error calling LLM service: ${error.message}`,
+						{
+							model: conversation.model,
+							provider: this.providerName,
+							args: { reason: error },
+							conversationId: conversation.id,
+						} as LLMErrorOptions,
+					);
+				}
+			}
+
+			if (retries >= maxRetries) {
+				throw createError(
+					ErrorType.LLM,
+					'Max retries reached when calling LLM service.',
+					{
+						model: conversation.model,
+						provider: this.providerName,
+						args: { retries: maxRetries },
+						conversationId: conversation.id,
+					} as LLMErrorOptions,
+				);
+			}
 
 			//const latency = Date.now() - start;
 			//await metricsService.recordLLMMetrics({
@@ -241,6 +303,15 @@ class LLM {
 				}
 			}
 
+			// Create and save the assistant's message
+			const assistantMessage = new LLMMessage(
+				'assistant',
+				llmProviderMessageResponse.answerContent,
+				undefined,
+				llmProviderMessageResponse,
+			);
+			conversation.addMessage(assistantMessage);
+
 			llmProviderMessageResponse.fromCache = false;
 
 			if (!config.api?.ignoreLLMRequestCache) {
@@ -248,26 +319,6 @@ class LLM {
 				//await metricsService.recordCacheMetrics({ operation: 'set' });
 			}
 		}
-
-		// Remove these lines as they are not needed
-		// const { max_tokens: maxTokens, ...llmProviderMessageRequestDesnaked } = llmProviderMessageRequest;
-		// llmProviderMessageRequestId = await conversation.llmProviderMessageRequestRepository
-		// 	.createLLMProviderMessageRequest({
-		// 		...llmProviderMessageRequestDesnaked,
-		// 		maxTokens,
-		// 		prompt: conversation.currentPrompt,
-		// 		conversationId: conversation.repoRecId,
-		// 		conversationTurnCount: conversation.turnCount,
-		// 	});
-
-		// const { id: _id, ...llmProviderMessageResponseWithoutId } = llmProviderMessageResponse;
-		// await conversation.llmProviderMessageResponseRepository.createLLMProviderMessageResponse({
-		// 	...llmProviderMessageResponseWithoutId,
-		// 	conversationId: conversation.repoRecId,
-		// 	conversationTurnCount: conversation.turnCount,
-		// 	providerRequestId: llmProviderMessageRequestId,
-		// 	apiResponseId: llmProviderMessageResponse.id,
-		// });
 
 		return llmProviderMessageResponse;
 	}
@@ -280,8 +331,8 @@ class LLM {
 		const retrySpeakOptions = { ...speakOptions };
 		let retries = 0;
 		let failReason = '';
-		let totalTokenUsage = { inputTokens: 0, outputTokens: 0, totalTokens: 0 };
 		let totalProviderRequests = 0;
+		const totalTokenUsage = { inputTokens: 0, outputTokens: 0, totalTokens: 0 };
 
 		while (retries < maxRetries) {
 			retries++;
@@ -301,7 +352,7 @@ class LLM {
 
 				if (validationFailedReason === null) {
 					conversation.updateTotals(totalTokenUsage, totalProviderRequests);
-					await conversation.save(); // Persist the conversation after successful response
+					//await conversation.save(); // Persist the conversation after successful response
 					return llmProviderMessageResponse;
 				}
 
@@ -323,7 +374,7 @@ class LLM {
 		}
 
 		conversation.updateTotals(totalTokenUsage, totalProviderRequests);
-		await conversation.save(); // Persist the conversation even if all retries failed
+		//await conversation.save(); // Persist the conversation even if all retries failed
 		logger.error(
 			`provider[${this.providerName}] Max retries reached. Request to ${this.providerName} failed.`,
 		);
@@ -353,6 +404,11 @@ class LLM {
 				const tool = conversation.getTool(toolUse.toolName ?? '');
 				//logger.error(`Validating Tool: ${toolUse.toolName}`);
 				if (tool) {
+					if (llmProviderMessageResponse.messageStop.stopReason === 'max_tokens') {
+						logger.error(`Tool input exceeded max tokens`);
+						return `Tool exceeded max tokens`;
+					}
+
 					const inputSchema: LLMToolInputSchema = tool.input_schema;
 					const validate = ajv.compile(inputSchema);
 					const valid = validate(toolUse.toolInput);
@@ -395,6 +451,7 @@ class LLM {
 				currentToolThinking = '';
 			}
 
+			// if the last/final content part is type text, then add to toolThinking of last tool in toolsUsed
 			if (index === llmProviderMessageResponse.answerContent.length - 1 && answerPart.type === 'text') {
 				llmProviderMessageResponse.toolsUsed![llmProviderMessageResponse.toolsUsed!.length - 1].toolThinking +=
 					answerPart.text;

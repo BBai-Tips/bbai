@@ -95,7 +95,6 @@ export class ConversationPersistence {
 					return null;
 				}
 			}).filter(Boolean).join('\n') + '\n';
-			// 			await Deno.writeTextFile(this.messagesPath, messagesContent, { append: true });
 			await Deno.writeTextFile(this.messagesPath, messagesContent);
 			logger.info(`Saved messages for conversation: ${conversation.id}`);
 
@@ -204,8 +203,6 @@ export class ConversationPersistence {
 
 					if (fileMetadata.inSystemPrompt) {
 						await conversation.addFileForSystemPrompt(filePath, fileMetadata);
-					} else {
-						await conversation.addFileToMessageArray(filePath, fileMetadata, fileMetadata.toolUseId);
 					}
 					logger.info(`Loaded file: ${filePath}`);
 				}

@@ -19,6 +19,7 @@ import {
 	getBbaiCacheDir,
 	getBbaiDir,
 	getProjectRoot,
+	readFileContent,
 	readFromBbaiDir,
 	removeFromBbaiDir,
 	writeToBbaiDir,
@@ -28,18 +29,23 @@ export class ProjectEditor {
 	private conversation: LLMConversation | null = null;
 	private promptManager: PromptManager;
 	private llmProvider!: LLM;
+	private cwd: string;
 	private projectRoot: string;
+	private bbaiDir: string;
 	private statementCount: number = 0;
 	private totalTurnCount: number = 0;
 
-	constructor(private cwd: string) {
+	constructor(cwd: string) {
 		this.promptManager = new PromptManager(this);
 		this.projectRoot = '.';
+		this.bbaiDir = '.bbai';
+		this.cwd = cwd;
 	}
 
 	public async init(): Promise<void> {
 		try {
 			this.projectRoot = await this.getProjectRoot();
+			this.bbaiDir = await this.getBbaiDir();
 			this.llmProvider = LLMFactory.getProvider(this);
 		} catch (error) {
 			console.error('Failed to initialize LLMProvider:', error);
@@ -247,16 +253,14 @@ export class ProjectEditor {
 			turnCount++;
 
 			// Save the conversation immediately after the first response
-			if (this.conversation) {
-				logger.info(`Saving conversation at beginning of statement: ${this.conversation.id}`);
-				const persistence = new ConversationPersistence(this.conversation.id, this);
-				await persistence.saveConversation(this.conversation);
-				await persistence.saveMetadata({
-					statementCount: this.statementCount,
-					totalTurnCount: this.totalTurnCount,
-				});
-				logger.info(`Saved conversation: ${this.conversation.id}`);
-			}
+			logger.info(`Saving conversation at beginning of statement: ${this.conversation.id}`);
+			const persistence = new ConversationPersistence(this.conversation.id, this);
+			await persistence.saveConversation(this.conversation);
+			await persistence.saveMetadata({
+				statementCount: this.statementCount,
+				totalTurnCount: this.totalTurnCount,
+			});
+			logger.info(`Saved conversation: ${this.conversation.id}`);
 		} catch (error) {
 			logger.error(`Error in LLM communication:`, error);
 			throw error;
@@ -306,16 +310,14 @@ export class ProjectEditor {
 		}
 
 		// Final save of the entire conversation at the end of the loop
-		if (this.conversation) {
-			logger.info(`Saving conversation at end of statement: ${this.conversation.id}`);
-			const persistence = new ConversationPersistence(this.conversation.id, this);
-			await persistence.saveConversation(this.conversation);
-			await persistence.saveMetadata({
-				statementCount: this.statementCount,
-				totalTurnCount: this.totalTurnCount,
-			});
-			logger.info(`Final save of conversation: ${this.conversation.id}`);
-		}
+		logger.info(`Saving conversation at end of statement: ${this.conversation.id}`);
+		const persistence = new ConversationPersistence(this.conversation.id, this);
+		await persistence.saveConversation(this.conversation);
+		await persistence.saveMetadata({
+			statementCount: this.statementCount,
+			totalTurnCount: this.totalTurnCount,
+		});
+		logger.info(`Final save of conversation: ${this.conversation.id}`);
 
 		return {
 			response: currentResponse,
@@ -326,35 +328,47 @@ export class ProjectEditor {
 		};
 	}
 
-	private async handleToolUse(tool: any, response: any): Promise<string> {
+	private async handleToolUse(
+		tool: { toolInput: unknown; toolName: string; toolUseId: string },
+		response: unknown,
+	): Promise<string> {
 		let feedback = '';
 		switch (tool.toolName) {
-			case 'request_files':
+			case 'request_files': {
 				const fileNames = (tool.toolInput as { fileNames: string[] }).fileNames;
 				const filesAdded = await this.handleRequestFiles(fileNames, tool.toolUseId);
 				const addedFileNames = filesAdded.map((file) => file.fileName).join(', ');
 				feedback = `Files added to the conversation: ${addedFileNames}`;
 				break;
-			case 'vector_search':
+			}
+			case 'vector_search': {
 				const query = (tool.toolInput as { query: string }).query;
 				const vectorSearchResults = await this.handleVectorSearch(query, tool.toolUseId);
 				response.vectorSearchResults = vectorSearchResults;
 				feedback =
 					`Vector search completed for query: "${query}". ${vectorSearchResults.length} results found.`;
 				break;
-			case 'apply_patch':
+			}
+			case 'apply_patch': {
 				const { filePath, patch } = tool.toolInput as { filePath: string; patch: string };
 				await this.handleApplyPatch(filePath, patch, tool.toolUseId);
 				feedback = `Patch applied successfully to file: ${filePath}`;
 				break;
-			case 'search_repository':
+			}
+			case 'search_repository': {
 				const { pattern, file_pattern } = tool.toolInput as { pattern: string; file_pattern?: string };
-				const repoSearchResults = await this.handleSearchRepository(pattern, file_pattern || undefined, tool.toolUseId);
+				const repoSearchResults = await this.handleSearchRepository(
+					pattern,
+					file_pattern || undefined,
+					tool.toolUseId,
+				);
 				feedback = `Repository search completed. ${repoSearchResults.length} files found matching the pattern.`;
 				break;
-			default:
+			}
+			default: {
 				logger.warn(`Unknown tool used: ${tool.toolName}`);
 				feedback = `Unknown tool used: ${tool.toolName}`;
+			}
 		}
 		return feedback;
 	}
@@ -370,8 +384,11 @@ export class ProjectEditor {
 		return await this.searchEmbeddings(query);
 	}
 
-	async handleSearchRepository(pattern: string, file_pattern: string | undefined, toolUseId: string): Promise<string[]> {
-		const projectRoot = await this.getProjectRoot();
+	async handleSearchRepository(
+		pattern: string,
+		file_pattern: string | undefined,
+		toolUseId: string,
+	): Promise<string[]> {
 		let command = ['grep', '-r', '-l', pattern];
 
 		if (file_pattern) {
@@ -382,7 +399,7 @@ export class ProjectEditor {
 
 		const process = Deno.run({
 			cmd: command,
-			cwd: projectRoot,
+			cwd: this.projectRoot,
 			stdout: 'piped',
 			stderr: 'piped',
 		});
@@ -400,7 +417,7 @@ export class ProjectEditor {
 			const resultMessage = `Found ${files.length} files matching the pattern "${pattern}"${
 				file_pattern ? ` with file pattern "${file_pattern}"` : ''
 			}:\n${files.join('\n')}`;
-			await this.conversation?.addToolResultToMessagesArray(toolUseId, resultMessage);
+			this.conversation?.addMessageForToolResult(toolUseId, resultMessage);
 
 			return files;
 		} else {
@@ -408,7 +425,7 @@ export class ProjectEditor {
 			logger.error(`Error searching repository: ${errorMessage}`);
 
 			// Add error tool result message
-			await this.conversation?.addToolResultToMessagesArray(toolUseId, `Error searching repository: ${errorMessage}`, true);
+			this.conversation?.addMessageForToolResult(toolUseId, `Error searching repository: ${errorMessage}`, true);
 			return [];
 		}
 	}
@@ -456,7 +473,7 @@ export class ProjectEditor {
 			await this.updateCtags();
 
 			// Add tool result message
-			await this.conversation?.addToolResultToMessagesArray(toolUseId, `Patch applied successfully to file: ${filePath}`);
+			this.conversation?.addMessageForToolResult(toolUseId, `Patch applied successfully to file: ${filePath}`);
 		} catch (error) {
 			let errorMessage: string;
 			if (error instanceof Deno.errors.NotFound) {
@@ -469,7 +486,7 @@ export class ProjectEditor {
 			logger.error(errorMessage);
 
 			// Add error tool result message
-			await this.conversation?.addToolResultToMessagesArray(toolUseId, errorMessage, true);
+			this.conversation?.addMessageForToolResult(toolUseId, errorMessage, true);
 
 			throw createError(ErrorType.FileHandling, errorMessage, {
 				filePath: filePath,
@@ -518,16 +535,26 @@ export class ProjectEditor {
 			}
 		}
 
+		this.conversation.addFilesToMessages(filesAdded, toolUseId);
+
 		// const storageLocation = this.determineStorageLocation(fullFilePath, content, source);
 		// if (storageLocation === 'system') {
-		// 	await this.conversation.addFileForSystemPrompt(fileName, metadata);
+		// 	this.conversation.addFileForSystemPrompt(fileName, metadata);
 		// } else {
-		// 	await this.conversation.addFileToMessageArray(fileName, metadata, toolUseId);
+		// 	this.conversation.addFileToMessages(fileName, metadata, toolUseId);
 		// }
 
-		await this.conversation.addFilesToMessageArray(filesAdded, toolUseId);
-
 		return filesAdded;
+	}
+
+	public async readProjectFileContent(filePath: string): Promise<string> {
+		const fullFilePath = join(this.projectRoot, filePath);
+		logger.info(`Reading contents of File ${fullFilePath}`);
+		const content = await readFileContent(fullFilePath);
+		if (content === null) {
+			throw new Error(`File not found: ${fullFilePath}`);
+		}
+		return content;
 	}
 
 	async updateFile(filePath: string, content: string): Promise<void> {
@@ -549,10 +576,8 @@ export class ProjectEditor {
 	}
 
 	private async updateCtags(): Promise<void> {
-		const bbaiDir = await this.getBbaiDir();
-		const projectRoot = await this.getProjectRoot();
-		await generateCtags(bbaiDir, projectRoot);
-		const ctagsContent = await readCtagsFile(bbaiDir);
+		await generateCtags(this.bbaiDir, this.projectRoot);
+		const ctagsContent = await readCtagsFile(this.bbaiDir);
 		if (ctagsContent && this.conversation) {
 			this.conversation.ctagsContent = ctagsContent;
 		}
