@@ -1,6 +1,7 @@
 import { Command } from 'cliffy/command/mod.ts';
 import { logger } from 'shared/logger.ts';
 import { apiClient } from '../utils/apiClient.ts';
+import { readLines } from '@std/io';
 
 export const conversationStart = new Command()
 	.name('chat')
@@ -12,16 +13,47 @@ export const conversationStart = new Command()
 	.action(async (options) => {
 		try {
 			const cwd = Deno.cwd();
+			let prompt = options.prompt;
+
+			if (!prompt) {
+				const input = [];
+				const stdin = Deno.stdin;
+
+				if (stdin.isTerminal()) {
+					console.log("Enter your prompt. End with a line containing only a dot ('.'):");
+					for await (const line of readLines(stdin)) {
+						if (line === '.') {
+							break;
+						}
+						input.push(line);
+					}
+				} else {
+					for await (const line of readLines(stdin)) {
+						input.push(line);
+					}
+				}
+
+				if (input.length === 0) {
+					console.error("No input provided. Use -p option or provide input via STDIN.");
+					Deno.exit(1);
+				}
+
+				prompt = input.join('\n');
+			}
+
+			// Trim any leading/trailing whitespace
+			prompt = prompt.trim();
+
 			let response;
 			if (options.id) {
 				response = await apiClient.post(`/api/v1/conversation/${options.id}`, {
-					prompt: options.prompt,
+					prompt: prompt,
 					model: options.model,
 					cwd: cwd,
 				});
 			} else {
 				response = await apiClient.post('/api/v1/conversation', {
-					prompt: options.prompt,
+					prompt: prompt,
 					model: options.model,
 					cwd: cwd,
 				});
