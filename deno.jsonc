@@ -5,7 +5,7 @@
 	"tasks": {
 		"format": "deno fmt src/ && deno task -c ./cli/deno.jsonc format && deno task -c ./api/deno.jsonc format",
 		"check-types": "deno task -c ./cli/deno.jsonc check-types && deno task -c ./api/deno.jsonc check-types",
-		"build": "deno bundle cli/src/main.ts build/bbai && deno bundle api/src/main.ts build/bbai-api"
+		"build": "deno task -c ./cli/deno.jsonc build && deno task -c ./api/deno.jsonc build"
 	},
 	"importMap": "./import_map.json",
 	"fmt": {

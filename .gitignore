@@ -1,5 +1,7 @@
 .aider*
 .bbai*
+.BBEditLSPWorkspaceConfig.json
+build/*
 playground/*
 tags
 tags.ignore

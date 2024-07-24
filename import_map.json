@@ -1,6 +1,5 @@
 {
 	"imports": {
-		"emit": "https://deno.land/x/emit/mod.ts",
 		"cliffy/": "https://deno.land/x/cliffy@v0.25.7/",
 		"anthropic": "https://esm.sh/@anthropic-ai/sdk@0.22.0",
 		"anthropic-tokenizer": "npm:@anthropic-ai/tokenizer",
@@ -25,7 +24,7 @@
 		"@std/dotenv": "jsr:@std/dotenv@^0.224.0",
 		"@std/fs": "jsr:@std/fs@^0.224.0",
 		"@std/path": "jsr:@std/path@^0.225.1",
-		"@std/io": "jsr:@std/io@^0.224.1",
+		"@std/io": "jsr:@std/io@^0.224.3",
 		"@std/log": "jsr:@std/log@^0.224.1",
 		"@std/media-types": "jsr:@std/media-types@^1.0.2",
 		"@std/ulid": "jsr:@std/ulid@^0.224.1",
