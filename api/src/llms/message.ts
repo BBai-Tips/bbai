@@ -48,8 +48,8 @@ export type LLMMessageContentParts = Array<LLMMessageContentPart>;
 export interface LLMAnswerToolUse {
 	toolThinking?: string;
 	toolInput?: unknown;
-	toolUseId?: string;
-	toolName?: string;
+	toolUseId: string;
+	toolName: string;
 }
 
 export interface LLMMessageProviderResponse {
@@ -57,6 +57,7 @@ export interface LLMMessageProviderResponse {
 	type: LLMProviderMessageResponseType;
 	role: LLMProviderMessageResponseRole;
 	model: string;
+	system?: string;
 	messageStop: LLMMessageStop;
 	usage: LLMTokenUsage;
 	isTool: boolean;
@@ -68,13 +69,16 @@ export interface LLMMessageProviderResponse {
 }
 
 class LLMMessage {
+	public timestamp: string;
 	constructor(
 		public role: 'user' | 'assistant' | 'system' | 'tool', // system and tool are only for openai
 		public content: LLMMessageContentParts,
 		public tool_call_id?: string,
 		public providerResponse?: LLMMessageProviderResponse,
 		public id?: string,
-	) {}
+	) {
+		this.timestamp = new Date().toISOString();
+	}
 }
 
 export default LLMMessage;

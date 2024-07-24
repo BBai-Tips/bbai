@@ -4,9 +4,12 @@ import LLMConversation from '../llms/conversation.ts';
 import LLMMessage, { LLMMessageProviderResponse } from '../llms/message.ts';
 import LLM from '../llms/providers/baseLLM.ts';
 import { logger } from 'shared/logger.ts';
+import { config } from 'shared/configManager.ts';
 import { createError, ErrorType } from './error.utils.ts';
 import { FileHandlingErrorOptions } from '../errors/error.ts';
 import { ProjectEditor } from '../editor/projectEditor.ts';
+import { ProjectInfo } from '../llms/conversation.ts';
+import { stripIndents } from 'common-tags';
 
 export class ConversationPersistence {
 	private conversationDir!: string;
@@ -45,7 +48,7 @@ export class ConversationPersistence {
 		pageSize: number;
 		startDate?: Date;
 		endDate?: Date;
-		providerName?: string;
+		llmProviderName?: string;
 	}): Promise<any[]> {
 		// TODO: Implement actual conversation listing logic
 		// This is a placeholder implementation
@@ -58,7 +61,7 @@ export class ConversationPersistence {
 
 			const metadata = {
 				id: conversation.id,
-				providerName: conversation.providerName,
+				llmProviderName: conversation.llmProviderName,
 				system: conversation.baseSystem,
 				model: conversation.model,
 				maxTokens: conversation.maxTokens,
@@ -66,36 +69,37 @@ export class ConversationPersistence {
 				turnCount: conversation.turnCount,
 				totalTokenUsage: conversation.totalTokenUsage,
 				tools: conversation.getTools(),
-				repositoryInfo: {
-					type: conversation.ctagsContent ? 'ctags' : 'fileListing',
-					content: conversation.ctagsContent
-						? 'ctags'
-						: conversation.fileListingContent
-						? 'fileListing'
-						: null,
-					tier: conversation.repositoryInfoTier,
-				},
+				// following attributes are for reference only; they are not set when conversation is loaded
+				projectInfoType: this.projectEditor.projectInfo.type,
+				projectInfoTier: this.projectEditor.projectInfo.tier,
+				projectInfoContent: '',
 			};
+			if (config.api?.environment === 'localdev') {
+				metadata.projectInfoContent = this.projectEditor.projectInfo.content;
+			}
 
 			await Deno.writeTextFile(this.metadataPath, JSON.stringify(metadata, null, 2));
 			logger.info(`Saved metadata for conversation: ${conversation.id}`);
 
 			// Save messages
+			const statementCount = conversation.statementCount || 0; // Assuming this property exists
 			const messages = conversation.getMessages();
 			const messagesContent = messages.map((m) => {
 				if (m && typeof m === 'object') {
 					return JSON.stringify({
+						statementCount,
+						turnCount: conversation.turnCount,
 						role: m.role,
 						content: m.content,
 						id: m.id,
 						providerResponse: m.providerResponse,
+						timestamp: m.timestamp, // Assuming this property exists
 					});
 				} else {
 					logger.warn(`Invalid message encountered: ${JSON.stringify(m)}`);
 					return null;
 				}
 			}).filter(Boolean).join('\n') + '\n';
-			// 			await Deno.writeTextFile(this.messagesPath, messagesContent, { append: true });
 			await Deno.writeTextFile(this.messagesPath, messagesContent);
 			logger.info(`Saved messages for conversation: ${conversation.id}`);
 
@@ -128,6 +132,26 @@ export class ConversationPersistence {
 			return JSON.parse(metadataContent);
 		}
 		return {};
+	}
+
+	async saveSystemPrompt(systemPrompt: string): Promise<void> {
+		await this.ensureInitialized();
+		const systemPromptPath = join(this.conversationDir, 'system_prompt.txt');
+		await Deno.writeTextFile(systemPromptPath, systemPrompt);
+		logger.info(`System prompt saved for conversation: ${this.conversationId}`);
+	}
+
+	async saveProjectInfo(projectInfo: ProjectInfo): Promise<void> {
+		await this.ensureInitialized();
+		const projectInfoPath = join(this.conversationDir, 'project_info.md');
+		const content = stripIndents`---
+			type: ${projectInfo.type}
+			tier: ${projectInfo.tier ?? 'null'}
+			---
+			${projectInfo.content}
+		`;
+		await Deno.writeTextFile(projectInfoPath, content);
+		logger.info(`Project info saved for conversation: ${this.conversationId}`);
 	}
 
 	// Remove the saveConversationMessage method as it's no longer needed
@@ -170,6 +194,7 @@ export class ConversationPersistence {
 		const metadataContent = await Deno.readTextFile(this.metadataPath);
 		const metadata = JSON.parse(metadataContent);
 		const conversation = new LLMConversation(llm);
+		await conversation.init();
 
 		conversation.id = metadata.id;
 		conversation.baseSystem = metadata.system;
@@ -204,8 +229,6 @@ export class ConversationPersistence {
 
 					if (fileMetadata.inSystemPrompt) {
 						await conversation.addFileForSystemPrompt(filePath, fileMetadata);
-					} else {
-						await conversation.addFileToMessageArray(filePath, fileMetadata, fileMetadata.toolUseId);
 					}
 					logger.info(`Loaded file: ${filePath}`);
 				}

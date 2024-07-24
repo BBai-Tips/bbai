@@ -155,6 +155,7 @@ export interface LLMProviderMessageResponse {
 	role: LLMProviderMessageResponseRole;
 	model: string; //LLMModel; (AnthropicModel)
 	messageStop: LLMMessageStop;
+	timestamp: string;
 	usage: LLMTokenUsage;
 	rateLimit: LLMRateLimit;
 	providerMessageResponseMeta: LLMProviderMessageResponseMeta;
@@ -167,6 +168,9 @@ export interface LLMProviderMessageResponse {
 	extra?: object;
 	createdAt?: Date;
 	updatedAt?: Date;
+}
+export interface LLMProviderMessageMeta {
+	system: string;
 }
 
 export type LLMValidateResponseCallback = (
@@ -183,3 +187,18 @@ export interface LLMSpeakWithOptions {
 	temperature?: number;
 	validateResponseCallback?: LLMValidateResponseCallback;
 }
+
+export interface LLMSpeakWithResponse {
+	messageResponse: LLMProviderMessageResponse;
+	messageMeta: LLMProviderMessageMeta;
+}
+
+export enum LLMCallbackType {
+  PROJECT_ROOT = 'PROJECT_ROOT',
+  PROJECT_INFO = 'PROJECT_INFO',
+  PROJECT_FILE_CONTENT = 'PROJECT_FILE_CONTENT',
+}
+export type LLMCallbackResult<T> = T extends (...args: any[]) => Promise<infer R> ? R : T;
+export type LLMCallbacks = {
+  [K in LLMCallbackType]: (...args: any[]) => Promise<any> | any;
+};

@@ -63,14 +63,14 @@ const FILE_LISTING_TIERS = [
 
 async function generateCtagsTier(
 	projectRoot: string,
-	tagsFilePath: string,
+	ctagsFilePath: string,
 	tier: number,
 	tokenLimit: number,
 ): Promise<boolean> {
 	const excludeOptions = await getExcludeOptions(projectRoot);
 
 	const command = new Deno.Command('ctags', {
-		args: [...TIERS[tier].args, '-f', tagsFilePath, ...excludeOptions, '.'],
+		args: [...TIERS[tier].args, '-f', ctagsFilePath, ...excludeOptions, '.'],
 		cwd: projectRoot,
 	});
 
@@ -81,7 +81,7 @@ async function generateCtagsTier(
 			return false;
 		}
 
-		const content = await Deno.readTextFile(tagsFilePath);
+		const content = await Deno.readTextFile(ctagsFilePath);
 		const tokenCount = countTokens(content);
 		return tokenCount <= tokenLimit;
 	} catch (error) {
@@ -113,22 +113,22 @@ async function getExcludeOptions(projectRoot: string): Promise<string[]> {
 
 export async function generateCtags(bbaiDir: string, projectRoot: string): Promise<string | null> {
 	const config = await ConfigManager.getInstance();
-	const ctagsConfig = config.getConfig().ctags;
+	const repoInfoConfig = config.getConfig().repoInfo;
 
-	if (ctagsConfig?.autoGenerate === false) {
+	if (repoInfoConfig?.ctagsAutoGenerate === false) {
 		logger.info('Ctags auto-generation is disabled');
 		return null;
 	}
 
-	const tagsFilePath = ctagsConfig?.tagsFilePath ? ctagsConfig.tagsFilePath : join(bbaiDir, 'tags');
-	const tokenLimit = ctagsConfig?.tokenLimit || 1024;
-	logger.info(`Ctags using tags file: ${tagsFilePath}, token limit: ${tokenLimit}`);
+	const ctagsFilePath = repoInfoConfig?.ctagsFilePath ? repoInfoConfig.ctagsFilePath : join(bbaiDir, 'tags');
+	const tokenLimit = repoInfoConfig?.tokenLimit || 1024;
+	logger.info(`Ctags using tags file: ${ctagsFilePath}, token limit: ${tokenLimit}`);
 
 	for (let tier = 0; tier < TIERS.length; tier++) {
 		logger.info(`Attempting to generate ctags with tier ${tier}`);
-		if (await generateCtagsTier(projectRoot, tagsFilePath, tier, tokenLimit)) {
-			logger.info(`Ctags file generated successfully at ${tagsFilePath} using tier ${tier}`);
-			return await Deno.readTextFile(tagsFilePath);
+		if (await generateCtagsTier(projectRoot, ctagsFilePath, tier, tokenLimit)) {
+			logger.info(`Ctags file generated successfully at ${ctagsFilePath} using tier ${tier}`);
+			return await Deno.readTextFile(ctagsFilePath);
 		}
 	}
 
@@ -138,13 +138,15 @@ export async function generateCtags(bbaiDir: string, projectRoot: string): Promi
 
 export async function readCtagsFile(bbaiDir: string): Promise<string | null> {
 	const config = await ConfigManager.getInstance();
-	const ctagsConfig = config.getConfig().ctags;
+	const repoInfoConfig = config.getConfig().repoInfo;
 
-	const tagsFilePath = ctagsConfig?.tagsFilePath ? join(bbaiDir, ctagsConfig.tagsFilePath) : join(bbaiDir, 'tags');
+	const ctagsFilePath = repoInfoConfig?.ctagsFilePath
+		? join(bbaiDir, repoInfoConfig.ctagsFilePath)
+		: join(bbaiDir, 'tags');
 
-	if (await exists(tagsFilePath)) {
+	if (await exists(ctagsFilePath)) {
 		try {
-			return await Deno.readTextFile(tagsFilePath);
+			return await Deno.readTextFile(ctagsFilePath);
 		} catch (error) {
 			logger.error(`Error reading ctags file: ${error.message}`);
 		}

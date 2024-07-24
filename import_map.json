@@ -1,7 +1,7 @@
 {
 	"imports": {
 		"cliffy/": "https://deno.land/x/cliffy@v0.25.7/",
-		"anthropic": "https://esm.sh/@anthropic-ai/sdk@0.22.0",
+		"anthropic": "https://esm.sh/@anthropic-ai/sdk@0.24.3",
 		"anthropic-tokenizer": "npm:@anthropic-ai/tokenizer",
 		"openai": "https://esm.sh/openai@4.24.0",
 		"groq": "npm:groq-sdk@0.5.0",
@@ -20,7 +20,7 @@
 		"cors": "https://deno.land/x/cors@v1.2.2/mod.ts",
 		"ms": "https://deno.land/x/ms@v0.1.0/ms.ts",
 		"yaml": "https://deno.land/std/yaml/mod.ts",
-		"@std/datetime": "jsr:@std/datetime@^0.224.0",
+		"@std/datetime": "jsr:@std/datetime@^0.224.3",
 		"@std/dotenv": "jsr:@std/dotenv@^0.224.0",
 		"@std/fs": "jsr:@std/fs@^0.224.0",
 		"@std/path": "jsr:@std/path@^0.225.1",

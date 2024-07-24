@@ -2,14 +2,13 @@ import { Context } from '@oak/oak';
 import { logger } from 'shared/logger.ts';
 import { ProjectEditor } from '../../editor/projectEditor.ts';
 import { ConversationPersistence } from '../../utils/conversationPersistence.utils.ts';
-import { LLMFactory } from '../../llms/llmProvider.ts';
 
 export const startConversation = async (ctx: Context) => {
 	logger.debug('startConversation called');
 
 	try {
 		const body = await ctx.request.body.json();
-		const { prompt, provider, model, cwd } = body;
+		const { prompt, provider, model, startDir } = body;
 
 		if (!prompt) {
 			ctx.response.status = 400;
@@ -17,13 +16,14 @@ export const startConversation = async (ctx: Context) => {
 			return;
 		}
 
-		if (!cwd) {
+		if (!startDir) {
 			ctx.response.status = 400;
-			ctx.response.body = { error: 'Missing cwd' };
+			ctx.response.body = { error: 'Missing startDir' };
 			return;
 		}
 
-		const projectEditor = new ProjectEditor(cwd);
+		logger.debug(`Creating ProjectEditor for dir: ${startDir}`);
+		const projectEditor = new ProjectEditor(startDir);
 		await projectEditor.init();
 
 		const response = await projectEditor.speakWithLLM(prompt, provider, model);
@@ -31,8 +31,16 @@ export const startConversation = async (ctx: Context) => {
 		ctx.response.body = response;
 	} catch (error) {
 		logger.error(`Error in startConversation: ${error.message}`, error);
-		ctx.response.status = 500;
-		ctx.response.body = { error: 'Failed to generate response', details: error.message };
+		if (error instanceof Error && 'status' in error) {
+			ctx.response.status = error.status as number;
+		} else {
+			ctx.response.status = 500;
+		}
+		ctx.response.body = {
+			error: 'Failed to generate response',
+			details: error.message,
+			type: error.name || 'UnknownError',
+		};
 	}
 };
 
@@ -48,7 +56,7 @@ export const continueConversation = async (
 	try {
 		const { id: conversationId } = params;
 		const body = await request.body.json();
-		const { prompt, cwd } = body;
+		const { prompt, startDir } = body;
 
 		logger.info(
 			`Continuing conversation. ConversationId: ${conversationId}, Prompt: "${prompt?.substring(0, 50)}..."`,
@@ -61,15 +69,15 @@ export const continueConversation = async (
 			return;
 		}
 
-		if (!cwd) {
-			logger.warn('Missing cwd');
+		if (!startDir) {
+			logger.warn('Missing startDir');
 			response.status = 400;
-			response.body = { error: 'Missing cwd' };
+			response.body = { error: 'Missing startDir' };
 			return;
 		}
 
-		logger.debug(`Creating ProjectEditor with cwd: ${cwd}`);
-		const projectEditor = new ProjectEditor(cwd);
+		logger.debug(`Creating ProjectEditor for dir: ${startDir}`);
+		const projectEditor = new ProjectEditor(startDir);
 		await projectEditor.init();
 
 		logger.info(`Calling speakWithLLM for conversation: ${conversationId}`);
@@ -90,14 +98,12 @@ export const getConversation = async (
 	try {
 		const { id: conversationId } = params;
 		/*
-		const persistence = new ConversationPersistence(conversationId);
-		const llmProvider = LLMFactory.getProvider(); // Use default provider
-		const conversation = await persistence.loadConversation(llmProvider);
+		const conversation = await persistence.loadConversation();
 
 		response.status = 200;
 		response.body = {
 			id: conversation.id,
-			providerName: conversation.providerName,
+			llmProviderName: conversation.llmProviderName,
 			system: conversation.baseSystem,
 			model: conversation.model,
 			maxTokens: conversation.maxTokens,
@@ -130,14 +136,14 @@ export const listConversations = async (
 		const pageSize = params.get('pageSize') || '10';
 		const startDate = params.get('startDate');
 		const endDate = params.get('endDate');
-		const providerName = params.get('providerName');
+		const llmProviderName = params.get('llmProviderName');
 
 		const conversations = await ConversationPersistence.listConversations({
 			page: parseInt(page),
 			pageSize: parseInt(pageSize),
 			startDate: startDate ? new Date(startDate) : undefined,
 			endDate: endDate ? new Date(endDate) : undefined,
-			providerName: providerName || undefined,
+			llmProviderName: llmProviderName || undefined,
 		});
 
 		response.status = 200;
