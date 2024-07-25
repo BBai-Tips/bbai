@@ -1,10 +1,10 @@
-import { join, normalize, resolve, dirname } from '@std/path';
+import { dirname, join, normalize, resolve } from '@std/path';
 import * as diff from 'diff';
 import { ensureDir, exists } from '@std/fs';
 import { searchFiles } from 'shared/fileListing.ts';
 
 import { LLMFactory } from '../llms/llmProvider.ts';
-import LLMConversation, { FileMetadata } from '../llms/conversation.ts';
+import LLMConversation, { FileMetadata, RepositoryInfo } from '../llms/conversation.ts';
 import LLM from '../llms/providers/baseLLM.ts';
 import { logger } from 'shared/logger.ts';
 import { PromptManager } from '../prompts/promptManager.ts';
@@ -15,6 +15,7 @@ import { GitUtils } from 'shared/git.ts';
 import { createError, ErrorType } from '../utils/error.utils.ts';
 import { FileHandlingErrorOptions } from '../errors/error.ts';
 import { generateCtags, readCtagsFile } from 'shared/ctags.ts';
+import { FILE_LISTING_TIERS, generateFileListing } from 'shared/fileListing.ts';
 import {
 	LLMAnswerToolUse,
 	LLMMessageContentPartTextBlock,
@@ -39,6 +40,11 @@ export class ProjectEditor {
 	private bbaiDir: string;
 	private statementCount: number = 0;
 	private totalTurnCount: number = 0;
+	private _repositoryInfo: RepositoryInfo = {
+		type: 'empty',
+		content: '',
+		tier: null,
+	};
 
 	constructor(cwd: string) {
 		this.promptManager = new PromptManager(this);
@@ -80,6 +86,43 @@ export class ProjectEditor {
 
 	public async removeFromBbaiDir(filename: string): Promise<void> {
 		return await removeFromBbaiDir(this.cwd, filename);
+	}
+
+	get repositoryInfo(): RepositoryInfo {
+		return this._repositoryInfo;
+	}
+
+	set repositoryInfo(repositoryInfo: RepositoryInfo) {
+		this._repositoryInfo = repositoryInfo;
+	}
+
+	protected async updateRepositoryInfo(): Promise<void> {
+		const repositoryInfo: RepositoryInfo = { type: 'empty', content: '', tier: null };
+
+		const bbaiDir = await this.getBbaiDir();
+		await generateCtags(this.bbaiDir, this.projectRoot);
+		const ctagsContent = await readCtagsFile(bbaiDir);
+		if (ctagsContent) {
+			repositoryInfo.type = 'ctags';
+			repositoryInfo.content = ctagsContent;
+			repositoryInfo.tier = 0; // Assuming ctags is always tier 0
+		}
+
+		if (repositoryInfo.type === 'empty') {
+			const projectRoot = await this.getProjectRoot();
+			const fileListingContent = await generateFileListing(projectRoot);
+			if (fileListingContent) {
+				repositoryInfo.type = 'file-listing';
+				repositoryInfo.content = fileListingContent;
+				// Determine which tier was used for file listing
+				const tier = FILE_LISTING_TIERS.findIndex((t: { depth: number; includeMetadata: boolean }) =>
+					t.depth === Infinity && t.includeMetadata === true
+				);
+				repositoryInfo.tier = tier !== -1 ? tier : null;
+			}
+		}
+
+		this.repositoryInfo = repositoryInfo;
 	}
 
 	private addDefaultTools(): void {
@@ -225,9 +268,6 @@ export class ProjectEditor {
 				this.conversation.baseSystem = systemPrompt;
 				if (model) this.conversation.model = model;
 
-				// Update ctags
-				await this.updateCtags();
-
 				this.addDefaultTools();
 
 				logger.info(`Created new conversation: ${this.conversation.id}`);
@@ -245,20 +285,29 @@ export class ProjectEditor {
 			//maxTokens: 1000,
 		};
 
-		const maxTurns = 5; // Maximum number of turns for the run loop
+		await this.updateRepositoryInfo();
+
+		const maxTurns = 25; // Maximum number of turns for the run loop
 		let turnCount = 0;
 		let currentResponse: LLMProviderMessageResponse;
 
 		try {
 			logger.info(`Calling speakWithLLM with prompt: "${prompt.substring(0, 50)}..."`);
+
 			currentResponse = await this.conversation.speakWithLLM(prompt, speakOptions);
 			logger.info('Received response from LLM');
-			logger.debug('LLM Response:', currentResponse);
+			//logger.debug('LLM Response:', currentResponse);
+
 			this.totalTurnCount++;
 			turnCount++;
+		} catch (error) {
+			logger.error(`Error in LLM communication:`, error);
+			throw error;
+		}
 
+		try {
 			// Save the conversation immediately after the first response
-			logger.info(`Saving conversation at beginning of statement: ${this.conversation.id}`);
+			logger.info(`Saving conversation at beginning of statement: ${this.conversation.id}[${this.statementCount}][${turnCount}]`);
 			const persistence = new ConversationPersistence(this.conversation.id, this);
 			await persistence.saveConversation(this.conversation);
 			await persistence.saveMetadata({
@@ -267,7 +316,7 @@ export class ProjectEditor {
 			});
 			logger.info(`Saved conversation: ${this.conversation.id}`);
 		} catch (error) {
-			logger.error(`Error in LLM communication:`, error);
+			logger.error(`Error persisting the conversation:`, error);
 			throw error;
 		}
 
@@ -284,10 +333,15 @@ export class ProjectEditor {
 
 			// If there's tool feedback, send it back to the LLM
 			if (toolFeedback) {
+
+				await this.updateRepositoryInfo();
+
 				prompt =
 					`Tool use feedback:\n${toolFeedback}\nPlease acknowledge this feedback and continue the conversation.`;
+
 				turnCount++;
 				this.totalTurnCount++;
+
 				currentResponse = await this.conversation.speakWithLLM(prompt, speakOptions);
 				logger.info('tool response', currentResponse);
 
@@ -301,7 +355,7 @@ export class ProjectEditor {
 						statementCount: this.statementCount,
 						totalTurnCount: this.totalTurnCount,
 					});
-					logger.info(`Saved conversation after turn ${turnCount}: ${this.conversation.id}`);
+					logger.info(`Saved conversation after turn ${turnCount}: ${this.conversation.id}[${this.statementCount}][${turnCount}]`);
 				}
 				 */
 			} else {
@@ -315,14 +369,14 @@ export class ProjectEditor {
 		}
 
 		// Final save of the entire conversation at the end of the loop
-		logger.info(`Saving conversation at end of statement: ${this.conversation.id}`);
+		logger.info(`Saving conversation at end of statement: ${this.conversation.id}[${this.statementCount}][${turnCount}]`);
 		const persistence = new ConversationPersistence(this.conversation.id, this);
 		await persistence.saveConversation(this.conversation);
 		await persistence.saveMetadata({
 			statementCount: this.statementCount,
 			totalTurnCount: this.totalTurnCount,
 		});
-		logger.info(`Final save of conversation: ${this.conversation.id}`);
+		logger.info(`Final save of conversation: ${this.conversation.id}[${this.statementCount}][${turnCount}]`);
 
 		return {
 			response: currentResponse,
@@ -401,7 +455,7 @@ export class ProjectEditor {
 				file_pattern ? ` with file pattern "${file_pattern}"` : ''
 			}:\n${files.join('\n')}`;
 			this.conversation?.addMessageForToolResult(toolUseId, resultMessage);
-			
+
 			return files;
 		} catch (error) {
 			const errorMessage = error.message;
@@ -426,20 +480,22 @@ export class ProjectEditor {
 
 		try {
 			const parsedPatch = diff.parsePatch(patch);
-			
+
 			for (const patchPart of parsedPatch) {
 				if (patchPart.oldFileName === '/dev/null') {
 					// This is a new file
 					const newFilePath = join(this.projectRoot, patchPart.newFileName);
-					const newFileContent = patchPart.hunks.map(h => h.lines.filter(l => l[0] === '+').map(l => l.slice(1)).join('\n')).join('\n');
-					
+					const newFileContent = patchPart.hunks.map((h) =>
+						h.lines.filter((l) => l[0] === '+').map((l) => l.slice(1)).join('\n')
+					).join('\n');
+
 					await ensureDir(dirname(newFilePath));
 					await Deno.writeTextFile(newFilePath, newFileContent);
 					logger.info(`Created new file: ${patchPart.newFileName}`);
 				} else {
 					// Existing file, apply patch as before
 					const currentContent = await Deno.readTextFile(fullFilePath);
-					
+
 					const patchedContent = diff.applyPatch(currentContent, patchPart, {
 						fuzzFactor: 2,
 					});
@@ -466,12 +522,10 @@ export class ProjectEditor {
 				const persistence = new ConversationPersistence(this.conversation.id, this);
 				await persistence.logPatch(filePath, patch);
 			}
-			
+
 			// Add tool result message
 			this.conversation?.addMessageForToolResult(toolUseId, `Patch applied successfully to file: ${filePath}`);
 
-			// Update ctags after applying the patch
-			await this.updateCtags();
 		} catch (error) {
 			let errorMessage: string;
 			if (error instanceof Deno.errors.NotFound) {
@@ -573,13 +627,6 @@ export class ProjectEditor {
 		return [];
 	}
 
-	private async updateCtags(): Promise<void> {
-		await generateCtags(this.bbaiDir, this.projectRoot);
-		const ctagsContent = await readCtagsFile(this.bbaiDir);
-		if (ctagsContent && this.conversation) {
-			this.conversation.ctagsContent = ctagsContent;
-		}
-	}
 
 	async revertLastPatch(): Promise<void> {
 		if (!this.conversation) {
