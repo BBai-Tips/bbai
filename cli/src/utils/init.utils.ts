@@ -5,42 +5,42 @@ import { logger } from 'shared/logger.ts';
 import { stringify as stringifyYaml } from 'yaml';
 
 export async function createBbaiDir(cwd: string): Promise<void> {
-  const bbaiDir = join(cwd, '.bbai');
-  try {
-    await ensureDir(bbaiDir);
-    logger.info(`Created .bbai directory in ${cwd}`);
-  } catch (error) {
-    logger.error(`Failed to create .bbai directory: ${error.message}`);
-    throw error;
-  }
+	const bbaiDir = join(cwd, '.bbai');
+	try {
+		await ensureDir(bbaiDir);
+		logger.info(`Created .bbai directory in ${cwd}`);
+	} catch (error) {
+		logger.error(`Failed to create .bbai directory: ${error.message}`);
+		throw error;
+	}
 }
 
 export async function createTagIgnore(cwd: string): Promise<void> {
-  const tagIgnorePath = join(cwd, '.bbai', 'tags.ignore');
-  try {
-    await ensureFile(tagIgnorePath);
-    await Deno.writeTextFile(tagIgnorePath, '.bbai/*');
-    logger.info('Created tag.ignore file');
-  } catch (error) {
-    logger.error(`Failed to create tag.ignore file: ${error.message}`);
-    throw error;
-  }
+	const tagIgnorePath = join(cwd, '.bbai', 'tags.ignore');
+	try {
+		await ensureFile(tagIgnorePath);
+		await Deno.writeTextFile(tagIgnorePath, '.bbai/*');
+		logger.info('Created tag.ignore file');
+	} catch (error) {
+		logger.error(`Failed to create tag.ignore file: ${error.message}`);
+		throw error;
+	}
 }
 
 export async function createGitIgnore(cwd: string): Promise<void> {
-  const gitIgnorePath = join(cwd, '.gitignore');
-  try {
-    await ensureFile(gitIgnorePath);
-    await Deno.writeTextFile(gitIgnorePath, '.bbai/*\n');
-    logger.info('Created or updated .gitignore file');
-  } catch (error) {
-    logger.error(`Failed to create or update .gitignore file: ${error.message}`);
-    throw error;
-  }
+	const gitIgnorePath = join(cwd, '.gitignore');
+	try {
+		await ensureFile(gitIgnorePath);
+		await Deno.writeTextFile(gitIgnorePath, '.bbai/*\n');
+		logger.info('Created or updated .gitignore file');
+	} catch (error) {
+		logger.error(`Failed to create or update .gitignore file: ${error.message}`);
+		throw error;
+	}
 }
 
 export function getDefaultGitIgnore(): string {
-  return `
+	return `
 # Deno
 /.deno/
 /.vscode/
@@ -86,8 +86,8 @@ Thumbs.db
 }
 
 export async function createDefaultConfig(cwd: string): Promise<void> {
-  const configManager = await ConfigManager.getInstance();
-  await configManager.ensureUserConfig();
-  await configManager.ensureProjectConfig(cwd);
-  logger.info('Created default config files');
+	const configManager = await ConfigManager.getInstance();
+	await configManager.ensureUserConfig();
+	await configManager.ensureProjectConfig(cwd);
+	logger.info('Created default config files');
 }

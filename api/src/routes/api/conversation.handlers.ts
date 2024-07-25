@@ -2,7 +2,6 @@ import { Context } from '@oak/oak';
 import { logger } from 'shared/logger.ts';
 import { ProjectEditor } from '../../editor/projectEditor.ts';
 import { ConversationPersistence } from '../../utils/conversationPersistence.utils.ts';
-import { LLMFactory } from '../../llms/llmProvider.ts';
 
 export const startConversation = async (ctx: Context) => {
 	logger.debug('startConversation called');
@@ -23,6 +22,7 @@ export const startConversation = async (ctx: Context) => {
 			return;
 		}
 
+		logger.debug(`Creating ProjectEditor for dir: ${cwd}`);
 		const projectEditor = new ProjectEditor(cwd);
 		await projectEditor.init();
 
@@ -37,7 +37,11 @@ export const startConversation = async (ctx: Context) => {
 };
 
 export const continueConversation = async (
-	{ params, request, response }: { params: { id: string }; request: Context['request']; response: Context['response'] },
+	{ params, request, response }: {
+		params: { id: string };
+		request: Context['request'];
+		response: Context['response'];
+	},
 ) => {
 	logger.debug('continueConversation called');
 
@@ -46,7 +50,9 @@ export const continueConversation = async (
 		const body = await request.body.json();
 		const { prompt, cwd } = body;
 
-		logger.info(`Continuing conversation. ConversationId: ${conversationId}, Prompt: "${prompt?.substring(0, 50)}..."`);
+		logger.info(
+			`Continuing conversation. ConversationId: ${conversationId}, Prompt: "${prompt?.substring(0, 50)}..."`,
+		);
 
 		if (!prompt) {
 			logger.warn('Missing prompt');
@@ -62,7 +68,7 @@ export const continueConversation = async (
 			return;
 		}
 
-		logger.debug(`Creating ProjectEditor with cwd: ${cwd}`);
+		logger.debug(`Creating ProjectEditor for dir: ${cwd}`);
 		const projectEditor = new ProjectEditor(cwd);
 		await projectEditor.init();
 

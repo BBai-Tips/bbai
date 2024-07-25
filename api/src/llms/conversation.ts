@@ -16,7 +16,6 @@ import LLMMessage from './message.ts';
 import type { LLMMessageProviderResponse } from './message.ts';
 import LLMTool from './tool.ts';
 import LLM from './providers/baseLLM.ts';
-import { ConversationPersistence } from '../utils/conversationPersistence.utils.ts';
 import { logger } from 'shared/logger.ts';
 
 import { crypto } from '@std/crypto';
@@ -41,20 +40,14 @@ class LLMConversation {
 	private _files: Map<string, FileMetadata> = new Map();
 	private systemPromptFiles: string[] = [];
 
-	static generateShortId(): string {
-		return Math.random().toString(36).substring(2, 15);
-	}
-
 	private _system: string = '';
-
-	private persistence: ConversationPersistence;
 
 	protected _baseSystem: string = '';
 	protected _ctagsContent: string = '';
 	protected _fileListingContent: string = '';
 	protected _model: string = '';
 	protected _repositoryInfoTier: number | null = null;
-	protected _maxTokens: number = 4000;
+	protected _maxTokens: number = 8192;
 	protected _temperature: number = 0.2;
 	private _totalTokenUsage: LLMTokenUsage = { totalTokens: 0, inputTokens: 0, outputTokens: 0 };
 	private _totalProviderRequests: number = 0;
@@ -63,7 +56,6 @@ class LLMConversation {
 	constructor(llm: LLM) {
 		this.id = LLMConversation.generateShortId();
 		this.llm = llm;
-		this.persistence = new ConversationPersistence(this.id, this.llm.projectEditor);
 	}
 
 	private static generateShortId(): string {
@@ -71,9 +63,9 @@ class LLMConversation {
 		return uuid.replace(/-/g, '').substring(0, 8);
 	}
 
-	private addMessageForUserRole(contentPart: LLMMessageContentPart): string {
-		const lastMessage = this.messages[this.messages.length - 1];
-		logger.debug('lastMessage', lastMessage);
+	public addMessageForUserRole(contentPart: LLMMessageContentPart): string {
+		const lastMessage = this.getLastMessage();
+		//logger.debug('lastMessage for user', lastMessage);
 		if (lastMessage && lastMessage.role === 'user') {
 			// Append contentPart to the content array of the last user message
 			logger.debug('Adding content to existing user message', JSON.stringify(contentPart, null, 2));
@@ -88,11 +80,49 @@ class LLMConversation {
 		}
 	}
 
-	async addFileToMessageArray(
+	public addMessageForAssistantRole(contentPart: LLMMessageContentPart): string {
+		const lastMessage = this.getLastMessage();
+		//logger.debug('lastMessage for assistant', lastMessage);
+		if (lastMessage && lastMessage.role === 'assistant') {
+			logger.error('Why are we adding another assistant message - SOMETHING IS WRONG!');
+			// Append contentPart to the content array of the last assistant message
+			logger.debug('Adding content to existing assistant message', JSON.stringify(contentPart, null, 2));
+			lastMessage.content.push(contentPart);
+			return lastMessage.id ?? '';
+		} else {
+			// Add a new user message
+			logger.debug('Adding content to new assistant message', JSON.stringify(contentPart, null, 2));
+			const newMessage = new LLMMessage('assistant', [contentPart]);
+			this.addMessage(newMessage);
+			return newMessage.id ?? '';
+		}
+	}
+
+	public addMessageForToolResult(
+		toolUseId: string,
+		content: string,
+		isError: boolean = false,
+	): string {
+		const toolResult = {
+			type: 'tool_result',
+			tool_use_id: toolUseId,
+			content: [
+				{
+					'type': 'text',
+					'text': content,
+				} as LLMMessageContentPartTextBlock,
+			],
+			is_error: isError,
+		} as LLMMessageContentPartToolResultBlock;
+
+		return this.addMessageForUserRole(toolResult);
+	}
+
+	addFileToMessages(
 		filePath: string,
 		metadata: Omit<FileMetadata, 'path' | 'inSystemPrompt'>,
 		toolUseId: string,
-	): Promise<void> {
+	): void {
 		const fileMetadata: FileMetadata = {
 			...metadata,
 			path: filePath,
@@ -100,26 +130,15 @@ class LLMConversation {
 			toolUseId,
 		};
 		this._files.set(filePath, fileMetadata);
-		const toolResult = {
-			type: 'tool_result',
-			tool_use_id: toolUseId,
-			content: [
-				{
-					'type': 'text',
-					'text': `File added: ${filePath}`,
-				} as LLMMessageContentPartTextBlock,
-			],
-		} as LLMMessageContentPartToolResultBlock;
 
-		const messageId = this.addMessageForUserRole(toolResult);
+		const messageId = this.addMessageForToolResult(toolUseId, `File added: ${filePath}`);
 		fileMetadata.messageId = messageId;
-		//await this.persistence.saveConversation(this);
 	}
 
-	async addFilesToMessageArray(
+	addFilesToMessages(
 		filesToAdd: Array<{ fileName: string; metadata: Omit<FileMetadata, 'path' | 'inSystemPrompt'> }>,
 		toolUseId: string,
-	): Promise<void> {
+	): void {
 		const conversationFiles = [];
 		const contentParts = [];
 		let allFilesFailed = true;
@@ -173,14 +192,12 @@ class LLMConversation {
 				this._files.set(fileToAdd.filePath, fileToAdd.fileMetadata);
 			}
 		}
-
-		//await this.persistence.saveConversation(this);
 	}
 
-	async addFileForSystemPrompt(
+	addFileForSystemPrompt(
 		filePath: string,
 		metadata: Omit<FileMetadata, 'path' | 'inSystemPrompt'>,
-	): Promise<void> {
+	): void {
 		const fileMetadata: FileMetadata = {
 			...metadata,
 			path: filePath,
@@ -188,7 +205,6 @@ class LLMConversation {
 		};
 		this._files.set(filePath, fileMetadata);
 		this.systemPromptFiles.push(filePath);
-		//await this.persistence.saveConversation(this);
 	}
 
 	removeFile(filePath: string): boolean {
@@ -217,23 +233,7 @@ class LLMConversation {
 		return Array.from(this._files.keys());
 	}
 
-	async save(): Promise<void> {
-		try {
-			await this.persistence.saveConversation(this);
-		} catch (error) {
-			logger.error(`Failed to save conversation: ${error.message}`);
-			throw new Error('Failed to save conversation. The application will now exit.');
-		}
-	}
-
-	static async resume(id: string, llm: LLM): Promise<LLMConversation> {
-		const persistence = new ConversationPersistence(id, llm.projectEditor);
-		await persistence.init();
-		const conversation = await persistence.loadConversation(llm);
-		return conversation;
-	}
-
-	private async logConversation(): Promise<void> {
+	private logConversation(): void {
 		// TODO: Implement this method when LLMConversationRepository is available
 		console.log('Logging conversation:', {
 			id: this.id,
@@ -351,21 +351,15 @@ class LLMConversation {
 		return this._totalProviderRequests;
 	}
 
-	async updateTotals(tokenUsage: LLMTokenUsage, providerRequests: number): Promise<void> {
+	updateTotals(tokenUsage: LLMTokenUsage, providerRequests: number): void {
 		this._totalTokenUsage.totalTokens += tokenUsage.totalTokens;
 		this._totalTokenUsage.inputTokens += tokenUsage.inputTokens;
 		this._totalTokenUsage.outputTokens += tokenUsage.outputTokens;
 		this._totalProviderRequests += providerRequests;
-		// if (this.persistence) {
-		// 	await this.persistence.saveConversation(this);
-		// }
 	}
 
-	async addMessage(message: LLMMessage): Promise<void> {
+	addMessage(message: LLMMessage): void {
 		this.messages.push(message);
-		if (this.persistence) {
-			//await this.persistence.saveConversationMessage(message, message.providerResponse);
-		}
 	}
 
 	getMessages(): LLMMessage[] {
@@ -429,20 +423,7 @@ class LLMConversation {
 		this._turnCount++;
 		this.addMessageForUserRole({ type: 'text', text: prompt });
 
-		const llmProviderMessageResponse = await this.llm.speakWithRetry(this, speakOptions);
-
-		// Create and save the assistant's message
-		const assistantMessage = new LLMMessage(
-			'assistant',
-			llmProviderMessageResponse.answerContent,
-			undefined,
-			llmProviderMessageResponse,
-		);
-		await this.addMessage(assistantMessage);
-
-		//await this.save();
-
-		return llmProviderMessageResponse;
+		return await this.llm.speakWithRetry(this, speakOptions);
 	}
 }
 

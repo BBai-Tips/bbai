@@ -48,8 +48,8 @@ export type LLMMessageContentParts = Array<LLMMessageContentPart>;
 export interface LLMAnswerToolUse {
 	toolThinking?: string;
 	toolInput?: unknown;
-	toolUseId?: string;
-	toolName?: string;
+	toolUseId: string;
+	toolName: string;
 }
 
 export interface LLMMessageProviderResponse {

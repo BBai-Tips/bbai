@@ -55,7 +55,11 @@ class AnthropicLLM extends LLM {
 		speakOptions?: LLMSpeakWithOptions,
 	): Promise<Anthropic.MessageCreateParams> {
 		let system = speakOptions?.system || conversation.baseSystem;
-		const repositoryInfo = await this.getRepositoryInfo(await this.projectEditor.getBbaiDir(), await this.projectEditor.getProjectRoot(), conversation);
+		const repositoryInfo = await this.getRepositoryInfo(
+			await this.projectEditor.getBbaiDir(),
+			await this.projectEditor.getProjectRoot(),
+			conversation,
+		);
 		if (repositoryInfo) {
 			if (conversation.ctagsContent) {
 				conversation.ctagsContent = repositoryInfo;
@@ -63,7 +67,11 @@ class AnthropicLLM extends LLM {
 				conversation.fileListingContent = repositoryInfo;
 			}
 		}
-		system = await this.appendCtagsOrFileListingToSystem(system, conversation.ctagsContent, conversation.fileListingContent);
+		system = this.appendCtagsOrFileListingToSystem(
+			system,
+			conversation.ctagsContent,
+			conversation.fileListingContent,
+		);
 		system = await this.appendFilesToSystem(system, conversation);
 
 		const messages = this.asProviderMessageType(
@@ -106,10 +114,11 @@ class AnthropicLLM extends LLM {
 
 			const { data: anthropicMessageStream, response: anthropicResponse } = await this.anthropic.messages.create(
 				messageParams as Anthropic.MessageCreateParams,
+				{ headers: { 'anthropic-beta': 'max-tokens-3-5-sonnet-2024-07-15' } },
 			).withResponse();
 
 			const anthropicMessage = anthropicMessageStream as Anthropic.Message;
-			logger.info('llms-anthropic-anthropicMessage', anthropicMessage);
+			//logger.info('llms-anthropic-anthropicMessage', anthropicMessage);
 
 			const headers = anthropicResponse?.headers;
 
@@ -172,6 +181,10 @@ class AnthropicLLM extends LLM {
 		speakOptions: LLMSpeakWithOptions,
 		validationFailedReason: string,
 	): void {
+		// // [TODO] impelement keep speaking
+		// // check stop reason, if it was max_tokens, then keep speaking
+		// this.checkStopReason(prevMessage.providerResponse);
+
 		if (validationFailedReason.startsWith('Tool input validation failed')) {
 			// Prompt the model to provide a valid tool input
 			const prevMessage = conversation.getLastMessage();
@@ -199,6 +212,13 @@ class AnthropicLLM extends LLM {
 					`provider[${this.providerName}] modifySpeakWithConversationOptions - Tool input validation failed, but no tool response found`,
 				);
 			}
+		} else if (validationFailedReason === 'Tool exceeded max tokens') {
+			// Prompt the model to provide a smaller tool input
+			conversation.addMessageForUserRole({
+				'type': 'text',
+				'text':
+					'The previous tool input was too large. Please provide a smaller answer, and I will keep asking for more until I have all of it',
+			} as LLMMessageContentPartTextBlock);
 		} else if (validationFailedReason === 'Empty answer') {
 			// Increase temperature or adjust other parameters to encourage more diverse responses
 			speakOptions.temperature = speakOptions.temperature ? Math.min(speakOptions.temperature + 0.1, 1) : 0.5;
@@ -212,6 +232,7 @@ class AnthropicLLM extends LLM {
 			switch (llmProviderMessageResponse.messageStop.stopReason) {
 				case 'max_tokens':
 					logger.warn(`provider[${this.providerName}] Response reached the maximum token limit`);
+
 					break;
 				case 'end_turn':
 					logger.warn(`provider[${this.providerName}] Response reached the end turn`);
