@@ -484,7 +484,10 @@ export class ProjectEditor {
 			for (const patchPart of parsedPatch) {
 				if (patchPart.oldFileName === '/dev/null') {
 					// This is a new file
-					const newFilePath = join(this.projectRoot, patchPart.newFileName);
+					const newFilePath = patchPart.newFileName ? join(this.projectRoot, patchPart.newFileName) : undefined;
+					if (!newFilePath) {
+						throw new Error('New file path is undefined');
+					}
 					const newFileContent = patchPart.hunks.map((h) =>
 						h.lines.filter((l) => l[0] === '+').map((l) => l.slice(1)).join('\n')
 					).join('\n');
