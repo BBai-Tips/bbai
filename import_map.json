@@ -1,7 +1,7 @@
 {
 	"imports": {
 		"cliffy/": "https://deno.land/x/cliffy@v0.25.7/",
-		"anthropic": "https://esm.sh/@anthropic-ai/sdk@0.22.0",
+		"anthropic": "https://esm.sh/@anthropic-ai/sdk@0.24.3",
 		"anthropic-tokenizer": "npm:@anthropic-ai/tokenizer",
 		"openai": "https://esm.sh/openai@4.24.0",
 		"groq": "npm:groq-sdk@0.5.0",

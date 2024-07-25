@@ -61,13 +61,6 @@ function shouldExclude(path: string, excludeOptions: string[]): boolean {
 	});
 }
 
-function shouldExclude(path: string, excludeOptions: string[]): boolean {
-	return excludeOptions.some((option) => {
-		const pattern = option.replace('--exclude=', '').replace(/\*/g, '.*');
-		return new RegExp(pattern).test(path);
-	});
-}
-
 async function getExcludeOptions(projectRoot: string): Promise<string[]> {
 	const excludeFiles = [
 		join(projectRoot, 'tags.ignore'),
@@ -102,9 +95,9 @@ export async function searchFiles(projectRoot: string, pattern: string, filePatt
 	}
 
 	// Add exclude options
-	for (const option of excludeOptions) {
-		command.push(option.replace('--exclude=', '--exclude-dir='));
-	}
+	//for (const option of excludeOptions) {
+	//	command.push(option.replace('--exclude=', '--exclude-dir='));
+	//}
 
 	command.push('.');
 
