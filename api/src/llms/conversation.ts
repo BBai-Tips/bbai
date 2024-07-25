@@ -47,7 +47,7 @@ class LLMConversation {
 	protected _fileListingContent: string = '';
 	protected _model: string = '';
 	protected _repositoryInfoTier: number | null = null;
-	protected _maxTokens: number = 4000;
+	protected _maxTokens: number = 8192;
 	protected _temperature: number = 0.2;
 	private _totalTokenUsage: LLMTokenUsage = { totalTokens: 0, inputTokens: 0, outputTokens: 0 };
 	private _totalProviderRequests: number = 0;

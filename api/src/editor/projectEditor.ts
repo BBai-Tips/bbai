@@ -1,7 +1,7 @@
 import { join, normalize, resolve } from '@std/path';
 import * as diff from 'diff';
 import { ensureDir, exists } from '@std/fs';
-import { searchFiles } from 'shared/utils/fileListing.utils.ts';
+import { searchFiles } from 'shared/fileListing.ts';
 
 import { LLMFactory } from '../llms/llmProvider.ts';
 import LLMConversation, { FileMetadata } from '../llms/conversation.ts';

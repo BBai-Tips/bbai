@@ -114,6 +114,7 @@ class AnthropicLLM extends LLM {
 
 			const { data: anthropicMessageStream, response: anthropicResponse } = await this.anthropic.messages.create(
 				messageParams as Anthropic.MessageCreateParams,
+				{ headers: { 'anthropic-beta': 'max-tokens-3-5-sonnet-2024-07-15' } },
 			).withResponse();
 
 			const anthropicMessage = anthropicMessageStream as Anthropic.Message;
