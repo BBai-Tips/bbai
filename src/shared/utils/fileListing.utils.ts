@@ -61,6 +61,13 @@ function shouldExclude(path: string, excludeOptions: string[]): boolean {
 	});
 }
 
+function shouldExclude(path: string, excludeOptions: string[]): boolean {
+	return excludeOptions.some((option) => {
+		const pattern = option.replace('--exclude=', '').replace(/\*/g, '.*');
+		return new RegExp(pattern).test(path);
+	});
+}
+
 async function getExcludeOptions(projectRoot: string): Promise<string[]> {
 	const excludeFiles = [
 		join(projectRoot, 'tags.ignore'),
@@ -71,7 +78,11 @@ async function getExcludeOptions(projectRoot: string): Promise<string[]> {
 	const excludeOptions = [];
 	for (const file of excludeFiles) {
 		if (await exists(file)) {
-			excludeOptions.push(`--exclude=@${file}`);
+			const content = await Deno.readTextFile(file);
+			const patterns = content.split('\n')
+				.map(line => line.trim())
+				.filter(line => line && !line.startsWith('#'));
+			excludeOptions.push(...patterns.map(pattern => `--exclude=${pattern}`));
 		}
 	}
 
