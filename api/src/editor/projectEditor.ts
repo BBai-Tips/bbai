@@ -1,4 +1,4 @@
-import { join, normalize, resolve } from '@std/path';
+import { join, normalize, resolve, dirname } from '@std/path';
 import * as diff from 'diff';
 import { ensureDir, exists } from '@std/fs';
 import { searchFiles } from 'shared/fileListing.ts';
@@ -241,8 +241,8 @@ export class ProjectEditor {
 
 		this.statementCount++;
 		const speakOptions: LLMSpeakWithOptions = {
-			temperature: 0.7,
-			maxTokens: 1000,
+			//temperature: 0.7,
+			//maxTokens: 1000,
 		};
 
 		const maxTurns = 5; // Maximum number of turns for the run loop
@@ -394,7 +394,7 @@ export class ProjectEditor {
 		toolUseId: string,
 	): Promise<string[]> {
 		try {
-			const files = await searchFiles(this.projectRoot, pattern, file_pattern);
+			const { files, error } = await searchFiles(this.projectRoot, pattern, file_pattern);
 
 			// Add tool result message
 			const resultMessage = `Found ${files.length} files matching the pattern "${pattern}"${
@@ -422,28 +422,43 @@ export class ProjectEditor {
 		}
 
 		const fullFilePath = join(this.projectRoot, filePath);
-		logger.info(`Patching file: ${fullFilePath}\nWith patch:\n${patch}`);
+		logger.info(`Handling patch for file: ${fullFilePath}\nWith patch:\n${patch}`);
 
 		try {
-			const currentContent = await Deno.readTextFile(fullFilePath);
+			const parsedPatch = diff.parsePatch(patch);
+			
+			for (const patchPart of parsedPatch) {
+				if (patchPart.oldFileName === '/dev/null') {
+					// This is a new file
+					const newFilePath = join(this.projectRoot, patchPart.newFileName);
+					const newFileContent = patchPart.hunks.map(h => h.lines.filter(l => l[0] === '+').map(l => l.slice(1)).join('\n')).join('\n');
+					
+					await ensureDir(dirname(newFilePath));
+					await Deno.writeTextFile(newFilePath, newFileContent);
+					logger.info(`Created new file: ${patchPart.newFileName}`);
+				} else {
+					// Existing file, apply patch as before
+					const currentContent = await Deno.readTextFile(fullFilePath);
+					
+					const patchedContent = diff.applyPatch(currentContent, patchPart, {
+						fuzzFactor: 2,
+					});
 
-			const patchedContent = diff.applyPatch(currentContent, patch, {
-				fuzzFactor: 2,
-			});
+					if (patchedContent === false) {
+						throw createError(
+							ErrorType.FileHandling,
+							'Failed to apply patch. The patch does not match the current file content.',
+							{
+								filePath,
+								operation: 'patch',
+							} as FileHandlingErrorOptions,
+						);
+					}
 
-			if (patchedContent === false) {
-				throw createError(
-					ErrorType.FileHandling,
-					'Failed to apply patch. The patch does not match the current file content.',
-					{
-						filePath,
-						operation: 'patch',
-					} as FileHandlingErrorOptions,
-				);
+					await Deno.writeTextFile(fullFilePath, patchedContent);
+					logger.info(`Patch applied to existing file: ${filePath}`);
+				}
 			}
-
-			await Deno.writeTextFile(fullFilePath, patchedContent);
-			logger.info(`Patch applied to file: ${filePath}`);
 
 			// Log the applied patch
 			if (this.conversation) {
@@ -451,12 +466,12 @@ export class ProjectEditor {
 				const persistence = new ConversationPersistence(this.conversation.id, this);
 				await persistence.logPatch(filePath, patch);
 			}
+			
+			// Add tool result message
+			this.conversation?.addMessageForToolResult(toolUseId, `Patch applied successfully to file: ${filePath}`);
 
 			// Update ctags after applying the patch
 			await this.updateCtags();
-
-			// Add tool result message
-			this.conversation?.addMessageForToolResult(toolUseId, `Patch applied successfully to file: ${filePath}`);
 		} catch (error) {
 			let errorMessage: string;
 			if (error instanceof Deno.errors.NotFound) {

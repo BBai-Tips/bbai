@@ -1,16 +1,15 @@
 import type {
 	ConversationId,
-	LLMProviderMessageRequest,
 	LLMProviderMessageResponse,
 	LLMSpeakWithOptions,
 	LLMTokenUsage,
 } from '../types.ts';
+import { AnthropicModel } from '../types.ts';
 import type {
 	LLMMessageContentPart,
 	LLMMessageContentParts,
 	LLMMessageContentPartTextBlock,
 	LLMMessageContentPartToolResultBlock,
-	LLMMessageContentPartType,
 } from './message.ts';
 import LLMMessage from './message.ts';
 import type { LLMMessageProviderResponse } from './message.ts';
@@ -40,12 +39,12 @@ class LLMConversation {
 	private _files: Map<string, FileMetadata> = new Map();
 	private systemPromptFiles: string[] = [];
 
-	private _system: string = '';
+	//private _system: string = '';
 
 	protected _baseSystem: string = '';
 	protected _ctagsContent: string = '';
 	protected _fileListingContent: string = '';
-	protected _model: string = '';
+	protected _model: string = AnthropicModel.CLAUDE_3_5_SONNET;
 	protected _repositoryInfoTier: number | null = null;
 	protected _maxTokens: number = 8192;
 	protected _temperature: number = 0.2;
