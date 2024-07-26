@@ -1,8 +1,8 @@
 class BBai < Formula
   desc "Be Better at ... Everything You Do with Text"
   homepage "https://github.com/BBai-Tips/bbai"
-  url "https://github.com/BBai-Tips/bbai/archive/v0.0.2-alpha.tar.gz"
-  sha256 "REPLACE_WITH_ACTUAL_SHA256"
+  url "https://github.com/BBai-Tips/bbai/archive/vVERSION_PLACEHOLDER.tar.gz"
+  sha256 "SHA256_PLACEHOLDER"
   license "MIT"
 
   depends_on "deno"
