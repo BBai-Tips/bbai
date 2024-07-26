@@ -165,7 +165,7 @@ class LLM {
 	public async speakWithPlus(
 		conversation: LLMConversation,
 		speakOptions?: LLMSpeakWithOptions,
-	): Promise<LLMProviderMessageResponse> {
+	): Promise<LLMSpeakWithResponse> {
 		//const start = Date.now();
 
 		const llmProviderMessageRequest = await this.prepareMessageParams(
@@ -173,42 +173,40 @@ class LLM {
 			speakOptions,
 		) as LLMProviderMessageRequest;
 
-		let llmProviderMessageResponse!: LLMProviderMessageResponse;
-		let llmProviderMessageMeta!: LLMProviderMessageMeta;
+		let llmSpeakWithResponse!: LLMSpeakWithResponse;
 
 		const cacheKey = !config.api?.ignoreLLMRequestCache
 			? this.createRequestCacheKey(llmProviderMessageRequest)
 			: [];
 		if (!config.api?.ignoreLLMRequestCache) {
-			const cachedResponse = await kv.get<LLMProviderMessageResponse>(cacheKey);
+			const cachedResponse = await kv.get<LLMSpeakWithResponse>(cacheKey);
 
 			if (cachedResponse && cachedResponse.value) {
 				logger.info(`provider[${this.llmProviderName}] speakWithPlus: Using cached response`);
-				llmProviderMessageResponse = cachedResponse.value;
-				llmProviderMessageResponse.fromCache = true;
+				llmSpeakWithResponse = cachedResponse.value;
+				llmSpeakWithResponse.messageResponse.fromCache = true;
 				//await metricsService.recordCacheMetrics({ operation: 'hit' });
 			} else {
 				//await metricsService.recordCacheMetrics({ operation: 'miss' });
 			}
 		}
 
-		if (!llmProviderMessageResponse) {
+		if (!llmSpeakWithResponse) {
 			const maxRetries = this.maxSpeakRetries;
 			let retries = 0;
 			let delay = 1000; // Start with a 1-second delay
 
 			while (retries < maxRetries) {
 				try {
-					({ messageResponse: llmProviderMessageResponse, messageMeta: llmProviderMessageMeta } = await this
-						.speakWith(llmProviderMessageRequest));
+					llmSpeakWithResponse = await this.speakWith(llmProviderMessageRequest);
 
-					const status = llmProviderMessageResponse.providerMessageResponseMeta.status;
+					const status = llmSpeakWithResponse.messageResponse.providerMessageResponseMeta.status;
 
 					if (status >= 200 && status < 300) {
 						break; // Successful response, break out of the retry loop
 					} else if (status === 429) {
 						// Rate limit exceeded
-						const rateLimit = llmProviderMessageResponse.rateLimit.requestsResetDate.getTime() - Date.now();
+						const rateLimit = llmSpeakWithResponse.messageResponse.rateLimit.requestsResetDate.getTime() - Date.now();
 						const waitTime = Math.max(rateLimit, delay);
 						logger.warn(`Rate limit exceeded. Waiting for ${waitTime}ms before retrying.`);
 						await new Promise((resolve) => setTimeout(resolve, waitTime));
@@ -221,7 +219,7 @@ class LLM {
 						// For other errors, throw and don't retry
 						throw createError(
 							ErrorType.LLM,
-							`Error calling LLM service: ${llmProviderMessageResponse.providerMessageResponseMeta.statusText}`,
+							`Error calling LLM service: ${llmSpeakWithResponse.messageResponse.providerMessageResponseMeta.statusText}`,
 							{
 								model: conversation.model,
 								provider: this.llmProviderName,
@@ -264,46 +262,46 @@ class LLM {
 			//await metricsService.recordLLMMetrics({
 			//	provider: this.llmProviderName,
 			//	latency,
-			//	tokenUsage: llmProviderMessageResponse.usage.totalTokens,
-			//	error: llmProviderMessageResponse.type === 'error' ? 'LLM request failed' : undefined,
+			//	tokenUsage: llmSpeakWithResponse.messageResponse.usage.totalTokens,
+			//	error: llmSpeakWithResponse.messageResponse.type === 'error' ? 'LLM request failed' : undefined,
 			//});
 
-			await this.updateTokenUsage(llmProviderMessageResponse.usage);
+			await this.updateTokenUsage(llmSpeakWithResponse.messageResponse.usage);
 
-			if (llmProviderMessageResponse.isTool) {
-				llmProviderMessageResponse.toolsUsed = llmProviderMessageResponse.toolsUsed || [];
-				this.extractToolUse(llmProviderMessageResponse);
+			if (llmSpeakWithResponse.messageResponse.isTool) {
+				llmSpeakWithResponse.messageResponse.toolsUsed = llmSpeakWithResponse.messageResponse.toolsUsed || [];
+				this.extractToolUse(llmSpeakWithResponse.messageResponse);
 			} else {
-				const answerPart = llmProviderMessageResponse.answerContent[0] as LLMMessageContentPart;
+				const answerPart = llmSpeakWithResponse.messageResponse.answerContent[0] as LLMMessageContentPart;
 				if ('text' in answerPart) {
-					llmProviderMessageResponse.answer = answerPart.text;
+					llmSpeakWithResponse.messageResponse.answer = answerPart.text;
 				}
 			}
 
 			// Create and save the assistant's message
 			const assistantMessage = new LLMMessage(
 				'assistant',
-				llmProviderMessageResponse.answerContent,
+				llmSpeakWithResponse.messageResponse.answerContent,
 				undefined,
-				llmProviderMessageResponse,
+				llmSpeakWithResponse.messageResponse,
 			);
 			conversation.addMessage(assistantMessage);
 
-			llmProviderMessageResponse.fromCache = false;
+			llmSpeakWithResponse.messageResponse.fromCache = false;
 
 			if (!config.api?.ignoreLLMRequestCache) {
-				await kv.set(cacheKey, llmProviderMessageResponse, { expireIn: this.requestCacheExpiry });
+				await kv.set(cacheKey, llmSpeakWithResponse, { expireIn: this.requestCacheExpiry });
 				//await metricsService.recordCacheMetrics({ operation: 'set' });
 			}
 		}
 
-		return llmProviderMessageResponse;
+		return llmSpeakWithResponse;
 	}
 
 	public async speakWithRetry(
 		conversation: LLMConversation,
 		speakOptions?: LLMSpeakWithOptions,
-	): Promise<LLMProviderMessageResponse> {
+	): Promise<LLMSpeakWithResponse> {
 		const maxRetries = this.maxSpeakRetries;
 		const retrySpeakOptions = { ...speakOptions };
 		let retries = 0;
@@ -315,14 +313,14 @@ class LLM {
 			retries++;
 			totalProviderRequests++;
 			try {
-				const llmProviderMessageResponse = await this.speakWithPlus(conversation, retrySpeakOptions);
+				const llmSpeakWithResponse = await this.speakWithPlus(conversation, retrySpeakOptions);
 
-				totalTokenUsage.inputTokens += llmProviderMessageResponse.usage.inputTokens;
-				totalTokenUsage.outputTokens += llmProviderMessageResponse.usage.outputTokens;
-				totalTokenUsage.totalTokens += llmProviderMessageResponse.usage.totalTokens;
+				totalTokenUsage.inputTokens += llmSpeakWithResponse.messageResponse.usage.inputTokens;
+				totalTokenUsage.outputTokens += llmSpeakWithResponse.messageResponse.usage.outputTokens;
+				totalTokenUsage.totalTokens += llmSpeakWithResponse.messageResponse.usage.totalTokens;
 
 				const validationFailedReason = this.validateResponse(
-					llmProviderMessageResponse,
+					llmSpeakWithResponse.messageResponse,
 					conversation,
 					retrySpeakOptions.validateResponseCallback,
 				);
@@ -330,7 +328,7 @@ class LLM {
 				if (validationFailedReason === null) {
 					conversation.updateTotals(totalTokenUsage, totalProviderRequests);
 					//await conversation.save(); // Persist the conversation after successful response
-					return llmProviderMessageResponse;
+					return llmSpeakWithResponse;
 				}
 
 				this.modifySpeakWithConversationOptions(conversation, retrySpeakOptions, validationFailedReason);
