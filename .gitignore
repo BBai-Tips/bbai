@@ -2,6 +2,7 @@
 .bbai*
 .BBEditLSPWorkspaceConfig.json
 build/*
+deployment/releases/*
 playground/*
 tags
 tags.ignore
