@@ -30,7 +30,7 @@ export const apiStart = new Command()
 		if (isCompiledBinary()) {
 			// If running as a compiled binary, start the API directly
 			command = new Deno.Command('bbai-api', {
-				args: [logFilePath],
+				args: ['--log-file', logFilePath],
 				stdout: 'null',
 				stderr: 'null',
 				stdin: 'null',
@@ -54,7 +54,7 @@ export const apiStart = new Command()
 			}
 
 			command = new Deno.Command(Deno.execPath(), {
-				args: [...cmdArgs, '../api/src/main.ts', logFilePath],
+				args: [...cmdArgs, '../api/src/main.ts', '--log-file', logFilePath],
 				cwd: '../api',
 				stdout: 'null',
 				stderr: 'null',
