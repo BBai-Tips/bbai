@@ -1,25 +1,23 @@
-import { join, normalize, resolve } from '@std/path';
+import { dirname, join, normalize, resolve } from '@std/path';
 import * as diff from 'diff';
-import { ensureDir, exists } from '@std/fs';
+import { ensureDir } from '@std/fs';
 import { searchFiles } from 'shared/fileListing.ts';
 
 import { LLMFactory } from '../llms/llmProvider.ts';
-import LLMConversation, { FileMetadata } from '../llms/conversation.ts';
+import LLMConversation, { FileMetadata, ProjectInfo } from '../llms/conversation.ts';
 import LLM from '../llms/providers/baseLLM.ts';
 import { logger } from 'shared/logger.ts';
+import { config } from 'shared/configManager.ts';
 import { PromptManager } from '../prompts/promptManager.ts';
-import { LLMProvider, LLMProviderMessageResponse, LLMSpeakWithOptions } from '../types.ts';
+import { LLMProvider, LLMSpeakWithResponse, LLMSpeakWithOptions } from '../types.ts';
 import LLMTool from '../llms/tool.ts';
 import { ConversationPersistence } from '../utils/conversationPersistence.utils.ts';
-import { GitUtils } from 'shared/git.ts';
+//import { GitUtils } from 'shared/git.ts';
 import { createError, ErrorType } from '../utils/error.utils.ts';
 import { FileHandlingErrorOptions } from '../errors/error.ts';
 import { generateCtags, readCtagsFile } from 'shared/ctags.ts';
-import {
-	LLMAnswerToolUse,
-	LLMMessageContentPartTextBlock,
-	LLMMessageContentPartToolResultBlock,
-} from '../llms/message.ts';
+import { FILE_LISTING_TIERS, generateFileListing } from 'shared/fileListing.ts';
+import { LLMAnswerToolUse } from '../llms/message.ts';
 import {
 	getBbaiCacheDir,
 	getBbaiDir,
@@ -34,17 +32,22 @@ export class ProjectEditor {
 	private conversation: LLMConversation | null = null;
 	private promptManager: PromptManager;
 	private llmProvider!: LLM;
-	private cwd: string;
-	private projectRoot: string;
+	public startDir: string;
+	public projectRoot: string;
 	private bbaiDir: string;
 	private statementCount: number = 0;
 	private totalTurnCount: number = 0;
+	private _projectInfo: ProjectInfo = {
+		type: 'empty',
+		content: '',
+		tier: null,
+	};
 
-	constructor(cwd: string) {
+	constructor(startDir: string) {
 		this.promptManager = new PromptManager(this);
 		this.projectRoot = '.';
 		this.bbaiDir = '.bbai';
-		this.cwd = cwd;
+		this.startDir = startDir;
 	}
 
 	public async init(): Promise<void> {
@@ -59,27 +62,64 @@ export class ProjectEditor {
 	}
 
 	public async getProjectRoot(): Promise<string> {
-		return await getProjectRoot(this.cwd);
+		return await getProjectRoot(this.startDir);
 	}
 
 	public async getBbaiDir(): Promise<string> {
-		return await getBbaiDir(this.cwd);
+		return await getBbaiDir(this.startDir);
 	}
 
 	public async getBbaiCacheDir(): Promise<string> {
-		return await getBbaiCacheDir(this.cwd);
+		return await getBbaiCacheDir(this.startDir);
 	}
 
 	public async writeToBbaiDir(filename: string, content: string): Promise<void> {
-		return await writeToBbaiDir(this.cwd, filename, content);
+		return await writeToBbaiDir(this.startDir, filename, content);
 	}
 
 	public async readFromBbaiDir(filename: string): Promise<string | null> {
-		return await readFromBbaiDir(this.cwd, filename);
+		return await readFromBbaiDir(this.startDir, filename);
 	}
 
 	public async removeFromBbaiDir(filename: string): Promise<void> {
-		return await removeFromBbaiDir(this.cwd, filename);
+		return await removeFromBbaiDir(this.startDir, filename);
+	}
+
+	get projectInfo(): ProjectInfo {
+		return this._projectInfo;
+	}
+
+	set projectInfo(projectInfo: ProjectInfo) {
+		this._projectInfo = projectInfo;
+	}
+
+	protected async updateProjectInfo(): Promise<void> {
+		const projectInfo: ProjectInfo = { type: 'empty', content: '', tier: null };
+
+		const bbaiDir = await this.getBbaiDir();
+		await generateCtags(this.bbaiDir, this.projectRoot);
+		const ctagsContent = await readCtagsFile(bbaiDir);
+		if (ctagsContent) {
+			projectInfo.type = 'ctags';
+			projectInfo.content = ctagsContent;
+			projectInfo.tier = 0; // Assuming ctags is always tier 0
+		}
+
+		if (projectInfo.type === 'empty') {
+			const projectRoot = await this.getProjectRoot();
+			const fileListingContent = await generateFileListing(projectRoot);
+			if (fileListingContent) {
+				projectInfo.type = 'file-listing';
+				projectInfo.content = fileListingContent;
+				// Determine which tier was used for file listing
+				const tier = FILE_LISTING_TIERS.findIndex((t: { depth: number; includeMetadata: boolean }) =>
+					t.depth === Infinity && t.includeMetadata === true
+				);
+				projectInfo.tier = tier !== -1 ? tier : null;
+			}
+		}
+
+		this.projectInfo = projectInfo;
 	}
 
 	private addDefaultTools(): void {
@@ -133,9 +173,9 @@ export class ProjectEditor {
 			},
 		};
 
-		const searchRepositoryTool: LLMTool = {
-			name: 'search_repository',
-			description: 'Search the repository for files matching a pattern',
+		const searchProjectTool: LLMTool = {
+			name: 'search_project',
+			description: 'Search the project for files matching a pattern',
 			input_schema: {
 				type: 'object',
 				properties: {
@@ -156,7 +196,7 @@ export class ProjectEditor {
 		this.conversation?.addTool(requestFilesTool);
 		//this.conversation?.addTool(vectorSearchTool);
 		this.conversation?.addTool(applyPatchTool);
-		this.conversation?.addTool(searchRepositoryTool);
+		this.conversation?.addTool(searchProjectTool);
 	}
 
 	private isPathWithinProject(filePath: string): boolean {
@@ -220,13 +260,10 @@ export class ProjectEditor {
 					userDefinedContent: 'You are an AI assistant helping with code and project management.',
 				});
 
-				this.conversation = this.llmProvider.createConversation();
+				this.conversation = await this.llmProvider.createConversation();
 				//this.conversation.id = conversationId || LLMConversation.generateShortId();
 				this.conversation.baseSystem = systemPrompt;
 				if (model) this.conversation.model = model;
-
-				// Update ctags
-				await this.updateCtags();
 
 				this.addDefaultTools();
 
@@ -241,72 +278,107 @@ export class ProjectEditor {
 
 		this.statementCount++;
 		const speakOptions: LLMSpeakWithOptions = {
-			temperature: 0.7,
-			maxTokens: 1000,
+			//temperature: 0.7,
+			//maxTokens: 1000,
 		};
 
-		const maxTurns = 5; // Maximum number of turns for the run loop
+		await this.updateProjectInfo();
+
+		const maxTurns = 25; // Maximum number of turns for the run loop
 		let turnCount = 0;
-		let currentResponse: LLMProviderMessageResponse;
+		let currentResponse: LLMSpeakWithResponse;
 
 		try {
 			logger.info(`Calling speakWithLLM with prompt: "${prompt.substring(0, 50)}..."`);
+
 			currentResponse = await this.conversation.speakWithLLM(prompt, speakOptions);
 			logger.info('Received response from LLM');
-			logger.debug('LLM Response:', currentResponse);
+			//logger.debug('LLM Response:', currentResponse);
+
 			this.totalTurnCount++;
 			turnCount++;
+		} catch (error) {
+			logger.error(`Error in LLM communication:`, error);
+			throw error;
+		}
 
+		try {
 			// Save the conversation immediately after the first response
-			logger.info(`Saving conversation at beginning of statement: ${this.conversation.id}`);
+			logger.info(
+				`Saving conversation at beginning of statement: ${this.conversation.id}[${this.statementCount}][${turnCount}]`,
+			);
 			const persistence = new ConversationPersistence(this.conversation.id, this);
 			await persistence.saveConversation(this.conversation);
 			await persistence.saveMetadata({
 				statementCount: this.statementCount,
 				totalTurnCount: this.totalTurnCount,
 			});
+
+			// Save system prompt and project info if running in local development
+			if (config.api?.environment === 'localdev') {
+				await persistence.saveSystemPrompt(currentResponse.messageMeta.system);
+				await persistence.saveProjectInfo(this.projectInfo);
+			}
+
 			logger.info(`Saved conversation: ${this.conversation.id}`);
 		} catch (error) {
-			logger.error(`Error in LLM communication:`, error);
+			logger.error(`Error persisting the conversation:`, error);
 			throw error;
 		}
 
 		while (turnCount < maxTurns) {
-			// Handle tool calls and collect feedback
-			let toolFeedback = '';
-			if (currentResponse.toolsUsed && currentResponse.toolsUsed.length > 0) {
-				for (const tool of currentResponse.toolsUsed) {
-					logger.info('Handling tool', tool);
-					const feedback = await this.handleToolUse(tool, currentResponse);
-					toolFeedback += feedback + '\n';
+			try {
+				// Handle tool calls and collect feedback
+				let toolFeedback = '';
+				if (currentResponse.messageResponse.toolsUsed && currentResponse.messageResponse.toolsUsed.length > 0) {
+					for (const tool of currentResponse.messageResponse.toolsUsed) {
+						logger.info('Handling tool', tool);
+						try {
+							const feedback = await this.handleToolUse(tool, currentResponse.messageResponse);
+							toolFeedback += feedback + '\n';
+						} catch (error) {
+							logger.warn(`Error handling tool ${tool.toolName}: ${error.message}`);
+							toolFeedback += `Error with ${tool.toolName}: ${error.message}\n`;
+						}
+					}
 				}
-			}
 
-			// If there's tool feedback, send it back to the LLM
-			if (toolFeedback) {
-				prompt =
-					`Tool use feedback:\n${toolFeedback}\nPlease acknowledge this feedback and continue the conversation.`;
-				turnCount++;
-				this.totalTurnCount++;
-				currentResponse = await this.conversation.speakWithLLM(prompt, speakOptions);
-				logger.info('tool response', currentResponse);
+				// If there's tool feedback, send it back to the LLM
+				if (toolFeedback) {
+					try {
+						await this.updateProjectInfo();
 
-				// Save the conversation after each turn
-				// CNG - Why?? What are these saves achieving, other than in case of error??
-				/*
-				if (this.conversation) {
-					const persistence = new ConversationPersistence(this.conversation.id, this);
-					await persistence.saveConversation(this.conversation);
-					await persistence.saveMetadata({
-						statementCount: this.statementCount,
-						totalTurnCount: this.totalTurnCount,
-					});
-					logger.info(`Saved conversation after turn ${turnCount}: ${this.conversation.id}`);
+						prompt =
+							`Tool use feedback:\n${toolFeedback}\nPlease acknowledge this feedback and continue the conversation.`;
+
+						turnCount++;
+						this.totalTurnCount++;
+
+						currentResponse = await this.conversation.speakWithLLM(prompt, speakOptions);
+						//logger.info('tool response', currentResponse);
+					} catch (error) {
+						logger.error(`Error in LLM communication: ${error.message}`);
+						throw error; // This error is likely fatal, so we'll throw it to be caught by the outer try-catch
+					}
+				} else {
+					// No more tool feedback, exit the loop
+					break;
 				}
-				 */
-			} else {
-				// No more tool feedback, exit the loop
-				break;
+			} catch (error) {
+				logger.error(`Error in conversation turn ${turnCount}: ${error.message}`);
+				if (turnCount === maxTurns - 1) {
+					throw error; // If it's the last turn, throw the error to be caught by the outer try-catch
+				}
+				// For non-fatal errors, log and continue to the next turn
+				currentResponse = {
+					messageResponse: {
+						answerContent: [{
+							type: 'text',
+							text: `Error occurred: ${error.message}. Continuing conversation.`,
+						}],
+					},
+					messageMeta: {},
+				} as LLMSpeakWithResponse;
 			}
 		}
 
@@ -315,17 +387,20 @@ export class ProjectEditor {
 		}
 
 		// Final save of the entire conversation at the end of the loop
-		logger.info(`Saving conversation at end of statement: ${this.conversation.id}`);
+		logger.info(
+			`Saving conversation at end of statement: ${this.conversation.id}[${this.statementCount}][${turnCount}]`,
+		);
 		const persistence = new ConversationPersistence(this.conversation.id, this);
 		await persistence.saveConversation(this.conversation);
 		await persistence.saveMetadata({
 			statementCount: this.statementCount,
 			totalTurnCount: this.totalTurnCount,
 		});
-		logger.info(`Final save of conversation: ${this.conversation.id}`);
+		logger.info(`Final save of conversation: ${this.conversation.id}[${this.statementCount}][${turnCount}]`);
 
 		return {
-			response: currentResponse,
+			response: currentResponse.messageResponse,
+			messageMeta: currentResponse.messageMeta,
 			conversationId: this.conversation?.id || '',
 			statementCount: this.statementCount,
 			turnCount,
@@ -359,14 +434,14 @@ export class ProjectEditor {
 				feedback = `Patch applied successfully to file: ${filePath}`;
 				break;
 			}
-			case 'search_repository': {
+			case 'search_project': {
 				const { pattern, file_pattern } = tool.toolInput as { pattern: string; file_pattern?: string };
-				const repoSearchResults = await this.handleSearchRepository(
+				const repoSearchResults = await this.handleSearchProject(
 					pattern,
 					file_pattern || undefined,
 					tool.toolUseId,
 				);
-				feedback = `Repository search completed. ${repoSearchResults.length} files found matching the pattern.`;
+				feedback = `Project search completed. ${repoSearchResults.length} files found matching the pattern.`;
 				break;
 			}
 			default: {
@@ -388,27 +463,27 @@ export class ProjectEditor {
 		return await this.searchEmbeddings(query);
 	}
 
-	async handleSearchRepository(
+	async handleSearchProject(
 		pattern: string,
 		file_pattern: string | undefined,
 		toolUseId: string,
 	): Promise<string[]> {
 		try {
-			const files = await searchFiles(this.projectRoot, pattern, file_pattern);
+			const { files, error } = await searchFiles(this.projectRoot, pattern, file_pattern);
 
 			// Add tool result message
 			const resultMessage = `Found ${files.length} files matching the pattern "${pattern}"${
 				file_pattern ? ` with file pattern "${file_pattern}"` : ''
 			}:\n${files.join('\n')}`;
 			this.conversation?.addMessageForToolResult(toolUseId, resultMessage);
-			
+
 			return files;
 		} catch (error) {
 			const errorMessage = error.message;
-			logger.error(`Error searching repository: ${errorMessage}`);
+			logger.error(`Error searching project: ${errorMessage}`);
 
 			// Add error tool result message
-			this.conversation?.addMessageForToolResult(toolUseId, `Error searching repository: ${errorMessage}`, true);
+			this.conversation?.addMessageForToolResult(toolUseId, `Error searching project: ${errorMessage}`, true);
 			return [];
 		}
 	}
@@ -422,28 +497,50 @@ export class ProjectEditor {
 		}
 
 		const fullFilePath = join(this.projectRoot, filePath);
-		logger.info(`Patching file: ${fullFilePath}\nWith patch:\n${patch}`);
+		logger.info(`Handling patch for file: ${fullFilePath}\nWith patch:\n${patch}`);
 
 		try {
-			const currentContent = await Deno.readTextFile(fullFilePath);
+			const parsedPatch = diff.parsePatch(patch);
 
-			const patchedContent = diff.applyPatch(currentContent, patch, {
-				fuzzFactor: 2,
-			});
+			for (const patchPart of parsedPatch) {
+				if (patchPart.oldFileName === '/dev/null') {
+					// This is a new file
+					const newFilePath = patchPart.newFileName
+						? join(this.projectRoot, patchPart.newFileName)
+						: undefined;
+					if (!newFilePath) {
+						throw new Error('New file path is undefined');
+					}
+					const newFileContent = patchPart.hunks.map((h) =>
+						h.lines.filter((l) => l[0] === '+').map((l) => l.slice(1)).join('\n')
+					).join('\n');
 
-			if (patchedContent === false) {
-				throw createError(
-					ErrorType.FileHandling,
-					'Failed to apply patch. The patch does not match the current file content.',
-					{
-						filePath,
-						operation: 'patch',
-					} as FileHandlingErrorOptions,
-				);
+					await ensureDir(dirname(newFilePath));
+					await Deno.writeTextFile(newFilePath, newFileContent);
+					logger.info(`Created new file: ${patchPart.newFileName}`);
+				} else {
+					// Existing file, apply patch as before
+					const currentContent = await Deno.readTextFile(fullFilePath);
+
+					const patchedContent = diff.applyPatch(currentContent, patchPart, {
+						fuzzFactor: 2,
+					});
+
+					if (patchedContent === false) {
+						throw createError(
+							ErrorType.FileHandling,
+							'Failed to apply patch. The patch does not match the current file content.',
+							{
+								filePath,
+								operation: 'patch',
+							} as FileHandlingErrorOptions,
+						);
+					}
+
+					await Deno.writeTextFile(fullFilePath, patchedContent);
+					logger.info(`Patch applied to existing file: ${filePath}`);
+				}
 			}
-
-			await Deno.writeTextFile(fullFilePath, patchedContent);
-			logger.info(`Patch applied to file: ${filePath}`);
 
 			// Log the applied patch
 			if (this.conversation) {
@@ -451,9 +548,6 @@ export class ProjectEditor {
 				const persistence = new ConversationPersistence(this.conversation.id, this);
 				await persistence.logPatch(filePath, patch);
 			}
-
-			// Update ctags after applying the patch
-			await this.updateCtags();
 
 			// Add tool result message
 			this.conversation?.addMessageForToolResult(toolUseId, `Patch applied successfully to file: ${filePath}`);
@@ -556,14 +650,6 @@ export class ProjectEditor {
 		// TODO: Implement embedding search logic
 		logger.info(`Searching embeddings for: ${query}`);
 		return [];
-	}
-
-	private async updateCtags(): Promise<void> {
-		await generateCtags(this.bbaiDir, this.projectRoot);
-		const ctagsContent = await readCtagsFile(this.bbaiDir);
-		if (ctagsContent && this.conversation) {
-			this.conversation.ctagsContent = ctagsContent;
-		}
 	}
 
 	async revertLastPatch(): Promise<void> {

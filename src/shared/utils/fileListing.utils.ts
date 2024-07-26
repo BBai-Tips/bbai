@@ -16,14 +16,17 @@ export const FILE_LISTING_TIERS = [
 
 export async function generateFileListing(projectRoot: string): Promise<string | null> {
 	const config = await ConfigManager.getInstance();
-	const ctagsConfig = config.getConfig().ctags;
-	const tokenLimit = ctagsConfig?.tokenLimit || 1024;
+	const repoInfoConfig = config.getConfig().repoInfo;
+	const tokenLimit = repoInfoConfig?.tokenLimit || 1024;
 
 	const excludeOptions = await getExcludeOptions(projectRoot);
+	logger.debug(`Exclude options for file listing: ${JSON.stringify(excludeOptions)}`);
 
 	for (const tier of FILE_LISTING_TIERS) {
+		logger.debug(`Generating file listing for tier: ${JSON.stringify(tier)}`);
 		const listing = await generateFileListingTier(projectRoot, excludeOptions, tier.depth, tier.includeMetadata);
 		if (countTokens(listing) <= tokenLimit) {
+			logger.info(`File listing generated successfully within token limit (${tokenLimit})`);
 			return listing;
 		}
 	}
@@ -61,13 +64,6 @@ function shouldExclude(path: string, excludeOptions: string[]): boolean {
 	});
 }
 
-function shouldExclude(path: string, excludeOptions: string[]): boolean {
-	return excludeOptions.some((option) => {
-		const pattern = option.replace('--exclude=', '').replace(/\*/g, '.*');
-		return new RegExp(pattern).test(path);
-	});
-}
-
 async function getExcludeOptions(projectRoot: string): Promise<string[]> {
 	const excludeFiles = [
 		join(projectRoot, 'tags.ignore'),
@@ -80,9 +76,9 @@ async function getExcludeOptions(projectRoot: string): Promise<string[]> {
 		if (await exists(file)) {
 			const content = await Deno.readTextFile(file);
 			const patterns = content.split('\n')
-				.map(line => line.trim())
-				.filter(line => line && !line.startsWith('#'));
-			excludeOptions.push(...patterns.map(pattern => `--exclude=${pattern}`));
+				.map((line) => line.trim())
+				.filter((line) => line && !line.startsWith('#'));
+			excludeOptions.push(...patterns.map((pattern) => `--exclude=${pattern}`));
 		}
 	}
 
@@ -93,32 +89,36 @@ async function getExcludeOptions(projectRoot: string): Promise<string[]> {
 	return excludeOptions;
 }
 
-export async function searchFiles(projectRoot: string, pattern: string, filePattern?: string): Promise<{ files: string[], error: string | null }> {
+export async function searchFiles(
+	projectRoot: string,
+	pattern: string,
+	filePattern?: string,
+): Promise<{ files: string[]; error: string | null }> {
 	const excludeOptions = await getExcludeOptions(projectRoot);
-	let command = ['grep', '-r', '-l', pattern];
+	let grepCommand = ['-r', '-l', '-E', `${pattern}`];
 
 	if (filePattern) {
-		command.push('--include', filePattern);
+		grepCommand.push('--include', filePattern);
 	}
 
 	// Add exclude options
+	grepCommand.push('--exclude=./.git*');
 	for (const option of excludeOptions) {
-		command.push(option.replace('--exclude=', '--exclude-dir='));
+		grepCommand.push(option.replace('--exclude=', '--exclude=./'));
 	}
+	grepCommand.push('.');
+	//logger.debug(`Search command in dir ${projectRoot}: grep `, grepCommand);
 
-	command.push('.');
-
-	const process = Deno.run({
-		cmd: command,
+	const command = new Deno.Command('grep', {
+		args: grepCommand,
 		cwd: projectRoot,
 		stdout: 'piped',
 		stderr: 'piped',
 	});
 
-	const { code } = await process.status();
-	const rawOutput = await process.output();
-	const rawError = await process.stderrOutput();
-	process.close();
+	const { code, stdout, stderr } = await command.output();
+	const rawOutput = stdout;
+	const rawError = stderr;
 
 	if (code === 0 || code === 1) { // grep returns 1 if no matches found, which is not an error for us
 		const output = new TextDecoder().decode(rawOutput).trim();

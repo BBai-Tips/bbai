@@ -4,19 +4,19 @@ import { ConfigManager } from 'shared/configManager.ts';
 import { logger } from 'shared/logger.ts';
 import { stringify as stringifyYaml } from 'yaml';
 
-export async function createBbaiDir(cwd: string): Promise<void> {
-	const bbaiDir = join(cwd, '.bbai');
+export async function createBbaiDir(startDir: string): Promise<void> {
+	const bbaiDir = join(startDir, '.bbai');
 	try {
 		await ensureDir(bbaiDir);
-		logger.info(`Created .bbai directory in ${cwd}`);
+		logger.info(`Created .bbai directory in ${startDir}`);
 	} catch (error) {
 		logger.error(`Failed to create .bbai directory: ${error.message}`);
 		throw error;
 	}
 }
 
-export async function createTagIgnore(cwd: string): Promise<void> {
-	const tagIgnorePath = join(cwd, '.bbai', 'tags.ignore');
+export async function createTagIgnore(startDir: string): Promise<void> {
+	const tagIgnorePath = join(startDir, '.bbai', 'tags.ignore');
 	try {
 		await ensureFile(tagIgnorePath);
 		await Deno.writeTextFile(tagIgnorePath, '.bbai/*');
@@ -27,8 +27,8 @@ export async function createTagIgnore(cwd: string): Promise<void> {
 	}
 }
 
-export async function createGitIgnore(cwd: string): Promise<void> {
-	const gitIgnorePath = join(cwd, '.gitignore');
+export async function createGitIgnore(startDir: string): Promise<void> {
+	const gitIgnorePath = join(startDir, '.gitignore');
 	try {
 		await ensureFile(gitIgnorePath);
 		await Deno.writeTextFile(gitIgnorePath, '.bbai/*\n');
@@ -85,9 +85,9 @@ Thumbs.db
 `;
 }
 
-export async function createDefaultConfig(cwd: string): Promise<void> {
+export async function createDefaultConfig(startDir: string): Promise<void> {
 	const configManager = await ConfigManager.getInstance();
 	await configManager.ensureUserConfig();
-	await configManager.ensureProjectConfig(cwd);
+	await configManager.ensureProjectConfig(startDir);
 	logger.info('Created default config files');
 }

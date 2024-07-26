@@ -8,8 +8,8 @@ export const apiStatus = new Command()
 	.option('--text', 'Return plain text instead of JSON')
 	.action(async (options) => {
 		const apiPort = config.api?.apiPort || 3000;
-		const cwd = Deno.cwd();
-		const isRunning = await isApiRunning(cwd);
+		const startDir = Deno.cwd();
+		const isRunning = await isApiRunning(startDir);
 		const status: {
 			running: boolean;
 			pid?: number;
@@ -19,7 +19,7 @@ export const apiStatus = new Command()
 		} = { running: isRunning };
 
 		if (isRunning) {
-			const pid = await getPid(cwd);
+			const pid = await getPid(startDir);
 			status.pid = pid !== null ? pid : undefined;
 			status.apiUrl = `http://localhost:${apiPort}`;
 

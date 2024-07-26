@@ -1,34 +1,37 @@
 import Anthropic from 'anthropic';
 import type { ClientOptions } from 'anthropic';
 
-import { AnthropicModel, LLMProvider } from '../../types.ts';
+import { AnthropicModel, LLMCallbackType, LLMProvider } from '../../types.ts';
 import LLM from './baseLLM.ts';
 import LLMConversation from '../conversation.ts';
 import LLMMessage, { LLMMessageContentParts } from '../message.ts';
-import type {
-	LLMMessageContentPart,
-	LLMMessageContentPartTextBlock,
-	LLMMessageContentPartToolResultBlock,
-} from '../message.ts';
+import type { LLMMessageContentPartTextBlock, LLMMessageContentPartToolResultBlock } from '../message.ts';
 import LLMTool from '../tool.ts';
 import { createError } from '../../utils/error.utils.ts';
 import { ErrorType, LLMErrorOptions } from '../../errors/error.ts';
 import { logger } from 'shared/logger.ts';
 import { config } from 'shared/configManager.ts';
-import type { LLMProviderMessageRequest, LLMProviderMessageResponse, LLMSpeakWithOptions } from '../../types.ts';
-import { ProjectEditor } from '../../editor/projectEditor.ts';
+import type {
+	LLMProviderMessageRequest,
+	LLMProviderMessageResponse,
+	LLMSpeakWithOptions,
+	LLMSpeakWithResponse,
+	LLMCallbackResult,
+	LLMCallbacks
+} from '../../types.ts';
+
 
 class AnthropicLLM extends LLM {
 	private anthropic!: Anthropic;
 
-	constructor(projectEditor: ProjectEditor) {
-		super(projectEditor);
-		this.providerName = LLMProvider.ANTHROPIC;
+	constructor(callbacks: LLMCallbacks) {
+		super(callbacks);
+		this.llmProviderName = LLMProvider.ANTHROPIC;
 
 		this.initializeAnthropicClient();
 	}
 
-	private async initializeAnthropicClient() {
+	private initializeAnthropicClient() {
 		const clientOptions: ClientOptions = {
 			apiKey: config.api?.anthropicApiKey,
 		};
@@ -55,23 +58,9 @@ class AnthropicLLM extends LLM {
 		speakOptions?: LLMSpeakWithOptions,
 	): Promise<Anthropic.MessageCreateParams> {
 		let system = speakOptions?.system || conversation.baseSystem;
-		const repositoryInfo = await this.getRepositoryInfo(
-			await this.projectEditor.getBbaiDir(),
-			await this.projectEditor.getProjectRoot(),
-			conversation,
-		);
-		if (repositoryInfo) {
-			if (conversation.ctagsContent) {
-				conversation.ctagsContent = repositoryInfo;
-			} else {
-				conversation.fileListingContent = repositoryInfo;
-			}
-		}
-		system = this.appendCtagsOrFileListingToSystem(
-			system,
-			conversation.ctagsContent,
-			conversation.fileListingContent,
-		);
+
+		const projectInfo = await this.invoke(LLMCallbackType.PROJECT_INFO);
+		system = this.appendProjectInfoToSystem(system, projectInfo);
 		system = await this.appendFilesToSystem(system, conversation);
 
 		const messages = this.asProviderMessageType(
@@ -108,13 +97,15 @@ class AnthropicLLM extends LLM {
 	 */
 	public async speakWith(
 		messageParams: LLMProviderMessageRequest,
-	): Promise<LLMProviderMessageResponse> {
+	): Promise<LLMSpeakWithResponse> {
 		try {
 			//logger.info('llms-anthropic-speakWith-messageParams', messageParams);
 
 			const { data: anthropicMessageStream, response: anthropicResponse } = await this.anthropic.messages.create(
 				messageParams as Anthropic.MessageCreateParams,
-				{ headers: { 'anthropic-beta': 'max-tokens-3-5-sonnet-2024-07-15' } },
+				{
+					headers: { 'anthropic-beta': 'max-tokens-3-5-sonnet-2024-07-15' },
+				},
 			).withResponse();
 
 			const anthropicMessage = anthropicMessageStream as Anthropic.Message;
@@ -135,7 +126,9 @@ class AnthropicLLM extends LLM {
 				type: anthropicMessage.type,
 				role: anthropicMessage.role,
 				model: anthropicMessage.model,
+				//system: messageParams.system,
 				fromCache: false,
+				timestamp: new Date().toISOString(),
 				answerContent: anthropicMessage.content as LLMMessageContentParts,
 				isTool: anthropicMessage.stop_reason === 'tool_use',
 				messageStop: {
@@ -162,7 +155,7 @@ class AnthropicLLM extends LLM {
 			};
 			//logger.debug("llms-anthropic-messageResponse", messageResponse);
 
-			return messageResponse;
+			return { messageResponse, messageMeta: { system: messageParams.system } };
 		} catch (err) {
 			logger.error('Error calling Anthropic API', err);
 			throw createError(
@@ -170,7 +163,7 @@ class AnthropicLLM extends LLM {
 				'Could not get response from Anthropic API.',
 				{
 					model: messageParams.model,
-					provider: this.providerName,
+					provider: this.llmProviderName,
 				} as LLMErrorOptions,
 			);
 		}
@@ -209,7 +202,7 @@ class AnthropicLLM extends LLM {
 				});
 			} else {
 				logger.warn(
-					`provider[${this.providerName}] modifySpeakWithConversationOptions - Tool input validation failed, but no tool response found`,
+					`provider[${this.llmProviderName}] modifySpeakWithConversationOptions - Tool input validation failed, but no tool response found`,
 				);
 			}
 		} else if (validationFailedReason === 'Tool exceeded max tokens') {
@@ -231,21 +224,21 @@ class AnthropicLLM extends LLM {
 			// Perform special handling based on the stop reason
 			switch (llmProviderMessageResponse.messageStop.stopReason) {
 				case 'max_tokens':
-					logger.warn(`provider[${this.providerName}] Response reached the maximum token limit`);
+					logger.warn(`provider[${this.llmProviderName}] Response reached the maximum token limit`);
 
 					break;
 				case 'end_turn':
-					logger.warn(`provider[${this.providerName}] Response reached the end turn`);
+					logger.warn(`provider[${this.llmProviderName}] Response reached the end turn`);
 					break;
 				case 'stop_sequence':
-					logger.warn(`provider[${this.providerName}] Response reached its natural end`);
+					logger.warn(`provider[${this.llmProviderName}] Response reached its natural end`);
 					break;
 				case 'tool_use':
-					logger.warn(`provider[${this.providerName}] Response is using a tool`);
+					logger.warn(`provider[${this.llmProviderName}] Response is using a tool`);
 					break;
 				default:
 					logger.info(
-						`provider[${this.providerName}] Response stopped due to: ${llmProviderMessageResponse.messageStop.stopReason}`,
+						`provider[${this.llmProviderName}] Response stopped due to: ${llmProviderMessageResponse.messageStop.stopReason}`,
 					);
 			}
 		}

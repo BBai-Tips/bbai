@@ -12,7 +12,7 @@ export const conversationStart = new Command()
 	.option('--text', 'Return plain text instead of JSON')
 	.action(async (options) => {
 		try {
-			const cwd = Deno.cwd();
+			const startDir = Deno.cwd();
 			let prompt = options.prompt;
 
 			if (!prompt) {
@@ -34,7 +34,7 @@ export const conversationStart = new Command()
 				}
 
 				if (input.length === 0) {
-					console.error("No input provided. Use -p option or provide input via STDIN.");
+					console.error('No input provided. Use -p option or provide input via STDIN.');
 					Deno.exit(1);
 				}
 
@@ -49,13 +49,13 @@ export const conversationStart = new Command()
 				response = await apiClient.post(`/api/v1/conversation/${options.id}`, {
 					prompt: prompt,
 					model: options.model,
-					cwd: cwd,
+					startDir: startDir,
 				});
 			} else {
 				response = await apiClient.post('/api/v1/conversation', {
 					prompt: prompt,
 					model: options.model,
-					cwd: cwd,
+					startDir: startDir,
 				});
 			}
 

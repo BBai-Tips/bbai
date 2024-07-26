@@ -4,36 +4,36 @@ import { parse as parseYaml } from 'yaml';
 import { GitUtils } from './git.utils.ts';
 import { ConfigManager } from 'shared/configManager.ts';
 
-export async function getProjectRoot(cwd: string): Promise<string> {
-	const gitRoot = await GitUtils.findGitRoot(cwd);
+export async function getProjectRoot(startDir: string): Promise<string> {
+	const gitRoot = await GitUtils.findGitRoot(startDir);
 	if (!gitRoot) {
 		throw new Error('Not in a git repository');
 	}
 	return gitRoot;
 }
 
-export async function getBbaiDir(cwd: string): Promise<string> {
-	const projectRoot = await getProjectRoot(cwd);
+export async function getBbaiDir(startDir: string): Promise<string> {
+	const projectRoot = await getProjectRoot(startDir);
 	const bbaiDir = join(projectRoot, '.bbai');
 	await ensureDir(bbaiDir);
 	return bbaiDir;
 }
 
-export async function getBbaiCacheDir(cwd: string): Promise<string> {
-	const bbaiDir = await getBbaiDir(cwd);
+export async function getBbaiCacheDir(startDir: string): Promise<string> {
+	const bbaiDir = await getBbaiDir(startDir);
 	const repoCacheDir = join(bbaiDir, 'cache');
 	await ensureDir(repoCacheDir);
 	return repoCacheDir;
 }
 
-export async function writeToBbaiDir(cwd: string, filename: string, content: string): Promise<void> {
-	const bbaiDir = await getBbaiDir(cwd);
+export async function writeToBbaiDir(startDir: string, filename: string, content: string): Promise<void> {
+	const bbaiDir = await getBbaiDir(startDir);
 	const filePath = join(bbaiDir, filename);
 	await Deno.writeTextFile(filePath, content);
 }
 
-export async function readFromBbaiDir(cwd: string, filename: string): Promise<string | null> {
-	const bbaiDir = await getBbaiDir(cwd);
+export async function readFromBbaiDir(startDir: string, filename: string): Promise<string | null> {
+	const bbaiDir = await getBbaiDir(startDir);
 	const filePath = join(bbaiDir, filename);
 	try {
 		return await Deno.readTextFile(filePath);
@@ -45,8 +45,8 @@ export async function readFromBbaiDir(cwd: string, filename: string): Promise<st
 	}
 }
 
-export async function removeFromBbaiDir(cwd: string, filename: string): Promise<void> {
-	const bbaiDir = await getBbaiDir(cwd);
+export async function removeFromBbaiDir(startDir: string, filename: string): Promise<void> {
+	const bbaiDir = await getBbaiDir(startDir);
 	const filePath = join(bbaiDir, filename);
 	try {
 		await Deno.remove(filePath);
@@ -57,14 +57,14 @@ export async function removeFromBbaiDir(cwd: string, filename: string): Promise<
 	}
 }
 
-export async function writeToBbaiCacheDir(cwd: string, filename: string, content: string): Promise<void> {
-	const cacheDir = await getBbaiCacheDir(cwd);
+export async function writeToBbaiCacheDir(startDir: string, filename: string, content: string): Promise<void> {
+	const cacheDir = await getBbaiCacheDir(startDir);
 	const filePath = join(cacheDir, filename);
 	await Deno.writeTextFile(filePath, content);
 }
 
-export async function readFromBbaiCacheDir(cwd: string, filename: string): Promise<string | null> {
-	const cacheDir = await getBbaiCacheDir(cwd);
+export async function readFromBbaiCacheDir(startDir: string, filename: string): Promise<string | null> {
+	const cacheDir = await getBbaiCacheDir(startDir);
 	const filePath = join(cacheDir, filename);
 	try {
 		return await Deno.readTextFile(filePath);
@@ -76,8 +76,8 @@ export async function readFromBbaiCacheDir(cwd: string, filename: string): Promi
 	}
 }
 
-export async function removeFromBbaiCacheDir(cwd: string, filename: string): Promise<void> {
-	const cacheDir = await getBbaiCacheDir(cwd);
+export async function removeFromBbaiCacheDir(startDir: string, filename: string): Promise<void> {
+	const cacheDir = await getBbaiCacheDir(startDir);
 	const filePath = join(cacheDir, filename);
 	try {
 		await Deno.remove(filePath);
