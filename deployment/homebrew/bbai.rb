@@ -11,8 +11,8 @@ class Bbai < Formula
 
   def install
     system "deno", "task", "build"
-    bin.install "bbai"
-    bin.install "bbai-api"
+    bin.install "build/bbai"
+    bin.install "build/bbai-api"
   end
 
   test do
