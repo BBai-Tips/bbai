@@ -47,12 +47,19 @@ if (logFile) {
 
 	consoleFunctions.forEach((funcName) => {
 		(console as any)[funcName] = (...args: any[]) => {
+			const timestamp = new Date().toISOString();
 			const prefix = funcName === 'log' ? '' : `[${funcName.toUpperCase()}] `;
-			const message = prefix + args.map((arg) => typeof arg === 'string' ? arg : JSON.stringify(arg)).join(' ') +
-				'\n';
+			const message = `${timestamp} ${prefix}${args.map((arg) => typeof arg === 'string' ? arg : JSON.stringify(arg)).join(' ')}\n`;
 			logFileStream.write(encoder.encode(message));
 		};
 	});
+
+	// Redirect Deno.stderr to the log file
+	const originalStderrWrite = Deno.stderr.write;
+	Deno.stderr.write = (p: Uint8Array): Promise<number> => {
+		logFileStream.write(p);
+		return originalStderrWrite.call(Deno.stderr, p);
+	};
 }
 
 const app = new Application<BbAiState>();
