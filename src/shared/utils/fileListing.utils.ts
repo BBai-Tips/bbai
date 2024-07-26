@@ -73,9 +73,9 @@ async function getExcludeOptions(projectRoot: string): Promise<string[]> {
 		if (await exists(file)) {
 			const content = await Deno.readTextFile(file);
 			const patterns = content.split('\n')
-				.map(line => line.trim())
-				.filter(line => line && !line.startsWith('#'));
-			excludeOptions.push(...patterns.map(pattern => `--exclude=${pattern}`));
+				.map((line) => line.trim())
+				.filter((line) => line && !line.startsWith('#'));
+			excludeOptions.push(...patterns.map((pattern) => `--exclude=${pattern}`));
 		}
 	}
 
@@ -86,7 +86,11 @@ async function getExcludeOptions(projectRoot: string): Promise<string[]> {
 	return excludeOptions;
 }
 
-export async function searchFiles(projectRoot: string, pattern: string, filePattern?: string): Promise<{ files: string[], error: string | null }> {
+export async function searchFiles(
+	projectRoot: string,
+	pattern: string,
+	filePattern?: string,
+): Promise<{ files: string[]; error: string | null }> {
 	const excludeOptions = await getExcludeOptions(projectRoot);
 	let command = ['grep', '-r', '-l', pattern];
 

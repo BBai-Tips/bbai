@@ -36,10 +36,10 @@ export const startConversation = async (ctx: Context) => {
 		} else {
 			ctx.response.status = 500;
 		}
-		ctx.response.body = { 
-			error: 'Failed to generate response', 
+		ctx.response.body = {
+			error: 'Failed to generate response',
 			details: error.message,
-			type: error.name || 'UnknownError'
+			type: error.name || 'UnknownError',
 		};
 	}
 };

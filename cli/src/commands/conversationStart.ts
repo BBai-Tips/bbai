@@ -34,7 +34,7 @@ export const conversationStart = new Command()
 				}
 
 				if (input.length === 0) {
-					console.error("No input provided. Use -p option or provide input via STDIN.");
+					console.error('No input provided. Use -p option or provide input via STDIN.');
 					Deno.exit(1);
 				}
 

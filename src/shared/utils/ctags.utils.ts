@@ -140,7 +140,9 @@ export async function readCtagsFile(bbaiDir: string): Promise<string | null> {
 	const config = await ConfigManager.getInstance();
 	const repoInfoConfig = config.getConfig().repoInfo;
 
-	const ctagsFilePath = repoInfoConfig?.ctagsFilePath ? join(bbaiDir, repoInfoConfig.ctagsFilePath) : join(bbaiDir, 'tags');
+	const ctagsFilePath = repoInfoConfig?.ctagsFilePath
+		? join(bbaiDir, repoInfoConfig.ctagsFilePath)
+		: join(bbaiDir, 'tags');
 
 	if (await exists(ctagsFilePath)) {
 		try {

@@ -170,7 +170,6 @@ export class ConversationPersistence {
 		const conversation = new LLMConversation(llm);
 		await conversation.init();
 
-
 		conversation.id = metadata.id;
 		conversation.baseSystem = metadata.system;
 		conversation.model = metadata.model;

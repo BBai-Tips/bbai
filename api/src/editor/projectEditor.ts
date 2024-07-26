@@ -16,9 +16,7 @@ import { createError, ErrorType } from '../utils/error.utils.ts';
 import { FileHandlingErrorOptions } from '../errors/error.ts';
 import { generateCtags, readCtagsFile } from 'shared/ctags.ts';
 import { FILE_LISTING_TIERS, generateFileListing } from 'shared/fileListing.ts';
-import {
-	LLMAnswerToolUse,
-} from '../llms/message.ts';
+import { LLMAnswerToolUse } from '../llms/message.ts';
 import {
 	getBbaiCacheDir,
 	getBbaiDir,
@@ -305,7 +303,9 @@ export class ProjectEditor {
 
 		try {
 			// Save the conversation immediately after the first response
-			logger.info(`Saving conversation at beginning of statement: ${this.conversation.id}[${this.statementCount}][${turnCount}]`);
+			logger.info(
+				`Saving conversation at beginning of statement: ${this.conversation.id}[${this.statementCount}][${turnCount}]`,
+			);
 			const persistence = new ConversationPersistence(this.conversation.id, this);
 			await persistence.saveConversation(this.conversation);
 			await persistence.saveMetadata({
@@ -363,7 +363,10 @@ export class ProjectEditor {
 				}
 				// For non-fatal errors, log and continue to the next turn
 				currentResponse = {
-					answerContent: [{ type: 'text', text: `Error occurred: ${error.message}. Continuing conversation.` }],
+					answerContent: [{
+						type: 'text',
+						text: `Error occurred: ${error.message}. Continuing conversation.`,
+					}],
 				} as LLMProviderMessageResponse;
 			}
 		}
@@ -373,7 +376,9 @@ export class ProjectEditor {
 		}
 
 		// Final save of the entire conversation at the end of the loop
-		logger.info(`Saving conversation at end of statement: ${this.conversation.id}[${this.statementCount}][${turnCount}]`);
+		logger.info(
+			`Saving conversation at end of statement: ${this.conversation.id}[${this.statementCount}][${turnCount}]`,
+		);
 		const persistence = new ConversationPersistence(this.conversation.id, this);
 		await persistence.saveConversation(this.conversation);
 		await persistence.saveMetadata({
@@ -488,7 +493,9 @@ export class ProjectEditor {
 			for (const patchPart of parsedPatch) {
 				if (patchPart.oldFileName === '/dev/null') {
 					// This is a new file
-					const newFilePath = patchPart.newFileName ? join(this.projectRoot, patchPart.newFileName) : undefined;
+					const newFilePath = patchPart.newFileName
+						? join(this.projectRoot, patchPart.newFileName)
+						: undefined;
 					if (!newFilePath) {
 						throw new Error('New file path is undefined');
 					}
@@ -532,7 +539,6 @@ export class ProjectEditor {
 
 			// Add tool result message
 			this.conversation?.addMessageForToolResult(toolUseId, `Patch applied successfully to file: ${filePath}`);
-
 		} catch (error) {
 			let errorMessage: string;
 			if (error instanceof Deno.errors.NotFound) {
@@ -633,7 +639,6 @@ export class ProjectEditor {
 		logger.info(`Searching embeddings for: ${query}`);
 		return [];
 	}
-
 
 	async revertLastPatch(): Promise<void> {
 		if (!this.conversation) {

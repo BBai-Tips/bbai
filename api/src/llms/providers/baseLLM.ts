@@ -106,7 +106,8 @@ class LLM {
 		if (projectInfo.type === 'ctags') {
 			system += `\n\n<project-details>\n<ctags>\n${projectInfo.content}\n</ctags>\n</project-details>`;
 		} else if (projectInfo.type === 'file-listing') {
-			system += `\n\n<project-details>\n<file-listing>\n${projectInfo.content}\n</file-listing>\n</project-details>`;
+			system +=
+				`\n\n<project-details>\n<file-listing>\n${projectInfo.content}\n</file-listing>\n</project-details>`;
 		}
 		return system;
 	}
