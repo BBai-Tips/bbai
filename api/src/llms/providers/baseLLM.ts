@@ -308,12 +308,13 @@ class LLM {
 		let failReason = '';
 		let totalProviderRequests = 0;
 		const totalTokenUsage = { inputTokens: 0, outputTokens: 0, totalTokens: 0 };
+		let llmSpeakWithResponse: LLMSpeakWithResponse | null = null;
 
 		while (retries < maxRetries) {
 			retries++;
 			totalProviderRequests++;
 			try {
-				const llmSpeakWithResponse = await this.speakWithPlus(conversation, retrySpeakOptions);
+				llmSpeakWithResponse = await this.speakWithPlus(conversation, retrySpeakOptions);
 
 				totalTokenUsage.inputTokens += llmSpeakWithResponse.messageResponse.usage.inputTokens;
 				totalTokenUsage.outputTokens += llmSpeakWithResponse.messageResponse.usage.outputTokens;
@@ -326,9 +327,7 @@ class LLM {
 				);
 
 				if (validationFailedReason === null) {
-					conversation.updateTotals(totalTokenUsage, totalProviderRequests);
-					//await conversation.save(); // Persist the conversation after successful response
-					return llmSpeakWithResponse;
+					break; // Success, break out of the loop
 				}
 
 				this.modifySpeakWithConversationOptions(conversation, retrySpeakOptions, validationFailedReason);
@@ -350,6 +349,11 @@ class LLM {
 
 		conversation.updateTotals(totalTokenUsage, totalProviderRequests);
 		//await conversation.save(); // Persist the conversation even if all retries failed
+
+		if (llmSpeakWithResponse) {
+			return llmSpeakWithResponse;
+		}
+
 		logger.error(
 			`provider[${this.llmProviderName}] Max retries reached. Request to ${this.llmProviderName} failed.`,
 		);
