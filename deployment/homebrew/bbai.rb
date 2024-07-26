@@ -1,4 +1,4 @@
-class Bbai < Formula
+class BBai < Formula
   desc "Be Better at ... Everything You Do with Text"
   homepage "https://github.com/BBai-Tips/bbai"
   url "https://github.com/BBai-Tips/bbai/archive/v0.0.2-alpha.tar.gz"
