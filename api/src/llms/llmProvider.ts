@@ -12,7 +12,6 @@ export class LLMFactory {
 		projectEditor: ProjectEditor,
 		llmProviderName: LLMProviderEnum = LLMProviderEnum.ANTHROPIC,
 	): LLM {
-
 		const callbacks: LLMCallbacks = {
 			PROJECT_ROOT: () => projectEditor.projectRoot,
 			PROJECT_INFO: () => projectEditor.projectInfo,

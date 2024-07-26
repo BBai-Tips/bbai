@@ -12,14 +12,13 @@ import { ErrorType, LLMErrorOptions } from '../../errors/error.ts';
 import { logger } from 'shared/logger.ts';
 import { config } from 'shared/configManager.ts';
 import type {
+	LLMCallbackResult,
+	LLMCallbacks,
 	LLMProviderMessageRequest,
 	LLMProviderMessageResponse,
 	LLMSpeakWithOptions,
 	LLMSpeakWithResponse,
-	LLMCallbackResult,
-	LLMCallbacks
 } from '../../types.ts';
-
 
 class AnthropicLLM extends LLM {
 	private anthropic!: Anthropic;

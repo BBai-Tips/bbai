@@ -9,7 +9,7 @@ import LLM from '../llms/providers/baseLLM.ts';
 import { logger } from 'shared/logger.ts';
 import { config } from 'shared/configManager.ts';
 import { PromptManager } from '../prompts/promptManager.ts';
-import { LLMProvider, LLMSpeakWithResponse, LLMSpeakWithOptions } from '../types.ts';
+import { LLMProvider, LLMSpeakWithOptions, LLMSpeakWithResponse } from '../types.ts';
 import LLMTool from '../llms/tool.ts';
 import { ConversationPersistence } from '../utils/conversationPersistence.utils.ts';
 //import { GitUtils } from 'shared/git.ts';
