@@ -206,7 +206,8 @@ class LLM {
 						break; // Successful response, break out of the retry loop
 					} else if (status === 429) {
 						// Rate limit exceeded
-						const rateLimit = llmSpeakWithResponse.messageResponse.rateLimit.requestsResetDate.getTime() - Date.now();
+						const rateLimit = llmSpeakWithResponse.messageResponse.rateLimit.requestsResetDate.getTime() -
+							Date.now();
 						const waitTime = Math.max(rateLimit, delay);
 						logger.warn(`Rate limit exceeded. Waiting for ${waitTime}ms before retrying.`);
 						await new Promise((resolve) => setTimeout(resolve, waitTime));

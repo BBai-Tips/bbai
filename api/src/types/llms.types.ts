@@ -194,11 +194,11 @@ export interface LLMSpeakWithResponse {
 }
 
 export enum LLMCallbackType {
-  PROJECT_ROOT = 'PROJECT_ROOT',
-  PROJECT_INFO = 'PROJECT_INFO',
-  PROJECT_FILE_CONTENT = 'PROJECT_FILE_CONTENT',
+	PROJECT_ROOT = 'PROJECT_ROOT',
+	PROJECT_INFO = 'PROJECT_INFO',
+	PROJECT_FILE_CONTENT = 'PROJECT_FILE_CONTENT',
 }
 export type LLMCallbackResult<T> = T extends (...args: any[]) => Promise<infer R> ? R : T;
 export type LLMCallbacks = {
-  [K in LLMCallbackType]: (...args: any[]) => Promise<any> | any;
+	[K in LLMCallbackType]: (...args: any[]) => Promise<any> | any;
 };
