@@ -137,8 +137,14 @@ export class ConversationPersistence {
 
 	async saveProjectInfo(projectInfo: ProjectInfo): Promise<void> {
 		await this.ensureInitialized();
-		const projectInfoPath = join(this.conversationDir, 'project_info.json');
-		await Deno.writeTextFile(projectInfoPath, JSON.stringify(projectInfo, null, 2));
+		const projectInfoPath = join(this.conversationDir, 'project_info.md');
+		const content = `---
+	type: ${projectInfo.type}
+	tier: ${projectInfo.tier ?? 'null'}
+	---
+
+	${projectInfo.content}`;
+		await Deno.writeTextFile(projectInfoPath, content);
 		logger.info(`Project info saved for conversation: ${this.conversationId}`);
 	}
 
