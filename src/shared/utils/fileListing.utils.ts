@@ -98,17 +98,17 @@ export async function searchFiles(
 	let grepCommand = ['-r', '-l', pattern];
 
 	if (filePattern) {
-		command.push('--include', filePattern);
+		grepCommand.push('--include', filePattern);
 	}
 
 	// Add exclude options
 	for (const option of excludeOptions) {
-		command.push(option.replace('--exclude=', '--exclude-dir='));
+		grepCommand.push(option.replace('--exclude=', '--exclude-dir='));
 	}
 
 	grepCommand.push('.');
 
-	logger.debug(`Search command: ${command.join(' ')}`);
+	logger.debug(`Search command: ${grepCommand.join(' ')}`);
 	logger.debug(`Exclude options for search: ${JSON.stringify(excludeOptions)}`);
 
 	const command = new Deno.Command('grep', {
