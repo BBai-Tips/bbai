@@ -95,7 +95,7 @@ export async function searchFiles(
 	filePattern?: string,
 ): Promise<{ files: string[]; error: string | null }> {
 	const excludeOptions = await getExcludeOptions(projectRoot);
-	let command = ['grep', '-r', '-l', pattern];
+	let command = ['-r', '-l', pattern];
 
 	if (filePattern) {
 		command.push('--include', filePattern);

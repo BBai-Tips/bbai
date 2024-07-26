@@ -7,6 +7,7 @@ import { LLMFactory } from '../llms/llmProvider.ts';
 import LLMConversation, { FileMetadata, ProjectInfo } from '../llms/conversation.ts';
 import LLM from '../llms/providers/baseLLM.ts';
 import { logger } from 'shared/logger.ts';
+import { config } from 'shared/configManager.ts';
 import { PromptManager } from '../prompts/promptManager.ts';
 import { LLMProvider, LLMProviderMessageResponse, LLMSpeakWithOptions } from '../types.ts';
 import LLMTool from '../llms/tool.ts';
