@@ -95,7 +95,7 @@ export async function searchFiles(
 	filePattern?: string,
 ): Promise<{ files: string[]; error: string | null }> {
 	const excludeOptions = await getExcludeOptions(projectRoot);
-	let command = ['-r', '-l', pattern];
+	let grepCommand = ['-r', '-l', pattern];
 
 	if (filePattern) {
 		command.push('--include', filePattern);
@@ -106,13 +106,13 @@ export async function searchFiles(
 		command.push(option.replace('--exclude=', '--exclude-dir='));
 	}
 
-	command.push('.');
+	grepCommand.push('.');
 
 	logger.debug(`Search command: ${command.join(' ')}`);
 	logger.debug(`Exclude options for search: ${JSON.stringify(excludeOptions)}`);
 
 	const command = new Deno.Command('grep', {
-		args: command,
+		args: grepCommand,
 		cwd: projectRoot,
 		stdout: 'piped',
 		stderr: 'piped',

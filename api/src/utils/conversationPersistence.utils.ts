@@ -8,6 +8,7 @@ import { config } from 'shared/configManager.ts';
 import { createError, ErrorType } from './error.utils.ts';
 import { FileHandlingErrorOptions } from '../errors/error.ts';
 import { ProjectEditor } from '../editor/projectEditor.ts';
+import { ProjectInfo } from '../llms/conversation.ts';
 
 export class ConversationPersistence {
 	private conversationDir!: string;
