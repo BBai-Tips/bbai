@@ -319,46 +319,52 @@ export class ProjectEditor {
 		}
 
 		while (turnCount < maxTurns) {
-			// Handle tool calls and collect feedback
-			let toolFeedback = '';
-			if (currentResponse.toolsUsed && currentResponse.toolsUsed.length > 0) {
-				for (const tool of currentResponse.toolsUsed) {
-					logger.info('Handling tool', tool);
-					const feedback = await this.handleToolUse(tool, currentResponse);
-					toolFeedback += feedback + '\n';
+			try {
+				// Handle tool calls and collect feedback
+				let toolFeedback = '';
+				if (currentResponse.toolsUsed && currentResponse.toolsUsed.length > 0) {
+					for (const tool of currentResponse.toolsUsed) {
+						logger.info('Handling tool', tool);
+						try {
+							const feedback = await this.handleToolUse(tool, currentResponse);
+							toolFeedback += feedback + '\n';
+						} catch (error) {
+							logger.warn(`Error handling tool ${tool.toolName}: ${error.message}`);
+							toolFeedback += `Error with ${tool.toolName}: ${error.message}\n`;
+						}
+					}
 				}
-			}
 
-			// If there's tool feedback, send it back to the LLM
-			if (toolFeedback) {
+				// If there's tool feedback, send it back to the LLM
+				if (toolFeedback) {
+					try {
+						await this.updateRepositoryInfo();
 
-				await this.updateRepositoryInfo();
+						prompt =
+							`Tool use feedback:\n${toolFeedback}\nPlease acknowledge this feedback and continue the conversation.`;
 
-				prompt =
-					`Tool use feedback:\n${toolFeedback}\nPlease acknowledge this feedback and continue the conversation.`;
+						turnCount++;
+						this.totalTurnCount++;
 
-				turnCount++;
-				this.totalTurnCount++;
-
-				currentResponse = await this.conversation.speakWithLLM(prompt, speakOptions);
-				logger.info('tool response', currentResponse);
-
-				// Save the conversation after each turn
-				// CNG - Why?? What are these saves achieving, other than in case of error??
-				/*
-				if (this.conversation) {
-					const persistence = new ConversationPersistence(this.conversation.id, this);
-					await persistence.saveConversation(this.conversation);
-					await persistence.saveMetadata({
-						statementCount: this.statementCount,
-						totalTurnCount: this.totalTurnCount,
-					});
-					logger.info(`Saved conversation after turn ${turnCount}: ${this.conversation.id}[${this.statementCount}][${turnCount}]`);
+						currentResponse = await this.conversation.speakWithLLM(prompt, speakOptions);
+						logger.info('tool response', currentResponse);
+					} catch (error) {
+						logger.error(`Error in LLM communication: ${error.message}`);
+						throw error; // This error is likely fatal, so we'll throw it to be caught by the outer try-catch
+					}
+				} else {
+					// No more tool feedback, exit the loop
+					break;
 				}
-				 */
-			} else {
-				// No more tool feedback, exit the loop
-				break;
+			} catch (error) {
+				logger.error(`Error in conversation turn ${turnCount}: ${error.message}`);
+				if (turnCount === maxTurns - 1) {
+					throw error; // If it's the last turn, throw the error to be caught by the outer try-catch
+				}
+				// For non-fatal errors, log and continue to the next turn
+				currentResponse = {
+					answerContent: [{ type: 'text', text: `Error occurred: ${error.message}. Continuing conversation.` }],
+				} as LLMProviderMessageResponse;
 			}
 		}
 

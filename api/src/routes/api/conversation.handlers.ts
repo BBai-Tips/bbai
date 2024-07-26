@@ -9,7 +9,6 @@ export const startConversation = async (ctx: Context) => {
 	try {
 		const body = await ctx.request.body.json();
 		const { prompt, provider, model, cwd } = body;
-		//logger.debug(`Using prompt: ${prompt}`);
 
 		if (!prompt) {
 			ctx.response.status = 400;
@@ -32,8 +31,16 @@ export const startConversation = async (ctx: Context) => {
 		ctx.response.body = response;
 	} catch (error) {
 		logger.error(`Error in startConversation: ${error.message}`, error);
-		ctx.response.status = 500;
-		ctx.response.body = { error: 'Failed to generate response', details: error.message };
+		if (error instanceof Error && 'status' in error) {
+			ctx.response.status = error.status as number;
+		} else {
+			ctx.response.status = 500;
+		}
+		ctx.response.body = { 
+			error: 'Failed to generate response', 
+			details: error.message,
+			type: error.name || 'UnknownError'
+		};
 	}
 };
 
