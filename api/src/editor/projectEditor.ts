@@ -9,7 +9,7 @@ import LLM from '../llms/providers/baseLLM.ts';
 import { logger } from 'shared/logger.ts';
 import { config } from 'shared/configManager.ts';
 import { PromptManager } from '../prompts/promptManager.ts';
-import { LLMProvider, LLMProviderMessageResponse, LLMSpeakWithOptions } from '../types.ts';
+import { LLMProvider, LLMSpeakWithResponse, LLMSpeakWithOptions } from '../types.ts';
 import LLMTool from '../llms/tool.ts';
 import { ConversationPersistence } from '../utils/conversationPersistence.utils.ts';
 //import { GitUtils } from 'shared/git.ts';
@@ -32,7 +32,7 @@ export class ProjectEditor {
 	private conversation: LLMConversation | null = null;
 	private promptManager: PromptManager;
 	private llmProvider!: LLM;
-	public cwd: string;
+	public startDir: string;
 	public projectRoot: string;
 	private bbaiDir: string;
 	private statementCount: number = 0;
@@ -43,11 +43,11 @@ export class ProjectEditor {
 		tier: null,
 	};
 
-	constructor(cwd: string) {
+	constructor(startDir: string) {
 		this.promptManager = new PromptManager(this);
 		this.projectRoot = '.';
 		this.bbaiDir = '.bbai';
-		this.cwd = cwd;
+		this.startDir = startDir;
 	}
 
 	public async init(): Promise<void> {
@@ -62,27 +62,27 @@ export class ProjectEditor {
 	}
 
 	public async getProjectRoot(): Promise<string> {
-		return await getProjectRoot(this.cwd);
+		return await getProjectRoot(this.startDir);
 	}
 
 	public async getBbaiDir(): Promise<string> {
-		return await getBbaiDir(this.cwd);
+		return await getBbaiDir(this.startDir);
 	}
 
 	public async getBbaiCacheDir(): Promise<string> {
-		return await getBbaiCacheDir(this.cwd);
+		return await getBbaiCacheDir(this.startDir);
 	}
 
 	public async writeToBbaiDir(filename: string, content: string): Promise<void> {
-		return await writeToBbaiDir(this.cwd, filename, content);
+		return await writeToBbaiDir(this.startDir, filename, content);
 	}
 
 	public async readFromBbaiDir(filename: string): Promise<string | null> {
-		return await readFromBbaiDir(this.cwd, filename);
+		return await readFromBbaiDir(this.startDir, filename);
 	}
 
 	public async removeFromBbaiDir(filename: string): Promise<void> {
-		return await removeFromBbaiDir(this.cwd, filename);
+		return await removeFromBbaiDir(this.startDir, filename);
 	}
 
 	get projectInfo(): ProjectInfo {
@@ -316,7 +316,7 @@ export class ProjectEditor {
 
 			// Save system prompt and project info if running in local development
 			if (config.api?.environment === 'localdev') {
-				await persistence.saveSystemPrompt(this.conversation.baseSystem);
+				await persistence.saveSystemPrompt(currentResponse.messageMeta.system);
 				await persistence.saveProjectInfo(this.projectInfo);
 			}
 

@@ -8,7 +8,7 @@ export const startConversation = async (ctx: Context) => {
 
 	try {
 		const body = await ctx.request.body.json();
-		const { prompt, provider, model, cwd } = body;
+		const { prompt, provider, model, startDir } = body;
 
 		if (!prompt) {
 			ctx.response.status = 400;
@@ -16,14 +16,14 @@ export const startConversation = async (ctx: Context) => {
 			return;
 		}
 
-		if (!cwd) {
+		if (!startDir) {
 			ctx.response.status = 400;
-			ctx.response.body = { error: 'Missing cwd' };
+			ctx.response.body = { error: 'Missing startDir' };
 			return;
 		}
 
-		logger.debug(`Creating ProjectEditor for dir: ${cwd}`);
-		const projectEditor = new ProjectEditor(cwd);
+		logger.debug(`Creating ProjectEditor for dir: ${startDir}`);
+		const projectEditor = new ProjectEditor(startDir);
 		await projectEditor.init();
 
 		const response = await projectEditor.speakWithLLM(prompt, provider, model);
@@ -56,7 +56,7 @@ export const continueConversation = async (
 	try {
 		const { id: conversationId } = params;
 		const body = await request.body.json();
-		const { prompt, cwd } = body;
+		const { prompt, startDir } = body;
 
 		logger.info(
 			`Continuing conversation. ConversationId: ${conversationId}, Prompt: "${prompt?.substring(0, 50)}..."`,
@@ -69,15 +69,15 @@ export const continueConversation = async (
 			return;
 		}
 
-		if (!cwd) {
-			logger.warn('Missing cwd');
+		if (!startDir) {
+			logger.warn('Missing startDir');
 			response.status = 400;
-			response.body = { error: 'Missing cwd' };
+			response.body = { error: 'Missing startDir' };
 			return;
 		}
 
-		logger.debug(`Creating ProjectEditor for dir: ${cwd}`);
-		const projectEditor = new ProjectEditor(cwd);
+		logger.debug(`Creating ProjectEditor for dir: ${startDir}`);
+		const projectEditor = new ProjectEditor(startDir);
 		await projectEditor.init();
 
 		logger.info(`Calling speakWithLLM for conversation: ${conversationId}`);

@@ -86,11 +86,11 @@ export class ConfigManager {
 		}
 	}
 
-	public async ensureProjectConfig(cwd: string): Promise<void> {
-		const projectConfigPath = join(cwd, '.bbai', 'config.yaml');
+	public async ensureProjectConfig(startDir: string): Promise<void> {
+		const projectConfigPath = join(startDir, '.bbai', 'config.yaml');
 
 		try {
-			await ensureDir(join(cwd, '.bbai'));
+			await ensureDir(join(startDir, '.bbai'));
 			const projectConfig = stripIndent`
 				# bbai Project Configuration File
 

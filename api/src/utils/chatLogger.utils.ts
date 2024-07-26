@@ -21,11 +21,11 @@ const ERROR_ICON = '❌';
 export class ChatLogger {
 	private logFile!: string;
 
-	constructor(private cwd: string, private conversationId: string) {}
+	constructor(private startDir: string, private conversationId: string) {}
 
 	async initialize() {
-		logger.debug(`ChatLogger cwd: ${this.cwd}`);
-		const bbaiDir = await getBbaiDir(this.cwd);
+		logger.debug(`ChatLogger startDir: ${this.startDir}`);
+		const bbaiDir = await getBbaiDir(this.startDir);
 		const logsDir = join(bbaiDir, 'cache', 'conversations', this.conversationId);
 		logger.debug(`ChatLogger: ${logsDir}`);
 		await ensureDir(logsDir);

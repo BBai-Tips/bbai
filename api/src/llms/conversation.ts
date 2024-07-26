@@ -1,4 +1,4 @@
-import type { ConversationId, LLMProviderMessageResponse, LLMSpeakWithOptions, LLMTokenUsage } from '../types.ts';
+import type { ConversationId, LLMSpeakWithOptions, LLMSpeakWithResponse, LLMTokenUsage } from '../types.ts';
 import { AnthropicModel, LLMCallbackType } from '../types.ts';
 import type {
 	LLMMessageContentPart,
@@ -432,7 +432,7 @@ class LLMConversation {
 	async speakWithLLM(
 		prompt: string,
 		speakOptions?: LLMSpeakWithOptions,
-	): Promise<LLMProviderMessageResponse> {
+	): Promise<LLMSpeakWithResponse> {
 		if (!speakOptions) {
 			speakOptions = {} as LLMSpeakWithOptions;
 		}

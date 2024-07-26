@@ -14,20 +14,20 @@ export const init = new Command()
 	.name('init')
 	.description('Initialize bbai in the current directory')
 	.action(async () => {
-		const cwd = Deno.cwd();
+		const startDir = Deno.cwd();
 
 		try {
-			await createBbaiDir(cwd);
-			await createTagIgnore(cwd);
-			await createDefaultConfig(cwd);
+			await createBbaiDir(startDir);
+			await createTagIgnore(startDir);
+			await createDefaultConfig(startDir);
 
 			// Check if in a git repository
-			const gitRoot = await GitUtils.findGitRoot(cwd);
+			const gitRoot = await GitUtils.findGitRoot(startDir);
 			if (!gitRoot) {
 				// Initialize git repository
 				const command = new Deno.Command('git', {
 					args: ['init'],
-					cwd: cwd,
+					cwd: startDir,
 				});
 				const { success, stdout, stderr } = await command.output();
 				if (success) {
@@ -39,7 +39,7 @@ export const init = new Command()
 				logger.info('Git repository already initialized');
 			}
 
-			const gitIgnorePath = join(cwd, '.gitignore');
+			const gitIgnorePath = join(startDir, '.gitignore');
 			let gitIgnoreContent = '';
 
 			try {
@@ -47,7 +47,7 @@ export const init = new Command()
 				logger.info('.gitignore file already exists');
 			} catch (error) {
 				if (error instanceof Deno.errors.NotFound) {
-					await createGitIgnore(cwd);
+					await createGitIgnore(startDir);
 					gitIgnoreContent = getDefaultGitIgnore();
 					await Deno.writeTextFile(gitIgnorePath, gitIgnoreContent);
 					logger.info('Created .gitignore with default content');

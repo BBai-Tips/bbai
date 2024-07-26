@@ -12,7 +12,7 @@ export const conversationStart = new Command()
 	.option('--text', 'Return plain text instead of JSON')
 	.action(async (options) => {
 		try {
-			const cwd = Deno.cwd();
+			const startDir = Deno.cwd();
 			let prompt = options.prompt;
 
 			if (!prompt) {
@@ -49,13 +49,13 @@ export const conversationStart = new Command()
 				response = await apiClient.post(`/api/v1/conversation/${options.id}`, {
 					prompt: prompt,
 					model: options.model,
-					cwd: cwd,
+					startDir: startDir,
 				});
 			} else {
 				response = await apiClient.post('/api/v1/conversation', {
 					prompt: prompt,
 					model: options.model,
-					cwd: cwd,
+					startDir: startDir,
 				});
 			}
 
