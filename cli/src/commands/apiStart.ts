@@ -4,6 +4,7 @@ import { config } from 'shared/configManager.ts';
 import { isApiRunning, savePid } from '../utils/pid.utils.ts';
 import { getBbaiDir } from 'shared/dataDir.ts';
 import { join } from '@std/path';
+import { isCompiledBinary } from '../utils/environment.utils.ts';
 
 export const apiStart = new Command()
 	.name('start')
@@ -23,30 +24,46 @@ export const apiStart = new Command()
 
 		logger.info(`Starting bbai API server...`);
 
-		const cmdArgs = [
-			'run',
-			'--allow-read',
-			'--allow-write',
-			'--allow-env',
-			'--allow-net',
-			'--allow-run',
-		];
-		if (logLevel === 'debug') {
-			cmdArgs.push('--watch');
-		}
-		//`--log-level=${logLevel}`,
+		let command: Deno.Command;
 
-		const command = new Deno.Command(Deno.execPath(), {
-			args: [...cmdArgs, '../api/src/main.ts', logFilePath],
-			cwd: '../api',
-			stdout: 'null',
-			stderr: 'null',
-			stdin: 'null',
-			env: {
-				...Deno.env.toObject(),
-				//LOG_LEVEL: logLevel,
-			},
-		});
+		if (isCompiledBinary()) {
+			// If running as a compiled binary, start the API directly
+			command = new Deno.Command('bbai-api', {
+				args: [logFilePath],
+				stdout: 'null',
+				stderr: 'null',
+				stdin: 'null',
+				env: {
+					...Deno.env.toObject(),
+					LOG_LEVEL: logLevel,
+				},
+			});
+		} else {
+			// If running from repository, use Deno to start the API
+			const cmdArgs = [
+				'run',
+				'--allow-read',
+				'--allow-write',
+				'--allow-env',
+				'--allow-net',
+				'--allow-run',
+			];
+			if (logLevel === 'debug') {
+				cmdArgs.push('--watch');
+			}
+
+			command = new Deno.Command(Deno.execPath(), {
+				args: [...cmdArgs, '../api/src/main.ts', logFilePath],
+				cwd: '../api',
+				stdout: 'null',
+				stderr: 'null',
+				stdin: 'null',
+				env: {
+					...Deno.env.toObject(),
+					LOG_LEVEL: logLevel,
+				},
+			});
+		}
 
 		const process = command.spawn();
 

@@ -95,21 +95,19 @@ export async function searchFiles(
 	filePattern?: string,
 ): Promise<{ files: string[]; error: string | null }> {
 	const excludeOptions = await getExcludeOptions(projectRoot);
-	let grepCommand = ['-r', '-l', pattern];
+	let grepCommand = ['-r', '-l', '-E', `${pattern}`];
 
 	if (filePattern) {
 		grepCommand.push('--include', filePattern);
 	}
 
 	// Add exclude options
+	grepCommand.push('--exclude=./.git*');
 	for (const option of excludeOptions) {
-		grepCommand.push(option.replace('--exclude=', '--exclude-dir='));
+		grepCommand.push(option.replace('--exclude=', '--exclude=./'));
 	}
-
 	grepCommand.push('.');
-
-	logger.debug(`Search command: ${grepCommand.join(' ')}`);
-	logger.debug(`Exclude options for search: ${JSON.stringify(excludeOptions)}`);
+	//logger.debug(`Search command in dir ${projectRoot}: grep `, grepCommand);
 
 	const command = new Deno.Command('grep', {
 		args: grepCommand,
