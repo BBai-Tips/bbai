@@ -12,6 +12,9 @@ export class LLMFactory {
 		llmProviderName: LLMProviderEnum = LLMProviderEnum.ANTHROPIC,
 	): LLM {
 		const callbacks: Record<keyof typeof LLMCallbackType, (...args: any[]) => Promise<any>> = {
+			PROJECT_ROOT: async () => await projectEditor.getProjectRoot(),
+			PROJECT_INFO: async () => projectEditor.projectInfo,
+			PROJECT_FILE_CONTENT: async (filePath: string) => await projectEditor.readProjectFileContent(filePath),
 			[LLMCallbackType.PROJECT_INFO]: async () => {
 				return await projectEditor.projectInfo;
 			},
