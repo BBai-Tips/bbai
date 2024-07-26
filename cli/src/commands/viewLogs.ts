@@ -3,15 +3,25 @@ import { logger } from 'shared/logger.ts';
 import { config } from 'shared/configManager.ts';
 import { getBbaiDir } from 'shared/dataDir.ts';
 import { join } from '@std/path';
+import { ensureDir } from '@std/fs';
 
 export const viewLogs = new Command()
 	.name('logs')
 	.description('View API logs')
 	.option('-n, --lines <number:number>', 'Number of lines to display (default: 20)', { default: 20 })
 	.option('-f, --follow', 'Follow the log output')
+	.option('--api', 'Show logs for the API server')
+	.option('-i, --id <string>', 'Conversation ID to continue')
 	.action(async (options) => {
+		if (!options.api && !options.id) {
+			logger.error('Must provide conversation id for chat logs.');
+			return;
+		}
+
 		const bbaiDir = await getBbaiDir(Deno.cwd());
-		const logFile = config.logFile ?? 'api.log';
+		const logFile = !options.api && options.id
+			? join('cache', 'conversations', options.id, 'chat.log')
+			: config.logFile ?? 'api.log';
 		const logFilePath = join(bbaiDir, logFile);
 
 		try {

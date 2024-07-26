@@ -14,9 +14,9 @@ export class ConfigManager {
 			apiPort: 3000,
 		},
 		cli: {},
-		ctags: {
-			autoGenerate: true,
-			//tagsFilePath: 'tags',
+		repoInfo: {
+			ctagsAutoGenerate: true,
+			//ctagsFilePath: 'tags',
 		},
 	};
 
@@ -51,6 +51,9 @@ export class ConfigManager {
 				const defaultConfig = stripIndent`
 					# bbai Configuration File
 					
+					repoInfo: 
+					  tokenLimit: 1024
+
 					api:
 					  # Your Anthropic API key. Replace with your actual key.
 					  anthropicApiKey: "your-anthropic-api-key-here"
@@ -83,11 +86,11 @@ export class ConfigManager {
 		}
 	}
 
-	public async ensureProjectConfig(cwd: string): Promise<void> {
-		const projectConfigPath = join(cwd, '.bbai', 'config.yaml');
+	public async ensureProjectConfig(startDir: string): Promise<void> {
+		const projectConfigPath = join(startDir, '.bbai', 'config.yaml');
 
 		try {
-			await ensureDir(join(cwd, '.bbai'));
+			await ensureDir(join(startDir, '.bbai'));
 			const projectConfig = stripIndent`
 				# bbai Project Configuration File
 

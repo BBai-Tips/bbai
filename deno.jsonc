@@ -7,7 +7,8 @@
 		"check-types": "deno task -c ./cli/deno.jsonc check-types && deno task -c ./api/deno.jsonc check-types",
 		"check-format": "deno task -c ./cli/deno.jsonc check-format && deno task -c ./api/deno.jsonc check-format",
 		"build": "deno task -c ./cli/deno.jsonc build && deno task -c ./api/deno.jsonc build",
-		"test": "deno task -c ./cli/deno.jsonc test && deno task -c ./api/deno.jsonc test"
+		"test": "deno task -c ./cli/deno.jsonc test && deno task -c ./api/deno.jsonc test",
+		"update-deps": "deno task -c ./cli/deno.jsonc update-deps && deno task -c ./api/deno.jsonc update-deps"
 	},
 	"importMap": "./import_map.json",
 	"fmt": {

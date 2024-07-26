@@ -19,7 +19,7 @@ class OpenAILLM extends LLM {
 
 	constructor(projectEditor: ProjectEditor) {
 		super(projectEditor);
-		this.providerName = LLMProvider.OPENAI;
+		this.llmProviderName = LLMProvider.OPENAI;
 		this.initializeOpenAIClient();
 	}
 
@@ -205,7 +205,7 @@ class OpenAILLM extends LLM {
 				'Could not get response from OpenAI API.',
 				{
 					model: messageParams.model,
-					provider: this.providerName,
+					provider: this.llmProviderName,
 				} as LLMErrorOptions,
 			);
 		}
@@ -234,7 +234,7 @@ class OpenAILLM extends LLM {
 				});
 			} else {
 				logger.warn(
-					`provider[${this.providerName}] modifySpeakWithConversationOptions - Tool input validation failed, but no tool response found`,
+					`provider[${this.llmProviderName}] modifySpeakWithConversationOptions - Tool input validation failed, but no tool response found`,
 				);
 			}
 		} else if (validationFailedReason === 'Empty answer') {
@@ -249,22 +249,22 @@ class OpenAILLM extends LLM {
 			// Perform special handling based on the stop reason
 			switch (llmProviderMessageResponse.messageStop.stopReason) {
 				case 'length':
-					logger.warn(`provider[${this.providerName}] Response reached the maximum token limit`);
+					logger.warn(`provider[${this.llmProviderName}] Response reached the maximum token limit`);
 					break;
 				case 'stop':
-					logger.warn(`provider[${this.providerName}] Response reached its natural end`);
+					logger.warn(`provider[${this.llmProviderName}] Response reached its natural end`);
 					break;
 				case 'content_filter':
 					logger.warn(
-						`provider[${this.providerName}] Response content was omitted due to a flag from provider content filters`,
+						`provider[${this.llmProviderName}] Response content was omitted due to a flag from provider content filters`,
 					);
 					break;
 				case 'tool_calls':
-					logger.warn(`provider[${this.providerName}] Response is using a tool`);
+					logger.warn(`provider[${this.llmProviderName}] Response is using a tool`);
 					break;
 				default:
 					logger.info(
-						`provider[${this.providerName}] Response stopped due to: ${llmProviderMessageResponse.messageStop.stopReason}`,
+						`provider[${this.llmProviderName}] Response stopped due to: ${llmProviderMessageResponse.messageStop.stopReason}`,
 					);
 			}
 		}
