@@ -1,6 +1,6 @@
 import { Application } from '@oak/oak';
 import oak_logger from 'oak_logger';
-import { parse } from 'std/flags/mod.ts';
+import { parse } from '@std/flags';
 //import { oakCors } from "cors";
 
 import { config, redactedConfig } from 'shared/configManager.ts';
@@ -14,7 +14,7 @@ const { environment, apiPort } = config.api || {};
 const args = parse(Deno.args, {
   string: ['log-file', 'port'],
   boolean: ['help', 'version'],
-  alias: { h: 'help', v: 'version', p: 'port', l: 'log-file' },
+  alias: { h: 'help', V: 'version', p: 'port', l: 'log-file' },
 });
 
 if (args.help) {
