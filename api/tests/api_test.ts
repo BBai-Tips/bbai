@@ -1,6 +1,6 @@
-import { assertEquals } from "https://deno.land/std@0.192.0/testing/asserts.ts";
+import { assertEquals } from "./deps.ts";
 import { app } from "../src/main.ts";
-import { superoak } from "https://deno.land/x/superoak@4.7.0/mod.ts";
+import { superoak } from "superoak";
 
 Deno.test("API root endpoint returns correct message", async () => {
   const request = await superoak(app);

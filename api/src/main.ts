@@ -12,27 +12,27 @@ const { environment, apiPort } = config.api || {};
 
 // Parse command line arguments
 const args = parse(Deno.args, {
-  string: ['log-file', 'port'],
-  boolean: ['help', 'version'],
-  alias: { h: 'help', V: 'version', p: 'port', l: 'log-file' },
+	string: ['log-file', 'port'],
+	boolean: ['help', 'version'],
+	alias: { h: 'help', V: 'version', v: 'version', p: 'port', l: 'log-file' },
 });
 
 if (args.help) {
-  console.log(`
+	console.log(`
 Usage: bbai-api [options]
 
 Options:
   -h, --help                Show this help message
-  -v, --version             Show version information
+  -V, --version             Show version information
   -p, --port <number>       Specify the port to run the API server (default: ${apiPort})
   -l, --log-file <file>     Specify a log file to write output
   `);
-  Deno.exit(0);
+	Deno.exit(0);
 }
 
 if (args.version) {
-  console.log('BBai API version 0.1.0'); // Replace with actual version
-  Deno.exit(0);
+	console.log('BBai API version 0.1.0'); // Replace with actual version
+	Deno.exit(0);
 }
 
 const logFile = args['log-file'];
@@ -49,7 +49,9 @@ if (logFile) {
 		(console as any)[funcName] = (...args: any[]) => {
 			const timestamp = new Date().toISOString();
 			const prefix = funcName === 'log' ? '' : `[${funcName.toUpperCase()}] `;
-			const message = `${timestamp} ${prefix}${args.map((arg) => typeof arg === 'string' ? arg : JSON.stringify(arg)).join(' ')}\n`;
+			const message = `${timestamp} ${prefix}${
+				args.map((arg) => typeof arg === 'string' ? arg : JSON.stringify(arg)).join(' ')
+			}\n`;
 			logFileStream.write(encoder.encode(message));
 		};
 	});
