@@ -9,6 +9,7 @@ export const startConversation = async (ctx: Context) => {
 	try {
 		const body = await ctx.request.body.json();
 		const { prompt, provider, model, cwd } = body;
+		//logger.debug(`Using prompt: ${prompt}`);
 
 		if (!prompt) {
 			ctx.response.status = 400;
@@ -97,7 +98,7 @@ export const getConversation = async (
 		response.status = 200;
 		response.body = {
 			id: conversation.id,
-			providerName: conversation.providerName,
+			llmProviderName: conversation.llmProviderName,
 			system: conversation.baseSystem,
 			model: conversation.model,
 			maxTokens: conversation.maxTokens,
@@ -130,14 +131,14 @@ export const listConversations = async (
 		const pageSize = params.get('pageSize') || '10';
 		const startDate = params.get('startDate');
 		const endDate = params.get('endDate');
-		const providerName = params.get('providerName');
+		const llmProviderName = params.get('llmProviderName');
 
 		const conversations = await ConversationPersistence.listConversations({
 			page: parseInt(page),
 			pageSize: parseInt(pageSize),
 			startDate: startDate ? new Date(startDate) : undefined,
 			endDate: endDate ? new Date(endDate) : undefined,
-			providerName: providerName || undefined,
+			llmProviderName: llmProviderName || undefined,
 		});
 
 		response.status = 200;

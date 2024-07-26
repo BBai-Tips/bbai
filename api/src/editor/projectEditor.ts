@@ -1,6 +1,6 @@
 import { dirname, join, normalize, resolve } from '@std/path';
 import * as diff from 'diff';
-import { ensureDir, exists } from '@std/fs';
+import { ensureDir } from '@std/fs';
 import { searchFiles } from 'shared/fileListing.ts';
 
 import { LLMFactory } from '../llms/llmProvider.ts';
@@ -11,15 +11,13 @@ import { PromptManager } from '../prompts/promptManager.ts';
 import { LLMProvider, LLMProviderMessageResponse, LLMSpeakWithOptions } from '../types.ts';
 import LLMTool from '../llms/tool.ts';
 import { ConversationPersistence } from '../utils/conversationPersistence.utils.ts';
-import { GitUtils } from 'shared/git.ts';
+//import { GitUtils } from 'shared/git.ts';
 import { createError, ErrorType } from '../utils/error.utils.ts';
 import { FileHandlingErrorOptions } from '../errors/error.ts';
 import { generateCtags, readCtagsFile } from 'shared/ctags.ts';
 import { FILE_LISTING_TIERS, generateFileListing } from 'shared/fileListing.ts';
 import {
 	LLMAnswerToolUse,
-	LLMMessageContentPartTextBlock,
-	LLMMessageContentPartToolResultBlock,
 } from '../llms/message.ts';
 import {
 	getBbaiCacheDir,
@@ -35,7 +33,7 @@ export class ProjectEditor {
 	private conversation: LLMConversation | null = null;
 	private promptManager: PromptManager;
 	private llmProvider!: LLM;
-	private cwd: string;
+	public cwd: string;
 	private projectRoot: string;
 	private bbaiDir: string;
 	private statementCount: number = 0;
@@ -263,7 +261,7 @@ export class ProjectEditor {
 					userDefinedContent: 'You are an AI assistant helping with code and project management.',
 				});
 
-				this.conversation = this.llmProvider.createConversation();
+				this.conversation = await this.llmProvider.createConversation();
 				//this.conversation.id = conversationId || LLMConversation.generateShortId();
 				this.conversation.baseSystem = systemPrompt;
 				if (model) this.conversation.model = model;
