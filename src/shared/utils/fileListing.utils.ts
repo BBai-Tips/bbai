@@ -20,10 +20,13 @@ export async function generateFileListing(projectRoot: string): Promise<string |
 	const tokenLimit = repoInfoConfig?.tokenLimit || 1024;
 
 	const excludeOptions = await getExcludeOptions(projectRoot);
+	logger.debug(`Exclude options for file listing: ${JSON.stringify(excludeOptions)}`);
 
 	for (const tier of FILE_LISTING_TIERS) {
+		logger.debug(`Generating file listing for tier: ${JSON.stringify(tier)}`);
 		const listing = await generateFileListingTier(projectRoot, excludeOptions, tier.depth, tier.includeMetadata);
 		if (countTokens(listing) <= tokenLimit) {
+			logger.info(`File listing generated successfully within token limit (${tokenLimit})`);
 			return listing;
 		}
 	}
@@ -99,11 +102,14 @@ export async function searchFiles(
 	}
 
 	// Add exclude options
-	//for (const option of excludeOptions) {
-	//	command.push(option.replace('--exclude=', '--exclude-dir='));
-	//}
+	for (const option of excludeOptions) {
+		command.push(option.replace('--exclude=', '--exclude-dir='));
+	}
 
 	command.push('.');
+
+	logger.debug(`Search command: ${command.join(' ')}`);
+	logger.debug(`Exclude options for search: ${JSON.stringify(excludeOptions)}`);
 
 	const process = Deno.run({
 		cmd: command,
