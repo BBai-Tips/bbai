@@ -1,5 +1,5 @@
 import type { ConversationId, LLMProviderMessageResponse, LLMSpeakWithOptions, LLMTokenUsage } from '../types.ts';
-import { AnthropicModel } from '../types.ts';
+import { AnthropicModel, LLMCallbackType } from '../types.ts';
 import type {
 	LLMMessageContentPart,
 	LLMMessageContentParts,
@@ -35,6 +35,7 @@ class LLMConversation {
 	public llm: LLM;
 	private _conversationId: ConversationId = '';
 	private _turnCount: number = 0;
+	private _statementCount: number = 0;
 	private messages: LLMMessage[] = [];
 	private tools: Map<string, LLMTool> = new Map();
 	private _files: Map<string, FileMetadata> = new Map();
@@ -58,7 +59,8 @@ class LLMConversation {
 
 	public async init(): Promise<void> {
 		try {
-			this.chatLogger = new ChatLogger(this.llm.projectEditor.cwd, this.id);
+			const projectRoot = await this.llm.invoke(LLMCallbackType.PROJECT_ROOT);
+			this.chatLogger = new ChatLogger(projectRoot, this.id);
 			await this.chatLogger.initialize();
 		} catch (error) {
 			console.error('Failed to initialize LLMConversation:', error);
@@ -257,22 +259,26 @@ class LLMConversation {
 
 	private logConversation(): void {
 		// TODO: Implement this method when LLMConversationProject is available
-		this.chatLogger.logToolResult(
-			'log_conversation',
-			JSON.stringify({
-				id: this.id,
-				llmProviderName: this.llm.llmProviderName,
-				turnCount: this._turnCount,
-				messages: this.messages,
-				projectInfo: this.llm.projectEditor.projectInfo,
-				tools: this.tools,
-				tokenUsage: this.totalTokenUsage,
-				system: this._baseSystem,
-				model: this._model,
-				maxTokens: this._maxTokens,
-				temperature: this._temperature,
-				timestamp: new Date(),
-			}),
+		this.llm.invoke(LLMCallbackType.PROJECT_INFO).then(
+			(projectInfo) =>
+				this.chatLogger.logToolResult(
+					'log_conversation',
+					JSON.stringify({
+						id: this.id,
+						llmProviderName: this.llm.llmProviderName,
+						statementCount: this._statementCount,
+						turnCount: this._turnCount,
+						messages: this.messages,
+						projectInfo: projectInfo,
+						tools: this.tools,
+						tokenUsage: this.totalTokenUsage,
+						system: this._baseSystem,
+						model: this._model,
+						maxTokens: this._maxTokens,
+						temperature: this._temperature,
+						timestamp: new Date(),
+					}),
+				),
 		);
 	}
 
@@ -341,6 +347,9 @@ class LLMConversation {
 		this._temperature = value;
 	}
 
+	get statementCount(): number {
+		return this._statementCount;
+	}
 	get turnCount(): number {
 		return this._turnCount;
 	}
@@ -360,8 +369,12 @@ class LLMConversation {
 		this._totalProviderRequests += providerRequests;
 	}
 
-	addMessage(message: LLMMessage): void {
-		this.messages.push(message);
+	addMessage(message: Omit<LLMMessage, 'timestamp'>): void {
+		const completeMessage: LLMMessage = {
+			...message,
+			timestamp: new Date().toISOString(),
+		};
+		this.messages.push(completeMessage);
 	}
 
 	getMessages(): LLMMessage[] {

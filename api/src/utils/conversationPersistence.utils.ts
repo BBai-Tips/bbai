@@ -9,6 +9,7 @@ import { createError, ErrorType } from './error.utils.ts';
 import { FileHandlingErrorOptions } from '../errors/error.ts';
 import { ProjectEditor } from '../editor/projectEditor.ts';
 import { ProjectInfo } from '../llms/conversation.ts';
+import { stripIndents } from 'common-tags';
 
 export class ConversationPersistence {
 	private conversationDir!: string;
@@ -69,26 +70,30 @@ export class ConversationPersistence {
 				totalTokenUsage: conversation.totalTokenUsage,
 				tools: conversation.getTools(),
 				// following attributes are for reference only; they are not set when conversation is loaded
-				projectInfoType: conversation.llm.projectEditor.projectInfo.type,
-				projectInfoTier: conversation.llm.projectEditor.projectInfo.tier,
+				projectInfoType: this.projectEditor.projectInfo.type,
+				projectInfoTier: this.projectEditor.projectInfo.tier,
 				projectInfoContent: '',
 			};
 			if (config.api?.environment === 'localdev') {
-				metadata.projectInfoContent = conversation.llm.projectEditor.projectInfo.content;
+				metadata.projectInfoContent = this.projectEditor.projectInfo.content;
 			}
 
 			await Deno.writeTextFile(this.metadataPath, JSON.stringify(metadata, null, 2));
 			logger.info(`Saved metadata for conversation: ${conversation.id}`);
 
 			// Save messages
+			const statementCount = conversation.statementCount || 0; // Assuming this property exists
 			const messages = conversation.getMessages();
 			const messagesContent = messages.map((m) => {
 				if (m && typeof m === 'object') {
 					return JSON.stringify({
+						statementCount,
+						turnCount: conversation.turnCount,
 						role: m.role,
 						content: m.content,
 						id: m.id,
 						providerResponse: m.providerResponse,
+						timestamp: m.timestamp, // Assuming this property exists
 					});
 				} else {
 					logger.warn(`Invalid message encountered: ${JSON.stringify(m)}`);
@@ -139,12 +144,12 @@ export class ConversationPersistence {
 	async saveProjectInfo(projectInfo: ProjectInfo): Promise<void> {
 		await this.ensureInitialized();
 		const projectInfoPath = join(this.conversationDir, 'project_info.md');
-		const content = `---
-	type: ${projectInfo.type}
-	tier: ${projectInfo.tier ?? 'null'}
-	---
-
-	${projectInfo.content}`;
+		const content = stripIndents`---
+			type: ${projectInfo.type}
+			tier: ${projectInfo.tier ?? 'null'}
+			---
+			${projectInfo.content}
+		`;
 		await Deno.writeTextFile(projectInfoPath, content);
 		logger.info(`Project info saved for conversation: ${this.conversationId}`);
 	}

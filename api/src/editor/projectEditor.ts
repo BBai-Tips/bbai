@@ -33,7 +33,7 @@ export class ProjectEditor {
 	private promptManager: PromptManager;
 	private llmProvider!: LLM;
 	public cwd: string;
-	private projectRoot: string;
+	public projectRoot: string;
 	private bbaiDir: string;
 	private statementCount: number = 0;
 	private totalTurnCount: number = 0;
@@ -355,7 +355,7 @@ export class ProjectEditor {
 						this.totalTurnCount++;
 
 						currentResponse = await this.conversation.speakWithLLM(prompt, speakOptions);
-						logger.info('tool response', currentResponse);
+						//logger.info('tool response', currentResponse);
 					} catch (error) {
 						logger.error(`Error in LLM communication: ${error.message}`);
 						throw error; // This error is likely fatal, so we'll throw it to be caught by the outer try-catch

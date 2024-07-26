@@ -1,28 +1,31 @@
 import Anthropic from 'anthropic';
 import type { ClientOptions } from 'anthropic';
 
-import { AnthropicModel, LLMProvider } from '../../types.ts';
+import { AnthropicModel, LLMCallbackType, LLMProvider } from '../../types.ts';
 import LLM from './baseLLM.ts';
 import LLMConversation from '../conversation.ts';
 import LLMMessage, { LLMMessageContentParts } from '../message.ts';
-import type {
-	LLMMessageContentPart,
-	LLMMessageContentPartTextBlock,
-	LLMMessageContentPartToolResultBlock,
-} from '../message.ts';
+import type { LLMMessageContentPartTextBlock, LLMMessageContentPartToolResultBlock } from '../message.ts';
 import LLMTool from '../tool.ts';
 import { createError } from '../../utils/error.utils.ts';
 import { ErrorType, LLMErrorOptions } from '../../errors/error.ts';
 import { logger } from 'shared/logger.ts';
 import { config } from 'shared/configManager.ts';
-import type { LLMProviderMessageRequest, LLMProviderMessageResponse, LLMSpeakWithOptions } from '../../types.ts';
-import { ProjectEditor } from '../../editor/projectEditor.ts';
+import type {
+	LLMProviderMessageRequest,
+	LLMProviderMessageResponse,
+	LLMSpeakWithOptions,
+	LLMSpeakWithResponse,
+	LLMCallbackResult,
+	LLMCallbacks
+} from '../../types.ts';
+
 
 class AnthropicLLM extends LLM {
 	private anthropic!: Anthropic;
 
-	constructor(projectEditor: ProjectEditor) {
-		super(projectEditor);
+	constructor(callbacks: LLMCallbacks) {
+		super(callbacks);
 		this.llmProviderName = LLMProvider.ANTHROPIC;
 
 		this.initializeAnthropicClient();
@@ -56,7 +59,8 @@ class AnthropicLLM extends LLM {
 	): Promise<Anthropic.MessageCreateParams> {
 		let system = speakOptions?.system || conversation.baseSystem;
 
-		system = this.appendProjectInfoToSystem(system, this.projectEditor.projectInfo);
+		const projectInfo = await this.invoke(LLMCallbackType.PROJECT_INFO);
+		system = this.appendProjectInfoToSystem(system, projectInfo);
 		system = await this.appendFilesToSystem(system, conversation);
 
 		const messages = this.asProviderMessageType(
@@ -93,7 +97,7 @@ class AnthropicLLM extends LLM {
 	 */
 	public async speakWith(
 		messageParams: LLMProviderMessageRequest,
-	): Promise<LLMProviderMessageResponse> {
+	): Promise<LLMSpeakWithResponse> {
 		try {
 			//logger.info('llms-anthropic-speakWith-messageParams', messageParams);
 
@@ -122,7 +126,9 @@ class AnthropicLLM extends LLM {
 				type: anthropicMessage.type,
 				role: anthropicMessage.role,
 				model: anthropicMessage.model,
+				//system: messageParams.system,
 				fromCache: false,
+				timestamp: new Date().toISOString(),
 				answerContent: anthropicMessage.content as LLMMessageContentParts,
 				isTool: anthropicMessage.stop_reason === 'tool_use',
 				messageStop: {
@@ -149,7 +155,7 @@ class AnthropicLLM extends LLM {
 			};
 			//logger.debug("llms-anthropic-messageResponse", messageResponse);
 
-			return messageResponse;
+			return { messageResponse, messageMeta: { system: messageParams.system } };
 		} catch (err) {
 			logger.error('Error calling Anthropic API', err);
 			throw createError(

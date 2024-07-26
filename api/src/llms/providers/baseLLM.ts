@@ -1,11 +1,14 @@
 import { join } from '@std/path';
 import Ajv from 'ajv';
 
-import { LLMProvider as LLMProviderEnum } from '../../types.ts';
+import { LLMCallbackType, LLMProvider as LLMProviderEnum } from '../../types.ts';
 import type {
+	LLMCallbacks,
+	LLMProviderMessageMeta,
 	LLMProviderMessageRequest,
 	LLMProviderMessageResponse,
 	LLMSpeakWithOptions,
+	LLMSpeakWithResponse,
 	LLMTokenUsage,
 	LLMValidateResponseCallback,
 } from '../../types.ts';
@@ -22,19 +25,27 @@ import { createError } from '../../utils/error.utils.ts';
 //import { metricsService } from '../../services/metrics.service.ts';
 import kv from '../../utils/kv.utils.ts';
 import { tokenUsageManager } from '../../utils/tokenUsage.utils.ts';
-import { ProjectEditor } from '../../editor/projectEditor.ts';
 
 const ajv = new Ajv();
+
+type LLMCallbackTypeKey = typeof LLMCallbackType[keyof typeof LLMCallbackType];
 
 class LLM {
 	public llmProviderName: LLMProviderEnum = LLMProviderEnum.ANTHROPIC;
 	public maxSpeakRetries: number = 3;
 	public requestCacheExpiry: number = 3 * (1000 * 60 * 60 * 24); // 3 days in milliseconds
-	public projectEditor: ProjectEditor;
-	//protected projectRoot: string;
+	private callbacks: LLMCallbacks;
 
-	constructor(projectEditor: ProjectEditor) {
-		this.projectEditor = projectEditor;
+	constructor(callbacks: LLMCallbacks) {
+		this.callbacks = callbacks;
+	}
+
+	async invoke<K extends LLMCallbackType>(
+		event: K,
+		...args: Parameters<LLMCallbacks[K]>
+	): Promise<Awaited<ReturnType<LLMCallbacks[K]>>> {
+		const result = this.callbacks[event](...args);
+		return result instanceof Promise ? await result : result;
 	}
 
 	async prepareMessageParams(
@@ -46,7 +57,7 @@ class LLM {
 
 	async speakWith(
 		messageParams: LLMProviderMessageRequest,
-	): Promise<LLMProviderMessageResponse> {
+	): Promise<LLMSpeakWithResponse> {
 		throw new Error("Method 'speakWith' must be implemented.");
 	}
 
@@ -68,22 +79,11 @@ class LLM {
 		return conversation;
 	}
 
-	/*
-	// you should probably be using ProjectEditor to load conversations
-	async loadConversation(conversationId: string): Promise<LLMConversation> {
-		const persistence = new ConversationPersistence(conversationId, this.projectEditor);
-		await persistence.init();
-		const conversation = await persistence.loadConversation(this);
-		return conversation;
-	}
-	 */
-
 	protected async createFileXmlString(filePath: string): Promise<string | null> {
 		try {
 			logger.info('createFileXmlString - filePath', filePath);
-			//const fullFilePath = join(this.projectEditor.projectRoot, filePath);
-			//logger.info('createFileXmlString - fullFilePath', fullFilePath);
-			const content = await this.projectEditor.readProjectFileContent(filePath);
+			const content = await this.invoke(LLMCallbackType.PROJECT_FILE_CONTENT, filePath);
+
 			const metadata = {
 				size: new TextEncoder().encode(content).length,
 				lastModified: new Date(),
@@ -174,6 +174,7 @@ class LLM {
 		) as LLMProviderMessageRequest;
 
 		let llmProviderMessageResponse!: LLMProviderMessageResponse;
+		let llmProviderMessageMeta!: LLMProviderMessageMeta;
 
 		const cacheKey = !config.api?.ignoreLLMRequestCache
 			? this.createRequestCacheKey(llmProviderMessageRequest)
@@ -198,7 +199,8 @@ class LLM {
 
 			while (retries < maxRetries) {
 				try {
-					llmProviderMessageResponse = await this.speakWith(llmProviderMessageRequest);
+					({ messageResponse: llmProviderMessageResponse, messageMeta: llmProviderMessageMeta } = await this
+						.speakWith(llmProviderMessageRequest));
 
 					const status = llmProviderMessageResponse.providerMessageResponseMeta.status;
 
