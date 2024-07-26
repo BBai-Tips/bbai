@@ -20,7 +20,7 @@
 		"cors": "https://deno.land/x/cors@v1.2.2/mod.ts",
 		"ms": "https://deno.land/x/ms@v0.1.0/ms.ts",
 		"yaml": "https://deno.land/std/yaml/mod.ts",
-		"@std/datetime": "jsr:@std/datetime@^0.224.0",
+		"@std/datetime": "jsr:@std/datetime@^0.224.3",
 		"@std/dotenv": "jsr:@std/dotenv@^0.224.0",
 		"@std/fs": "jsr:@std/fs@^0.224.0",
 		"@std/path": "jsr:@std/path@^0.225.1",

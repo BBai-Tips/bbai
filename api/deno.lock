@@ -20,6 +20,7 @@
       "jsr:@std/crypto@0.223": "jsr:@std/crypto@0.223.0",
       "jsr:@std/crypto@0.224": "jsr:@std/crypto@0.224.0",
       "jsr:@std/crypto@^0.224.0": "jsr:@std/crypto@0.224.0",
+      "jsr:@std/datetime@^0.224.3": "jsr:@std/datetime@0.224.3",
       "jsr:@std/encoding@1.0.0-rc.2": "jsr:@std/encoding@1.0.0-rc.2",
       "jsr:@std/encoding@^0.223.0": "jsr:@std/encoding@0.223.0",
       "jsr:@std/encoding@^0.224.0": "jsr:@std/encoding@0.224.3",
@@ -126,6 +127,9 @@
           "jsr:@std/assert@^0.224.0",
           "jsr:@std/encoding@^0.224.0"
         ]
+      },
+      "@std/datetime@0.224.3": {
+        "integrity": "43197d0b2e00444fb169275b79a3e8fa506fd65c92398a207d71fd3e69b26c5b"
       },
       "@std/encoding@0.223.0": {
         "integrity": "2b5615a75e00337ce113f34cf2f9b8c18182c751a8dcc8b1a2c2fc0e117bef00"
