@@ -111,17 +111,16 @@ export async function searchFiles(
 	logger.debug(`Search command: ${command.join(' ')}`);
 	logger.debug(`Exclude options for search: ${JSON.stringify(excludeOptions)}`);
 
-	const process = Deno.run({
-		cmd: command,
+	const command = new Deno.Command('grep', {
+		args: command,
 		cwd: projectRoot,
 		stdout: 'piped',
 		stderr: 'piped',
 	});
 
-	const { code } = await process.status();
-	const rawOutput = await process.output();
-	const rawError = await process.stderrOutput();
-	process.close();
+	const { code, stdout, stderr } = await command.output();
+	const rawOutput = stdout;
+	const rawError = stderr;
 
 	if (code === 0 || code === 1) { // grep returns 1 if no matches found, which is not an error for us
 		const output = new TextDecoder().decode(rawOutput).trim();
