@@ -286,7 +286,7 @@ export class ProjectEditor {
 
 		const maxTurns = 25; // Maximum number of turns for the run loop
 		let turnCount = 0;
-		let currentResponse: LLMProviderMessageResponse;
+		let currentResponse: LLMSpeakWithResponse;
 
 		try {
 			logger.info(`Calling speakWithLLM with prompt: "${prompt.substring(0, 50)}..."`);
@@ -330,11 +330,11 @@ export class ProjectEditor {
 			try {
 				// Handle tool calls and collect feedback
 				let toolFeedback = '';
-				if (currentResponse.toolsUsed && currentResponse.toolsUsed.length > 0) {
-					for (const tool of currentResponse.toolsUsed) {
+				if (currentResponse.messageResponse.toolsUsed && currentResponse.messageResponse.toolsUsed.length > 0) {
+					for (const tool of currentResponse.messageResponse.toolsUsed) {
 						logger.info('Handling tool', tool);
 						try {
-							const feedback = await this.handleToolUse(tool, currentResponse);
+							const feedback = await this.handleToolUse(tool, currentResponse.messageResponse);
 							toolFeedback += feedback + '\n';
 						} catch (error) {
 							logger.warn(`Error handling tool ${tool.toolName}: ${error.message}`);
@@ -371,11 +371,14 @@ export class ProjectEditor {
 				}
 				// For non-fatal errors, log and continue to the next turn
 				currentResponse = {
-					answerContent: [{
-						type: 'text',
-						text: `Error occurred: ${error.message}. Continuing conversation.`,
-					}],
-				} as LLMProviderMessageResponse;
+					messageResponse: {
+						answerContent: [{
+							type: 'text',
+							text: `Error occurred: ${error.message}. Continuing conversation.`,
+						}],
+					},
+					messageMeta: {},
+				} as LLMSpeakWithResponse;
 			}
 		}
 
@@ -396,7 +399,8 @@ export class ProjectEditor {
 		logger.info(`Final save of conversation: ${this.conversation.id}[${this.statementCount}][${turnCount}]`);
 
 		return {
-			response: currentResponse,
+			response: currentResponse.messageResponse,
+			messageMeta: currentResponse.messageMeta,
 			conversationId: this.conversation?.id || '',
 			statementCount: this.statementCount,
 			turnCount,
