@@ -1,10 +1,5 @@
 # TODO List
 
-## Logging and Output
-1. Create a separate chat output log for conversation progress (no debugging or app logging)
-2. Save the chat log in the .bbai directory
-3. Add a `bbai` command to tail the chat log
-
 ## Repository Information Management
 1. Convert projectInfo into a proper class with support for:
    - ctags
@@ -14,12 +9,6 @@
 2. Allow users to specify projectInfo type in the config
 3. Implement a repoInfo persistence solution
 4. Don't create tags file in .bbai - either save with conversation or use the persistence solution
-
-## Chat Command Improvements
-1. Modify `bbai chat` command to:
-   - Listen to STDIN if '-p' isn't passed
-   - Start a prompt for user input if nothing is piped in
-   - End user input with '\n.\n' (a dot with a leading blank line)
 
 ## Patching and Git Integration
 1. Create new files when patch file has /dev/null as the source
@@ -36,23 +25,21 @@
 1. Create an 'add task' tool allowing Claude to give bbai a list of tasks to complete
 2. Implement each task as a new conversation to complete the task
 
-## Performance and Execution
-1. Fix run loop to continue as long as needed (within reason), allowing for multiple tool turns
-
 ## Utility Functions
 1. Create a function/class for a "fast" conversation with haiku (for git commit messages, semantic conversation titles, etc.)
 
-## Environment and Execution
-1. Check ENV environment and add `--watch` only for localdev
-2. When `bbai start` is called, check if running compiled binary or from repo to control how bbai-api is started
-
-
-`searchFiles` is using file name for exclude pattern; instead need to read the exclude patterns from the file and add those to grep
-
-
-statement/turn number at start of persisted message json
-
-create new branch with each conversation, merge back at end of convo
-
-save system prompt in persistence if running localdev
-
+## Completed Tasks
+1. ✓ `searchFiles` is now using exclude patterns read from the file instead of file names for exclude pattern
+2. ✓ Added statement/turn number at the start of persisted message JSON
+3. ✓ Implemented creation of a new branch with each conversation, merging back at the end of the conversation
+4. ✓ Saved system prompt and project info in conversation persistence when running in localdev environment
+5. ✓ Check ENV environment and add `--watch` only for localdev
+6. ✓ When `bbai start` is called, check if running compiled binary or from repo to control how bbai-api is started
+7. ✓ Create a separate chat output log for conversation progress (no debugging or app logging)
+8. ✓ Save the chat log in the .bbai directory
+9. ✓ Add a `bbai` command to tail the chat log
+10. ✓ Modify `bbai chat` command to:
+    - Listen to STDIN if '-p' isn't passed
+    - Start a prompt for user input if nothing is piped in
+    - End user input with '\n.\n' (a dot with a leading blank line)
+11. ✓ Fix run loop to continue as long as needed (within reason), allowing for multiple tool turns
