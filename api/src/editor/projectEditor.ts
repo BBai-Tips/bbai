@@ -312,6 +312,13 @@ export class ProjectEditor {
 				statementCount: this.statementCount,
 				totalTurnCount: this.totalTurnCount,
 			});
+
+			// Save system prompt and project info if running in local development
+			if (config.api?.environment === 'localdev') {
+				await persistence.saveSystemPrompt(this.conversation.baseSystem);
+				await persistence.saveProjectInfo(this.projectInfo);
+			}
+
 			logger.info(`Saved conversation: ${this.conversation.id}`);
 		} catch (error) {
 			logger.error(`Error persisting the conversation:`, error);

@@ -128,6 +128,20 @@ export class ConversationPersistence {
 		return {};
 	}
 
+	async saveSystemPrompt(systemPrompt: string): Promise<void> {
+		await this.ensureInitialized();
+		const systemPromptPath = join(this.conversationDir, 'system_prompt.txt');
+		await Deno.writeTextFile(systemPromptPath, systemPrompt);
+		logger.info(`System prompt saved for conversation: ${this.conversationId}`);
+	}
+
+	async saveProjectInfo(projectInfo: ProjectInfo): Promise<void> {
+		await this.ensureInitialized();
+		const projectInfoPath = join(this.conversationDir, 'project_info.json');
+		await Deno.writeTextFile(projectInfoPath, JSON.stringify(projectInfo, null, 2));
+		logger.info(`Project info saved for conversation: ${this.conversationId}`);
+	}
+
 	// Remove the saveConversationMessage method as it's no longer needed
 
 	private handleSaveError(error: unknown, filePath: string): never {
