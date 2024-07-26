@@ -16,8 +16,8 @@ export const FILE_LISTING_TIERS = [
 
 export async function generateFileListing(projectRoot: string): Promise<string | null> {
 	const config = await ConfigManager.getInstance();
-	const ctagsConfig = config.getConfig().ctags;
-	const tokenLimit = ctagsConfig?.tokenLimit || 1024;
+	const repoInfoConfig = config.getConfig().repoInfo;
+	const tokenLimit = repoInfoConfig?.tokenLimit || 1024;
 
 	const excludeOptions = await getExcludeOptions(projectRoot);
 

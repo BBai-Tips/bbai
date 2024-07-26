@@ -10,10 +10,11 @@ import type {
 	LLMValidateResponseCallback,
 } from '../../types.ts';
 import LLMMessage from '../message.ts';
-import type { LLMMessageContentPart, LLMMessageContentParts } from '../message.ts';
-import LLMTool from '../tool.ts';
+import type { LLMMessageContentPart } from '../message.ts';
+//import LLMTool from '../tool.ts';
 import type { LLMToolInputSchema } from '../tool.ts';
 import LLMConversation from '../conversation.ts';
+import type { ProjectInfo } from '../conversation.ts';
 import { logger } from 'shared/logger.ts';
 import { config } from 'shared/configManager.ts';
 import { ErrorType, LLMErrorOptions } from '../../errors/error.ts';
@@ -22,14 +23,11 @@ import { createError } from '../../utils/error.utils.ts';
 import kv from '../../utils/kv.utils.ts';
 import { tokenUsageManager } from '../../utils/tokenUsage.utils.ts';
 import { ProjectEditor } from '../../editor/projectEditor.ts';
-import { ConversationPersistence } from '../../utils/conversationPersistence.utils.ts';
-import { readCtagsFile } from 'shared/ctags.ts';
-import { FILE_LISTING_TIERS, generateFileListing } from 'shared/fileListing.ts';
 
 const ajv = new Ajv();
 
 class LLM {
-	public providerName: LLMProviderEnum = LLMProviderEnum.ANTHROPIC;
+	public llmProviderName: LLMProviderEnum = LLMProviderEnum.ANTHROPIC;
 	public maxSpeakRetries: number = 3;
 	public requestCacheExpiry: number = 3 * (1000 * 60 * 60 * 24); // 3 days in milliseconds
 	public projectEditor: ProjectEditor;
@@ -64,8 +62,10 @@ class LLM {
 		// Default implementation, can be overridden by subclasses
 	}
 
-	createConversation(): LLMConversation {
-		return new LLMConversation(this);
+	async createConversation(): Promise<LLMConversation> {
+		const conversation = new LLMConversation(this);
+		await conversation.init();
+		return conversation;
 	}
 
 	/*
@@ -99,15 +99,14 @@ class LLM {
 		return null;
 	}
 
-	protected appendCtagsOrFileListingToSystem(
+	protected appendProjectInfoToSystem(
 		system: string,
-		ctagsContent: string | null,
-		fileListingContent: string | null,
+		projectInfo: ProjectInfo,
 	): string {
-		if (ctagsContent) {
-			system += `\n\n<ctags>\n${ctagsContent}\n</ctags>`;
-		} else if (fileListingContent) {
-			system += `\n\n<file-listing>\n${fileListingContent}\n</file-listing>`;
+		if (projectInfo.type === 'ctags') {
+			system += `\n\n<project-details>\n<ctags>\n${projectInfo.content}\n</ctags>\n</project-details>`;
+		} else if (projectInfo.type === 'file-listing') {
+			system += `\n\n<project-details>\n<file-listing>\n${projectInfo.content}\n</file-listing>\n</project-details>`;
 		}
 		return system;
 	}
@@ -120,31 +119,6 @@ class LLM {
 			}
 		}
 		return system;
-	}
-
-	protected async getRepositoryInfo(
-		bbaiDir: string,
-		projectRoot: string,
-		conversation: LLMConversation,
-	): Promise<string | null> {
-		const ctagsContent = await readCtagsFile(bbaiDir);
-		if (ctagsContent) {
-			conversation.repositoryInfoTier = 0; // Assuming ctags is always tier 0
-			return ctagsContent;
-		}
-
-		const fileListingContent = await generateFileListing(projectRoot);
-		if (fileListingContent) {
-			// Determine which tier was used for file listing
-			const tier = FILE_LISTING_TIERS.findIndex((t: { depth: number; includeMetadata: boolean }) =>
-				t.depth === Infinity && t.includeMetadata === true
-			);
-			conversation.repositoryInfoTier = tier !== -1 ? tier : null;
-			return fileListingContent;
-		}
-
-		conversation.repositoryInfoTier = null;
-		return null;
 	}
 
 	protected async hydrateMessages(conversation: LLMConversation, messages: LLMMessage[]): Promise<LLMMessage[]> {
@@ -182,8 +156,8 @@ class LLM {
 	protected createRequestCacheKey(
 		messageParams: LLMProviderMessageRequest,
 	): string[] {
-		const cacheKey = ['messageRequest', this.providerName, JSON.stringify(messageParams)];
-		logger.info(`provider[${this.providerName}] using cache key: ${cacheKey}`);
+		const cacheKey = ['messageRequest', this.llmProviderName, JSON.stringify(messageParams)];
+		logger.info(`provider[${this.llmProviderName}] using cache key: ${cacheKey}`);
 		return cacheKey;
 	}
 
@@ -207,7 +181,7 @@ class LLM {
 			const cachedResponse = await kv.get<LLMProviderMessageResponse>(cacheKey);
 
 			if (cachedResponse && cachedResponse.value) {
-				logger.info(`provider[${this.providerName}] speakWithPlus: Using cached response`);
+				logger.info(`provider[${this.llmProviderName}] speakWithPlus: Using cached response`);
 				llmProviderMessageResponse = cachedResponse.value;
 				llmProviderMessageResponse.fromCache = true;
 				//await metricsService.recordCacheMetrics({ operation: 'hit' });
@@ -247,7 +221,7 @@ class LLM {
 							`Error calling LLM service: ${llmProviderMessageResponse.providerMessageResponseMeta.statusText}`,
 							{
 								model: conversation.model,
-								provider: this.providerName,
+								provider: this.llmProviderName,
 								args: { status },
 								conversationId: conversation.id,
 							} as LLMErrorOptions,
@@ -262,7 +236,7 @@ class LLM {
 						`Unexpected error calling LLM service: ${error.message}`,
 						{
 							model: conversation.model,
-							provider: this.providerName,
+							provider: this.llmProviderName,
 							args: { reason: error },
 							conversationId: conversation.id,
 						} as LLMErrorOptions,
@@ -276,7 +250,7 @@ class LLM {
 					'Max retries reached when calling LLM service.',
 					{
 						model: conversation.model,
-						provider: this.providerName,
+						provider: this.llmProviderName,
 						args: { retries: maxRetries },
 						conversationId: conversation.id,
 					} as LLMErrorOptions,
@@ -285,7 +259,7 @@ class LLM {
 
 			//const latency = Date.now() - start;
 			//await metricsService.recordLLMMetrics({
-			//	provider: this.providerName,
+			//	provider: this.llmProviderName,
 			//	latency,
 			//	tokenUsage: llmProviderMessageResponse.usage.totalTokens,
 			//	error: llmProviderMessageResponse.type === 'error' ? 'LLM request failed' : undefined,
@@ -361,13 +335,13 @@ class LLM {
 				failReason = `validation: ${validationFailedReason}`;
 			} catch (error) {
 				logger.error(
-					`provider[${this.providerName}] speakWithRetry: Error calling speakWithPlus`,
+					`provider[${this.llmProviderName}] speakWithRetry: Error calling speakWithPlus`,
 					error,
 				);
 				failReason = `caught error: ${error}`;
 			}
 			logger.warn(
-				`provider[${this.providerName}] Request to ${this.providerName} failed. Retrying (${retries}/${maxRetries}) - ${failReason}`,
+				`provider[${this.llmProviderName}] Request to ${this.llmProviderName} failed. Retrying (${retries}/${maxRetries}) - ${failReason}`,
 			);
 
 			await new Promise((resolve) => setTimeout(resolve, 1000));
@@ -376,14 +350,14 @@ class LLM {
 		conversation.updateTotals(totalTokenUsage, totalProviderRequests);
 		//await conversation.save(); // Persist the conversation even if all retries failed
 		logger.error(
-			`provider[${this.providerName}] Max retries reached. Request to ${this.providerName} failed.`,
+			`provider[${this.llmProviderName}] Max retries reached. Request to ${this.llmProviderName} failed.`,
 		);
 		throw createError(
 			ErrorType.LLM,
 			'Request failed after multiple retries.',
 			{
 				model: conversation.model,
-				provider: this.providerName,
+				provider: this.llmProviderName,
 				args: { reason: failReason, retries: { max: maxRetries, current: retries } },
 				conversationId: conversation.id,
 			} as LLMErrorOptions,
@@ -460,14 +434,14 @@ class LLM {
 	}
 
 	private async updateTokenUsage(usage: LLMTokenUsage): Promise<void> {
-		const currentUsage = await tokenUsageManager.getTokenUsage(this.providerName);
+		const currentUsage = await tokenUsageManager.getTokenUsage(this.llmProviderName);
 		if (currentUsage) {
 			const updatedUsage = {
 				...currentUsage,
 				requestsRemaining: currentUsage.requestsRemaining - 1,
 				tokensRemaining: currentUsage.tokensRemaining - usage.totalTokens,
 			};
-			await tokenUsageManager.updateTokenUsage(this.providerName, updatedUsage);
+			await tokenUsageManager.updateTokenUsage(this.llmProviderName, updatedUsage);
 		}
 	}
 }

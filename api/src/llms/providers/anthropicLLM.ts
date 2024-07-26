@@ -23,7 +23,7 @@ class AnthropicLLM extends LLM {
 
 	constructor(projectEditor: ProjectEditor) {
 		super(projectEditor);
-		this.providerName = LLMProvider.ANTHROPIC;
+		this.llmProviderName = LLMProvider.ANTHROPIC;
 
 		this.initializeAnthropicClient();
 	}
@@ -55,23 +55,8 @@ class AnthropicLLM extends LLM {
 		speakOptions?: LLMSpeakWithOptions,
 	): Promise<Anthropic.MessageCreateParams> {
 		let system = speakOptions?.system || conversation.baseSystem;
-		const repositoryInfo = await this.getRepositoryInfo(
-			await this.projectEditor.getBbaiDir(),
-			await this.projectEditor.getProjectRoot(),
-			conversation,
-		);
-		if (repositoryInfo) {
-			if (conversation.ctagsContent) {
-				conversation.ctagsContent = repositoryInfo;
-			} else {
-				conversation.fileListingContent = repositoryInfo;
-			}
-		}
-		system = this.appendCtagsOrFileListingToSystem(
-			system,
-			conversation.ctagsContent,
-			conversation.fileListingContent,
-		);
+
+		system = this.appendProjectInfoToSystem(system, this.projectEditor.projectInfo);
 		system = await this.appendFilesToSystem(system, conversation);
 
 		const messages = this.asProviderMessageType(
@@ -172,7 +157,7 @@ class AnthropicLLM extends LLM {
 				'Could not get response from Anthropic API.',
 				{
 					model: messageParams.model,
-					provider: this.providerName,
+					provider: this.llmProviderName,
 				} as LLMErrorOptions,
 			);
 		}
@@ -211,7 +196,7 @@ class AnthropicLLM extends LLM {
 				});
 			} else {
 				logger.warn(
-					`provider[${this.providerName}] modifySpeakWithConversationOptions - Tool input validation failed, but no tool response found`,
+					`provider[${this.llmProviderName}] modifySpeakWithConversationOptions - Tool input validation failed, but no tool response found`,
 				);
 			}
 		} else if (validationFailedReason === 'Tool exceeded max tokens') {
@@ -233,21 +218,21 @@ class AnthropicLLM extends LLM {
 			// Perform special handling based on the stop reason
 			switch (llmProviderMessageResponse.messageStop.stopReason) {
 				case 'max_tokens':
-					logger.warn(`provider[${this.providerName}] Response reached the maximum token limit`);
+					logger.warn(`provider[${this.llmProviderName}] Response reached the maximum token limit`);
 
 					break;
 				case 'end_turn':
-					logger.warn(`provider[${this.providerName}] Response reached the end turn`);
+					logger.warn(`provider[${this.llmProviderName}] Response reached the end turn`);
 					break;
 				case 'stop_sequence':
-					logger.warn(`provider[${this.providerName}] Response reached its natural end`);
+					logger.warn(`provider[${this.llmProviderName}] Response reached its natural end`);
 					break;
 				case 'tool_use':
-					logger.warn(`provider[${this.providerName}] Response is using a tool`);
+					logger.warn(`provider[${this.llmProviderName}] Response is using a tool`);
 					break;
 				default:
 					logger.info(
-						`provider[${this.providerName}] Response stopped due to: ${llmProviderMessageResponse.messageStop.stopReason}`,
+						`provider[${this.llmProviderName}] Response stopped due to: ${llmProviderMessageResponse.messageStop.stopReason}`,
 					);
 			}
 		}

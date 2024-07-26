@@ -69,7 +69,7 @@ class TokenUsageManager {
 				ErrorType.LLMRateLimit,
 				'Rate limit exceeded. Waiting for rate limit to reset.',
 				{
-					provider: this.providerName,
+					llmProvider: this.llmProviderName,
 					name: 'rate-limit',
 					token_usage: 0,
 					token_limit: 0,

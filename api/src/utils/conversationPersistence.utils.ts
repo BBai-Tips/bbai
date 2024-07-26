@@ -4,6 +4,7 @@ import LLMConversation from '../llms/conversation.ts';
 import LLMMessage, { LLMMessageProviderResponse } from '../llms/message.ts';
 import LLM from '../llms/providers/baseLLM.ts';
 import { logger } from 'shared/logger.ts';
+import { config } from 'shared/configManager.ts';
 import { createError, ErrorType } from './error.utils.ts';
 import { FileHandlingErrorOptions } from '../errors/error.ts';
 import { ProjectEditor } from '../editor/projectEditor.ts';
@@ -45,7 +46,7 @@ export class ConversationPersistence {
 		pageSize: number;
 		startDate?: Date;
 		endDate?: Date;
-		providerName?: string;
+		llmProviderName?: string;
 	}): Promise<any[]> {
 		// TODO: Implement actual conversation listing logic
 		// This is a placeholder implementation
@@ -58,7 +59,7 @@ export class ConversationPersistence {
 
 			const metadata = {
 				id: conversation.id,
-				providerName: conversation.providerName,
+				llmProviderName: conversation.llmProviderName,
 				system: conversation.baseSystem,
 				model: conversation.model,
 				maxTokens: conversation.maxTokens,
@@ -66,16 +67,14 @@ export class ConversationPersistence {
 				turnCount: conversation.turnCount,
 				totalTokenUsage: conversation.totalTokenUsage,
 				tools: conversation.getTools(),
-				repositoryInfo: {
-					type: conversation.ctagsContent ? 'ctags' : 'fileListing',
-					content: conversation.ctagsContent
-						? 'ctags'
-						: conversation.fileListingContent
-						? 'fileListing'
-						: null,
-					tier: conversation.repositoryInfoTier,
-				},
+				// following attributes are for reference only; they are not set when conversation is loaded
+				projectInfoType: conversation.llm.projectEditor.projectInfo.type,
+				projectInfoTier: conversation.llm.projectEditor.projectInfo.tier,
+				projectInfoContent: '',
 			};
+			if (config.api?.environment === 'localdev') {
+				metadata.projectInfoContent = conversation.llm.projectEditor.projectInfo.content;
+			}
 
 			await Deno.writeTextFile(this.metadataPath, JSON.stringify(metadata, null, 2));
 			logger.info(`Saved metadata for conversation: ${conversation.id}`);
@@ -169,6 +168,8 @@ export class ConversationPersistence {
 		const metadataContent = await Deno.readTextFile(this.metadataPath);
 		const metadata = JSON.parse(metadataContent);
 		const conversation = new LLMConversation(llm);
+		await conversation.init();
+
 
 		conversation.id = metadata.id;
 		conversation.baseSystem = metadata.system;

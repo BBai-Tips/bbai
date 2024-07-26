@@ -14,9 +14,9 @@ export class ConfigManager {
 			apiPort: 3000,
 		},
 		cli: {},
-		ctags: {
-			autoGenerate: true,
-			//tagsFilePath: 'tags',
+		repoInfo: {
+			ctagsAutoGenerate: true,
+			//ctagsFilePath: 'tags',
 		},
 	};
 
@@ -51,6 +51,9 @@ export class ConfigManager {
 				const defaultConfig = stripIndent`
 					# bbai Configuration File
 					
+					repoInfo: 
+					  tokenLimit: 1024
+
 					api:
 					  # Your Anthropic API key. Replace with your actual key.
 					  anthropicApiKey: "your-anthropic-api-key-here"

@@ -10,9 +10,9 @@ export interface ConfigSchema {
 		ignoreLLMRequestCache?: boolean;
 	};
 	cli: {};
-	ctags: {
-		autoGenerate: boolean;
-		tagsFilePath?: string;
+	repoInfo: {
+		ctagsAutoGenerate: boolean;
+		ctagsFilePath?: string;
 		tokenLimit?: number;
 	};
 	logFile?: string;
@@ -27,9 +27,9 @@ export const defaultConfig: ConfigSchema = {
 		ignoreLLMRequestCache: false,
 	},
 	cli: {},
-	ctags: {
-		autoGenerate: true,
-		//tagsFilePath: 'tags',
+	repoInfo: {
+		ctagsAutoGenerate: true,
+		//ctagsFilePath: 'tags',
 		tokenLimit: 1024,
 	},
 	logFile: 'api.log',

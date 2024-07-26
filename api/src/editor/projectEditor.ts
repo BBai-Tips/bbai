@@ -4,7 +4,7 @@ import { ensureDir } from '@std/fs';
 import { searchFiles } from 'shared/fileListing.ts';
 
 import { LLMFactory } from '../llms/llmProvider.ts';
-import LLMConversation, { FileMetadata, RepositoryInfo } from '../llms/conversation.ts';
+import LLMConversation, { FileMetadata, ProjectInfo } from '../llms/conversation.ts';
 import LLM from '../llms/providers/baseLLM.ts';
 import { logger } from 'shared/logger.ts';
 import { PromptManager } from '../prompts/promptManager.ts';
@@ -38,7 +38,7 @@ export class ProjectEditor {
 	private bbaiDir: string;
 	private statementCount: number = 0;
 	private totalTurnCount: number = 0;
-	private _repositoryInfo: RepositoryInfo = {
+	private _projectInfo: ProjectInfo = {
 		type: 'empty',
 		content: '',
 		tier: null,
@@ -86,41 +86,41 @@ export class ProjectEditor {
 		return await removeFromBbaiDir(this.cwd, filename);
 	}
 
-	get repositoryInfo(): RepositoryInfo {
-		return this._repositoryInfo;
+	get projectInfo(): ProjectInfo {
+		return this._projectInfo;
 	}
 
-	set repositoryInfo(repositoryInfo: RepositoryInfo) {
-		this._repositoryInfo = repositoryInfo;
+	set projectInfo(projectInfo: ProjectInfo) {
+		this._projectInfo = projectInfo;
 	}
 
-	protected async updateRepositoryInfo(): Promise<void> {
-		const repositoryInfo: RepositoryInfo = { type: 'empty', content: '', tier: null };
+	protected async updateProjectInfo(): Promise<void> {
+		const projectInfo: ProjectInfo = { type: 'empty', content: '', tier: null };
 
 		const bbaiDir = await this.getBbaiDir();
 		await generateCtags(this.bbaiDir, this.projectRoot);
 		const ctagsContent = await readCtagsFile(bbaiDir);
 		if (ctagsContent) {
-			repositoryInfo.type = 'ctags';
-			repositoryInfo.content = ctagsContent;
-			repositoryInfo.tier = 0; // Assuming ctags is always tier 0
+			projectInfo.type = 'ctags';
+			projectInfo.content = ctagsContent;
+			projectInfo.tier = 0; // Assuming ctags is always tier 0
 		}
 
-		if (repositoryInfo.type === 'empty') {
+		if (projectInfo.type === 'empty') {
 			const projectRoot = await this.getProjectRoot();
 			const fileListingContent = await generateFileListing(projectRoot);
 			if (fileListingContent) {
-				repositoryInfo.type = 'file-listing';
-				repositoryInfo.content = fileListingContent;
+				projectInfo.type = 'file-listing';
+				projectInfo.content = fileListingContent;
 				// Determine which tier was used for file listing
 				const tier = FILE_LISTING_TIERS.findIndex((t: { depth: number; includeMetadata: boolean }) =>
 					t.depth === Infinity && t.includeMetadata === true
 				);
-				repositoryInfo.tier = tier !== -1 ? tier : null;
+				projectInfo.tier = tier !== -1 ? tier : null;
 			}
 		}
 
-		this.repositoryInfo = repositoryInfo;
+		this.projectInfo = projectInfo;
 	}
 
 	private addDefaultTools(): void {
@@ -174,9 +174,9 @@ export class ProjectEditor {
 			},
 		};
 
-		const searchRepositoryTool: LLMTool = {
-			name: 'search_repository',
-			description: 'Search the repository for files matching a pattern',
+		const searchProjectTool: LLMTool = {
+			name: 'search_project',
+			description: 'Search the project for files matching a pattern',
 			input_schema: {
 				type: 'object',
 				properties: {
@@ -197,7 +197,7 @@ export class ProjectEditor {
 		this.conversation?.addTool(requestFilesTool);
 		//this.conversation?.addTool(vectorSearchTool);
 		this.conversation?.addTool(applyPatchTool);
-		this.conversation?.addTool(searchRepositoryTool);
+		this.conversation?.addTool(searchProjectTool);
 	}
 
 	private isPathWithinProject(filePath: string): boolean {
@@ -283,7 +283,7 @@ export class ProjectEditor {
 			//maxTokens: 1000,
 		};
 
-		await this.updateRepositoryInfo();
+		await this.updateProjectInfo();
 
 		const maxTurns = 25; // Maximum number of turns for the run loop
 		let turnCount = 0;
@@ -338,7 +338,7 @@ export class ProjectEditor {
 				// If there's tool feedback, send it back to the LLM
 				if (toolFeedback) {
 					try {
-						await this.updateRepositoryInfo();
+						await this.updateProjectInfo();
 
 						prompt =
 							`Tool use feedback:\n${toolFeedback}\nPlease acknowledge this feedback and continue the conversation.`;
@@ -417,14 +417,14 @@ export class ProjectEditor {
 				feedback = `Patch applied successfully to file: ${filePath}`;
 				break;
 			}
-			case 'search_repository': {
+			case 'search_project': {
 				const { pattern, file_pattern } = tool.toolInput as { pattern: string; file_pattern?: string };
-				const repoSearchResults = await this.handleSearchRepository(
+				const repoSearchResults = await this.handleSearchProject(
 					pattern,
 					file_pattern || undefined,
 					tool.toolUseId,
 				);
-				feedback = `Repository search completed. ${repoSearchResults.length} files found matching the pattern.`;
+				feedback = `Project search completed. ${repoSearchResults.length} files found matching the pattern.`;
 				break;
 			}
 			default: {
@@ -446,7 +446,7 @@ export class ProjectEditor {
 		return await this.searchEmbeddings(query);
 	}
 
-	async handleSearchRepository(
+	async handleSearchProject(
 		pattern: string,
 		file_pattern: string | undefined,
 		toolUseId: string,
@@ -463,10 +463,10 @@ export class ProjectEditor {
 			return files;
 		} catch (error) {
 			const errorMessage = error.message;
-			logger.error(`Error searching repository: ${errorMessage}`);
+			logger.error(`Error searching project: ${errorMessage}`);
 
 			// Add error tool result message
-			this.conversation?.addMessageForToolResult(toolUseId, `Error searching repository: ${errorMessage}`, true);
+			this.conversation?.addMessageForToolResult(toolUseId, `Error searching project: ${errorMessage}`, true);
 			return [];
 		}
 	}
