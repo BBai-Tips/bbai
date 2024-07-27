@@ -5,6 +5,7 @@ import { stripIndent } from 'common-tags';
 
 import { GitUtils } from '../utils/git.utils.ts';
 import { ConfigSchema, mergeConfigs } from './configSchema.ts';
+import { VERSION } from '../../version.ts';
 
 export class ConfigManager {
 	private static instance: ConfigManager;
@@ -18,6 +19,7 @@ export class ConfigManager {
 			ctagsAutoGenerate: true,
 			//ctagsFilePath: 'tags',
 		},
+		version: VERSION,
 	};
 
 	private constructor() {}

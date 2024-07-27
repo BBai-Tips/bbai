@@ -10,7 +10,8 @@ export const apiStart = new Command()
 	.name('start')
 	.description('Start the bbai API server')
 	.option('--log-level <level:string>', 'Set the log level for the API server', { default: undefined })
-	.action(async ({ logLevel: cliLogLevel }) => {
+	.option('--log-file <file:string>', 'Specify a log file to write output', { default: undefined })
+	.action(async ({ logLevel: cliLogLevel, logFile: cliLogFile }) => {
 		const startDir = Deno.cwd();
 		if (await isApiRunning(startDir)) {
 			logger.info('bbai API server is already running.');
@@ -18,7 +19,7 @@ export const apiStart = new Command()
 		}
 
 		const bbaiDir = await getBbaiDir(startDir);
-		const logFile = config.logFile ?? 'api.log';
+		const logFile = cliLogFile || config.logFile || 'api.log';
 		const logFilePath = join(bbaiDir, logFile);
 		const logLevel = cliLogLevel || config.logLevel || 'info';
 
@@ -29,7 +30,7 @@ export const apiStart = new Command()
 		if (isCompiledBinary()) {
 			// If running as a compiled binary, start the API directly
 			command = new Deno.Command('bbai-api', {
-				args: [logFilePath],
+				args: ['--log-file', logFilePath],
 				stdout: 'null',
 				stderr: 'null',
 				stdin: 'null',
@@ -53,7 +54,7 @@ export const apiStart = new Command()
 			}
 
 			command = new Deno.Command(Deno.execPath(), {
-				args: [...cmdArgs, '../api/src/main.ts', logFilePath],
+				args: [...cmdArgs, '../api/src/main.ts', '--log-file', logFilePath],
 				cwd: '../api',
 				stdout: 'null',
 				stderr: 'null',
