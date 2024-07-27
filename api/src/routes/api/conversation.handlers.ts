@@ -3,6 +3,42 @@ import { logger } from 'shared/logger.ts';
 import { ProjectEditor } from '../../editor/projectEditor.ts';
 import { ConversationPersistence } from '../../utils/conversationPersistence.utils.ts';
 
+/**
+ * @openapi
+ * /api/v1/conversation:
+ *   post:
+ *     summary: Start a new conversation
+ *     description: Initiates a new conversation with the AI assistant
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - prompt
+ *               - startDir
+ *             properties:
+ *               prompt:
+ *                 type: string
+ *                 description: The initial prompt to start the conversation
+ *               provider:
+ *                 type: string
+ *                 description: The LLM provider to use (optional)
+ *               model:
+ *                 type: string
+ *                 description: The specific model to use (optional)
+ *               startDir:
+ *                 type: string
+ *                 description: The starting directory for the project
+ *     responses:
+ *       200:
+ *         description: Successful response with conversation details
+ *       400:
+ *         description: Bad request, missing required parameters
+ *       500:
+ *         description: Internal server error
+ */
 export const startConversation = async (ctx: Context) => {
 	logger.debug('startConversation called');
 
@@ -44,6 +80,43 @@ export const startConversation = async (ctx: Context) => {
 	}
 };
 
+/**
+ * @openapi
+ * /api/v1/conversation/{id}:
+ *   post:
+ *     summary: Continue an existing conversation
+ *     description: Continues an existing conversation with the AI assistant
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: The ID of the conversation to continue
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - prompt
+ *               - startDir
+ *             properties:
+ *               prompt:
+ *                 type: string
+ *                 description: The prompt to continue the conversation
+ *               startDir:
+ *                 type: string
+ *                 description: The starting directory for the project
+ *     responses:
+ *       200:
+ *         description: Successful response with conversation continuation
+ *       400:
+ *         description: Bad request, missing required parameters
+ *       500:
+ *         description: Internal server error
+ */
 export const continueConversation = async (
 	{ params, request, response }: {
 		params: { id: string };
@@ -92,6 +165,27 @@ export const continueConversation = async (
 	}
 };
 
+/**
+ * @openapi
+ * /api/v1/conversation/{id}:
+ *   get:
+ *     summary: Get conversation details
+ *     description: Retrieves details of a specific conversation
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: The ID of the conversation to retrieve
+ *     responses:
+ *       200:
+ *         description: Successful response with conversation details
+ *       404:
+ *         description: Conversation not found
+ *       500:
+ *         description: Internal server error
+ */
 export const getConversation = async (
 	{ params, response }: { params: { id: string }; response: Context['response'] },
 ) => {
@@ -120,6 +214,27 @@ export const getConversation = async (
 	}
 };
 
+/**
+ * @openapi
+ * /api/v1/conversation/{id}:
+ *   delete:
+ *     summary: Delete a conversation
+ *     description: Deletes a specific conversation
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: The ID of the conversation to delete
+ *     responses:
+ *       200:
+ *         description: Successful response with deletion confirmation
+ *       404:
+ *         description: Conversation not found
+ *       500:
+ *         description: Internal server error
+ */
 export const deleteConversation = async (
 	{ params, response }: { params: { id: string }; response: Context['response'] },
 ) => {
@@ -127,6 +242,48 @@ export const deleteConversation = async (
 	response.body = { message: `Conversation ${params.id} deleted` };
 };
 
+/**
+ * @openapi
+ * /api/v1/conversations:
+ *   get:
+ *     summary: List conversations
+ *     description: Retrieves a list of conversations with pagination and filtering options
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *         description: Page number for pagination
+ *       - in: query
+ *         name: pageSize
+ *         schema:
+ *           type: integer
+ *           default: 10
+ *         description: Number of items per page
+ *       - in: query
+ *         name: startDate
+ *         schema:
+ *           type: string
+ *           format: date
+ *         description: Filter conversations starting from this date
+ *       - in: query
+ *         name: endDate
+ *         schema:
+ *           type: string
+ *           format: date
+ *         description: Filter conversations up to this date
+ *       - in: query
+ *         name: llmProviderName
+ *         schema:
+ *           type: string
+ *         description: Filter conversations by LLM provider name
+ *     responses:
+ *       200:
+ *         description: Successful response with list of conversations
+ *       500:
+ *         description: Internal server error
+ */
 export const listConversations = async (
 	{ request, response }: { request: Context['request']; response: Context['response'] },
 ) => {

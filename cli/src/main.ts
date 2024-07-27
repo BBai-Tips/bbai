@@ -24,8 +24,8 @@ import { init } from './commands/init.ts';
 
 const cli = new Command()
 	.name('bbai')
-	.version('0.1.0')
-	.description('CLI tool for bbai project')
+	.version(config.version)
+	.description('CLI tool for BBai')
 	.command('init', init)
 	.command('add', filesAdd)
 	.command('remove', filesRemove)

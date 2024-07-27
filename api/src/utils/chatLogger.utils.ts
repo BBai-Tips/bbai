@@ -12,7 +12,7 @@ const ANSI_YELLOW = '\x1b[33m';
 const ANSI_BLUE = '\x1b[34m';
 
 const INDENT = '  ';
-const MAX_LINE_LENGTH = 80;
+const MAX_LINE_LENGTH = 120;
 const USER_ICON = '👤';
 const ASSISTANT_ICON = '🤖';
 const TOOL_ICON = '🔧';

@@ -91,4 +91,17 @@ When proposing changes to files, use the diff patch format:
 - Implement a specific tool or command for file removal
 - Log file deletions in the conversation change log
 
-By following these conventions, we ensure consistent and efficient file handling throughout bbai conversations.
+## Important Links
+
+As an AI assistant for the BBai project, I should be aware of and use the following links when appropriate:
+
+- BBai GitHub Repository: https://github.com/BBai-Tips/bbai
+- BBai Documentation (future): https://bbai.tips
+- Contributing Guidelines: https://github.com/BBai-Tips/bbai/blob/main/CONTRIBUTING.md
+- Project Conventions: https://github.com/BBai-Tips/bbai/blob/main/CONVENTIONS.md
+- File Handling Guidelines: https://github.com/BBai-Tips/bbai/blob/main/FILE_HANDLING.md
+- API Documentation: https://github.com/BBai-Tips/bbai/blob/main/API.md
+
+When referencing these links in conversations or documentation, I should use the exact URLs provided above to ensure consistency and accuracy.
+
+By following these conventions and using the correct links, we ensure consistent and efficient file handling and communication throughout bbai conversations and documentation.

@@ -1,7 +1,7 @@
 import { Context, Router } from '@oak/oak';
 import { errorHandler } from '../middlewares/error.middleware.ts';
-//import { metricsHandler } from '../middlewares/metrics.middleware.ts';
 import apiRouter from './apiRouter.ts';
+import swaggerRouter from './swaggerRouter.ts';
 
 // top-level routes
 const router = new Router();
@@ -11,32 +11,28 @@ router
 	 * /:
 	 *   get:
 	 *     summary: API root
-	 *     description: Returns a welcome message for the bbai API
+	 *     description: Returns a welcome message for the bbai API and provides a link to the API documentation
 	 *     responses:
 	 *       200:
-	 *         description: Successful response with welcome message
+	 *         description: Successful response with welcome message and documentation link
+	 *         content:
+	 *           application/json:
+	 *             schema:
+	 *               type: object
+	 *               properties:
+	 *                 message:
+	 *                   type: string
+	 *                   example: Welcome to BBai API
+	 *                 docs:
+	 *                   type: string
+	 *                   example: /api-docs/openapi.json
 	 */
 	.get('/', (ctx: Context) => {
-		ctx.response.body = 'bbai API';
+		ctx.response.type = 'application/json';
+		ctx.response.body = { message: 'Welcome to BBai API', docs: '/api-docs/openapi.json' };
 	})
 	.use(errorHandler) // Apply the errorHandler to all routes
-	//.use(metricsHandler) // Apply the metricsHandler to all routes
-	.use('/api', apiRouter.routes(), apiRouter.allowedMethods());
-
-/**
- * @openapi
- * /metrics:
- *   get:
- *     summary: Get API metrics
- *     description: Retrieve metrics for the API
- *     responses:
- *       200:
- *         description: Successful response with API metrics
- */
-// 	.get('/metrics', async (ctx) => {
-// 		const metrics = await metricsService.getMetrics();
-// 		ctx.response.headers.set('Content-Type', 'text/plain');
-// 		ctx.response.body = metrics;
-// 	})
+	.use('/api', apiRouter.routes(), apiRouter.allowedMethods())
+	.use('/api-docs', swaggerRouter.routes(), swaggerRouter.allowedMethods());
 
 export default router;
