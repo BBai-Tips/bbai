@@ -1,8 +1,8 @@
 class Bbai < Formula
   desc "Be Better at ... Everything You Do with Text"
-  version "0.0.7-alpha"
-  url "https://github.com/BBai-Tips/bbai/archive/v0.0.7-alpha.tar.gz"
-  sha256 "8baae0b908b58913971799919f1572c8cf3a0caaf12c74a24c1745c6a8abb9a2"
+  version "0.0.3-alpha"
+  url "https://github.com/BBai-Tips/bbai/archive/v0.0.3-alpha.tar.gz"
+  sha256 "df50cc136db0c25631d4e779940031135c59468455ba0ac79e14e40b6fd22be3"
   homepage "https://github.com/BBai-Tips/bbai"
   license "MIT"
 
