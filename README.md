@@ -70,11 +70,11 @@ BBai excels in various scenarios:
 
 ### Installation
 
-(Installation instructions to be added)
+For detailed installation instructions, please refer to our [Installation Guide](INSTALL.md).
 
 ### Quick Start
 
-(Quick start guide to be added)
+After installation, you can start using BBai by running `bbai init` in your project directory. For more detailed instructions, check our [Installation Guide](INSTALL.md).
 
 ## Why Choose BBai?
 
@@ -101,3 +101,14 @@ BBai is more than just a tool; it's a growing community of professionals pushing
 Start your journey with BBai today and transform the way you work with text!
 
 *BBai: Be Better at ... Everything You Do with Text*
+
+## Project Links
+
+- [BBai GitHub Repository](https://github.com/BBai-Tips/bbai)
+- [Installation Guide](INSTALL.md)
+- [Contributing Guidelines](CONTRIBUTING.md)
+- [Code of Conduct](CODE_OF_CONDUCT.md)
+- [Security Policy](SECURITY.md)
+- [API Documentation](API.md)
+- [File Handling Guidelines](FILE_HANDLING.md)
+- [Project Conventions](CONVENTIONS.md)

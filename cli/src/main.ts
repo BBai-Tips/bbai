@@ -1,6 +1,6 @@
 import { Command } from 'cliffy/command/mod.ts';
 import { logger } from 'shared/logger.ts';
-import { config } from 'shared/configManager.ts';
+import { config } from 'shared/config/configManager.ts';
 
 import { apiStart } from './commands/apiStart.ts';
 import { apiStop } from './commands/apiStop.ts';
@@ -24,7 +24,7 @@ import { init } from './commands/init.ts';
 
 const cli = new Command()
 	.name('bbai')
-	.version('0.1.0')
+	.version(config.version)
 	.description('CLI tool for BBai')
 	.command('init', init)
 	.command('add', filesAdd)

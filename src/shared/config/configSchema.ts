@@ -18,6 +18,7 @@ export interface ConfigSchema {
 	logFile?: string;
 	logLevel: 'debug' | 'info' | 'warn' | 'error';
 	myPersonsName?: string;
+	version: string;
 }
 
 export const defaultConfig: ConfigSchema = {
@@ -34,6 +35,7 @@ export const defaultConfig: ConfigSchema = {
 	},
 	logFile: 'api.log',
 	logLevel: 'info',
+	version: 'unknown', // This will be overwritten by the actual version from version.ts
 };
 
 export function mergeConfigs(...configs: Partial<ConfigSchema>[]): ConfigSchema {

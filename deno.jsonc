@@ -1,14 +1,17 @@
 {
 	"name": "bbai",
-	"version": "0.0.1",
+	"version": "0.0.7-alpha",
 	"exports": "./cli/src/main.ts",
 	"tasks": {
 		"format": "deno fmt src/ && deno task -c ./cli/deno.jsonc format && deno task -c ./api/deno.jsonc format",
+		"format-deno": "deno fmt ./deno.jsonc ./cli/deno.jsonc ./api/deno.jsonc",
 		"check-types": "deno task -c ./cli/deno.jsonc check-types && deno task -c ./api/deno.jsonc check-types",
 		"check-format": "deno task -c ./cli/deno.jsonc check-format && deno task -c ./api/deno.jsonc check-format",
 		"build": "deno task -c ./cli/deno.jsonc build && deno task -c ./api/deno.jsonc build",
+		"homebrew": "deno task -c ./cli/deno.jsonc build && deno task -c ./api/deno.jsonc build",
 		"test": "deno task -c ./cli/deno.jsonc test && deno task -c ./api/deno.jsonc test",
-		"update-deps": "deno task -c ./cli/deno.jsonc update-deps && deno task -c ./api/deno.jsonc update-deps"
+		"update-deps": "deno task -c ./cli/deno.jsonc update-deps && deno task -c ./api/deno.jsonc update-deps",
+		"update-version": "deno run --allow-read --allow-write --allow-run ./scripts/update_version.ts"
 	},
 	"importMap": "./import_map.json",
 	"fmt": {
@@ -18,7 +21,14 @@
 		"semiColons": true,
 		"singleQuote": true,
 		"proseWrap": "preserve",
-		"include": ["src/", "cli/src/", "api/src/"],
-		"exclude": ["src/testdata/", "src/fixtures/**/*.ts"]
+		"include": [
+			"src/",
+			"cli/src/",
+			"api/src/"
+		],
+		"exclude": [
+			"src/testdata/",
+			"src/fixtures/**/*.ts"
+		]
 	}
 }

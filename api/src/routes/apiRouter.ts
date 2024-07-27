@@ -1,7 +1,6 @@
 import { Context, Router } from '@oak/oak';
 //import { logger } from 'shared/logger.ts';
 import {
-	addMessage,
 	clearConversation,
 	continueConversation,
 	deleteConversation,
@@ -9,12 +8,12 @@ import {
 	startConversation,
 	undoConversation,
 } from './api/conversation.handlers.ts';
-import { addFile, listFiles, removeFile } from './api/file.handlers.ts';
-import { getTokenUsage } from './api/token.handlers.ts';
-import { runCliCommand } from './api/cli.handlers.ts';
-import { loadExternalContent } from './api/external.handlers.ts';
-import { getLogs } from './api/log.handlers.ts';
-import { persistConversation, resumeConversation } from './api/persistence.handlers.ts';
+//import { addFile, listFiles, removeFile } from './api/file.handlers.ts';
+//import { getTokenUsage } from './api/token.handlers.ts';
+//import { runCliCommand } from './api/cli.handlers.ts';
+//import { loadExternalContent } from './api/external.handlers.ts';
+//import { getLogs } from './api/log.handlers.ts';
+//import { persistConversation, resumeConversation } from './api/persistence.handlers.ts';
 
 const apiRouter = new Router();
 apiRouter
@@ -26,9 +25,11 @@ apiRouter
 	.get('/v1/conversation/:id', getConversation)
 	.post('/v1/conversation/:id', continueConversation)
 	.delete('/v1/conversation/:id', deleteConversation)
-	.post('/v1/conversation/:id/message', addMessage)
+	//.post('/v1/conversation/:id/message', addMessage)
 	.post('/v1/conversation/:id/clear', clearConversation)
-	.post('/v1/conversation/:id/undo', undoConversation)
+	.post('/v1/conversation/:id/undo', undoConversation);
+/*
+	// NOT IMPLEMENTED
 	// File management endpoints
 	.post('/v1/files', addFile)
 	.delete('/v1/files/:id', removeFile)
@@ -43,6 +44,7 @@ apiRouter
 	.get('/v1/logs', getLogs)
 	// Persistence endpoints
 	.post('/v1/persist', persistConversation)
-	.post('/v1/resume', resumeConversation);
+	.post('/v1/resume', resumeConversation)
+ */
 
 export default apiRouter;
