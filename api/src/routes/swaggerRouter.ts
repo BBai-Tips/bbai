@@ -1,11 +1,11 @@
 import { Context, Router } from '@oak/oak';
 import swaggerJsdoc from 'swagger-jsdoc';
-import { config } from '../../shared/config/configManager.ts';
+import { config } from 'shared/configManager.ts';
 
 const swaggerDefinition = {
 	openapi: '3.0.0',
 	info: {
-		title: 'bbai API',
+		title: 'BBai API',
 		version: config.version,
 		description:
 			`BBai (pronounced b-b-aye) is an advanced AI-powered assistant designed to revolutionize how you work with text-based projects. Whether you're coding, writing, or managing complex documentation, BBai is here to help you "be better" at every step.`,

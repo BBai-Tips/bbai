@@ -110,5 +110,15 @@ Start your journey with BBai today and transform the way you work with text!
 - [Code of Conduct](CODE_OF_CONDUCT.md)
 - [Security Policy](SECURITY.md)
 - [API Documentation](API.md)
+- [CLI Documentation](CLI.md)
 - [File Handling Guidelines](FILE_HANDLING.md)
 - [Project Conventions](CONVENTIONS.md)
+
+## Documentation
+
+For detailed information on how to use BBai, please refer to our documentation:
+
+- [CLI Documentation](CLI.md): Learn how to use the BBai command-line interface for managing conversations, files, and more.
+- [API Documentation](API.md): Explore the BBai API endpoints for integrating BBai into your workflows or building custom tools.
+
+These guides provide comprehensive information on BBai's features, usage patterns, and best practices to help you make the most of this powerful tool.
