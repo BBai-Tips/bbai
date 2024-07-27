@@ -1,4 +1,4 @@
-# bbai API Documentation
+# BBai API Documentation
 
 This document provides details about the endpoints available in the bbai API.
 
@@ -7,20 +7,6 @@ This document provides details about the endpoints available in the bbai API.
 All endpoints are relative to: `http://localhost:<port>/api/v1`
 
 ## Endpoints
-
-### Generate Response
-- **POST** `/generate`
-  - Generate a response using an LLM.
-  - Body:
-    ```json
-    {
-      "prompt": "string",
-      "provider": "string",
-      "model": "string",
-      "system": "string"
-    }
-    ```
-  - Response: LLM-generated response
 
 ### API Status
 - **GET** `/status`
@@ -36,47 +22,58 @@ All endpoints are relative to: `http://localhost:<port>/api/v1`
 ### Conversation Management
 - **POST** `/conversation`
   - Start a new conversation.
+  - Request Body:
+    ```json
+    {
+      "prompt": "string",
+      "provider": "string" (optional),
+      "model": "string" (optional),
+      "startDir": "string"
+    }
+    ```
+  - Response: LLM-generated response
+
 - **GET** `/conversation/:id`
   - Get details of a specific conversation.
-- **PUT** `/conversation/:id`
-  - Update a conversation.
+  - Response: Conversation details (to be implemented)
+
+- **POST** `/conversation/:id`
+  - Continue an existing conversation.
+  - Request Body:
+    ```json
+    {
+      "prompt": "string",
+      "startDir": "string"
+    }
+    ```
+  - Response: LLM-generated response
+
 - **DELETE** `/conversation/:id`
   - Delete a conversation.
-- **POST** `/conversation/:id/message`
-  - Add a message to a conversation.
+  - Response: Deletion confirmation message
+
 - **POST** `/conversation/:id/clear`
   - Clear the history of a conversation.
+  - Response: Confirmation message
+
 - **POST** `/conversation/:id/undo`
   - Undo the last change in a conversation.
+  - Response: Confirmation message
 
 ### File Management
-- **POST** `/files`
+- **POST** `/conversation/:id/file`
   - Add a file to the conversation.
-- **DELETE** `/files/:id`
+  - Request Body: FormData with 'file' field
+  - Response: File addition confirmation
+
+- **DELETE** `/conversation/:id/file/:fileId`
   - Remove a file from the conversation.
-- **GET** `/files`
+  - Response: File removal confirmation
+
+- **GET** `/conversation/:id/files`
   - List files in the conversation.
+  - Response: Array of file names
 
-### Token Usage
-- **GET** `/tokens`
-  - Get current token usage.
+Note: Some endpoints like Token Usage, CLI Command, External Content, Logs, and Persistence are not currently implemented in the provided code and have been removed from this documentation.
 
-### CLI Command
-- **POST** `/cli`
-  - Run an arbitrary CLI command.
-
-### External Content
-- **POST** `/external`
-  - Load content from an external website.
-
-### Logs
-- **GET** `/logs`
-  - Get conversation logs.
-
-### Persistence
-- **POST** `/persist`
-  - Persist the current conversation to disk.
-- **POST** `/resume`
-  - Resume a conversation from disk.
-
-Note: Detailed request/response schemas and examples for each endpoint will be added in future updates.
+Detailed request/response schemas and examples for each endpoint will be added in future updates.
