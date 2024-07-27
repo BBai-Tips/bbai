@@ -5,6 +5,9 @@ on:
     branches:
       - main
 
+permissions:
+  contents: write   # This is required to create a release
+
 jobs:
   release:
     runs-on: ubuntu-latest
