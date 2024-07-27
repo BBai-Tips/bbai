@@ -7,7 +7,8 @@ const swaggerDefinition = {
 	info: {
 		title: 'bbai API',
 		version: config.version,
-		description: `BBai (pronounced b-b-aye) is an advanced AI-powered assistant designed to revolutionize how you work with text-based projects. Whether you're coding, writing, or managing complex documentation, BBai is here to help you "be better" at every step.`,
+		description:
+			`BBai (pronounced b-b-aye) is an advanced AI-powered assistant designed to revolutionize how you work with text-based projects. Whether you're coding, writing, or managing complex documentation, BBai is here to help you "be better" at every step.`,
 	},
 };
 const options = {
