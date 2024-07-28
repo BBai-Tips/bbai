@@ -170,7 +170,10 @@ export class ConversationPersistence {
 	async getAllConversations(): Promise<{ id: string; title: string }[]> {
 		if (await exists(this.conversationMappingPath)) {
 			const content = await Deno.readTextFile(this.conversationMappingPath);
-			const mapping = JSON.parse(content);
+			const mapping = JSON.parse(content) as {
+				idToTitle: Record<string, string>;
+				titleToId: Record<string, string>;
+			};
 			return Object.entries(mapping.idToTitle).map(([id, title]) => ({ id, title }));
 		}
 		return [];
