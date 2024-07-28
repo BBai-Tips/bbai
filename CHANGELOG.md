@@ -7,12 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+
+## [0.0.4-alpha] - 2024-07-28
+
+### Changed
+
 - Add workflow to automatically create a Github release and deploy to package managers
-- Create a function/class for a "fast" conversation with haiku (for git commit messages, semantic conversation titles, etc.)
-- Implement a repoInfo persistence solution
 - Implement git commit after patching
+- Create a class for a "fast" conversation with haiku (for git commit messages, semantic conversation titles, etc.)
 - Use haiku to create semantic names for conversations based on initial prompts
-- Create an 'add task' tool allowing Claude to give bbai a list of tasks to complete
+- Use haiku to write commit messages
 
 ## [0.0.3-alpha] - 2024-07-27
 

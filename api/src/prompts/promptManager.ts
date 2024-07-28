@@ -1,6 +1,6 @@
 import { join } from '@std/path';
 import { exists } from '@std/fs';
-import { parse as parseYaml } from 'yaml';
+import { parse as parseYaml } from '@std/yaml';
 import { stripIndents } from 'common-tags';
 import { loadConfig, readFileContent, resolveFilePath } from 'shared/dataDir.ts';
 import * as defaultPrompts from './defaultPrompts.ts';
@@ -41,7 +41,7 @@ export class PromptManager {
 			return null;
 		}
 
-		const isUserLevel = this.config.configSource === 'user';
+		//const isUserLevel = this.config.configSource === 'user';
 		const resolvedPath = await resolveFilePath(guidelinesPath);
 		return await readFileContent(resolvedPath);
 	}

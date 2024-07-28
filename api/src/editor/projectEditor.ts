@@ -4,15 +4,24 @@ import { ensureDir } from '@std/fs';
 import { searchFiles } from 'shared/fileListing.ts';
 
 import { LLMFactory } from '../llms/llmProvider.ts';
-import LLMConversation, { FileMetadata, ProjectInfo } from '../llms/conversation.ts';
+import LLMConversationInteraction, { FileMetadata, ProjectInfo } from '../llms/interactions/conversationInteraction.ts';
+import LLMChatInteraction from '../llms/interactions/chatInteraction.ts';
 import LLM from '../llms/providers/baseLLM.ts';
 import { logger } from 'shared/logger.ts';
 import { config } from 'shared/configManager.ts';
 import { PromptManager } from '../prompts/promptManager.ts';
-import { LLMProvider, LLMSpeakWithOptions, LLMSpeakWithResponse } from '../types.ts';
+import {
+	ConversationId,
+	LLMCallbacks,
+	LLMMessageContentPart,
+	LLMProvider,
+	LLMSpeakWithOptions,
+	LLMSpeakWithResponse,
+} from '../types.ts';
+import LLMMessage, { LLMMessageContentPartTextBlock } from '../llms/message.ts';
 import LLMTool from '../llms/tool.ts';
 import { ConversationPersistence } from '../utils/conversationPersistence.utils.ts';
-//import { GitUtils } from 'shared/git.ts';
+import { GitUtils } from 'shared/git.ts';
 import { createError, ErrorType } from '../utils/error.utils.ts';
 import { FileHandlingErrorOptions } from '../errors/error.ts';
 import { generateCtags, readCtagsFile } from 'shared/ctags.ts';
@@ -27,20 +36,54 @@ import {
 	removeFromBbaiDir,
 	writeToBbaiDir,
 } from 'shared/dataDir.ts';
+import { stripIndents } from 'common-tags';
 
 export class ProjectEditor {
-	private conversation: LLMConversation | null = null;
+	private conversation: LLMConversationInteraction | null = null;
+	private chat: LLMChatInteraction | null = null;
 	private promptManager: PromptManager;
 	private llmProvider!: LLM;
+	private llmProviderFast!: LLM;
 	public startDir: string;
 	public projectRoot: string;
 	private bbaiDir: string;
 	private statementCount: number = 0;
+	private patchedFiles: Set<string> = new Set();
+	private patchContents: Map<string, string> = new Map();
+	private formatCommand: string = 'deno task format'; // Default format command
 	private totalTurnCount: number = 0;
 	private _projectInfo: ProjectInfo = {
 		type: 'empty',
 		content: '',
 		tier: null,
+	};
+	private interactionCallbacks: LLMCallbacks = {
+		PROJECT_ROOT: () => this.projectRoot,
+		PROJECT_INFO: () => this.projectInfo,
+		PROJECT_FILE_CONTENT: async (filePath: string): Promise<string> => await this.readProjectFileContent(filePath),
+		PREPARE_SYSTEM_PROMPT: async (system: string): Promise<string> =>
+			this.conversation
+				? await this.conversation.prepareSytemPrompt(system)
+				: (new Promise((resolve) => resolve(system))),
+		PREPARE_MESSAGES: async (messages: LLMMessage[]): Promise<LLMMessage[]> =>
+			this.conversation
+				? await this.conversation.prepareMessages(messages)
+				: (new Promise((resolve) => resolve(messages))),
+		PREPARE_TOOLS: async (tools: LLMTool[]): Promise<LLMTool[]> =>
+			this.conversation
+				? await this.conversation.prepareTools(tools)
+				: (new Promise((resolve) => resolve(tools))),
+	};
+	private interactionCallbacksFast: LLMCallbacks = {
+		PROJECT_ROOT: () => this.projectRoot,
+		PROJECT_INFO: () => this.projectInfo,
+		PROJECT_FILE_CONTENT: (_filePath: string) => '',
+		PREPARE_SYSTEM_PROMPT: async (system: string): Promise<string> =>
+			this.chat ? await this.chat.prepareSytemPrompt(system) : (new Promise((resolve) => resolve(system))),
+		PREPARE_MESSAGES: async (messages: LLMMessage[]): Promise<LLMMessage[]> =>
+			this.chat ? await this.chat.prepareMessages(messages) : (new Promise((resolve) => resolve(messages))),
+		PREPARE_TOOLS: async (tools: LLMTool[]): Promise<LLMTool[]> =>
+			this.chat ? await this.chat.prepareTools(tools) : (new Promise((resolve) => resolve(tools))),
 	};
 
 	constructor(startDir: string) {
@@ -54,7 +97,8 @@ export class ProjectEditor {
 		try {
 			this.projectRoot = await this.getProjectRoot();
 			this.bbaiDir = await this.getBbaiDir();
-			this.llmProvider = LLMFactory.getProvider(this);
+			this.llmProvider = LLMFactory.getProvider(this.interactionCallbacks);
+			this.llmProviderFast = LLMFactory.getProvider(this.interactionCallbacksFast);
 		} catch (error) {
 			console.error('Failed to initialize LLMProvider:', error);
 			throw error;
@@ -139,6 +183,7 @@ export class ProjectEditor {
 			},
 		};
 
+		/*
 		const vectorSearchTool: LLMTool = {
 			name: 'vector_search',
 			description: 'Perform a vector search on the project files',
@@ -153,6 +198,7 @@ export class ProjectEditor {
 				required: ['query'],
 			},
 		};
+		 */
 
 		const applyPatchTool: LLMTool = {
 			name: 'apply_patch',
@@ -205,7 +251,8 @@ export class ProjectEditor {
 		return resolvedPath.startsWith(this.projectRoot);
 	}
 
-	private determineStorageLocation(filePath: string, content: string, source: 'tool' | 'user'): 'system' | 'message' {
+	/*
+	private determineStorageLocation(_filePath: string, content: string, source: 'tool' | 'user'): 'system' | 'message' {
 		if (source === 'tool') {
 			return 'message';
 		}
@@ -218,8 +265,37 @@ export class ProjectEditor {
 			return 'message';
 		}
 	}
+	 */
 
-	async speakWithLLM(prompt: string, provider?: LLMProvider, model?: string, conversationId?: string): Promise<any> {
+	async createConversation(): Promise<LLMConversationInteraction> {
+		const conversation = new LLMConversationInteraction(this.llmProvider);
+		await conversation.init();
+		return conversation;
+	}
+	async createChat(): Promise<LLMChatInteraction> {
+		const chat = new LLMChatInteraction(this.llmProviderFast);
+		await chat.init();
+		return chat;
+	}
+
+	private async generateConversationTitle(prompt: string): Promise<string> {
+		const chat = await this.createChat();
+		const titlePrompt = stripIndents`
+			Create a very short title (max 5 words) for a conversation based on the following prompt:
+			"${prompt.substring(0, 500)}${prompt.length > 500 ? '...' : ''}"
+			
+			Respond with the title only, no additional text.`;
+		const response = await chat.chat(titlePrompt);
+		const contentPart = response.messageResponse.answerContent[0] as LLMMessageContentPartTextBlock;
+		return contentPart.text.trim();
+	}
+
+	async speakWithLLM(
+		prompt: string,
+		provider?: LLMProvider,
+		model?: string,
+		conversationId?: ConversationId,
+	): Promise<any> {
 		logger.info(
 			`Starting speakWithLLM. Prompt: "${prompt.substring(0, 50)}...", ConversationId: ${conversationId}`,
 		);
@@ -234,6 +310,7 @@ export class ProjectEditor {
 				logger.debug(`ConversationPersistence initialized for ${conversationId}`);
 
 				this.conversation = await persistence.loadConversation(this.llmProvider);
+				//this.chat = await persistence.loadChat(this.llmProvider);
 				logger.info(`Loaded existing conversation: ${conversationId}`);
 
 				const metadata = await persistence.getMetadata();
@@ -260,8 +337,10 @@ export class ProjectEditor {
 					userDefinedContent: 'You are an AI assistant helping with code and project management.',
 				});
 
-				this.conversation = await this.llmProvider.createConversation();
-				//this.conversation.id = conversationId || LLMConversation.generateShortId();
+				this.conversation = await this.createConversation();
+				//this.chat = await this.createChat();
+
+				this.conversation.title = await this.generateConversationTitle(prompt);
 				this.conversation.baseSystem = systemPrompt;
 				if (model) this.conversation.model = model;
 
@@ -410,7 +489,7 @@ export class ProjectEditor {
 
 	private async handleToolUse(
 		tool: LLMAnswerToolUse,
-		response: unknown,
+		_response: unknown,
 	): Promise<string> {
 		let feedback = '';
 		switch (tool.toolName) {
@@ -459,7 +538,7 @@ export class ProjectEditor {
 		return await this.addFiles(fileNames, 'tool', toolUseId);
 	}
 
-	async handleVectorSearch(query: string, toolUseId: string): Promise<any> {
+	async handleVectorSearch(query: string, _toolUseId: string): Promise<any> {
 		return await this.searchEmbeddings(query);
 	}
 
@@ -469,7 +548,7 @@ export class ProjectEditor {
 		toolUseId: string,
 	): Promise<string[]> {
 		try {
-			const { files, error } = await searchFiles(this.projectRoot, pattern, file_pattern);
+			const { files, error: _error } = await searchFiles(this.projectRoot, pattern, file_pattern);
 
 			// Add tool result message
 			const resultMessage = `Found ${files.length} files matching the pattern "${pattern}"${
@@ -511,6 +590,10 @@ export class ProjectEditor {
 					if (!newFilePath) {
 						throw new Error('New file path is undefined');
 					}
+
+					this.patchedFiles.add(newFilePath);
+					this.patchContents.set(newFilePath, patch);
+
 					const newFileContent = patchPart.hunks.map((h) =>
 						h.lines.filter((l) => l[0] === '+').map((l) => l.slice(1)).join('\n')
 					).join('\n');
@@ -519,6 +602,8 @@ export class ProjectEditor {
 					await Deno.writeTextFile(newFilePath, newFileContent);
 					logger.info(`Created new file: ${patchPart.newFileName}`);
 				} else {
+					this.patchedFiles.add(filePath);
+					this.patchContents.set(filePath, patch);
 					// Existing file, apply patch as before
 					const currentContent = await Deno.readTextFile(fullFilePath);
 
@@ -547,6 +632,7 @@ export class ProjectEditor {
 				logger.info(`Saving conversation patch: ${this.conversation.id}`);
 				const persistence = new ConversationPersistence(this.conversation.id, this);
 				await persistence.logPatch(filePath, patch);
+				await this.createCommitAfterPatching();
 			}
 
 			// Add tool result message
@@ -571,6 +657,82 @@ export class ProjectEditor {
 			} as FileHandlingErrorOptions);
 		}
 	}
+
+	private async createCommitAfterPatching(): Promise<void> {
+		if (this.patchedFiles.size === 0) {
+			return;
+		}
+
+		const commitMessage = await this.generateCommitMessage();
+		const patchedFilesArray = Array.from(this.patchedFiles);
+
+		try {
+			await this.runFormatCommand();
+			await GitUtils.stageAndCommit(this.projectRoot, patchedFilesArray, commitMessage);
+			logger.info(`Created commit for patched files: ${patchedFilesArray.join(', ')}`);
+			this.patchedFiles.clear();
+			this.patchContents.clear();
+		} catch (error) {
+			logger.error(`Failed to create commit: ${error.message}`);
+		}
+	}
+
+	private async runFormatCommand(): Promise<void> {
+		try {
+			const process = Deno.run({
+				cmd: this.formatCommand.split(' '),
+				cwd: this.projectRoot,
+			});
+			const status = await process.status();
+			if (!status.success) {
+				throw new Error(`Format command exited with status ${status.code}`);
+			}
+		} catch (error) {
+			logger.error(`Failed to run format command: ${error.message}`);
+		}
+	}
+
+	protected createFilePatchXmlString(filePath: string, patchContent: string): string | null {
+		try {
+			logger.info('createFilePatchXmlString - filePath', filePath);
+			return `<file path="${filePath}">\n${patchContent}\n</file>`;
+		} catch (error) {
+			logger.error(`Error creating XML string for ${filePath}: ${error.message}`);
+		}
+		return null;
+	}
+
+	private async generateCommitMessage(): Promise<string> {
+		const patchedFilesArray = Array.from(this.patchedFiles);
+		const fileCount = patchedFilesArray.length;
+		const fileList = patchedFilesArray.map((file) => {
+			return `- ${file}`;
+		}).join('\n');
+		const filePatchList = patchedFilesArray.map((file) => {
+			const patchContent = this.patchContents.get(file) || '';
+			return this.createFilePatchXmlString(file, patchContent);
+		}).join('\n');
+
+		const chat = await this.createChat();
+		const prompt = stripIndents`
+			The following files were modified:
+			${filePatchList}
+			
+			Create a short git commit message summarizing the changes. Use past tense.`;
+		const response = await chat.chat(prompt);
+		const contentPart: LLMMessageContentPart = response.messageResponse
+			.answerContent[0] as LLMMessageContentPartTextBlock;
+		const msg = contentPart.text;
+
+		return stripIndents`${msg}
+			
+			Applied patches from bbai to ${fileCount} file${fileCount > 1 ? 's' : ''}
+
+			Files modified:
+			${fileList}
+			`;
+	}
+	// ... rest of the class ...
 
 	async addFiles(
 		fileNames: string[],
@@ -634,7 +796,7 @@ export class ProjectEditor {
 		return content;
 	}
 
-	async updateFile(filePath: string, content: string): Promise<void> {
+	async updateFile(filePath: string, _content: string): Promise<void> {
 		if (!this.isPathWithinProject(filePath)) {
 			throw createError(ErrorType.FileHandling, `Access denied: ${filePath} is outside the project directory`, {
 				filePath,

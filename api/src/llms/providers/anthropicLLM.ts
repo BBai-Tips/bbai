@@ -3,7 +3,7 @@ import type { ClientOptions } from 'anthropic';
 
 import { AnthropicModel, LLMCallbackType, LLMProvider } from '../../types.ts';
 import LLM from './baseLLM.ts';
-import LLMConversation from '../conversation.ts';
+import LLMInteraction from '../interactions/baseInteraction.ts';
 import LLMMessage, { LLMMessageContentParts } from '../message.ts';
 import type { LLMMessageContentPartTextBlock, LLMMessageContentPartToolResultBlock } from '../message.ts';
 import LLMTool from '../tool.ts';
@@ -12,7 +12,6 @@ import { ErrorType, LLMErrorOptions } from '../../errors/error.ts';
 import { logger } from 'shared/logger.ts';
 import { config } from 'shared/configManager.ts';
 import type {
-	LLMCallbackResult,
 	LLMCallbacks,
 	LLMProviderMessageRequest,
 	LLMProviderMessageResponse,
@@ -53,27 +52,25 @@ class AnthropicLLM extends LLM {
 	}
 
 	async prepareMessageParams(
-		conversation: LLMConversation,
+		interaction: LLMInteraction,
 		speakOptions?: LLMSpeakWithOptions,
 	): Promise<Anthropic.MessageCreateParams> {
-		let system = speakOptions?.system || conversation.baseSystem;
-
-		const projectInfo = await this.invoke(LLMCallbackType.PROJECT_INFO);
-		system = this.appendProjectInfoToSystem(system, projectInfo);
-		system = await this.appendFilesToSystem(system, conversation);
-
-		const messages = this.asProviderMessageType(
-			await this.hydrateMessages(
-				conversation,
-				speakOptions?.messages || conversation.getMessages(),
-			),
+		const system = await this.invoke(
+			LLMCallbackType.PREPARE_SYSTEM_PROMPT,
+			speakOptions?.system || interaction.baseSystem,
 		);
 
-		const tools = this.asProviderToolType(speakOptions?.tools || conversation.allTools());
+		const messages = this.asProviderMessageType(
+			await this.invoke(LLMCallbackType.PREPARE_MESSAGES, speakOptions?.messages || interaction.getMessages()),
+		);
 
-		const model: string = speakOptions?.model || conversation.model || AnthropicModel.CLAUDE_3_5_SONNET;
-		const maxTokens: number = speakOptions?.maxTokens || conversation.maxTokens;
-		const temperature: number = speakOptions?.temperature || conversation.temperature;
+		const tools = this.asProviderToolType(
+			await this.invoke(LLMCallbackType.PREPARE_TOOLS, speakOptions?.tools || interaction.allTools()),
+		);
+
+		const model: string = speakOptions?.model || interaction.model || AnthropicModel.CLAUDE_3_5_SONNET;
+		const maxTokens: number = speakOptions?.maxTokens || interaction.maxTokens;
+		const temperature: number = speakOptions?.temperature || interaction.temperature;
 
 		const messageParams: Anthropic.MessageCreateParams = {
 			messages,
@@ -90,7 +87,7 @@ class AnthropicLLM extends LLM {
 
 	/**
 	 * Run Anthropic service
-	 * @param conversation LLMConversation
+	 * @param interaction LLMInteraction
 	 * @param speakOptions LLMSpeakWithOptions
 	 * @returns Promise<LLMProviderMessageResponse> The response from Anthropic or an error
 	 */
@@ -168,8 +165,8 @@ class AnthropicLLM extends LLM {
 		}
 	}
 
-	protected modifySpeakWithConversationOptions(
-		conversation: LLMConversation,
+	protected modifySpeakWithInteractionOptions(
+		interaction: LLMInteraction,
 		speakOptions: LLMSpeakWithOptions,
 		validationFailedReason: string,
 	): void {
@@ -179,9 +176,9 @@ class AnthropicLLM extends LLM {
 
 		if (validationFailedReason.startsWith('Tool input validation failed')) {
 			// Prompt the model to provide a valid tool input
-			const prevMessage = conversation.getLastMessage();
+			const prevMessage = interaction.getLastMessage();
 			if (prevMessage && prevMessage.providerResponse && prevMessage.providerResponse.isTool) {
-				conversation.addMessage({
+				interaction.addMessage({
 					role: 'user',
 					//[TODO] we're assuming a single tool is provided, and we're assuming only a single tool is used by LLM
 					content: [
@@ -201,12 +198,12 @@ class AnthropicLLM extends LLM {
 				});
 			} else {
 				logger.warn(
-					`provider[${this.llmProviderName}] modifySpeakWithConversationOptions - Tool input validation failed, but no tool response found`,
+					`provider[${this.llmProviderName}] modifySpeakWithInteractionOptions - Tool input validation failed, but no tool response found`,
 				);
 			}
 		} else if (validationFailedReason === 'Tool exceeded max tokens') {
 			// Prompt the model to provide a smaller tool input
-			conversation.addMessageForUserRole({
+			interaction.addMessageForUserRole({
 				'type': 'text',
 				'text':
 					'The previous tool input was too large. Please provide a smaller answer, and I will keep asking for more until I have all of it',

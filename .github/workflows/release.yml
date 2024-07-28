@@ -5,6 +5,9 @@ on:
     branches:
       - main
 
+permissions:
+  contents: write   # This is required to create a release
+
 jobs:
   release:
     runs-on: ubuntu-latest
@@ -33,22 +36,23 @@ jobs:
           draft: false
           prerelease: false
 
-      - name: Update Homebrew formula
-        run: |
-          # Download the archive
-          curl -L -o bbai.tar.gz "https://github.com/BBai-Tips/bbai/archive/v${{ steps.get_version.outputs.VERSION }}.tar.gz"
-          
-          # Calculate SHA256
-          SHA256=$(shasum -a 256 bbai.tar.gz | awk '{print $1}')
-          
-          # Update the Homebrew formula
-          sed -i 's/version ".*"/version "${{ steps.get_version.outputs.VERSION }}"/' deployment/homebrew/bbai.rb
-          sed -i 's|url ".*"|url "https://github.com/BBai-Tips/bbai/archive/v${{ steps.get_version.outputs.VERSION }}.tar.gz"|' deployment/homebrew/bbai.rb
-          sed -i 's/sha256 ".*"/sha256 "'$SHA256'"/' deployment/homebrew/bbai.rb
-          
-          # Commit and push changes
-          git config --local user.email "action@github.com"
-          git config --local user.name "GitHub Action"
-          git add deployment/homebrew/bbai.rb
-          git commit -m "Update Homebrew formula to v${{ steps.get_version.outputs.VERSION }}"
-          git push
+## disabled until homebrew formula has been accepted
+#       - name: Update Homebrew formula
+#         run: |
+#           # Download the archive
+#           curl -L -o bbai.tar.gz "https://github.com/BBai-Tips/bbai/archive/v${{ steps.get_version.outputs.VERSION }}.tar.gz"
+#           
+#           # Calculate SHA256
+#           SHA256=$(shasum -a 256 bbai.tar.gz | awk '{print $1}')
+#           
+#           # Update the Homebrew formula
+#           sed -i 's/version ".*"/version "${{ steps.get_version.outputs.VERSION }}"/' deployment/homebrew/bbai.rb
+#           sed -i 's|url ".*"|url "https://github.com/BBai-Tips/bbai/archive/v${{ steps.get_version.outputs.VERSION }}.tar.gz"|' deployment/homebrew/bbai.rb
+#           sed -i 's/sha256 ".*"/sha256 "'$SHA256'"/' deployment/homebrew/bbai.rb
+#           
+#           # Commit and push changes
+#           git config --local user.email "action@github.com"
+#           git config --local user.name "GitHub Action"
+#           git add deployment/homebrew/bbai.rb
+#           git commit -m "Update Homebrew formula to v${{ steps.get_version.outputs.VERSION }}"
+#           git push

@@ -2,34 +2,37 @@ import { join } from '@std/path';
 import { ensureDir } from '@std/fs';
 import { format } from '@std/datetime';
 
+import type { ConversationId } from '../types.ts';
 import { getBbaiDir } from 'shared/dataDir.ts';
 import { logger } from 'shared/logger.ts';
 
 const ANSI_RESET = '\x1b[0m';
 const ANSI_RED = '\x1b[31m';
 const ANSI_GREEN = '\x1b[32m';
+const ANSI_CYAN = '\x1b[36m';
 const ANSI_YELLOW = '\x1b[33m';
 const ANSI_BLUE = '\x1b[34m';
 
-const INDENT = '  ';
+const INDENT = '│ ';
 const MAX_LINE_LENGTH = 120;
 const USER_ICON = '👤';
 const ASSISTANT_ICON = '🤖';
 const TOOL_ICON = '🔧';
+const AUXILIARY_ICON = '📎';
 const ERROR_ICON = '❌';
 
-export class ChatLogger {
+export class ConversationLogger {
 	private logFile!: string;
 
-	constructor(private startDir: string, private conversationId: string) {}
+	constructor(private startDir: string, private conversationId: ConversationId) {}
 
 	async initialize() {
-		logger.debug(`ChatLogger startDir: ${this.startDir}`);
+		logger.debug(`ConversationLogger startDir: ${this.startDir}`);
 		const bbaiDir = await getBbaiDir(this.startDir);
 		const logsDir = join(bbaiDir, 'cache', 'conversations', this.conversationId);
-		logger.debug(`ChatLogger: ${logsDir}`);
+		logger.debug(`ConversationLogger: ${logsDir}`);
 		await ensureDir(logsDir);
-		this.logFile = join(logsDir, 'chat.log');
+		this.logFile = join(logsDir, 'conversation.log');
 	}
 
 	private async appendToLog(content: string) {
@@ -40,19 +43,19 @@ export class ChatLogger {
 		return format(new Date(), "yyyy-MM-dd'T'HH:mm:ss.SSSXXX");
 	}
 
-	private wrapText(text: string, indent: string): string {
+	private wrapText(text: string, indent: string, tail: string): string {
 		const words = text.split(' ');
 		let line = '';
 		const lines = [];
 
 		for (const word of words) {
 			if ((line + word).length > MAX_LINE_LENGTH - indent.length) {
-				lines.push(indent + line.trim());
+				lines.push(indent + line.trim() + tail);
 				line = '';
 			}
 			line += word + ' ';
 		}
-		lines.push(indent + line.trim());
+		lines.push(indent + line.trim() + tail);
 
 		return lines.join('\n');
 	}
@@ -61,7 +64,7 @@ export class ChatLogger {
 		const timestamp = this.getTimestamp();
 		const header = `${color}╭─ ${icon} ${type} [${timestamp}]${ANSI_RESET}`;
 		const footer = `${color}╰${'─'.repeat(MAX_LINE_LENGTH - 2)}${ANSI_RESET}`;
-		const wrappedMessage = this.wrapText(message, INDENT);
+		const wrappedMessage = this.wrapText(message, `${color}${INDENT}`, `${ANSI_RESET}`);
 
 		const formattedMessage = `${header}\n${wrappedMessage}\n${footer}\n`;
 		await this.appendToLog(formattedMessage);
@@ -73,6 +76,10 @@ export class ChatLogger {
 
 	async logAssistantMessage(message: string) {
 		await this.logEntry(ASSISTANT_ICON, ANSI_BLUE, 'Assistant', message);
+	}
+
+	async logAuxiliaryMessage(message: string) {
+		await this.logEntry(AUXILIARY_ICON, ANSI_CYAN, 'Auxiliary', message);
 	}
 
 	async logToolUse(toolName: string, input: string) {

@@ -33,7 +33,7 @@ export const system: Prompt = {
 			}
 		}
 
-		const myPersonsName = config.myPersonsName || Deno.env.get('USER') || 'User';
+		const myPersonsName = config.myPersonsName;
 
 		return stripIndents`
 		  You are an AI assistant, an expert at a variety of coding and writing tasks. Your capabilities include:

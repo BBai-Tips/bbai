@@ -23,9 +23,16 @@ These dependencies can be easily installed using package managers like Homebrew 
 
 If you're on macOS, you can install BBai using Homebrew:
 
-```
-brew install bbai
-```
+1. Clone the BBai repository:
+   ```
+   git clone https://github.com/BBai-Tips/bbai.git
+   cd bbai
+   ```
+
+2. Install from the repo using Homebrew:
+   ```
+   brew install deployment/homebrew/bbai.rb
+   ```
 
 ### Option 2: Manual Installation
 

@@ -2,7 +2,7 @@ import { ensureDir, ensureFile } from '@std/fs';
 import { join } from '@std/path';
 import { ConfigManager } from 'shared/configManager.ts';
 import { logger } from 'shared/logger.ts';
-import { stringify as stringifyYaml } from 'yaml';
+import { stringify as stringifyYaml } from '@std/yaml';
 
 export async function createBbaiDir(startDir: string): Promise<void> {
 	const bbaiDir = join(startDir, '.bbai');

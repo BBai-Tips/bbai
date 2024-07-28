@@ -1,6 +1,6 @@
 import { ensureDir, exists } from '@std/fs';
 import { join, resolve } from '@std/path';
-import { parse as parseYaml } from 'yaml';
+import { parse as parseYaml } from '@std/yaml';
 import { GitUtils } from './git.utils.ts';
 import { ConfigManager } from 'shared/configManager.ts';
 

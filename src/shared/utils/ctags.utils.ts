@@ -83,6 +83,7 @@ async function generateCtagsTier(
 
 		const content = await Deno.readTextFile(ctagsFilePath);
 		const tokenCount = countTokens(content);
+		logger.info(`Created tags for ${tier} using ${tokenCount} tokens - args: ${TIERS[tier].args.join(' ')}`);
 		return tokenCount <= tokenLimit;
 	} catch (error) {
 		logger.error(`Error executing ctags command: ${error.message}`);

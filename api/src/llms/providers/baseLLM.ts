@@ -1,10 +1,8 @@
-import { join } from '@std/path';
 import Ajv from 'ajv';
 
 import { LLMCallbackType, LLMProvider as LLMProviderEnum } from '../../types.ts';
 import type {
 	LLMCallbacks,
-	LLMProviderMessageMeta,
 	LLMProviderMessageRequest,
 	LLMProviderMessageResponse,
 	LLMSpeakWithOptions,
@@ -16,8 +14,7 @@ import LLMMessage from '../message.ts';
 import type { LLMMessageContentPart } from '../message.ts';
 //import LLMTool from '../tool.ts';
 import type { LLMToolInputSchema } from '../tool.ts';
-import LLMConversation from '../conversation.ts';
-import type { ProjectInfo } from '../conversation.ts';
+import LLMInteraction from '../interactions/baseInteraction.ts';
 import { logger } from 'shared/logger.ts';
 import { config } from 'shared/configManager.ts';
 import { ErrorType, LLMErrorOptions } from '../../errors/error.ts';
@@ -27,8 +24,6 @@ import kv from '../../utils/kv.utils.ts';
 import { tokenUsageManager } from '../../utils/tokenUsage.utils.ts';
 
 const ajv = new Ajv();
-
-type LLMCallbackTypeKey = typeof LLMCallbackType[keyof typeof LLMCallbackType];
 
 class LLM {
 	public llmProviderName: LLMProviderEnum = LLMProviderEnum.ANTHROPIC;
@@ -49,109 +44,28 @@ class LLM {
 	}
 
 	async prepareMessageParams(
-		conversation: LLMConversation,
-		speakOptions?: LLMSpeakWithOptions,
+		_interaction: LLMInteraction,
+		_speakOptions?: LLMSpeakWithOptions,
 	): Promise<object> {
 		throw new Error("Method 'prepareMessageParams' must be implemented.");
 	}
 
 	async speakWith(
-		messageParams: LLMProviderMessageRequest,
+		_messageParams: LLMProviderMessageRequest,
 	): Promise<LLMSpeakWithResponse> {
 		throw new Error("Method 'speakWith' must be implemented.");
 	}
 
-	protected checkStopReason(llmProviderMessageResponse: LLMProviderMessageResponse): void {
+	protected checkStopReason(_llmProviderMessageResponse: LLMProviderMessageResponse): void {
 		throw new Error("Method 'checkStopReason' must be implemented.");
 	}
 
-	protected modifySpeakWithConversationOptions(
-		conversation: LLMConversation,
-		speakOptions: LLMSpeakWithOptions,
-		validationFailedReason: string,
+	protected modifySpeakWithInteractionOptions(
+		_interaction: LLMInteraction,
+		_speakOptions: LLMSpeakWithOptions,
+		_validationFailedReason: string,
 	): void {
 		// Default implementation, can be overridden by subclasses
-	}
-
-	async createConversation(): Promise<LLMConversation> {
-		const conversation = new LLMConversation(this);
-		await conversation.init();
-		return conversation;
-	}
-
-	protected async createFileXmlString(filePath: string): Promise<string | null> {
-		try {
-			logger.info('createFileXmlString - filePath', filePath);
-			const content = await this.invoke(LLMCallbackType.PROJECT_FILE_CONTENT, filePath);
-
-			const metadata = {
-				size: new TextEncoder().encode(content).length,
-				lastModified: new Date(),
-			};
-			return `<file path="${filePath}" size="${metadata.size}" last_modified="${metadata.lastModified.toISOString()}">\n${content}\n</file>`;
-		} catch (error) {
-			logger.error(`Error creating XML string for ${filePath}: ${error.message}`);
-			//throw createError(ErrorType.FileHandling, `Failed to create xmlString for ${filePath}`, {
-			//	filePath,
-			//	operation: 'write',
-			//} as FileHandlingErrorOptions);
-		}
-		return null;
-	}
-
-	protected appendProjectInfoToSystem(
-		system: string,
-		projectInfo: ProjectInfo,
-	): string {
-		if (projectInfo.type === 'ctags') {
-			system += `\n\n<project-details>\n<ctags>\n${projectInfo.content}\n</ctags>\n</project-details>`;
-		} else if (projectInfo.type === 'file-listing') {
-			system +=
-				`\n\n<project-details>\n<file-listing>\n${projectInfo.content}\n</file-listing>\n</project-details>`;
-		}
-		return system;
-	}
-
-	protected async appendFilesToSystem(system: string, conversation: LLMConversation): Promise<string> {
-		for (const filePath of conversation.getSystemPromptFiles()) {
-			const fileXml = await this.createFileXmlString(filePath);
-			if (fileXml) {
-				system += `\n\n${fileXml}`;
-			}
-		}
-		return system;
-	}
-
-	protected async hydrateMessages(conversation: LLMConversation, messages: LLMMessage[]): Promise<LLMMessage[]> {
-		const processContentPart = async <T extends LLMMessageContentPart>(contentPart: T): Promise<T> => {
-			if (contentPart.type === 'text' && contentPart.text.startsWith('File added:')) {
-				const filePath = contentPart.text.split(': ')[1].trim();
-				logger.error(`Hydrating message for file: ${filePath} - extracted from: ${contentPart.text}`);
-
-				const fileXml = await this.createFileXmlString(filePath);
-				return fileXml ? { ...contentPart, text: fileXml } as T : contentPart;
-			}
-			if (contentPart.type === 'tool_result' && Array.isArray(contentPart.content)) {
-				const updatedContent = await Promise.all(contentPart.content.map(processContentPart));
-				return { ...contentPart, content: updatedContent } as T;
-			}
-			return contentPart;
-		};
-
-		const processMessage = async (message: LLMMessage): Promise<LLMMessage | null> => {
-			if (!message || typeof message !== 'object') {
-				logger.error(`Invalid message encountered: ${JSON.stringify(message)}`);
-				return null;
-			}
-			if (message.role === 'user') {
-				const updatedContent = await Promise.all(message.content.map(processContentPart));
-				return { ...message, content: updatedContent };
-			}
-			return message;
-		};
-
-		const processedMessages = await Promise.all(messages.map(processMessage));
-		return processedMessages.filter((message): message is LLMMessage => message !== null);
 	}
 
 	protected createRequestCacheKey(
@@ -163,13 +77,13 @@ class LLM {
 	}
 
 	public async speakWithPlus(
-		conversation: LLMConversation,
+		interaction: LLMInteraction,
 		speakOptions?: LLMSpeakWithOptions,
 	): Promise<LLMSpeakWithResponse> {
 		//const start = Date.now();
 
 		const llmProviderMessageRequest = await this.prepareMessageParams(
-			conversation,
+			interaction,
 			speakOptions,
 		) as LLMProviderMessageRequest;
 
@@ -222,10 +136,10 @@ class LLM {
 							ErrorType.LLM,
 							`Error calling LLM service: ${llmSpeakWithResponse.messageResponse.providerMessageResponseMeta.statusText}`,
 							{
-								model: conversation.model,
+								model: interaction.model,
 								provider: this.llmProviderName,
 								args: { status },
-								conversationId: conversation.id,
+								conversationId: interaction.id,
 							} as LLMErrorOptions,
 						);
 					}
@@ -237,10 +151,10 @@ class LLM {
 						ErrorType.LLM,
 						`Unexpected error calling LLM service: ${error.message}`,
 						{
-							model: conversation.model,
+							model: interaction.model,
 							provider: this.llmProviderName,
 							args: { reason: error },
-							conversationId: conversation.id,
+							conversationId: interaction.id,
 						} as LLMErrorOptions,
 					);
 				}
@@ -251,10 +165,10 @@ class LLM {
 					ErrorType.LLM,
 					'Max retries reached when calling LLM service.',
 					{
-						model: conversation.model,
+						model: interaction.model,
 						provider: this.llmProviderName,
 						args: { retries: maxRetries },
-						conversationId: conversation.id,
+						conversationId: interaction.id,
 					} as LLMErrorOptions,
 				);
 			}
@@ -286,7 +200,7 @@ class LLM {
 				undefined,
 				llmSpeakWithResponse.messageResponse,
 			);
-			conversation.addMessage(assistantMessage);
+			interaction.addMessage(assistantMessage);
 
 			llmSpeakWithResponse.messageResponse.fromCache = false;
 
@@ -300,7 +214,7 @@ class LLM {
 	}
 
 	public async speakWithRetry(
-		conversation: LLMConversation,
+		interaction: LLMInteraction,
 		speakOptions?: LLMSpeakWithOptions,
 	): Promise<LLMSpeakWithResponse> {
 		const maxRetries = this.maxSpeakRetries;
@@ -315,7 +229,7 @@ class LLM {
 			retries++;
 			totalProviderRequests++;
 			try {
-				llmSpeakWithResponse = await this.speakWithPlus(conversation, retrySpeakOptions);
+				llmSpeakWithResponse = await this.speakWithPlus(interaction, retrySpeakOptions);
 
 				totalTokenUsage.inputTokens += llmSpeakWithResponse.messageResponse.usage.inputTokens;
 				totalTokenUsage.outputTokens += llmSpeakWithResponse.messageResponse.usage.outputTokens;
@@ -323,7 +237,7 @@ class LLM {
 
 				const validationFailedReason = this.validateResponse(
 					llmSpeakWithResponse.messageResponse,
-					conversation,
+					interaction,
 					retrySpeakOptions.validateResponseCallback,
 				);
 
@@ -331,7 +245,7 @@ class LLM {
 					break; // Success, break out of the loop
 				}
 
-				this.modifySpeakWithConversationOptions(conversation, retrySpeakOptions, validationFailedReason);
+				this.modifySpeakWithInteractionOptions(interaction, retrySpeakOptions, validationFailedReason);
 
 				failReason = `validation: ${validationFailedReason}`;
 			} catch (error) {
@@ -348,8 +262,8 @@ class LLM {
 			await new Promise((resolve) => setTimeout(resolve, 1000));
 		}
 
-		conversation.updateTotals(totalTokenUsage, totalProviderRequests);
-		//await conversation.save(); // Persist the conversation even if all retries failed
+		interaction.updateTotals(totalTokenUsage, totalProviderRequests);
+		//await interaction.save(); // Persist the interaction even if all retries failed
 
 		if (llmSpeakWithResponse) {
 			return llmSpeakWithResponse;
@@ -362,17 +276,17 @@ class LLM {
 			ErrorType.LLM,
 			'Request failed after multiple retries.',
 			{
-				model: conversation.model,
+				model: interaction.model,
 				provider: this.llmProviderName,
 				args: { reason: failReason, retries: { max: maxRetries, current: retries } },
-				conversationId: conversation.id,
+				conversationId: interaction.id,
 			} as LLMErrorOptions,
 		);
 	}
 
 	protected validateResponse(
 		llmProviderMessageResponse: LLMProviderMessageResponse,
-		conversation: LLMConversation,
+		interaction: LLMInteraction,
 		validateCallback?: LLMValidateResponseCallback,
 	): string | null {
 		if (
@@ -381,7 +295,7 @@ class LLM {
 			llmProviderMessageResponse.toolsUsed.length > 0
 		) {
 			for (const toolUse of llmProviderMessageResponse.toolsUsed) {
-				const tool = conversation.getTool(toolUse.toolName ?? '');
+				const tool = interaction.getTool(toolUse.toolName ?? '');
 				//logger.error(`Validating Tool: ${toolUse.toolName}`);
 				if (tool) {
 					if (llmProviderMessageResponse.messageStop.stopReason === 'max_tokens') {
@@ -405,7 +319,7 @@ class LLM {
 		}
 
 		if (validateCallback) {
-			const validationFailed = validateCallback(llmProviderMessageResponse, conversation);
+			const validationFailed = validateCallback(llmProviderMessageResponse, interaction);
 			if (validationFailed) {
 				logger.error(`Callback validation failed: ${validationFailed}`);
 				return validationFailed;
