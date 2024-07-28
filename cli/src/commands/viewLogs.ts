@@ -3,7 +3,7 @@ import { logger } from 'shared/logger.ts';
 import { config } from 'shared/configManager.ts';
 import { getBbaiDir } from 'shared/dataDir.ts';
 import { join } from '@std/path';
-import { ensureDir } from '@std/fs';
+//import { ensureDir } from '@std/fs';
 
 export const viewLogs = new Command()
 	.name('logs')
@@ -20,7 +20,7 @@ export const viewLogs = new Command()
 
 		const bbaiDir = await getBbaiDir(Deno.cwd());
 		const logFile = !options.api && options.id
-			? join('cache', 'conversations', options.id, 'chat.log')
+			? join('cache', 'conversations', options.id, 'conversation.log')
 			: config.logFile ?? 'api.log';
 		const logFilePath = join(bbaiDir, logFile);
 

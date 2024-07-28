@@ -1,4 +1,4 @@
-import LLMConversation from '../llms/conversation.ts';
+import LLMInteraction from '../llms/interactions/baseInteraction.ts';
 
 import LLMTool from '../llms/tool.ts';
 export type { LLMToolInputSchema } from '../llms/tool.ts';
@@ -175,7 +175,7 @@ export interface LLMProviderMessageMeta {
 
 export type LLMValidateResponseCallback = (
 	llmProviderMessageResponse: LLMProviderMessageResponse,
-	conversation: LLMConversation,
+	conversation: LLMInteraction,
 ) => string | null;
 
 export interface LLMSpeakWithOptions {
@@ -197,6 +197,9 @@ export enum LLMCallbackType {
 	PROJECT_ROOT = 'PROJECT_ROOT',
 	PROJECT_INFO = 'PROJECT_INFO',
 	PROJECT_FILE_CONTENT = 'PROJECT_FILE_CONTENT',
+	PREPARE_SYSTEM_PROMPT = 'PREPARE_SYSTEM_PROMPT',
+	PREPARE_MESSAGES = 'PREPARE_MESSAGES',
+	PREPARE_TOOLS = 'PREPARE_TOOLS',
 }
 export type LLMCallbackResult<T> = T extends (...args: any[]) => Promise<infer R> ? R : T;
 export type LLMCallbacks = {

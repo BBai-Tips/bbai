@@ -3,7 +3,7 @@ import { ms } from 'ms';
 
 import { LLMProvider, OpenAIModel } from '../../types.ts';
 import LLM from './baseLLM.ts';
-import LLMConversation from '../conversation.ts';
+import LLMInteraction from '../interactions/baseInteraction.ts';
 import LLMMessage, { LLMMessageContentPart, LLMMessageContentParts } from '../message.ts';
 import type { LLMMessageContentPartTextBlock, LLMMessageContentPartToolUseBlock } from '../message.ts';
 import LLMTool from '../tool.ts';
@@ -11,14 +11,19 @@ import { createError } from '../../utils/error.utils.ts';
 import { ErrorType, LLMErrorOptions } from '../../errors/error.ts';
 import { logger } from 'shared/logger.ts';
 import { config } from 'shared/configManager.ts';
-import type { LLMProviderMessageRequest, LLMProviderMessageResponse, LLMSpeakWithOptions } from '../../types.ts';
-import { ProjectEditor } from '../../editor/projectEditor.ts';
+import type {
+	LLMCallbacks,
+	LLMProviderMessageRequest,
+	LLMProviderMessageResponse,
+	LLMSpeakWithOptions,
+	LLMSpeakWithResponse,
+} from '../../types.ts';
 
 class OpenAILLM extends LLM {
 	private openai!: OpenAI;
 
-	constructor(projectEditor: ProjectEditor) {
-		super(projectEditor);
+	constructor(callbacks: LLMCallbacks) {
+		super(callbacks);
 		this.llmProviderName = LLMProvider.OPENAI;
 		this.initializeOpenAIClient();
 	}
@@ -105,15 +110,15 @@ class OpenAILLM extends LLM {
 	}
 
 	public async prepareMessageParams(
-		conversation: LLMConversation,
+		interaction: LLMInteraction,
 		speakOptions?: LLMSpeakWithOptions,
 	): Promise<OpenAI.Chat.ChatCompletionCreateParams> {
-		const messages = this.asProviderMessageType(speakOptions?.messages || conversation.getMessages());
-		const tools = this.asProviderToolType(speakOptions?.tools || conversation.allTools());
-		const system: string = speakOptions?.system || conversation.baseSystem;
-		const model: string = speakOptions?.model || conversation.model || OpenAIModel.GPT_4o;
-		const maxTokens: number = speakOptions?.maxTokens || conversation.maxTokens;
-		const temperature: number = speakOptions?.temperature || conversation.temperature;
+		const messages = this.asProviderMessageType(speakOptions?.messages || interaction.getMessages());
+		const tools = this.asProviderToolType(speakOptions?.tools || interaction.allTools());
+		const system: string = speakOptions?.system || interaction.baseSystem;
+		const model: string = speakOptions?.model || interaction.model || OpenAIModel.GPT_4o;
+		const maxTokens: number = speakOptions?.maxTokens || interaction.maxTokens;
+		const temperature: number = speakOptions?.temperature || interaction.temperature;
 		const systemMessage: OpenAI.Chat.ChatCompletionSystemMessageParam = { role: 'system', content: system };
 
 		const messageParams: OpenAI.Chat.ChatCompletionCreateParams = {
@@ -131,13 +136,13 @@ class OpenAILLM extends LLM {
 
 	/**
 	 * Run OpenAI service
-	 * @param conversation LLMConversation
+	 * @param interaction LLMInteraction
 	 * @param speakOptions LLMSpeakWithOptions
 	 * @returns Promise<LLMProviderMessageResponse> The response from OpenAI or an error
 	 */
 	public async speakWith(
 		messageParams: LLMProviderMessageRequest,
-	): Promise<LLMProviderMessageResponse> {
+	): Promise<LLMSpeakWithResponse> {
 		try {
 			logger.debug('llms-openai-speakWith-messageParams', JSON.stringify(messageParams, null, 2));
 
@@ -166,6 +171,7 @@ class OpenAILLM extends LLM {
 				role: openaiMessage.choices[0].message.role,
 				model: openaiMessage.model,
 				fromCache: false,
+				timestamp: new Date().toISOString(),
 				answerContent: this.asApiMessageContentPartsType(openaiMessage.choices),
 				isTool: openaiMessage.choices[0].finish_reason === 'tool_calls',
 				messageStop: {
@@ -197,7 +203,7 @@ class OpenAILLM extends LLM {
 			};
 			logger.debug('llms-openai-messageResponse', messageResponse);
 
-			return messageResponse;
+			return { messageResponse, messageMeta: { system: messageParams.system } };
 		} catch (err) {
 			logger.error('Error calling OpenAI API', err);
 			throw createError(
@@ -211,16 +217,16 @@ class OpenAILLM extends LLM {
 		}
 	}
 
-	protected modifySpeakWithConversationOptions(
-		conversation: LLMConversation,
+	protected modifySpeakWithInteractionOptions(
+		interaction: LLMInteraction,
 		speakOptions: LLMSpeakWithOptions,
 		validationFailedReason: string,
 	): void {
 		if (validationFailedReason.startsWith('Tool input validation failed')) {
 			// Prompt the model to provide a valid tool input
-			const prevMessage = conversation.getLastMessage();
+			const prevMessage = interaction.getLastMessage();
 			if (prevMessage && prevMessage.providerResponse && prevMessage.providerResponse.isTool) {
-				conversation.addMessage({
+				interaction.addMessage({
 					//[TODO] we're assuming a single tool is provided, and we're assuming only a single tool is used by LLM
 					role: 'tool',
 					tool_call_id: prevMessage.providerResponse.toolsUsed![0].toolUseId,
@@ -234,7 +240,7 @@ class OpenAILLM extends LLM {
 				});
 			} else {
 				logger.warn(
-					`provider[${this.llmProviderName}] modifySpeakWithConversationOptions - Tool input validation failed, but no tool response found`,
+					`provider[${this.llmProviderName}] modifySpeakWithInteractionOptions - Tool input validation failed, but no tool response found`,
 				);
 			}
 		} else if (validationFailedReason === 'Empty answer') {

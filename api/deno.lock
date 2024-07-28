@@ -45,6 +45,7 @@
       "jsr:@std/path@^0.225.1": "jsr:@std/path@0.225.2",
       "jsr:@std/testing@^0.224.0": "jsr:@std/testing@0.224.0",
       "jsr:@std/ulid@^0.224.1": "jsr:@std/ulid@0.224.1",
+      "jsr:@std/yaml@^0.224.0": "jsr:@std/yaml@0.224.3",
       "npm:@anthropic-ai/tokenizer": "npm:@anthropic-ai/tokenizer@0.0.4",
       "npm:@types/node": "npm:@types/node@18.16.19",
       "npm:path-to-regexp@6.2.1": "npm:path-to-regexp@6.2.1",
@@ -245,6 +246,9 @@
       },
       "@std/ulid@0.224.1": {
         "integrity": "4de06fdb030ff3990b1b0344e330373c11ce6051ac449fc435667a485a6723fa"
+      },
+      "@std/yaml@0.224.3": {
+        "integrity": "9da1ed0094f42ba24570b4d88a094b44a793ac7f2bc085c1939d3ac7e11cc0bb"
       }
     },
     "npm": {

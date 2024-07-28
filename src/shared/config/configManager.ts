@@ -1,4 +1,4 @@
-import { parse as parseYaml, stringify as stringifyYaml } from 'yaml';
+import { parse as parseYaml, stringify as stringifyYaml } from '@std/yaml';
 import { ensureDir } from '@std/fs';
 import { join } from '@std/path';
 import { stripIndent } from 'common-tags';

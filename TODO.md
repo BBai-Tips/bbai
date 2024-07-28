@@ -11,22 +11,50 @@
 4. Don't create tags file in .bbai - either save with conversation or use the persistence solution
 
 ## Patching and Git Integration
-1. Create new files when patch file has /dev/null as the source
-2. Implement git commit after patching
 3. Modify apply_patch tool to accept a list of file names and patches
-4. Use haiku to write commit messages
+5. Create a new tool to add files rather than update files
+6. For new files in patches, check for paths starting with `b/` and strip it
+7. Add config option to create new branch when starting a conversation
+8. Implement a way to "end" conversation which merges branch back to original
 
-## Conversation Management
-1. Use haiku to create semantic names for conversations based on initial prompts
-2. Use semantic names for directories in cache, while maintaining IDs for passing around
-3. Create a map of conversation IDs and names to allow user input of either
 
 ## Task Management
 1. Create an 'add task' tool allowing Claude to give bbai a list of tasks to complete
 2. Implement each task as a new conversation to complete the task
 
-## Utility Functions
-1. Create a function/class for a "fast" conversation with haiku (for git commit messages, semantic conversation titles, etc.)
+## System Prompt and Project Info
+1. Update system prompt to give a clear explanation about using project-info to choose files rather than search_files
+2. Move project-info towards the beginning of the system prompt
+3. Create a high-level system prompt template to combine baseSystem with project info and files added
+4. Update system prompt to further clarify that assistant is talking to both bbai and user:
+   - Responses to tool use (e.g., "Patch applied successfully") should be directed to bbai and wrapped in tags for parsing
+   - Everything not inside <bbai> tags will be shown to user as part of the conversation
+   - 'User' message showing 'tool result' should be clearly separate from rest of the conversation
+
+## Logging and Output
+1. Refactor conversation logging:
+   - Write human-friendly and machine-parseable output to chat log
+   - Allow users to tail the chat log directly for as-is viewing
+   - Use `bbai logs` for fancy formatting
+   - Make `bbai logs` check the TERM width and use that for max width
+2. Implement terse and verbose options for conversation log:
+   - Verbose option to show results of tool use and details such as contents of patches being applied
+   - Implement fancy formatting for showing patches, similar to git diff output
+
+## Configuration and Customization
+1. Make the 'post-run' script (currently hard-coded for deno format) a user config option
+2. Implement a safety switch (e.g., allow_dangerous_user_scripts) for potentially dangerous user scripts
+3. Create a meta tool to choose which toolset to load (e.g., different tools for coding projects vs. creative writing)
+
+## Improvements and Fixes
+1. Fix ctags multi-tier functionality:
+   - Currently goes through all tiers and says all are too big
+2. Create a 'chat' class similar to LLMConversation:
+   - designed for quick (fast) LLM conversations, eg to ask for a git message or for the 'title' of a conversation
+3. Update `bbai chat` to support proper readline text entry rather than just typing on stdin
+4. Implement conversation state management:
+   - Keep state of conversations with a currently active 'speak with'
+   - Use KV (or similar) to create "conversation locking" in ProjectEditor to allow only a single active conversation
 
 ## Completed Tasks
 1. ✓ `searchFiles` is now using exclude patterns read from the file instead of file names for exclude pattern
@@ -43,3 +71,22 @@
     - Start a prompt for user input if nothing is piped in
     - End user input with '\n.\n' (a dot with a leading blank line)
 11. ✓ Fix run loop to continue as long as needed (within reason), allowing for multiple tool turns
+
+## Utility Functions
+1. ✓ Create a function/class for a "fast" conversation with haiku (for git commit messages, semantic conversation titles, etc.)
+
+## Conversation Management
+1. ✓ Use haiku to create semantic names for conversations based on initial prompts
+2. ✓ Use semantic names for directories in cache, while maintaining IDs for passing around
+3. ✓ Create a map of conversation IDs and names to allow user input of either
+
+## Patching and Git Integration
+1. ✓ Create new files when patch file has /dev/null as the source [done]
+2. ✓ Implement git commit after patching [done]
+4. ✓ Use haiku to write commit messages
+
+## For CHANGELOG
+
+- Implement a repoInfo persistence solution
+- Create an 'add task' tool allowing Claude to give bbai a list of tasks to complete
+

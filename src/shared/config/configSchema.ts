@@ -18,6 +18,7 @@ export interface ConfigSchema {
 	logFile?: string;
 	logLevel: 'debug' | 'info' | 'warn' | 'error';
 	myPersonsName?: string;
+	myAssistantsName?: string;
 	version: string;
 }
 
@@ -35,6 +36,8 @@ export const defaultConfig: ConfigSchema = {
 	},
 	logFile: 'api.log',
 	logLevel: 'info',
+	myPersonsName: Deno.env.get('USER') || 'User',
+	myAssistantsName: 'Claude',
 	version: 'unknown', // This will be overwritten by the actual version from version.ts
 };
 

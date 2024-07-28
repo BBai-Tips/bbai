@@ -1,14 +1,14 @@
 import { ensureDir, exists } from '@std/fs';
 import { join } from '@std/path';
-import LLMConversation from '../llms/conversation.ts';
-import LLMMessage, { LLMMessageProviderResponse } from '../llms/message.ts';
+import LLMConversationInteraction from '../llms/interactions/conversationInteraction.ts';
 import LLM from '../llms/providers/baseLLM.ts';
+import type { ConversationId } from '../types.ts';
 import { logger } from 'shared/logger.ts';
 import { config } from 'shared/configManager.ts';
 import { createError, ErrorType } from './error.utils.ts';
 import { FileHandlingErrorOptions } from '../errors/error.ts';
 import { ProjectEditor } from '../editor/projectEditor.ts';
-import { ProjectInfo } from '../llms/conversation.ts';
+import { ProjectInfo } from '../llms/interactions/conversationInteraction.ts';
 import { stripIndents } from 'common-tags';
 
 export class ConversationPersistence {
@@ -16,10 +16,11 @@ export class ConversationPersistence {
 	private metadataPath!: string;
 	private messagesPath!: string;
 	private patchLogPath!: string;
+	private conversationMappingPath!: string;
 	private filesDir!: string;
 	private initialized: boolean = false;
 
-	constructor(private conversationId: string, private projectEditor: ProjectEditor) {
+	constructor(private conversationId: ConversationId, private projectEditor: ProjectEditor) {
 		//this.ensureInitialized();
 	}
 
@@ -32,18 +33,19 @@ export class ConversationPersistence {
 
 	async init(): Promise<void> {
 		const bbaiDir = await this.projectEditor.getBbaiDir();
-		const conversationsDir = join(bbaiDir, 'cache', 'conversations');
-		this.conversationDir = join(conversationsDir, this.conversationId);
+		const conversationDir = join(bbaiDir, 'cache', 'conversations');
+		this.conversationDir = join(conversationDir, this.conversationId);
 		await ensureDir(this.conversationDir);
 
 		this.metadataPath = join(this.conversationDir, 'metadata.json');
 		this.messagesPath = join(this.conversationDir, 'messages.jsonl');
 		this.patchLogPath = join(this.conversationDir, 'patches.jsonl');
+		this.conversationMappingPath = join(this.conversationDir, 'conversation_mapping.json');
 		this.filesDir = join(this.conversationDir, 'files');
 		await ensureDir(this.filesDir);
 	}
 
-	static async listConversations(options: {
+	static async listConversations(_options: {
 		page: number;
 		pageSize: number;
 		startDate?: Date;
@@ -55,12 +57,14 @@ export class ConversationPersistence {
 		return [];
 	}
 
-	async saveConversation(conversation: LLMConversation): Promise<void> {
+	async saveConversation(conversation: LLMConversationInteraction): Promise<void> {
 		try {
 			await this.ensureInitialized();
+			await this.updateConversationMapping(conversation.id, conversation.title);
 
 			const metadata = {
 				id: conversation.id,
+				title: conversation.title,
 				llmProviderName: conversation.llmProviderName,
 				system: conversation.baseSystem,
 				model: conversation.model,
@@ -115,6 +119,64 @@ export class ConversationPersistence {
 			logger.error(`Error saving conversation: ${error.message}`);
 			this.handleSaveError(error, this.metadataPath);
 		}
+	}
+
+	private async updateConversationMapping(id: string, title: string): Promise<void> {
+		let mapping: {
+			idToTitle: Record<string, string>;
+			titleToId: Record<string, string>;
+		} = {
+			idToTitle: {},
+			titleToId: {},
+		};
+
+		if (await exists(this.conversationMappingPath)) {
+			const content = await Deno.readTextFile(this.conversationMappingPath);
+			mapping = JSON.parse(content);
+		}
+
+		// Update both mappings
+		mapping.idToTitle[id] = title;
+		mapping.titleToId[title] = id;
+
+		await Deno.writeTextFile(
+			this.conversationMappingPath,
+			JSON.stringify(mapping, null, 2),
+		);
+
+		logger.info(
+			`Updated conversation mapping for conversation: ${id} with title: ${title}`,
+		);
+	}
+
+	async getConversationIdByTitle(title: string): Promise<string | null> {
+		if (await exists(this.conversationMappingPath)) {
+			const content = await Deno.readTextFile(this.conversationMappingPath);
+			const mapping = JSON.parse(content);
+			return mapping.titleToId[title] || null;
+		}
+		return null;
+	}
+
+	async getConversationTitleById(id: string): Promise<string | null> {
+		if (await exists(this.conversationMappingPath)) {
+			const content = await Deno.readTextFile(this.conversationMappingPath);
+			const mapping = JSON.parse(content);
+			return mapping.idToTitle[id] || null;
+		}
+		return null;
+	}
+
+	async getAllConversations(): Promise<{ id: string; title: string }[]> {
+		if (await exists(this.conversationMappingPath)) {
+			const content = await Deno.readTextFile(this.conversationMappingPath);
+			const mapping = JSON.parse(content) as {
+				idToTitle: Record<string, string>;
+				titleToId: Record<string, string>;
+			};
+			return Object.entries(mapping.idToTitle).map(([id, title]) => ({ id, title }));
+		}
+		return [];
 	}
 
 	async saveMetadata(metadata: { statementCount: number; totalTurnCount: number }): Promise<void> {
@@ -184,7 +246,7 @@ export class ConversationPersistence {
 		}
 	}
 
-	async loadConversation(llm: LLM): Promise<LLMConversation> {
+	async loadConversation(llm: LLM): Promise<LLMConversationInteraction> {
 		await this.ensureInitialized();
 
 		if (!await exists(this.metadataPath)) {
@@ -193,10 +255,11 @@ export class ConversationPersistence {
 
 		const metadataContent = await Deno.readTextFile(this.metadataPath);
 		const metadata = JSON.parse(metadataContent);
-		const conversation = new LLMConversation(llm);
+		const conversation = new LLMConversationInteraction(llm, this.conversationId);
 		await conversation.init();
 
 		conversation.id = metadata.id;
+		conversation.title = metadata.title;
 		conversation.baseSystem = metadata.system;
 		conversation.model = metadata.model;
 		conversation.maxTokens = metadata.maxTokens;
@@ -228,7 +291,7 @@ export class ConversationPersistence {
 					const fileMetadata = JSON.parse(metadataContent);
 
 					if (fileMetadata.inSystemPrompt) {
-						await conversation.addFileForSystemPrompt(filePath, fileMetadata);
+						conversation.addFileForSystemPrompt(filePath, fileMetadata);
 					}
 					logger.info(`Loaded file: ${filePath}`);
 				}

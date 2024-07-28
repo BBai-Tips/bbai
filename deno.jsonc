@@ -1,12 +1,14 @@
 {
 	"name": "bbai",
-	"version": "0.0.3-alpha",
+	"version": "0.0.4-alpha",
 	"exports": "./cli/src/main.ts",
 	"tasks": {
 		"format": "deno fmt src/ && deno task -c ./cli/deno.jsonc format && deno task -c ./api/deno.jsonc format",
 		"format-deno": "deno fmt ./deno.jsonc ./cli/deno.jsonc ./api/deno.jsonc",
 		"check-types": "deno task -c ./cli/deno.jsonc check-types && deno task -c ./api/deno.jsonc check-types",
 		"check-format": "deno task -c ./cli/deno.jsonc check-format && deno task -c ./api/deno.jsonc check-format",
+		"start-api": "deno task -c ./api/deno.jsonc start",
+		"start-api-dev": "deno task -c ./api/deno.jsonc dev",
 		"build": "deno task -c ./cli/deno.jsonc build && deno task -c ./api/deno.jsonc build",
 		"homebrew": "deno task -c ./cli/deno.jsonc build && deno task -c ./api/deno.jsonc build",
 		"test": "deno task -c ./cli/deno.jsonc test && deno task -c ./api/deno.jsonc test",

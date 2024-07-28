@@ -11,4 +11,20 @@ export class GitUtils {
 			return null; // Git root not found
 		}
 	}
+
+	static async stageAndCommit(repoPath: string, files: string[], commitMessage: string): Promise<void> {
+		const git: SimpleGit = simpleGit(repoPath);
+
+		try {
+			// Stage the specified files
+			await git.add(files);
+
+			// Commit the staged changes
+			await git.commit(commitMessage);
+
+			console.log(`Changes committed successfully: ${commitMessage}`);
+		} catch (error) {
+			throw new Error(`Failed to stage and commit changes: ${error.message}`);
+		}
+	}
 }
