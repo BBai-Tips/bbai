@@ -36,23 +36,27 @@ export class LogFormatter {
 	}
 
 	private wrapText(text: string, indent: string, tail: string): string {
-		const words = text.trim().split(/\s+/);
+		const words = text.split(/\s+/);
 		let line = indent;
 		const lines = [];
 
 		for (const word of words) {
-			if ((line + word).length > this.maxLineLength - tail.length) {
-				lines.push(line.trimEnd() + tail);
+			if (line.length + word.length > this.maxLineLength - tail.length) {
+				lines.push(line.trimEnd());
 				line = indent + word + ' ';
 			} else {
 				line += word + ' ';
 			}
+			if (word.includes('\n')) {
+				lines.push(line.trimEnd());
+				line = indent;
+			}
 		}
 		if (line.trim()) {
-			lines.push(line.trimEnd() + tail);
+			lines.push(line.trimEnd());
 		}
 
-		return lines.join('\n');
+		return lines.map((l) => l + tail).join('\n') + '\n';
 	}
 
 	static createRawEntry(type: string, timestamp: string, message: string): string {
@@ -100,7 +104,7 @@ export class LogFormatter {
 		const footer = `${color}╰${'─'.repeat(this.maxLineLength - 1)}${ANSI_RESET}`;
 		const wrappedMessage = this.wrapText(message, `${color}│ `, `${ANSI_RESET}`);
 
-		return `${header}\n${wrappedMessage}\n${footer}\n`;
+		return `${header}\n${wrappedMessage}${footer}\n`;
 	}
 
 	formatRawLogEntry(entry: string): string {
