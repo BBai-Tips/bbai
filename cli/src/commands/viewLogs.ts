@@ -34,11 +34,17 @@ export const viewLogs = new Command()
 
 			if (!options.api && options.id) {
 				// Use the new LogFormatter for conversation logs
-				await displayFormattedLogs(options.id, (formattedEntry) => {
-					console.log(formattedEntry);
-				}, options.follow);
+				await displayFormattedLogs(
+					options.id,
+					(formattedEntry) => {
+						console.log(formattedEntry);
+					},
+					options.follow,
+					maxEntries,
+				);
 				return;
 			} else {
+				// For API logs, use the existing tail command
 				if (options.follow) {
 					const command = new Deno.Command('tail', {
 						args: ['-f', logFilePath],
@@ -51,7 +57,7 @@ export const viewLogs = new Command()
 					}
 				} else {
 					const command = new Deno.Command('tail', {
-						args: ['-n', options.lines.toString(), logFilePath],
+						args: ['-n', maxEntries.toString(), logFilePath],
 						stdout: 'piped',
 						stderr: 'piped',
 					});
