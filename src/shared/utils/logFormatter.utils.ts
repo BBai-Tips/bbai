@@ -19,7 +19,7 @@ const ERROR_ICON = '❌';
 const UNKNOWN_ICON = '❓';
 
 export class LogFormatter {
-	private static readonly ENTRY_SEPARATOR = '<<<BBAI_LOG_ENTRY_SEPARATOR_' + 
+	private static readonly ENTRY_SEPARATOR = '<<<BBAI_LOG_ENTRY_SEPARATOR_' +
 		crypto.randomUUID().replace(/-/g, '') + '>>>';
 
 	private maxLineLength: number;
@@ -127,12 +127,11 @@ export async function displayFormattedLogs(
 	const bbaiDir = await getBbaiDir(Deno.cwd());
 	const logFile = join(bbaiDir, 'cache', 'conversations', conversationId, 'conversation.log');
 
-	try {
-		using file = await Deno.open(logFile, { read: true });
-		const bufReader = new BufReader(file);
+	let file: Deno.FsFile | null = null;
 
-		let entry = '';
-		let line: string | null;
+	try {
+		file = await Deno.open(logFile, { read: true });
+		const bufReader = new BufReader(file);
 
 		const processEntry = (entry: string) => {
 			if (entry.trim() !== '') {
@@ -146,8 +145,8 @@ export async function displayFormattedLogs(
 		};
 
 		const readAndProcessEntries = async () => {
-			let fullContent = await bufReader.readString(undefined);
-			if (fullContent === null) return;
+			const fullContent = await Deno.readTextFile(logFile);
+			if (fullContent.trim() === '') return;
 
 			const entries = fullContent.split(LogFormatter.getEntrySeparator());
 			for (const entry of entries) {
@@ -165,18 +164,19 @@ export async function displayFormattedLogs(
 				}
 			}
 		}
-
 	} catch (error) {
 		console.error(`Error reading log file: ${error.message}`);
 	} finally {
-		file.close();
+		if (file) {
+			file.close();
+		}
 	}
 }
 
 export async function writeLogEntry(
 	conversationId: string,
 	type: string,
-	message: string
+	message: string,
 ): Promise<void> {
 	const bbaiDir = await getBbaiDir(Deno.cwd());
 	const logFile = join(bbaiDir, 'cache', 'conversations', conversationId, 'conversation.log');
@@ -188,34 +188,5 @@ export async function writeLogEntry(
 		await Deno.writeTextFile(logFile, entry, { append: true });
 	} catch (error) {
 		console.error(`Error writing log entry: ${error.message}`);
-	}
-}
-			while ((line = await bufReader.readString('\n')) !== null) {
-				if (line.trim() === '') {
-					if (entry.trim() !== '') {
-						processEntry(entry);
-						entry = '';
-					}
-				} else {
-					entry += line;
-				}
-			}
-			if (entry.trim() !== '') {
-				processEntry(entry);
-			}
-		};
-
-		await readAndProcessEntries();
-
-		if (follow) {
-			const watcher = Deno.watchFs(logFile);
-			for await (const event of watcher) {
-				if (event.kind === 'modify') {
-					await readAndProcessEntries();
-				}
-			}
-		}
-	} catch (error) {
-		console.error(`Error reading log file: ${error.message}`);
 	}
 }
