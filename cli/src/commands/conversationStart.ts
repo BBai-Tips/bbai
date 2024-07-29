@@ -223,6 +223,7 @@ function handleConversationUpdate(formatter: LogFormatter, data: ConversationRes
 	const statementCount = data.statementCount;
 	const turnCount = data.turnCount;
 	const totalTurnCount = data.totalTurnCount;
+	const title = data.title;
 	const tokenUsage = data.response.usage;
 
 	const timestamp = LogFormatter.getTimestamp();
@@ -230,7 +231,7 @@ function handleConversationUpdate(formatter: LogFormatter, data: ConversationRes
 	const formattedEntry = formatter.formatRawLogEntry(highlightOutput(entry));
 	console.log(formattedEntry);
 
-	const summaryLine1 = colors.bold.cyan(`┌─ Summary `) + colors.yellow(`ID: ${colors.bold(conversationId)} `) +
+	const summaryLine1 = colors.bold.cyan(`┌─ Conversation `) + colors.yellow(`ID: ${colors.bold(conversationId)} `) +
 		colors.green(`${symbols.info} ${statementCount} `) + colors.magenta(`${symbols.radioOn} ${turnCount} `) +
 		colors.blue(`${symbols.clockwiseRightAndLeftSemicircleArrows} ${totalTurnCount}`);
 
@@ -238,10 +239,12 @@ function handleConversationUpdate(formatter: LogFormatter, data: ConversationRes
 		colors.yellow(`${symbols.arrowUp} ${tokenUsage.outputTokens} `) +
 		colors.green(`${symbols.radioOn} ${tokenUsage.totalTokens}`);
 
-	const maxLength = Math.max(summaryLine1.length, summaryLine2.length);
+	const titleLine = colors.bold.cyan(`│ Title: ${colors.white(title.padEnd(45))} │`);
+	const maxLength = Math.max(summaryLine1.length, summaryLine2.length, titleLine.length);
 	const padding = ' '.repeat(maxLength - summaryLine1.length);
 
 	console.log(summaryLine1 + padding + colors.bold.cyan('─┐'));
+	console.log(titleLine);
 	console.log(summaryLine2 + ' '.repeat(maxLength - summaryLine2.length) + colors.bold.cyan('─┘'));
 
 	console.log(colors.dim.italic(
