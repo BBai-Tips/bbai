@@ -1,5 +1,6 @@
 //import { consoleSize } from '@std/console';
 import { join } from '@std/path';
+import { BufReader } from '@std/io';
 
 import { getBbaiDir } from 'shared/dataDir.ts';
 
@@ -18,6 +19,9 @@ const ERROR_ICON = '❌';
 const UNKNOWN_ICON = '❓';
 
 export class LogFormatter {
+	private static readonly ENTRY_SEPARATOR = '<<<BBAI_LOG_ENTRY_SEPARATOR_' + 
+		crypto.randomUUID().replace(/-/g, '') + '>>>';
+
 	private maxLineLength: number;
 
 	constructor(maxLineLength?: number) {
@@ -93,12 +97,24 @@ export class LogFormatter {
 
 	formatRawLogEntry(entry: string): string {
 		const [header, ...messageLines] = entry.split('\n');
-		const [type, timestamp] = header.replace('## ', '').split(' [');
-		return this.formatLogEntry(type, timestamp.replace(']', ''), messageLines.join('\n'));
+		if (typeof header !== 'undefined' && typeof messageLines !== 'undefined') {
+			const [type, timestamp] = header.replace('## ', '').split(' [');
+			if (typeof type !== 'undefined' && typeof timestamp !== 'undefined') {
+				return this.formatLogEntry(type, timestamp.replace(']', ''), messageLines.join('\n'));
+			} else {
+				return messageLines.join('\n');
+			}
+		} else {
+			return messageLines.join('\n');
+		}
 	}
 
 	formatSeparator(): string {
 		return `${ANSI_BLUE}${'─'.repeat(this.maxLineLength)}${ANSI_RESET}\n`;
+	}
+
+	static getEntrySeparator(): string {
+		return this.ENTRY_SEPARATOR;
 	}
 }
 
@@ -112,23 +128,68 @@ export async function displayFormattedLogs(
 	const logFile = join(bbaiDir, 'cache', 'conversations', conversationId, 'conversation.log');
 
 	try {
-		const file = await Deno.open(logFile, { read: true });
+		using file = await Deno.open(logFile, { read: true });
 		const bufReader = new BufReader(file);
 
 		let entry = '';
 		let line: string | null;
 
 		const processEntry = (entry: string) => {
-			const formattedEntry = formatter.formatRawLogEntry(entry);
-			if (callback) {
-				callback(formattedEntry);
-			} else {
-				console.log(formattedEntry);
-				console.log(formatter.formatSeparator());
+			if (entry.trim() !== '') {
+				const formattedEntry = formatter.formatRawLogEntry(entry);
+				if (callback) {
+					callback(formattedEntry);
+				} else {
+					console.log(formattedEntry);
+				}
 			}
 		};
 
 		const readAndProcessEntries = async () => {
+			let fullContent = await bufReader.readString(undefined);
+			if (fullContent === null) return;
+
+			const entries = fullContent.split(LogFormatter.getEntrySeparator());
+			for (const entry of entries) {
+				processEntry(entry.trim());
+			}
+		};
+
+		await readAndProcessEntries();
+
+		if (follow) {
+			const watcher = Deno.watchFs(logFile);
+			for await (const event of watcher) {
+				if (event.kind === 'modify') {
+					await readAndProcessEntries();
+				}
+			}
+		}
+
+	} catch (error) {
+		console.error(`Error reading log file: ${error.message}`);
+	} finally {
+		file.close();
+	}
+}
+
+export async function writeLogEntry(
+	conversationId: string,
+	type: string,
+	message: string
+): Promise<void> {
+	const bbaiDir = await getBbaiDir(Deno.cwd());
+	const logFile = join(bbaiDir, 'cache', 'conversations', conversationId, 'conversation.log');
+
+	const timestamp = new Date().toISOString();
+	const entry = `## ${type} [${timestamp}]\n${message}\n${LogFormatter.getEntrySeparator()}\n`;
+
+	try {
+		await Deno.writeTextFile(logFile, entry, { append: true });
+	} catch (error) {
+		console.error(`Error writing log entry: ${error.message}`);
+	}
+}
 			while ((line = await bufReader.readString('\n')) !== null) {
 				if (line.trim() === '') {
 					if (entry.trim() !== '') {
@@ -156,9 +217,5 @@ export async function displayFormattedLogs(
 		}
 	} catch (error) {
 		console.error(`Error reading log file: ${error.message}`);
-	} finally {
-		if (file) {
-			file.close();
-		}
 	}
 }
