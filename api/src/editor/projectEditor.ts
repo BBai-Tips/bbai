@@ -484,6 +484,7 @@ export class ProjectEditor {
 			statementCount: this.statementCount,
 			turnCount,
 			totalTurnCount: this.totalTurnCount,
+			title: this.conversation?.title || '',
 		};
 	}
 
