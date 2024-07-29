@@ -1,8 +1,9 @@
 import { Command } from 'cliffy/command/mod.ts';
 import { Input } from 'cliffy/prompt/mod.ts';
-import { highlight } from 'https://esm.sh/highlight.js@11.7.0';
+import highlight from 'highlight';
 import { apiClient } from '../utils/apiClient.ts';
 import { logger } from 'shared/logger.ts';
+import { ConversationResponse } from '../types/conversation.ts';
 
 export const chat = new Command()
 	.description('Start a chat session with BBai')
@@ -13,9 +14,12 @@ export const chat = new Command()
 
 		async function getMultilineInput(): Promise<string> {
 			return await Input.prompt({
-				message: 'Enter your prompt:',
+				message: '> ',
 				multiline: true,
-				transform: (input: string) => highlight(input, { language: 'plaintext' }).value,
+				files: true,
+				info: true,
+				//list: true,
+				//transform: (input: string) => highlight(input, { language: 'plaintext' }).value,
 			});
 		}
 
@@ -36,10 +40,51 @@ export const chat = new Command()
 
 			try {
 				const response = await apiClient.sendPrompt(prompt, conversationId);
-				apiClient.handleConversationOutput(response, { id: conversationId, json: false });
+				handleConversationOutput(response, { id: conversationId, json: false });
 				conversationId = response.conversationId;
 			} catch (error) {
 				logger.error(`Error in chat: ${error.message}`);
 			}
 		}
 	});
+
+function handleConversationOutput(response: ConversationResponse, options: { id?: string; json: boolean }) {
+	const isNewConversation = !options.id;
+	const conversationId = response.conversationId;
+	const statementCount = response.statementCount;
+	const turnCount = response.turnCount;
+	const totalTurnCount = response.totalTurnCount;
+	const tokenUsage = response.response.usage;
+
+	if (options.json) {
+		console.log(JSON.stringify(
+			{
+				...response,
+				isNewConversation,
+				conversationId,
+				statementCount,
+				turnCount,
+				totalTurnCount,
+				tokenUsage,
+			},
+			null,
+			2,
+		));
+	} else {
+		console.log(apiClient.highlightOutput(response.response.answerContent[0].text));
+
+		console.log(`\nConversation ID: ${conversationId}`);
+		console.log(`Statement Count: ${statementCount}`);
+		console.log(`Turn Count: ${turnCount}`);
+		console.log(`Total Turn Count: ${totalTurnCount}`);
+		console.log(
+			`Token Usage: Input: ${tokenUsage.inputTokens}, Output: ${tokenUsage.outputTokens}, Total: ${tokenUsage.totalTokens}`,
+		);
+
+		if (isNewConversation) {
+			console.log(`\nNew conversation started.`);
+			console.log(`To continue this conversation, use:`);
+			console.log(`bbai chat -i ${conversationId} -p "Your next question"`);
+		}
+	}
+}
