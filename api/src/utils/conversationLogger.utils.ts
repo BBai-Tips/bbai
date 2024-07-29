@@ -25,7 +25,8 @@ export class ConversationLogger {
 	}
 
 	private async appendToLog(content: string) {
-		await Deno.writeTextFile(this.logFile, content + '\n\n', { append: true });
+		const separator = LogFormatter.getEntrySeparator();
+		await Deno.writeTextFile(this.logFile, content + '\n' + separator + '\n', { append: true });
 	}
 
 	private getTimestamp(): string {
@@ -34,7 +35,7 @@ export class ConversationLogger {
 
 	private async logEntry(type: string, message: string) {
 		const timestamp = this.getTimestamp();
-		const entry = `## ${type} [${timestamp}]\n${message}`;
+		const entry = `## ${type} [${timestamp}]\n${message.trim()}`;
 		await this.appendToLog(entry);
 	}
 
