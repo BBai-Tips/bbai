@@ -2,7 +2,7 @@ import { Command } from 'cliffy/command/mod.ts';
 import { Input } from 'cliffy/prompt/mod.ts';
 import highlight from 'highlight';
 import { readLines } from '@std/io';
-import { colors, symbols } from 'cliffy/ansi/mod.ts';
+import { colors } from 'cliffy/ansi/mod.ts';
 
 import { logger } from 'shared/logger.ts';
 import { apiClient } from '../utils/apiClient.ts';
@@ -10,6 +10,9 @@ import { LogFormatter } from 'shared/logFormatter.ts';
 import { ConversationLogger } from 'shared/conversationLogger.ts';
 import { getProjectRoot } from 'shared/dataDir.ts';
 import { LLMProviderMessageMeta, LLMProviderMessageResponse } from '../../../api/src/types/llms.types.ts';
+import { isApiRunning } from '../utils/pid.utils.ts';
+import { apiStart } from './apiStart.ts';
+import { apiStop } from './apiStop.ts';
 
 interface ConversationResponse {
 	response: LLMProviderMessageResponse;
@@ -19,6 +22,14 @@ interface ConversationResponse {
 	turnCount: number;
 	totalTurnCount: number;
 }
+
+const symbols = {
+	info: '🛈',
+	radioOn: '🔘',
+	clockwiseRightAndLeftSemicircleArrows: '🔁',
+	arrowDown: '⬇️',
+	arrowUp: '⬆️',
+};
 
 export const conversationStart = new Command()
 	.name('chat')
@@ -269,4 +280,9 @@ function handleConversationComplete(response: ConversationResponse, options: { i
 
 		console.log(summaryLine1 + padding + colors.bold.cyan('─┐'));
 		console.log(summaryLine2 + ' '.repeat(maxLength - summaryLine2.length) + colors.bold.cyan('─┘'));
+
 		console.log(colors.dim.italic(
+			`Token Usage: Input: ${tokenUsage.inputTokens}, Output: ${tokenUsage.outputTokens}, Total: ${tokenUsage.totalTokens}`,
+		));
+	}
+}
