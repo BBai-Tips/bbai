@@ -57,21 +57,22 @@ export class ConversationLogger {
 		return format(new Date(), "yyyy-MM-dd'T'HH:mm:ss.SSSXXX");
 	}
 
-	private wrapText(text: string, indent: string, tail: string, firstLineIndent: string = ''): string {
-		const words = text.split(' ');
-		let line = '';
+	private wrapText(text: string, indent: string, tail: string): string {
+		const words = text.trim().split(/\s+/);
+		let line = indent;
 		const lines = [];
-		let currentIndent = firstLineIndent;
 
 		for (const word of words) {
-			if ((line + word).length > this.maxLineLength - currentIndent.length) {
-				lines.push(currentIndent + line.trim() + tail);
-				line = '';
-				currentIndent = indent;
+			if ((line + word).length > this.maxLineLength - tail.length) {
+				lines.push(line.trimEnd() + tail);
+				line = indent + word + ' ';
+			} else {
+				line += word + ' ';
 			}
-			line += word + ' ';
 		}
-		lines.push(currentIndent + line.trim() + tail);
+		if (line.trim()) {
+			lines.push(line.trimEnd() + tail);
+		}
 
 		return lines.join('\n');
 	}
@@ -80,7 +81,7 @@ export class ConversationLogger {
 		const timestamp = this.getTimestamp();
 		const header = `${color}╭─ ${icon} ${type} [${timestamp}]${ANSI_RESET}`;
 		const footer = `${color}╰${'─'.repeat(this.maxLineLength - 1)}${ANSI_RESET}`;
-		const wrappedMessage = this.wrapText(message, `${color}${INDENT}`, `${ANSI_RESET}`, `${color}${INDENT}`);
+		const wrappedMessage = this.wrapText(message, `${color}${INDENT}`, `${ANSI_RESET}`);
 
 		const formattedMessage = `${header}\n${wrappedMessage}\n${footer}\n`;
 		await this.appendToLog(formattedMessage);
