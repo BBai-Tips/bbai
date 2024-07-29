@@ -2,6 +2,7 @@ import { Command } from 'cliffy/command/mod.ts';
 import { Input } from 'cliffy/prompt/mod.ts';
 import highlight from 'highlight';
 import { readLines } from '@std/io';
+import { colors } from 'cliffy/ansi/mod.ts';
 
 import { logger } from 'shared/logger.ts';
 import { apiClient } from '../utils/apiClient.ts';
@@ -192,13 +193,44 @@ function handleConversationUpdate(formatter: LogFormatter, data: ConversationRes
 	const formattedEntry = formatter.formatRawLogEntry(highlightOutput(entry));
 	console.log(formattedEntry);
 
-	console.log(`\nConversation ID: ${conversationId}`);
-	console.log(`Statement Count: ${statementCount}`);
-	console.log(`Turn Count: ${turnCount}`);
-	console.log(`Total Turn Count: ${totalTurnCount}`);
+	console.log(colors.bold.cyan('\n┌─────────────── Conversation Summary ───────────────┐'));
+	console.log(colors.bold.cyan('│                                                    │'));
 	console.log(
-		`Token Usage: Input: ${tokenUsage.inputTokens}, Output: ${tokenUsage.outputTokens}, Total: ${tokenUsage.totalTokens}`,
+		colors.bold.cyan('│  ') + colors.yellow(`Conversation ID: ${colors.bold(conversationId.padEnd(31))}`) +
+			colors.bold.cyan(' │'),
 	);
+	console.log(
+		colors.bold.cyan('│  ') + colors.green(`Statement Count: ${statementCount.toString().padEnd(31)}`) +
+			colors.bold.cyan(' │'),
+	);
+	console.log(
+		colors.bold.cyan('│  ') + colors.magenta(`Turn Count: ${turnCount.toString().padEnd(36)}`) +
+			colors.bold.cyan(' │'),
+	);
+	console.log(
+		colors.bold.cyan('│  ') + colors.blue(`Total Turn Count: ${totalTurnCount.toString().padEnd(30)}`) +
+			colors.bold.cyan(' │'),
+	);
+	console.log(colors.bold.cyan('│                                                    │'));
+	console.log(colors.bold.cyan('│  Token Usage:                                      │'));
+	console.log(
+		colors.bold.cyan('│  ') + colors.red(`  Input: ${tokenUsage.inputTokens.toString().padEnd(37)}`) +
+			colors.bold.cyan(' │'),
+	);
+	console.log(
+		colors.bold.cyan('│  ') + colors.yellow(` Output: ${tokenUsage.outputTokens.toString().padEnd(37)}`) +
+			colors.bold.cyan(' │'),
+	);
+	console.log(
+		colors.bold.cyan('│  ') + colors.green(`  Total: ${tokenUsage.totalTokens.toString().padEnd(37)}`) +
+			colors.bold.cyan(' │'),
+	);
+	console.log(colors.bold.cyan('│                                                    │'));
+	console.log(colors.bold.cyan('└────────────────────────────────────────────────────┘'));
+
+	console.log(colors.dim(
+		`Token Usage: Input: ${tokenUsage.inputTokens}, Output: ${tokenUsage.outputTokens}, Total: ${tokenUsage.totalTokens}`,
+	));
 }
 function handleConversationComplete(response: ConversationResponse, options: { id?: string; text?: boolean }) {
 	const isNewConversation = !options.id;
@@ -225,18 +257,49 @@ function handleConversationComplete(response: ConversationResponse, options: { i
 	} else {
 		console.log(highlightOutput(response.response.answerContent[0].text));
 
-		console.log(`\nConversation ID: ${conversationId}`);
-		console.log(`Statement Count: ${statementCount}`);
-		console.log(`Turn Count: ${turnCount}`);
-		console.log(`Total Turn Count: ${totalTurnCount}`);
+		console.log(colors.bold.cyan('\n┌─────────────── Conversation Summary ───────────────┐'));
+		console.log(colors.bold.cyan('│                                                    │'));
 		console.log(
-			`Token Usage: Input: ${tokenUsage.inputTokens}, Output: ${tokenUsage.outputTokens}, Total: ${tokenUsage.totalTokens}`,
+			colors.bold.cyan('│  ') + colors.yellow(`Conversation ID: ${colors.bold(conversationId.padEnd(31))}`) +
+				colors.bold.cyan(' │'),
 		);
+		console.log(
+			colors.bold.cyan('│  ') + colors.green(`Statement Count: ${statementCount.toString().padEnd(31)}`) +
+				colors.bold.cyan(' │'),
+		);
+		console.log(
+			colors.bold.cyan('│  ') + colors.magenta(`Turn Count: ${turnCount.toString().padEnd(36)}`) +
+				colors.bold.cyan(' │'),
+		);
+		console.log(
+			colors.bold.cyan('│  ') + colors.blue(`Total Turn Count: ${totalTurnCount.toString().padEnd(30)}`) +
+				colors.bold.cyan(' │'),
+		);
+		console.log(colors.bold.cyan('│                                                    │'));
+		console.log(colors.bold.cyan('│  Token Usage:                                      │'));
+		console.log(
+			colors.bold.cyan('│  ') + colors.red(`  Input: ${tokenUsage.inputTokens.toString().padEnd(37)}`) +
+				colors.bold.cyan(' │'),
+		);
+		console.log(
+			colors.bold.cyan('│  ') + colors.yellow(` Output: ${tokenUsage.outputTokens.toString().padEnd(37)}`) +
+				colors.bold.cyan(' │'),
+		);
+		console.log(
+			colors.bold.cyan('│  ') + colors.green(`  Total: ${tokenUsage.totalTokens.toString().padEnd(37)}`) +
+				colors.bold.cyan(' │'),
+		);
+		console.log(colors.bold.cyan('│                                                    │'));
+		console.log(colors.bold.cyan('└────────────────────────────────────────────────────┘'));
+
+		console.log(colors.dim(
+			`Token Usage: Input: ${tokenUsage.inputTokens}, Output: ${tokenUsage.outputTokens}, Total: ${tokenUsage.totalTokens}`,
+		));
 
 		if (isNewConversation) {
-			console.log(`\nNew conversation started.`);
-			console.log(`To continue this conversation, use:`);
-			console.log(`bbai chat -i ${conversationId} -p "Your next question"`);
+			console.log(colors.bold.green(`\n✨ New conversation started! ✨`));
+			console.log(colors.yellow(`To continue this conversation, use:`));
+			console.log(colors.cyan(`bbai chat -i ${conversationId} -p "Your next question"`));
 		}
 	}
 }
