@@ -39,6 +39,7 @@
 		"@std/assert": "jsr:@std/assert@^0.225.3",
 		"shared/types.ts": "./src/shared/types.ts",
 		"shared/logger.ts": "./src/shared/utils/logger.utils.ts",
+		"shared/logFormatter.ts": "./src/shared/utils/logFormatter.utils.ts",
 		"shared/dataDir.ts": "./src/shared/utils/dataDir.utils.ts",
 		"shared/ctags.ts": "./src/shared/utils/ctags.utils.ts",
 		"shared/fileListing.ts": "./src/shared/utils/fileListing.utils.ts",

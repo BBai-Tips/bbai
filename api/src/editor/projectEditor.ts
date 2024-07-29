@@ -202,7 +202,7 @@ export class ProjectEditor {
 
 		const applyPatchTool: LLMTool = {
 			name: 'apply_patch',
-			description: 'Apply a patch to a file',
+			description: 'Apply a well-formed patch to a file',
 			input_schema: {
 				type: 'object',
 				properties: {
@@ -212,7 +212,7 @@ export class ProjectEditor {
 					},
 					patch: {
 						type: 'string',
-						description: 'The patch to be applied in diff format',
+						description: 'The carefully written and well-formed patch to be applied in unified diff format',
 					},
 				},
 				required: ['filePath', 'patch'],

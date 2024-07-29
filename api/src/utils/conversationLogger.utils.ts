@@ -3,14 +3,8 @@ import { ensureDir } from '@std/fs';
 
 import type { ConversationId } from '../types.ts';
 import { getBbaiDir } from 'shared/dataDir.ts';
-import { logger } from 'shared/logger.ts';
-
-const ANSI_RESET = '\x1b[0m';
-const ANSI_RED = '\x1b[31m';
-const ANSI_GREEN = '\x1b[32m';
-const ANSI_CYAN = '\x1b[36m';
-const ANSI_YELLOW = '\x1b[33m';
-const ANSI_BLUE = '\x1b[34m';
+import { LogFormatter } from 'shared/logFormatter.ts';
+//import { logger } from 'shared/logger.ts';
 
 export class ConversationLogger {
 	private logFile!: string;
