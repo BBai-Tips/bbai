@@ -91,30 +91,74 @@ export class LogFormatter {
 		return `${header}\n${wrappedMessage}\n${footer}\n`;
 	}
 
+	formatRawLogEntry(entry: string): string {
+		const [header, ...messageLines] = entry.split('\n');
+		const [type, timestamp] = header.replace('## ', '').split(' [');
+		return this.formatLogEntry(type, timestamp.replace(']', ''), messageLines.join('\n'));
+	}
+
 	formatSeparator(): string {
 		return `${ANSI_BLUE}${'─'.repeat(this.maxLineLength)}${ANSI_RESET}\n`;
 	}
 }
 
-export async function displayFormattedLogs(conversationId: string): Promise<void> {
+export async function displayFormattedLogs(
+	conversationId: string,
+	callback?: (formattedEntry: string) => void,
+	follow = false,
+): Promise<void> {
 	const formatter = new LogFormatter();
 	const bbaiDir = await getBbaiDir(Deno.cwd());
 	const logFile = join(bbaiDir, 'cache', 'conversations', conversationId, 'conversation.log');
 
 	try {
-		const rawLogs = await Deno.readTextFile(logFile);
-		const logEntries = rawLogs.split('\n\n');
+		const file = await Deno.open(logFile, { read: true });
+		const bufReader = new BufReader(file);
 
-		for (const entry of logEntries) {
-			const [header, ...messageLines] = entry.split('\n');
-			const [type, timestamp] = header.replace('## ', '').split(' [');
-			const message = messageLines.join('\n');
+		let entry = '';
+		let line: string | null;
 
-			const formattedEntry = formatter.formatLogEntry(type, timestamp.replace(']', ''), message);
-			console.log(formattedEntry);
-			console.log(formatter.formatSeparator());
+		const processEntry = (entry: string) => {
+			const formattedEntry = formatter.formatRawLogEntry(entry);
+			if (callback) {
+				callback(formattedEntry);
+			} else {
+				console.log(formattedEntry);
+				console.log(formatter.formatSeparator());
+			}
+		};
+
+		const readAndProcessEntries = async () => {
+			while ((line = await bufReader.readString('\n')) !== null) {
+				if (line.trim() === '') {
+					if (entry.trim() !== '') {
+						processEntry(entry);
+						entry = '';
+					}
+				} else {
+					entry += line;
+				}
+			}
+			if (entry.trim() !== '') {
+				processEntry(entry);
+			}
+		};
+
+		await readAndProcessEntries();
+
+		if (follow) {
+			const watcher = Deno.watchFs(logFile);
+			for await (const event of watcher) {
+				if (event.kind === 'modify') {
+					await readAndProcessEntries();
+				}
+			}
 		}
 	} catch (error) {
 		console.error(`Error reading log file: ${error.message}`);
+	} finally {
+		if (file) {
+			file.close();
+		}
 	}
 }
