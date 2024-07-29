@@ -1,5 +1,6 @@
 import { config } from 'shared/configManager.ts';
 import { logger } from 'shared/logger.ts';
+import { highlight } from 'https://esm.sh/highlight.js@11.7.0';
 
 class ApiClient {
 	private baseUrl: string;
@@ -52,6 +53,10 @@ class ApiClient {
 		return await response.json();
 	}
 
+	highlightOutput(text: string): string {
+		return highlight(text, { language: 'plaintext' }).value;
+	}
+
 	handleConversationOutput(response: any, options: any) {
 		const isNewConversation = !options.id;
 		const conversationId = response.conversationId;
@@ -75,7 +80,7 @@ class ApiClient {
 				2,
 			));
 		} else {
-			console.log(response.response.answerContent[0].text);
+			console.log(this.highlightOutput(response.response.answerContent[0].text));
 
 			console.log(`\nConversation ID: ${conversationId}`);
 			console.log(`Statement Count: ${statementCount}`);
