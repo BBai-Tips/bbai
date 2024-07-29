@@ -2,7 +2,7 @@ import { Command } from 'cliffy/command/mod.ts';
 import { Input } from 'cliffy/prompt/mod.ts';
 import highlight from 'highlight';
 import { readLines } from '@std/io';
-import { colors } from 'cliffy/ansi/mod.ts';
+import { colors, symbols } from 'cliffy/ansi/mod.ts';
 
 import { logger } from 'shared/logger.ts';
 import { apiClient } from '../utils/apiClient.ts';
@@ -193,42 +193,21 @@ function handleConversationUpdate(formatter: LogFormatter, data: ConversationRes
 	const formattedEntry = formatter.formatRawLogEntry(highlightOutput(entry));
 	console.log(formattedEntry);
 
-	console.log(colors.bold.cyan('\n┌─────────────── Conversation Summary ───────────────┐'));
-	console.log(colors.bold.cyan('│                                                    │'));
-	console.log(
-		colors.bold.cyan('│  ') + colors.yellow(`Conversation ID: ${colors.bold(conversationId.padEnd(31))}`) +
-			colors.bold.cyan(' │'),
-	);
-	console.log(
-		colors.bold.cyan('│  ') + colors.green(`Statement Count: ${statementCount.toString().padEnd(31)}`) +
-			colors.bold.cyan(' │'),
-	);
-	console.log(
-		colors.bold.cyan('│  ') + colors.magenta(`Turn Count: ${turnCount.toString().padEnd(36)}`) +
-			colors.bold.cyan(' │'),
-	);
-	console.log(
-		colors.bold.cyan('│  ') + colors.blue(`Total Turn Count: ${totalTurnCount.toString().padEnd(30)}`) +
-			colors.bold.cyan(' │'),
-	);
-	console.log(colors.bold.cyan('│                                                    │'));
-	console.log(colors.bold.cyan('│  Token Usage:                                      │'));
-	console.log(
-		colors.bold.cyan('│  ') + colors.red(`  Input: ${tokenUsage.inputTokens.toString().padEnd(37)}`) +
-			colors.bold.cyan(' │'),
-	);
-	console.log(
-		colors.bold.cyan('│  ') + colors.yellow(` Output: ${tokenUsage.outputTokens.toString().padEnd(37)}`) +
-			colors.bold.cyan(' │'),
-	);
-	console.log(
-		colors.bold.cyan('│  ') + colors.green(`  Total: ${tokenUsage.totalTokens.toString().padEnd(37)}`) +
-			colors.bold.cyan(' │'),
-	);
-	console.log(colors.bold.cyan('│                                                    │'));
-	console.log(colors.bold.cyan('└────────────────────────────────────────────────────┘'));
+	const summaryLine1 = colors.bold.cyan(`┌─ Summary `) + colors.yellow(`ID: ${colors.bold(conversationId)} `) +
+		colors.green(`${symbols.info} ${statementCount} `) + colors.magenta(`${symbols.radioOn} ${turnCount} `) +
+		colors.blue(`${symbols.clockwiseRightAndLeftSemicircleArrows} ${totalTurnCount}`);
 
-	console.log(colors.dim(
+	const summaryLine2 = colors.bold.cyan(`└─ `) + colors.red(`${symbols.arrowDown} ${tokenUsage.inputTokens} `) +
+		colors.yellow(`${symbols.arrowUp} ${tokenUsage.outputTokens} `) +
+		colors.green(`${symbols.radioOn} ${tokenUsage.totalTokens}`);
+
+	const maxLength = Math.max(summaryLine1.length, summaryLine2.length);
+	const padding = ' '.repeat(maxLength - summaryLine1.length);
+
+	console.log(summaryLine1 + padding + colors.bold.cyan('─┐'));
+	console.log(summaryLine2 + ' '.repeat(maxLength - summaryLine2.length) + colors.bold.cyan('─┘'));
+
+	console.log(colors.dim.italic(
 		`Token Usage: Input: ${tokenUsage.inputTokens}, Output: ${tokenUsage.outputTokens}, Total: ${tokenUsage.totalTokens}`,
 	));
 }
@@ -277,29 +256,17 @@ function handleConversationComplete(response: ConversationResponse, options: { i
 		);
 		console.log(colors.bold.cyan('│                                                    │'));
 		console.log(colors.bold.cyan('│  Token Usage:                                      │'));
-		console.log(
-			colors.bold.cyan('│  ') + colors.red(`  Input: ${tokenUsage.inputTokens.toString().padEnd(37)}`) +
-				colors.bold.cyan(' │'),
-		);
-		console.log(
-			colors.bold.cyan('│  ') + colors.yellow(` Output: ${tokenUsage.outputTokens.toString().padEnd(37)}`) +
-				colors.bold.cyan(' │'),
-		);
-		console.log(
-			colors.bold.cyan('│  ') + colors.green(`  Total: ${tokenUsage.totalTokens.toString().padEnd(37)}`) +
-				colors.bold.cyan(' │'),
-		);
-		console.log(colors.bold.cyan('│                                                    │'));
-		console.log(colors.bold.cyan('└────────────────────────────────────────────────────┘'));
+		const summaryLine1 = colors.bold.cyan(`┌─ Summary `) + colors.yellow(`ID: ${colors.bold(conversationId)} `) +
+			colors.green(`${symbols.info} ${statementCount} `) + colors.magenta(`${symbols.radioOn} ${turnCount} `) +
+			colors.blue(`${symbols.clockwiseRightAndLeftSemicircleArrows} ${totalTurnCount}`);
 
-		console.log(colors.dim(
-			`Token Usage: Input: ${tokenUsage.inputTokens}, Output: ${tokenUsage.outputTokens}, Total: ${tokenUsage.totalTokens}`,
-		));
+		const summaryLine2 = colors.bold.cyan(`└─ `) + colors.red(`${symbols.arrowDown} ${tokenUsage.inputTokens} `) +
+			colors.yellow(`${symbols.arrowUp} ${tokenUsage.outputTokens} `) +
+			colors.green(`${symbols.radioOn} ${tokenUsage.totalTokens}`);
 
-		if (isNewConversation) {
-			console.log(colors.bold.green(`\n✨ New conversation started! ✨`));
-			console.log(colors.yellow(`To continue this conversation, use:`));
-			console.log(colors.cyan(`bbai chat -i ${conversationId} -p "Your next question"`));
-		}
-	}
-}
+		const maxLength = Math.max(summaryLine1.length, summaryLine2.length);
+		const padding = ' '.repeat(maxLength - summaryLine1.length);
+
+		console.log(summaryLine1 + padding + colors.bold.cyan('─┐'));
+		console.log(summaryLine2 + ' '.repeat(maxLength - summaryLine2.length) + colors.bold.cyan('─┘'));
+		console.log(colors.dim.italic(
