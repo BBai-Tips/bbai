@@ -1,7 +1,7 @@
 import { join } from '@std/path';
 import { ensureDir } from '@std/fs';
 import { format } from '@std/datetime';
-import { consoleSize } from '@std/console';
+//import { unicodeWidth } from "@std/cli/unicode-width";
 
 import type { ConversationId } from '../types.ts';
 import { getBbaiDir } from 'shared/dataDir.ts';
@@ -33,7 +33,8 @@ export class ConversationLogger {
 		if (userDefinedLength && userDefinedLength > 0) {
 			return userDefinedLength;
 		}
-		const { columns } = consoleSize(Deno.stdout.rid);
+		//const { columns } = consoleSize(Deno.stdout.rid);
+		const { columns, rows: _rows } = Deno.consoleSize();
 		return columns > 0 ? columns : 120; // Default to 120 if unable to determine console width
 	}
 

@@ -23,6 +23,7 @@
 		"@std/datetime": "jsr:@std/datetime@^0.224.3",
 		"@std/async": "jsr:@std/async@^0.224.0",
 		"@std/dotenv": "jsr:@std/dotenv@^0.224.0",
+		"@std/cli": "jsr:@std/cli@^1.0.1",
 		"@std/flags": "jsr:@std/flags@^0.224.0",
 		"@std/fs": "jsr:@std/fs@^0.224.0",
 		"@std/path": "jsr:@std/path@^0.225.1",
