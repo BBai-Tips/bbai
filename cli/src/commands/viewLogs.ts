@@ -40,7 +40,6 @@ export const viewLogs = new Command()
 						console.log(formattedEntry);
 					},
 					options.follow,
-					maxEntries,
 				);
 				return;
 			} else {
@@ -57,7 +56,7 @@ export const viewLogs = new Command()
 					}
 				} else {
 					const command = new Deno.Command('tail', {
-						args: ['-n', maxEntries.toString(), logFilePath],
+						args: ['-n', options.lines.toString(), logFilePath],
 						stdout: 'piped',
 						stderr: 'piped',
 					});
