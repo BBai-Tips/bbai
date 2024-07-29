@@ -21,6 +21,7 @@ interface ConversationResponse {
 	statementCount: number;
 	turnCount: number;
 	totalTurnCount: number;
+	title: string;
 }
 
 const symbols = {
@@ -47,10 +48,10 @@ export const conversationStart = new Command()
 			// Check if API is running, start it if not
 			const apiRunning = await isApiRunning(startDir);
 			if (!apiRunning) {
-				console.log("API is not running. Starting it now...");
+				console.log('API is not running. Starting it now...');
 				await apiStart.action();
 				apiStartedByUs = true;
-				console.log("API started successfully.");
+				console.log('API started successfully.');
 			}
 
 			// Ensure API is stopped when the process exits
@@ -59,8 +60,8 @@ export const conversationStart = new Command()
 					await apiStop.action();
 				}
 			};
-			Deno.addSignalListener("SIGINT", cleanup);
-			Deno.addSignalListener("SIGTERM", cleanup);
+			Deno.addSignalListener('SIGINT', cleanup);
+			Deno.addSignalListener('SIGTERM', cleanup);
 
 			let prompt = options.prompt;
 
@@ -140,7 +141,7 @@ export const conversationStart = new Command()
 								logger.error(`Error body: ${errorBody}`);
  */
 							}
-					await cleanup();
+							await cleanup();
 						} catch (error) {
 							logger.error(`Error in chat: ${error.message}`);
 						}
@@ -202,12 +203,12 @@ export const conversationStart = new Command()
 					message: error.message,
 				},
 				null,
-		} finally {
-			await cleanup();
 				2,
 			));
 			logger.error(`Unexpected error: ${error.message}`);
 			logger.error(`Stack trace: ${error.stack}`);
+		} finally {
+			await cleanup();
 		}
 	});
 
