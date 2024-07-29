@@ -55,6 +55,15 @@ export class LogFormatter {
 		return lines.join('\n');
 	}
 
+	static createRawEntry(type: string, timestamp: string, message: string): string {
+		// [TODO] add token usage to header line
+		return `## ${type} [${timestamp}]\n${message.trim()}\n$this.ENTRY_SEPARATOR}`;
+	}
+
+	static getTimestamp(): string {
+		return new Date().toISOString();
+	}
+
 	formatLogEntry(type: string, timestamp: string, message: string): string {
 		let icon: string;
 		let color: string;
@@ -188,10 +197,10 @@ export async function writeLogEntry(
 	const logFile = join(bbaiDir, 'cache', 'conversations', conversationId, 'conversation.log');
 
 	const timestamp = new Date().toISOString();
-	const entry = `## ${type} [${timestamp}]\n${message.trim()}${LogFormatter.getEntrySeparator()}`;
+	const entry = LogFormatter.createRawEntry(type, timestamp, message);
 
 	try {
-		await Deno.writeTextFile(logFile, entry, { append: true });
+		await Deno.writeTextFile(logFile, entry + '\n', { append: true });
 	} catch (error) {
 		console.error(`Error writing log entry: ${error.message}`);
 	}

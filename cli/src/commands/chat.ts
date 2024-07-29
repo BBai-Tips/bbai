@@ -48,6 +48,10 @@ export const chat = new Command()
 		}
 	});
 
+function highlightOutput(text: string): string {
+	return highlight(text, { language: 'plaintext' }).value;
+}
+
 function handleConversationOutput(response: ConversationResponse, options: { id?: string; json: boolean }) {
 	const isNewConversation = !options.id;
 	const conversationId = response.conversationId;
@@ -71,7 +75,7 @@ function handleConversationOutput(response: ConversationResponse, options: { id?
 			2,
 		));
 	} else {
-		console.log(apiClient.highlightOutput(response.response.answerContent[0].text));
+		console.log(highlightOutput(response.response.answerContent[0].text));
 
 		console.log(`\nConversation ID: ${conversationId}`);
 		console.log(`Statement Count: ${statementCount}`);

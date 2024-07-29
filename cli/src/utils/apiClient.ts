@@ -1,6 +1,5 @@
 import { config } from 'shared/configManager.ts';
 import { logger } from 'shared/logger.ts';
-import highlight from 'highlight';
 
 class ApiClient {
 	private baseUrl: string;
@@ -47,16 +46,13 @@ class ApiClient {
 		}
 	}
 
+	/*
 	async sendPrompt(prompt: string, conversationId?: string): Promise<any> {
 		const endpoint = conversationId ? `/api/v1/prompt/${conversationId}` : '/api/v1/prompt';
 		const response = await this.post(endpoint, { prompt });
 		return await response.json();
 	}
-
-	highlightOutput(text: string): string {
-		return text;
-		// 		return highlight(text, { language: 'plaintext' }).value;
-	}
+	 */
 }
 
 export const apiClient = await ApiClient.create();

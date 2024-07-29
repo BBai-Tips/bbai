@@ -5,7 +5,8 @@ import { config } from 'shared/configManager.ts';
 import { apiStart } from './commands/apiStart.ts';
 import { apiStop } from './commands/apiStop.ts';
 import { apiStatus } from './commands/apiStatus.ts';
-import { chat } from './commands/chat.ts';
+//import { chat } from './commands/chat.ts';
+import { conversationStart } from './commands/conversationStart.ts';
 import { conversationClear } from './commands/conversationClear.ts';
 import { conversationPersist } from './commands/conversationPersist.ts';
 import { conversationResume } from './commands/conversationResume.ts';
@@ -30,7 +31,7 @@ const cli = new Command()
 	.command('add', filesAdd)
 	.command('remove', filesRemove)
 	.command('list', filesList)
-	.command('chat', chat)
+	.command('chat', conversationStart)
 	.command('clear', conversationClear)
 	.command('request', requestChanges)
 	.command('undo', undoLastChange)

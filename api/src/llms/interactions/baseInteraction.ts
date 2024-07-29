@@ -9,7 +9,7 @@ import type {
 } from '../message.ts';
 import LLMMessage from '../message.ts';
 import LLMTool from '../tool.ts';
-import { ConversationLogger } from '../../utils/conversationLogger.utils.ts';
+import { ConversationLogger } from 'shared/conversationLogger.ts';
 import { crypto } from '@std/crypto';
 import { logger } from 'shared/logger.ts';
 
@@ -64,17 +64,16 @@ class LLMInteraction {
 	public addMessageForUserRole(contentPart: LLMMessageContentPart): string {
 		const lastMessage = this.getLastMessage();
 		//logger.debug('lastMessage for user', lastMessage);
+		//this.conversationLogger?.logUserMessage(contentPart.text);
 		if (lastMessage && lastMessage.role === 'user') {
 			// Append contentPart to the content array of the last user message
 			logger.debug('Adding content to existing user message', JSON.stringify(contentPart, null, 2));
 			lastMessage.content.push(contentPart);
-			this.conversationLogger?.logUserMessage(JSON.stringify(contentPart));
 			return lastMessage.id ?? '';
 		} else {
 			// Add a new user message
 			logger.debug('Adding content to new user message', JSON.stringify(contentPart, null, 2));
 			const newMessage = new LLMMessage('user', [contentPart]);
-			this.conversationLogger?.logUserMessage(JSON.stringify(contentPart));
 			this.addMessage(newMessage);
 			return newMessage.id ?? '';
 		}
@@ -83,18 +82,17 @@ class LLMInteraction {
 	public addMessageForAssistantRole(contentPart: LLMMessageContentPart): string {
 		const lastMessage = this.getLastMessage();
 		//logger.debug('lastMessage for assistant', lastMessage);
+		//this.conversationLogger?.logAssistantMessage(contentPart);
 		if (lastMessage && lastMessage.role === 'assistant') {
 			logger.error('Why are we adding another assistant message - SOMETHING IS WRONG!');
 			// Append contentPart to the content array of the last assistant message
 			logger.debug('Adding content to existing assistant message', JSON.stringify(contentPart, null, 2));
 			lastMessage.content.push(contentPart);
-			this.conversationLogger?.logAssistantMessage(JSON.stringify(contentPart));
 			return lastMessage.id ?? '';
 		} else {
 			// Add a new user message
 			logger.debug('Adding content to new assistant message', JSON.stringify(contentPart, null, 2));
 			const newMessage = new LLMMessage('assistant', [contentPart]);
-			this.conversationLogger?.logAssistantMessage(JSON.stringify(contentPart));
 			this.addMessage(newMessage);
 			return newMessage.id ?? '';
 		}

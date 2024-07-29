@@ -1,7 +1,23 @@
 import { Command } from 'cliffy/command/mod.ts';
+import { Input } from 'cliffy/prompt/mod.ts';
+import highlight from 'highlight';
+import { readLines } from '@std/io';
+
 import { logger } from 'shared/logger.ts';
 import { apiClient } from '../utils/apiClient.ts';
-import { readLines } from '@std/io';
+import { LogFormatter } from 'shared/logFormatter.ts';
+import { ConversationLogger } from 'shared/conversationLogger.ts';
+import { getProjectRoot } from 'shared/dataDir.ts';
+import { LLMProviderMessageMeta, LLMProviderMessageResponse } from '../../../api/src/types/llms.types.ts';
+
+interface ConversationResponse {
+	response: LLMProviderMessageResponse;
+	messageMeta: LLMProviderMessageMeta;
+	conversationId: string;
+	statementCount: number;
+	turnCount: number;
+	totalTurnCount: number;
+}
 
 export const conversationStart = new Command()
 	.name('chat')
@@ -16,29 +32,97 @@ export const conversationStart = new Command()
 			let prompt = options.prompt;
 
 			if (!prompt) {
-				const input = [];
 				const stdin = Deno.stdin;
 
 				if (stdin.isTerminal()) {
-					console.log("Enter your prompt. End with a line containing only a dot ('.'):");
-					for await (const line of readLines(stdin)) {
-						if (line === '.') {
+					let conversationId = options.id;
+
+					const formatter = new LogFormatter();
+
+					async function getMultilineInput(): Promise<string> {
+						return await Input.prompt({
+							message: 'Ask Claude',
+							prefix: '👤  ',
+							//files: true,
+							//info: true,
+							//list: true,
+							//transform: (input: string) => highlight(input, { language: 'plaintext' }).value,
+						});
+					}
+
+					// Main chat loop
+					while (true) {
+						let prompt: string;
+						if (options.prompt) {
+							prompt = options.prompt;
+							options.prompt = undefined; // Clear the initial prompt after first use
+						} else {
+							prompt = await getMultilineInput();
+						}
+
+						if (prompt.toLowerCase() === 'exit') {
+							console.log('Exiting chat...');
 							break;
 						}
-						input.push(line);
+
+						try {
+							//const response = await apiClient.sendPrompt(prompt, conversationId);
+							//apiClient.handleConversationOutput(response, { id: conversationId, json: false });
+							//conversationId = response.conversationId;
+
+							let response;
+							if (conversationId) {
+								response = await apiClient.post(`/api/v1/conversation/${conversationId}`, {
+									prompt: prompt,
+									model: options.model,
+									startDir: startDir,
+								});
+							} else {
+								response = await apiClient.post('/api/v1/conversation', {
+									prompt: prompt,
+									model: options.model,
+									startDir: startDir,
+								});
+							}
+
+							if (response.ok) {
+								const data = await response.json();
+								handleConversationUpdate(formatter, data, conversationId);
+								conversationId = data.conversationId;
+							} else {
+								const errorBody = await response.json();
+								handleConversationUpdate(formatter, errorBody, conversationId);
+								/*
+								console.error(JSON.stringify(
+									{
+										error: `Failed to ${options.id ? 'continue' : 'start'} conversation`,
+										status: response.status,
+										body: errorBody,
+									},
+									null,
+									2,
+								));
+								logger.error(`API request failed: ${response.status} ${response.statusText}`);
+								logger.error(`Error body: ${errorBody}`);
+ */
+							}
+						} catch (error) {
+							logger.error(`Error in chat: ${error.message}`);
+						}
 					}
+					Deno.exit(0);
 				} else {
+					const input = [];
 					for await (const line of readLines(stdin)) {
 						input.push(line);
 					}
-				}
+					if (input.length === 0) {
+						console.error('No input provided. Use -p option or provide input via STDIN.');
+						Deno.exit(1);
+					}
 
-				if (input.length === 0) {
-					console.error('No input provided. Use -p option or provide input via STDIN.');
-					Deno.exit(1);
+					prompt = input.join('\n');
 				}
-
-				prompt = input.join('\n');
 			}
 
 			// Trim any leading/trailing whitespace
@@ -61,7 +145,7 @@ export const conversationStart = new Command()
 
 			if (response.ok) {
 				const data = await response.json();
-				apiClient.handleConversationOutput(data, options);
+				handleConversationComplete(data, options);
 			} else {
 				const errorBody = await response.text();
 				console.error(JSON.stringify(
@@ -89,3 +173,70 @@ export const conversationStart = new Command()
 			logger.error(`Stack trace: ${error.stack}`);
 		}
 	});
+
+function highlightOutput(text: string): string {
+	//return highlight(text, { language: 'plaintext' }).value;
+	return text;
+}
+
+function handleConversationUpdate(formatter: LogFormatter, data: ConversationResponse, conversationId?: string) {
+	const isNewConversation = !conversationId;
+	conversationId = data.conversationId;
+	const statementCount = data.statementCount;
+	const turnCount = data.turnCount;
+	const totalTurnCount = data.totalTurnCount;
+	const tokenUsage = data.response.usage;
+
+	const timestamp = LogFormatter.getTimestamp();
+	const entry = LogFormatter.createRawEntry('Assistant Message', timestamp, data.response.answerContent[0].text);
+	const formattedEntry = formatter.formatRawLogEntry(highlightOutput(entry));
+	console.log(formattedEntry);
+
+	console.log(`\nConversation ID: ${conversationId}`);
+	console.log(`Statement Count: ${statementCount}`);
+	console.log(`Turn Count: ${turnCount}`);
+	console.log(`Total Turn Count: ${totalTurnCount}`);
+	console.log(
+		`Token Usage: Input: ${tokenUsage.inputTokens}, Output: ${tokenUsage.outputTokens}, Total: ${tokenUsage.totalTokens}`,
+	);
+}
+function handleConversationComplete(response: ConversationResponse, options: { id?: string; text?: boolean }) {
+	const isNewConversation = !options.id;
+	const conversationId = response.conversationId;
+	const statementCount = response.statementCount;
+	const turnCount = response.turnCount;
+	const totalTurnCount = response.totalTurnCount;
+	const tokenUsage = response.response.usage;
+
+	if (!options.text) {
+		console.log(JSON.stringify(
+			{
+				...response,
+				isNewConversation,
+				conversationId,
+				statementCount,
+				turnCount,
+				totalTurnCount,
+				tokenUsage,
+			},
+			null,
+			2,
+		));
+	} else {
+		console.log(highlightOutput(response.response.answerContent[0].text));
+
+		console.log(`\nConversation ID: ${conversationId}`);
+		console.log(`Statement Count: ${statementCount}`);
+		console.log(`Turn Count: ${turnCount}`);
+		console.log(`Total Turn Count: ${totalTurnCount}`);
+		console.log(
+			`Token Usage: Input: ${tokenUsage.inputTokens}, Output: ${tokenUsage.outputTokens}, Total: ${tokenUsage.totalTokens}`,
+		);
+
+		if (isNewConversation) {
+			console.log(`\nNew conversation started.`);
+			console.log(`To continue this conversation, use:`);
+			console.log(`bbai chat -i ${conversationId} -p "Your next question"`);
+		}
+	}
+}

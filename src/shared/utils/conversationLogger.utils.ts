@@ -1,7 +1,7 @@
 import { join } from '@std/path';
 import { ensureDir } from '@std/fs';
 
-import type { ConversationId } from '../types.ts';
+import type { ConversationId } from '../../../api/src/types.ts';
 import { getBbaiDir } from 'shared/dataDir.ts';
 import { LogFormatter } from 'shared/logFormatter.ts';
 //import { logger } from 'shared/logger.ts';
@@ -19,8 +19,7 @@ export class ConversationLogger {
 	}
 
 	private async appendToLog(content: string) {
-		const separator = LogFormatter.getEntrySeparator();
-		await Deno.writeTextFile(this.logFile, content + '\n' + separator + '\n', { append: true });
+		await Deno.writeTextFile(this.logFile, content + '\n', { append: true });
 	}
 
 	private getTimestamp(): string {
@@ -29,7 +28,7 @@ export class ConversationLogger {
 
 	private async logEntry(type: string, message: string) {
 		const timestamp = this.getTimestamp();
-		const entry = `## ${type} [${timestamp}]\n${message.trim()}`;
+		const entry = LogFormatter.createRawEntry(type, timestamp, message);
 		await this.appendToLog(entry);
 	}
 
