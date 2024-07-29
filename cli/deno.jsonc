@@ -12,6 +12,9 @@
 		"check-types": "deno check src/main.ts tests/*",
 		"update-deps": "deno cache src/main.ts && deno cache tests/deps.ts"
 	},
+	"imports": {
+		"cliffy/prompt": "https://deno.land/x/cliffy@v0.25.7/prompt/mod.ts"
+	},
 	"importMap": "../import_map.json",
 	"unstable": [
 		"kv"
