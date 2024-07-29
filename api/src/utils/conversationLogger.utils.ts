@@ -1,6 +1,7 @@
 import { join } from '@std/path';
 import { ensureDir } from '@std/fs';
 import { format } from '@std/datetime';
+import { consoleSize } from '@std/console';
 
 import type { ConversationId } from '../types.ts';
 import { getBbaiDir } from 'shared/dataDir.ts';
@@ -14,7 +15,6 @@ const ANSI_YELLOW = '\x1b[33m';
 const ANSI_BLUE = '\x1b[34m';
 
 const INDENT = '│ ';
-const MAX_LINE_LENGTH = 120;
 const USER_ICON = '👤';
 const ASSISTANT_ICON = '🤖';
 const TOOL_ICON = '🔧';
@@ -23,8 +23,21 @@ const ERROR_ICON = '❌';
 
 export class ConversationLogger {
 	private logFile!: string;
+	private maxLineLength: number;
 
-	constructor(private startDir: string, private conversationId: ConversationId) {}
+	constructor(private startDir: string, private conversationId: ConversationId, maxLineLength?: number) {
+		this.maxLineLength = this.getMaxLineLength(maxLineLength);
+	}
+
+	private getMaxLineLength(userDefinedLength?: number): number {
+		if (userDefinedLength && userDefinedLength > 0) {
+			return userDefinedLength;
+		}
+		const { columns } = consoleSize(Deno.stdout.rid);
+		return columns > 0 ? columns : 120; // Default to 120 if unable to determine console width
+	}
+
+	// ... (rest of the existing methods)
 
 	async initialize() {
 		logger.debug(`ConversationLogger startDir: ${this.startDir}`);
@@ -50,7 +63,7 @@ export class ConversationLogger {
 		let currentIndent = firstLineIndent;
 
 		for (const word of words) {
-			if ((line + word).length > MAX_LINE_LENGTH - currentIndent.length) {
+			if ((line + word).length > this.maxLineLength - currentIndent.length) {
 				lines.push(currentIndent + line.trim() + tail);
 				line = '';
 				currentIndent = indent;
@@ -64,9 +77,9 @@ export class ConversationLogger {
 
 	private async logEntry(icon: string, color: string, type: string, message: string) {
 		const timestamp = this.getTimestamp();
-		const footer = `${color}╰${'─'.repeat(MAX_LINE_LENGTH - 1)}${ANSI_RESET}`;
+		const header = `${color}╭─ ${icon} ${type} [${timestamp}]${ANSI_RESET}`;
+		const footer = `${color}╰${'─'.repeat(this.maxLineLength - 1)}${ANSI_RESET}`;
 		const wrappedMessage = this.wrapText(message, `${color}${INDENT}`, `${ANSI_RESET}`, `${color}${INDENT}`);
-		const wrappedMessage = this.wrapText(message, `${color}${INDENT}`, `${ANSI_RESET}`);
 
 		const formattedMessage = `${header}\n${wrappedMessage}\n${footer}\n`;
 		await this.appendToLog(formattedMessage);
@@ -104,7 +117,7 @@ export class ConversationLogger {
 	}
 
 	async logSeparator() {
-		const separator = `${ANSI_BLUE}${'─'.repeat(MAX_LINE_LENGTH)}${ANSI_RESET}\n`;
+		const separator = `${ANSI_BLUE}${'─'.repeat(this.maxLineLength)}${ANSI_RESET}\n`;
 		await this.appendToLog(separator);
 	}
 }
