@@ -19,7 +19,7 @@ const ERROR_ICON = '❌';
 const UNKNOWN_ICON = '❓';
 
 export class LogFormatter {
-	private static readonly ENTRY_SEPARATOR = '\n<<<BBAI_LOG_ENTRY_SEPARATOR>>>\n\n';
+	private static readonly ENTRY_SEPARATOR = '\n<<<BBAI_LOG_ENTRY_SEPARATOR>>>\n';
 
 	private maxLineLength: number;
 
@@ -147,7 +147,7 @@ export async function displayFormattedLogs(
 			let entry = '';
 			let line: string | null;
 			while ((line = await bufReader.readString('\n')) !== null) {
-				if (line.trim() === '<<<BBAI_LOG_ENTRY_SEPARATOR>>>') {
+				if (line.includes('<<<BBAI_LOG_ENTRY_SEPARATOR>>>')) {
 					processEntry(entry);
 					entry = '';
 				} else {
@@ -188,11 +188,26 @@ export async function writeLogEntry(
 	const logFile = join(bbaiDir, 'cache', 'conversations', conversationId, 'conversation.log');
 
 	const timestamp = new Date().toISOString();
-	const entry = `## ${type} [${timestamp}]\n${message}${LogFormatter.getEntrySeparator()}`;
+	const entry = `## ${type} [${timestamp}]\n${message.trim()}${LogFormatter.getEntrySeparator()}`;
 
 	try {
 		await Deno.writeTextFile(logFile, entry, { append: true });
 	} catch (error) {
 		console.error(`Error writing log entry: ${error.message}`);
+	}
+}
+
+export async function countLogEntries(conversationId: string): Promise<number> {
+	const bbaiDir = await getBbaiDir(Deno.cwd());
+	const logFile = join(bbaiDir, 'cache', 'conversations', conversationId, 'conversation.log');
+
+	try {
+		const content = await Deno.readTextFile(logFile);
+		const entries = content.split(LogFormatter.getEntrySeparator().trim());
+		// Filter out any empty entries
+		return entries.filter((entry) => entry.trim() !== '').length;
+	} catch (error) {
+		console.error(`Error counting log entries: ${error.message}`);
+		return 0;
 	}
 }
