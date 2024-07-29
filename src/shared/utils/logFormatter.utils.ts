@@ -19,8 +19,7 @@ const ERROR_ICON = '❌';
 const UNKNOWN_ICON = '❓';
 
 export class LogFormatter {
-	private static readonly ENTRY_SEPARATOR = '<<<BBAI_LOG_ENTRY_SEPARATOR_' +
-		crypto.randomUUID().replace(/-/g, '') + '>>>';
+	private static readonly ENTRY_SEPARATOR = '\n<<<BBAI_LOG_ENTRY_SEPARATOR>>>\n\n';
 
 	private maxLineLength: number;
 
@@ -148,7 +147,7 @@ export async function displayFormattedLogs(
 			let entry = '';
 			let line: string | null;
 			while ((line = await bufReader.readString('\n')) !== null) {
-				if (line.includes(LogFormatter.getEntrySeparator())) {
+				if (line.trim() === '<<<BBAI_LOG_ENTRY_SEPARATOR>>>') {
 					processEntry(entry);
 					entry = '';
 				} else {
@@ -189,7 +188,7 @@ export async function writeLogEntry(
 	const logFile = join(bbaiDir, 'cache', 'conversations', conversationId, 'conversation.log');
 
 	const timestamp = new Date().toISOString();
-	const entry = `## ${type} [${timestamp}]\n${message}\n${LogFormatter.getEntrySeparator()}\n`;
+	const entry = `## ${type} [${timestamp}]\n${message}${LogFormatter.getEntrySeparator()}`;
 
 	try {
 		await Deno.writeTextFile(logFile, entry, { append: true });
