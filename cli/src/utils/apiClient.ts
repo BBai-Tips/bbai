@@ -1,6 +1,6 @@
 import { config } from 'shared/configManager.ts';
 import { logger } from 'shared/logger.ts';
-import { highlight } from 'https://esm.sh/highlight.js@11.7.0';
+import highlight from 'highlight';
 
 class ApiClient {
 	private baseUrl: string;
@@ -54,48 +54,8 @@ class ApiClient {
 	}
 
 	highlightOutput(text: string): string {
-		return highlight(text, { language: 'plaintext' }).value;
-	}
-
-	handleConversationOutput(response: any, options: any) {
-		const isNewConversation = !options.id;
-		const conversationId = response.conversationId;
-		const statementCount = response.statementCount;
-		const turnCount = response.turnCount;
-		const totalTurnCount = response.totalTurnCount;
-		const tokenUsage = response.response.usage;
-
-		if (options.json) {
-			console.log(JSON.stringify(
-				{
-					...response,
-					isNewConversation,
-					conversationId,
-					statementCount,
-					turnCount,
-					totalTurnCount,
-					tokenUsage,
-				},
-				null,
-				2,
-			));
-		} else {
-			console.log(this.highlightOutput(response.response.answerContent[0].text));
-
-			console.log(`\nConversation ID: ${conversationId}`);
-			console.log(`Statement Count: ${statementCount}`);
-			console.log(`Turn Count: ${turnCount}`);
-			console.log(`Total Turn Count: ${totalTurnCount}`);
-			console.log(
-				`Token Usage: Input: ${tokenUsage.inputTokens}, Output: ${tokenUsage.outputTokens}, Total: ${tokenUsage.totalTokens}`,
-			);
-
-			if (isNewConversation) {
-				console.log(`\nNew conversation started.`);
-				console.log(`To continue this conversation, use:`);
-				console.log(`bbai chat -i ${conversationId} -p "Your next question"`);
-			}
-		}
+		return text;
+		// 		return highlight(text, { language: 'plaintext' }).value;
 	}
 }
 
