@@ -39,8 +39,29 @@ export const conversationStart = new Command()
 	.option('-m, --model <string>', 'LLM model to use for the conversation')
 	.option('--text', 'Return plain text instead of JSON')
 	.action(async (options) => {
+		let apiStartedByUs = false;
+
 		try {
 			const startDir = Deno.cwd();
+
+			// Check if API is running, start it if not
+			const apiRunning = await isApiRunning(startDir);
+			if (!apiRunning) {
+				console.log("API is not running. Starting it now...");
+				await apiStart.action();
+				apiStartedByUs = true;
+				console.log("API started successfully.");
+			}
+
+			// Ensure API is stopped when the process exits
+			const cleanup = async () => {
+				if (apiStartedByUs) {
+					await apiStop.action();
+				}
+			};
+			Deno.addSignalListener("SIGINT", cleanup);
+			Deno.addSignalListener("SIGTERM", cleanup);
+
 			let prompt = options.prompt;
 
 			if (!prompt) {
@@ -70,6 +91,7 @@ export const conversationStart = new Command()
 							options.prompt = undefined; // Clear the initial prompt after first use
 						} else {
 							prompt = await getMultilineInput();
+							await cleanup();
 						}
 
 						if (prompt.toLowerCase() === 'exit') {
@@ -118,6 +140,7 @@ export const conversationStart = new Command()
 								logger.error(`Error body: ${errorBody}`);
  */
 							}
+					await cleanup();
 						} catch (error) {
 							logger.error(`Error in chat: ${error.message}`);
 						}
@@ -179,6 +202,8 @@ export const conversationStart = new Command()
 					message: error.message,
 				},
 				null,
+		} finally {
+			await cleanup();
 				2,
 			));
 			logger.error(`Unexpected error: ${error.message}`);
