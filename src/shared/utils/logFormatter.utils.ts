@@ -127,49 +127,56 @@ export async function displayFormattedLogs(
 	const bbaiDir = await getBbaiDir(Deno.cwd());
 	const logFile = join(bbaiDir, 'cache', 'conversations', conversationId, 'conversation.log');
 
-	let file: Deno.FsFile | null = null;
+	const processEntry = (entry: string) => {
+		if (entry.trim() !== '') {
+			const formattedEntry = formatter.formatRawLogEntry(entry);
+			if (callback) {
+				callback(formattedEntry);
+			} else {
+				console.log(formattedEntry);
+			}
+		}
+	};
 
-	try {
-		file = await Deno.open(logFile, { read: true });
-		const bufReader = new BufReader(file);
+	const readAndProcessEntries = async (startPosition = 0) => {
+		let file: Deno.FsFile | null = null;
+		try {
+			file = await Deno.open(logFile, { read: true });
+			await file.seek(startPosition, Deno.SeekMode.Start);
+			const bufReader = new BufReader(file);
 
-		const processEntry = (entry: string) => {
-			if (entry.trim() !== '') {
-				const formattedEntry = formatter.formatRawLogEntry(entry);
-				if (callback) {
-					callback(formattedEntry);
+			let entry = '';
+			let line: string | null;
+			while ((line = await bufReader.readString('\n')) !== null) {
+				if (line.includes(LogFormatter.getEntrySeparator())) {
+					processEntry(entry);
+					entry = '';
 				} else {
-					console.log(formattedEntry);
+					entry += line;
 				}
 			}
-		};
-
-		const readAndProcessEntries = async () => {
-			const fullContent = await Deno.readTextFile(logFile);
-			if (fullContent.trim() === '') return;
-
-			const entries = fullContent.split(LogFormatter.getEntrySeparator());
-			for (const entry of entries) {
-				processEntry(entry.trim());
+			if (entry.trim() !== '') {
+				processEntry(entry);
 			}
-		};
+			return file.seek(0, Deno.SeekMode.Current);
+		} finally {
+			file?.close();
+		}
+	};
 
-		await readAndProcessEntries();
+	try {
+		let lastPosition = await readAndProcessEntries();
 
 		if (follow) {
 			const watcher = Deno.watchFs(logFile);
 			for await (const event of watcher) {
 				if (event.kind === 'modify') {
-					await readAndProcessEntries();
+					lastPosition = await readAndProcessEntries(lastPosition);
 				}
 			}
 		}
 	} catch (error) {
 		console.error(`Error reading log file: ${error.message}`);
-	} finally {
-		if (file) {
-			file.close();
-		}
 	}
 }
 
