@@ -61,7 +61,7 @@ export class LogFormatter {
 
 	static createRawEntry(type: string, timestamp: string, message: string): string {
 		// [TODO] add token usage to header line
-		return `## ${type} [${timestamp}]\n${message.trim()}\n$this.ENTRY_SEPARATOR}`;
+		return `## ${type} [${timestamp}]\n${message.trim()}\n${this.ENTRY_SEPARATOR}`;
 	}
 
 	static getTimestamp(): string {

@@ -2,11 +2,10 @@ import { getBbaiDir } from 'shared/utils/dataDir.utils.ts';
 import { ensureFile } from 'std/fs/ensure_file.ts';
 import { join } from 'std/path/mod.ts';
 
-const HISTORY_FILE = 'chat_history.json';
+const HISTORY_FILE = 'prompt_history.json';
 const MAX_HISTORY_SIZE = 100;
 
-export async function getPromptHistory(startDir: string): Promise<string[]> {
-	const bbaiDir = await getBbaiDir(startDir);
+export async function getPromptHistory(bbaiDir: string): Promise<string[]> {
 	const historyPath = join(bbaiDir, HISTORY_FILE);
 	await ensureFile(historyPath);
 
@@ -18,12 +17,11 @@ export async function getPromptHistory(startDir: string): Promise<string[]> {
 	}
 }
 
-export async function addToPromptHistory(startDir: string, prompt: string): Promise<void> {
-	const bbaiDir = await getBbaiDir(startDir);
+export async function addToPromptHistory(bbaiDir: string, prompt: string): Promise<void> {
 	const historyPath = join(bbaiDir, HISTORY_FILE);
 	await ensureFile(historyPath);
 
-	let history = await getPromptHistory(startDir);
+	let history = await getPromptHistory(bbaiDir);
 
 	// Remove duplicate if exists
 	history = history.filter((item) => item !== prompt);

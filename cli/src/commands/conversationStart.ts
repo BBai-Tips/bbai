@@ -1,5 +1,5 @@
 import { Command } from 'cliffy/command/mod.ts';
-import { Input } from 'cliffy/prompt/mod.ts';
+import { Input, Select } from 'cliffy/prompt/mod.ts';
 import highlight from 'highlight';
 import { readLines } from '@std/io';
 import { colors } from 'cliffy/ansi/mod.ts';
@@ -13,6 +13,8 @@ import { LLMProviderMessageMeta, LLMProviderMessageResponse } from '../../../api
 import { isApiRunning } from '../utils/pid.utils.ts';
 import { apiStart } from './apiStart.ts';
 import { apiStop } from './apiStop.ts';
+import { getBbaiDir, getProjectRoot } from 'shared/dataDir.ts';
+import { addToPromptHistory, getPromptHistory } from '../utils/promptHistory.utils.ts';
 
 interface ConversationResponse {
 	response: LLMProviderMessageResponse;
@@ -44,6 +46,8 @@ export const conversationStart = new Command()
 
 		try {
 			const startDir = Deno.cwd();
+			const bbaiDir = await getBbaiDir(Deno.cwd());
+			const projectRoot = await getProjectRoot(Deno.cwd());
 
 			// Check if API is running, start it if not
 			const apiRunning = await isApiRunning(startDir);
@@ -74,14 +78,22 @@ export const conversationStart = new Command()
 					const formatter = new LogFormatter();
 
 					async function getMultilineInput(): Promise<string> {
-						return await Input.prompt({
+						const history = await getPromptHistory(bbaiDir);
+						const input = await Input.prompt({
 							message: 'Ask Claude',
 							prefix: '👤  ',
 							//files: true,
 							//info: true,
-							//list: true,
+							list: true,
+							suggestions: history,
+							completeOnEmpty: true,
+							history: {
+								enable: true,
+								persistent: true,
+							},
 							//transform: (input: string) => highlight(input, { language: 'plaintext' }).value,
 						});
+						return input;
 					}
 
 					// Main chat loop
@@ -121,6 +133,7 @@ export const conversationStart = new Command()
 							}
 
 							if (response.ok) {
+								await addToPromptHistory(bbaiDir, prompt);
 								const data = await response.json();
 								handleConversationUpdate(formatter, data, conversationId);
 								conversationId = data.conversationId;
@@ -247,9 +260,9 @@ function handleConversationUpdate(formatter: LogFormatter, data: ConversationRes
 	console.log(titleLine);
 	console.log(summaryLine2 + ' '.repeat(maxLength - summaryLine2.length) + colors.bold.cyan('─┘'));
 
-	console.log(colors.dim.italic(
-		`Token Usage: Input: ${tokenUsage.inputTokens}, Output: ${tokenUsage.outputTokens}, Total: ${tokenUsage.totalTokens}`,
-	));
+	// 	console.log(colors.dim.italic(
+	// 		`Token Usage: Input: ${tokenUsage.inputTokens}, Output: ${tokenUsage.outputTokens}, Total: ${tokenUsage.totalTokens}`,
+	// 	));
 }
 function handleConversationComplete(response: ConversationResponse, options: { id?: string; text?: boolean }) {
 	const isNewConversation = !options.id;
