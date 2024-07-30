@@ -2,7 +2,7 @@ import { Command } from 'cliffy/command/mod.ts';
 import { logger } from 'shared/logger.ts';
 import { config } from 'shared/configManager.ts';
 import { isApiRunning, savePid } from '../utils/pid.utils.ts';
-import { getBbaiDir } from 'shared/dataDir.ts';
+import { getBbaiDir, getProjectRoot } from 'shared/dataDir.ts';
 import { join } from '@std/path';
 import { isCompiledBinary } from '../utils/environment.utils.ts';
 
@@ -19,6 +19,7 @@ export const apiStart = new Command()
 		}
 
 		const bbaiDir = await getBbaiDir(startDir);
+		const projectRoot = await getProjectRoot(startDir);
 		const logFile = cliLogFile || config.logFile || 'api.log';
 		const logFilePath = join(bbaiDir, logFile);
 		const logLevel = cliLogLevel || config.logLevel || 'info';
@@ -54,8 +55,8 @@ export const apiStart = new Command()
 			}
 
 			command = new Deno.Command(Deno.execPath(), {
-				args: [...cmdArgs, '../api/src/main.ts', '--log-file', logFilePath],
-				cwd: '../api',
+				args: [...cmdArgs, join(projectRoot, 'api/src/main.ts'), '--log-file', logFilePath],
+				cwd: join(projectRoot, 'api'),
 				stdout: 'null',
 				stderr: 'null',
 				stdin: 'null',

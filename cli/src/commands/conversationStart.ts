@@ -8,7 +8,6 @@ import { logger } from 'shared/logger.ts';
 import { apiClient } from '../utils/apiClient.ts';
 import { LogFormatter } from 'shared/logFormatter.ts';
 import { ConversationLogger } from 'shared/conversationLogger.ts';
-import { getProjectRoot } from 'shared/dataDir.ts';
 import { LLMProviderMessageMeta, LLMProviderMessageResponse } from '../../../api/src/types/llms.types.ts';
 import { isApiRunning } from '../utils/pid.utils.ts';
 import { apiStart } from './apiStart.ts';

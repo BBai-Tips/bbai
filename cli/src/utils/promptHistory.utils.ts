@@ -1,6 +1,6 @@
-import { getBbaiDir } from 'shared/utils/dataDir.utils.ts';
-import { ensureFile } from 'std/fs/ensure_file.ts';
-import { join } from 'std/path/mod.ts';
+import { getBbaiDir } from 'shared/dataDir.ts';
+import { ensureFile } from '@std/fs';
+import { join } from '@std/path';
 
 const HISTORY_FILE = 'prompt_history.json';
 const MAX_HISTORY_SIZE = 100;
