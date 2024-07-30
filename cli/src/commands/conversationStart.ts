@@ -2,7 +2,8 @@ import { Command } from 'cliffy/command/mod.ts';
 import { Input, Select } from 'cliffy/prompt/mod.ts';
 import highlight from 'highlight';
 import { readLines } from '@std/io';
-import { colors } from 'cliffy/ansi/mod.ts';
+import { ansi, colors, tty } from 'cliffy/ansi/mod.ts';
+import { KeyCode, parse } from 'cliffy/keycode/mod.ts';
 
 import { logger } from 'shared/logger.ts';
 import { apiClient } from '../utils/apiClient.ts';
@@ -74,7 +75,60 @@ export const conversationStart = new Command()
 				if (stdin.isTerminal()) {
 					let conversationId = options.id;
 
+					tty
+						//.cursorSave
+						//.cursorHide
+						.cursorTo(0, 0)
+						.eraseScreen();
+
+					//const response = await fetch('https://avatars.githubusercontent.com/u/176643338?s=48&v=4');
+					//const imageBuffer: ArrayBuffer = await response.arrayBuffer();
+					console.log(
+						ansi.cursorTo(0, 0) +
+							ansi.eraseDown() +
+							//ansi.image(imageBuffer, {
+							//	width: 2,
+							//	preserveAspectRatio: true,
+							//}) + '  ' +
+							ansi.cursorTo(6, 2) +
+							colors.bold.blue.underline('BBai') + colors.bold.blue(' - Be Better with code and docs') +
+							//colors.bold.blue(ansi.link('BBai', 'https://bbai.tips')) +
+							'\n',
+					);
+
 					const formatter = new LogFormatter();
+
+					/*
+					async function* keypress(): AsyncGenerator<KeyCode, void> {
+						while (true) {
+							const data = new Uint8Array(8);
+
+							Deno.stdin.setRaw(true);
+							const nread = await Deno.stdin.read(data);
+							Deno.stdin.setRaw(false);
+
+							if (nread === null) {
+								return;
+							}
+
+							const keys: Array<KeyCode> = parse(data.subarray(0, nread));
+
+							for (const key of keys) {
+								yield key;
+							}
+						}
+					}
+
+					console.log('Hit ctrl + c to exit.');
+
+					for await (const key of keypress()) {
+						if (key.ctrl && key.name === 'c') {
+							console.log('exit');
+							break;
+						}
+						console.log(key.char);
+					}
+					 */
 
 					async function getMultilineInput(): Promise<string> {
 						const history = await getPromptHistory(bbaiDir);
@@ -82,14 +136,19 @@ export const conversationStart = new Command()
 							message: 'Ask Claude',
 							prefix: '👤  ',
 							//files: true,
-							//info: true,
-							list: true,
+							info: true,
+							//list: true,
 							suggestions: history,
 							completeOnEmpty: true,
 							history: {
 								enable: true,
 								persistent: true,
 							},
+							suggestions: [
+								'apiStart',
+								'apiStatus',
+								'conversationStart',
+							],
 							//transform: (input: string) => highlight(input, { language: 'plaintext' }).value,
 						});
 						return input;
@@ -137,21 +196,24 @@ export const conversationStart = new Command()
 								handleConversationUpdate(formatter, data, conversationId);
 								conversationId = data.conversationId;
 							} else {
-								const errorBody = await response.json();
-								handleConversationUpdate(formatter, errorBody, conversationId);
-								/*
-								console.error(JSON.stringify(
-									{
-										error: `Failed to ${options.id ? 'continue' : 'start'} conversation`,
-										status: response.status,
-										body: errorBody,
+								const errorBody = await response.text();
+								const errorMessage = `Failed to ${
+									conversationId ? 'continue' : 'start'
+								} conversation. ${response.status}: ${response.statusText}`;
+								const errorData = {
+									conversationId,
+									response: {
+										answerContent: [{ text: errorMessage }],
+										usage: { inputTokens: 0, outputTokens: 0, totalTokens: 0 },
 									},
-									null,
-									2,
-								));
-								logger.error(`API request failed: ${response.status} ${response.statusText}`);
+									statementCount: 0,
+									turnCount: 0,
+									totalTurnCount: 0,
+									title: 'Error',
+								};
+								handleConversationUpdate(formatter, errorData, conversationId);
+								logger.error(`API request failed: ${errorMessage}`);
 								logger.error(`Error body: ${errorBody}`);
- */
 							}
 							await cleanup();
 						} catch (error) {
