@@ -310,7 +310,7 @@ export class ProjectEditor {
 		return conversation;
 	}
 	async createChat(): Promise<LLMChatInteraction> {
-		const chat = new LLMChatInteraction(this.llmProviderFast);
+		const chat = new LLMChatInteraction(this.llmProviderFast, this.conversation.id);
 		await chat.init();
 		return chat;
 	}

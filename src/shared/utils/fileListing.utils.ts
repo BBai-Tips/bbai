@@ -27,9 +27,7 @@ export async function generateFileListing(projectRoot: string): Promise<string |
 		const listing = await generateFileListingTier(projectRoot, excludeOptions, tier.depth, tier.includeMetadata);
 		const tokenCount = countTokens(listing);
 		logger.info(
-			`Created file listing for ${tier} using ${tokenCount} tokens - args: ${
-				FILE_LISTING_TIERS[tier].args.join(' ')
-			}`,
+			`Created file listing for ${tier} using ${tokenCount} tokens - depth: ${tier.depth} - includeMetadata: ${tier.includeMetadata}`,
 		);
 		if (tokenCount <= tokenLimit) {
 			logger.info(`File listing generated successfully within token limit (${tokenLimit})`);
