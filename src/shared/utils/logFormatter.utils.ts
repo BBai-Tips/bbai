@@ -36,27 +36,32 @@ export class LogFormatter {
 	}
 
 	private wrapText(text: string, indent: string, tail: string): string {
-		const words = text.split(/\s+/);
-		let line = indent;
-		const lines = [];
+		const paragraphs = text.split('\n');
+		const wrappedParagraphs = paragraphs.map((paragraph) => {
+			const words = paragraph.split(/\s+/);
+			let line = indent;
+			const lines = [];
 
-		for (const word of words) {
-			if (line.length + word.length > this.maxLineLength - tail.length) {
-				lines.push(line.trimEnd());
-				line = indent + word + ' ';
-			} else {
-				line += word + ' ';
+			for (const word of words) {
+				if (line.length + word.length > this.maxLineLength - tail.length) {
+					lines.push(line.trimEnd());
+					line = indent + word + ' ';
+				} else {
+					line += word + ' ';
+				}
 			}
-			if (word.includes('\n')) {
+			if (line.trim()) {
 				lines.push(line.trimEnd());
-				line = indent;
 			}
-		}
-		if (line.trim()) {
-			lines.push(line.trimEnd());
+
+			return lines.map((l) => l + tail).join('\n');
+		});
+
+		if (wrappedParagraphs.length > 1) {
+			return wrappedParagraphs.join('\n' + indent + '\n') + '\n';
 		}
 
-		return lines.map((l) => l + tail).join('\n') + '\n';
+		return wrappedParagraphs[0] + '\n';
 	}
 
 	static createRawEntry(type: string, timestamp: string, message: string): string {
