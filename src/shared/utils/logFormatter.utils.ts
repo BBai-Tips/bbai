@@ -45,23 +45,29 @@ export class LogFormatter {
 				const words = paragraph.split(/\s+/);
 				let line = '';
 				const lines = [];
+				let isFirstWord = true;
 
 				for (const word of words) {
-					if ((line + word).length > this.maxLineLength - indent.length - tail.length) {
-						lines.push(line.trimEnd());
-						line = word + ' ';
+					if (line.length + word.length > this.maxLineLength - indent.length - tail.length) {
+						if (line.trim()) {
+							lines.push(line.trimEnd());
+							line = word + ' ';
+						} else {
+							// If the word itself is too long, split it
+							lines.push(word.slice(0, this.maxLineLength - indent.length - tail.length));
+							line = word.slice(this.maxLineLength - indent.length - tail.length) + ' ';
+						}
 					} else {
+						if (isFirstWord && line.length > 0) {
+							lines.push(line.trimEnd());
+							line = '';
+						}
 						line += word + ' ';
 					}
+					isFirstWord = false;
 				}
-				if (line.trim()) {
-					lines.push(line.trim());
-				}
-
-				return lines.map((l, i) => {
-					const prefix = i === 0 ? indent : ' '.repeat(indent.length);
-					return `${prefix}${l}${tail}`;
-				}).join('\n');
+				if (line.trim()) lines.push(line.trim());
+				return lines.map((l, i) => `${i === 0 ? indent : ' '.repeat(indent.length)}${l}${tail}`).join('\n');
 			}
 		});
 
@@ -153,7 +159,7 @@ export async function displayFormattedLogs(
 	const logFile = join(bbaiDir, 'cache', 'conversations', conversationId, 'conversation.log');
 
 	const processEntry = (entry: string) => {
-		console.debug('Debug: Raw entry before processing:\n', entry.trimStart());
+		//console.debug('Debug: Raw entry before processing:\n', entry.trimStart());
 		if (entry.trim() !== '') {
 			const formattedEntry = formatter.formatRawLogEntry(entry);
 			if (callback) {
@@ -161,7 +167,7 @@ export async function displayFormattedLogs(
 			} else {
 				console.log(formattedEntry);
 			}
-			console.debug('Debug: Formatted entry:\n' + formattedEntry);
+			//console.debug('Debug: Formatted entry:\n' + formattedEntry);
 		}
 	};
 
@@ -175,17 +181,17 @@ export async function displayFormattedLogs(
 			let entry = '';
 			let line: string | null;
 			while ((line = await bufReader.readString('\n')) !== null) {
-				console.debug('Debug: Read line:', line.trimEnd());
+				//console.debug('Debug: Read line:', line.trimEnd());
 				if (line.includes(LogFormatter.getEntrySeparator())) {
 					processEntry(entry);
 					entry = '';
-					console.debug('Debug: Entry separator found, resetting entry');
+					//console.debug('Debug: Entry separator found, resetting entry');
 				} else {
 					entry += line;
 				}
 			}
 			if (entry.trim() !== '') {
-				processEntry(entry);
+				processEntry(entry.trim());
 			}
 			return file.seek(0, Deno.SeekMode.Current);
 		} finally {
