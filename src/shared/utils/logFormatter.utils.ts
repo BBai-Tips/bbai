@@ -36,34 +36,36 @@ export class LogFormatter {
 	}
 
 	private wrapText(text: string, indent: string, tail: string): string {
-		const paragraphs = text.trim().split('\n');
+		const paragraphs = text.trim().split('\n').filter((p) => p.trim() !== '');
 		const wrappedParagraphs = paragraphs.map((paragraph) => {
 			const words = paragraph.split(/\s+/);
-			let line = indent;
+			let line = '';
 			const lines = [];
 
 			for (const word of words) {
-				if (line.length + word.length > this.maxLineLength - tail.length) {
+				if ((line + word).length > this.maxLineLength - indent.length - tail.length) {
 					lines.push(line.trimEnd());
-					line = indent + word + ' ';
+					line = word + ' ';
 				} else {
 					line += word + ' ';
 				}
 			}
 			if (line.trim()) {
-				lines.push(line.trimEnd());
+				lines.push(line.trim());
 			}
 
-			return lines.map((l) => l + tail).join('\n');
+			return lines.map((l, i) => {
+				const prefix = i === 0 ? indent : ' '.repeat(indent.length);
+				return `${prefix}${l}${tail}`;
+			}).join('\n');
 		});
 
 		if (wrappedParagraphs.length > 1) {
-			return wrappedParagraphs.join('\n' + indent);
+			return wrappedParagraphs.join('\n');
 		}
 
 		return wrappedParagraphs[0];
 	}
-
 	static createRawEntry(type: string, timestamp: string, message: string): string {
 		// [TODO] add token usage to header line
 		return `## ${type} [${timestamp}]\n${message.trim()}\n${this.ENTRY_SEPARATOR}`;
