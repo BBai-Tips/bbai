@@ -236,12 +236,20 @@ export class ProjectEditor {
 						items: {
 							type: 'object',
 							properties: {
-								search: { type: 'string', description: 'The text to search for' },
-								replace: { type: 'string', description: 'The text to replace with' },
+								search: {
+									type: 'string',
+									description:
+										'The exact literal text to search for, with all leading and trailing whitespace from the original file',
+								},
+								replace: {
+									type: 'string',
+									description:
+										'The text to replace with, matching the same indent level as the original file',
+								},
 							},
 							required: ['search', 'replace'],
 						},
-						description: 'List of search and replace operations to apply',
+						description: 'List of literal search and replace operations to apply',
 					},
 				},
 				required: ['filePath', 'operations'],
@@ -624,20 +632,38 @@ export class ProjectEditor {
 		try {
 			let content = await Deno.readTextFile(fullFilePath);
 
+			let changesMade = false;
 			for (const operation of operations) {
 				const { search, replace } = operation;
+
+				// Validate that search and replace strings are different
+				if (search === replace) {
+					logger.warn(`Search and replace strings are identical for operation: ${JSON.stringify(operation)}`);
+					continue; // Skip this operation
+				}
+
+				const originalContent = content;
 				content = content.replaceAll(search, replace);
+
+				// Check if the content actually changed
+				if (content !== originalContent) {
+					changesMade = true;
+				}
 			}
 
-			await Deno.writeTextFile(fullFilePath, content);
-			this.patchedFiles.add(filePath);
+			if (changesMade) {
+				await Deno.writeTextFile(fullFilePath, content);
+				this.patchedFiles.add(filePath);
 
-			// Log the applied changes
-			if (this.conversation) {
-				logger.info(`Saving conversation search and replace: ${this.conversation.id}`);
-				const persistence = new ConversationPersistence(this.conversation.id, this);
-				await persistence.logPatch(filePath, JSON.stringify(operations));
-				await this.createCommitAfterPatching();
+				// Log the applied changes
+				if (this.conversation) {
+					logger.info(`Saving conversation search and replace: ${this.conversation.id}`);
+					const persistence = new ConversationPersistence(this.conversation.id, this);
+					await persistence.logPatch(filePath, JSON.stringify(operations));
+					await this.createCommitAfterPatching();
+				}
+			} else {
+				logger.info(`No changes were made to the file: ${filePath}`);
 			}
 
 			// Add tool result message
