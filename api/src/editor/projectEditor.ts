@@ -219,26 +219,6 @@ export class ProjectEditor {
 			},
 		};
 
-		const searchProjectTool: LLMTool = {
-			name: 'search_project',
-			description: 'Search the project for files matching a pattern',
-			input_schema: {
-				type: 'object',
-				properties: {
-					pattern: {
-						type: 'string',
-						description: 'The search pattern to use (grep-compatible regular expression)',
-					},
-					file_pattern: {
-						type: 'string',
-						description:
-							'Optional file pattern to limit the search to specific file types (e.g., "*.ts" for TypeScript files)',
-					},
-				},
-				required: ['pattern'],
-			},
-		};
-
 		const searchAndReplaceTool: LLMTool = {
 			name: 'search_and_replace',
 			description: 'Apply a list of search and replace operations to a file',
@@ -266,10 +246,30 @@ export class ProjectEditor {
 			},
 		};
 
+		const searchProjectTool: LLMTool = {
+			name: 'search_project',
+			description: 'Search the project for files matching a pattern',
+			input_schema: {
+				type: 'object',
+				properties: {
+					pattern: {
+						type: 'string',
+						description: 'The search pattern to use (grep-compatible regular expression)',
+					},
+					file_pattern: {
+						type: 'string',
+						description:
+							'Optional file pattern to limit the search to specific file types (e.g., "*.ts" for TypeScript files)',
+					},
+				},
+				required: ['pattern'],
+			},
+		};
+
 		this.conversation?.addTool(requestFilesTool);
 		this.conversation?.addTool(applyPatchTool);
-		this.conversation?.addTool(searchProjectTool);
 		this.conversation?.addTool(searchAndReplaceTool);
+		this.conversation?.addTool(searchProjectTool);
 	}
 
 	private isPathWithinProject(filePath: string): boolean {
@@ -551,6 +551,15 @@ export class ProjectEditor {
 				feedback = `Project search completed. ${repoSearchResults.length} files found matching the pattern.`;
 				break;
 			}
+			case 'search_and_replace': {
+				const { filePath, operations } = tool.toolInput as {
+					filePath: string;
+					operations: Array<{ search: string; replace: string }>;
+				};
+				await this.handleSearchAndReplace(filePath, operations, tool.toolUseId);
+				feedback = `Search and replace operations applied successfully to file: ${filePath}`;
+				break;
+			}
 			default: {
 				logger.warn(`Unknown tool used: ${tool.toolName}`);
 				feedback = `Unknown tool used: ${tool.toolName}`;
@@ -592,6 +601,59 @@ export class ProjectEditor {
 			// Add error tool result message
 			this.conversation?.addMessageForToolResult(toolUseId, `Error searching project: ${errorMessage}`, true);
 			return [];
+		}
+	}
+
+	async handleSearchAndReplace(
+		filePath: string,
+		operations: Array<{ search: string; replace: string }>,
+		toolUseId: string,
+	): Promise<void> {
+		if (!this.isPathWithinProject(filePath)) {
+			throw createError(ErrorType.FileHandling, `Access denied: ${filePath} is outside the project directory`, {
+				filePath,
+				operation: 'search_and_replace',
+			} as FileHandlingErrorOptions);
+		}
+
+		const fullFilePath = join(this.projectRoot, filePath);
+		logger.info(`Handling search and replace for file: ${fullFilePath}`);
+
+		try {
+			let content = await Deno.readTextFile(fullFilePath);
+
+			for (const operation of operations) {
+				const { search, replace } = operation;
+				content = content.replaceAll(search, replace);
+			}
+
+			await Deno.writeTextFile(fullFilePath, content);
+			this.patchedFiles.add(filePath);
+
+			// Log the applied changes
+			if (this.conversation) {
+				logger.info(`Saving conversation search and replace: ${this.conversation.id}`);
+				const persistence = new ConversationPersistence(this.conversation.id, this);
+				await persistence.logPatch(filePath, JSON.stringify(operations));
+				await this.createCommitAfterPatching();
+			}
+
+			// Add tool result message
+			this.conversation?.addMessageForToolResult(
+				toolUseId,
+				`Search and replace operations applied successfully to file: ${filePath}`,
+			);
+		} catch (error) {
+			let errorMessage = `Failed to apply search and replace to ${filePath}: ${error.message}`;
+			logger.error(errorMessage);
+
+			// Add error tool result message
+			this.conversation?.addMessageForToolResult(toolUseId, errorMessage, true);
+
+			throw createError(ErrorType.FileHandling, errorMessage, {
+				filePath: filePath,
+				operation: 'search_and_replace',
+			} as FileHandlingErrorOptions);
 		}
 	}
 
@@ -640,14 +702,13 @@ export class ProjectEditor {
 					});
 
 					if (patchedContent === false) {
-						throw createError(
-							ErrorType.FileHandling,
-							'Failed to apply patch. The patch does not match the current file content.',
-							{
-								filePath,
-								operation: 'patch',
-							} as FileHandlingErrorOptions,
-						);
+						const errorMessage =
+							'Failed to apply patch. The patch does not match the current file content. ' +
+							'Consider using the `search_and_replace` tool for more precise modifications.';
+						throw createError(ErrorType.FileHandling, errorMessage, {
+							filePath,
+							operation: 'patch',
+						} as FileHandlingErrorOptions);
 					}
 
 					await Deno.writeTextFile(fullFilePath, patchedContent);
