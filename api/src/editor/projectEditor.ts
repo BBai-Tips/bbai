@@ -239,10 +239,37 @@ export class ProjectEditor {
 			},
 		};
 
+		const searchAndReplaceTool: LLMTool = {
+			name: 'search_and_replace',
+			description: 'Apply a list of search and replace operations to a file',
+			input_schema: {
+				type: 'object',
+				properties: {
+					filePath: {
+						type: 'string',
+						description: 'The path of the file to be modified',
+					},
+					operations: {
+						type: 'array',
+						items: {
+							type: 'object',
+							properties: {
+								search: { type: 'string', description: 'The text to search for' },
+								replace: { type: 'string', description: 'The text to replace with' },
+							},
+							required: ['search', 'replace'],
+						},
+						description: 'List of search and replace operations to apply',
+					},
+				},
+				required: ['filePath', 'operations'],
+			},
+		};
+
 		this.conversation?.addTool(requestFilesTool);
-		//this.conversation?.addTool(vectorSearchTool);
 		this.conversation?.addTool(applyPatchTool);
 		this.conversation?.addTool(searchProjectTool);
+		this.conversation?.addTool(searchAndReplaceTool);
 	}
 
 	private isPathWithinProject(filePath: string): boolean {
