@@ -36,35 +36,41 @@ export class LogFormatter {
 	}
 
 	private wrapText(text: string, indent: string, tail: string): string {
-		const paragraphs = text.trim().split('\n').filter((p) => p.trim() !== '');
-		const wrappedParagraphs = paragraphs.map((paragraph) => {
-			const words = paragraph.split(/\s+/);
-			let line = '';
-			const lines = [];
+		const paragraphs = text.split('\n');
+		const wrappedParagraphs = paragraphs.map((paragraph, index) => {
+			if (paragraph.trim() === '') {
+				// Preserve empty lines between paragraphs, but not at the start or end
+				return index > 0 && index < paragraphs.length - 1 ? indent + tail : '';
+			} else {
+				const words = paragraph.split(/\s+/);
+				let line = '';
+				const lines = [];
 
-			for (const word of words) {
-				if ((line + word).length > this.maxLineLength - indent.length - tail.length) {
-					lines.push(line.trimEnd());
-					line = word + ' ';
-				} else {
-					line += word + ' ';
+				for (const word of words) {
+					if ((line + word).length > this.maxLineLength - indent.length - tail.length) {
+						lines.push(line.trimEnd());
+						line = word + ' ';
+					} else {
+						line += word + ' ';
+					}
 				}
-			}
-			if (line.trim()) {
-				lines.push(line.trim());
-			}
+				if (line.trim()) {
+					lines.push(line.trim());
+				}
 
-			return lines.map((l, i) => {
-				const prefix = i === 0 ? indent : ' '.repeat(indent.length);
-				return `${prefix}${l}${tail}`;
-			}).join('\n');
+				return lines.map((l, i) => {
+					const prefix = i === 0 ? indent : ' '.repeat(indent.length);
+					return `${prefix}${l}${tail}`;
+				}).join('\n');
+			}
 		});
 
-		if (wrappedParagraphs.length > 1) {
-			return wrappedParagraphs.join('\n');
-		}
+		// Remove any empty lines at the start and end
+		const trimmedParagraphs = wrappedParagraphs.filter((p, i) =>
+			p !== '' || (i > 0 && i < wrappedParagraphs.length - 1)
+		);
 
-		return wrappedParagraphs[0];
+		return trimmedParagraphs.join('\n');
 	}
 	static createRawEntry(type: string, timestamp: string, message: string): string {
 		// [TODO] add token usage to header line
