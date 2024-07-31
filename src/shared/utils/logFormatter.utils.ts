@@ -36,7 +36,7 @@ export class LogFormatter {
 	}
 
 	private wrapText(text: string, indent: string, tail: string): string {
-		const paragraphs = text.split('\n');
+		const paragraphs = text.trim().split('\n');
 		const wrappedParagraphs = paragraphs.map((paragraph) => {
 			const words = paragraph.split(/\s+/);
 			let line = indent;
@@ -58,10 +58,10 @@ export class LogFormatter {
 		});
 
 		if (wrappedParagraphs.length > 1) {
-			return wrappedParagraphs.join('\n' + indent + '\n') + '\n';
+			return wrappedParagraphs.join('\n' + indent);
 		}
 
-		return wrappedParagraphs[0] + '\n';
+		return wrappedParagraphs[0];
 	}
 
 	static createRawEntry(type: string, timestamp: string, message: string): string {
@@ -105,11 +105,11 @@ export class LogFormatter {
 				color = ANSI_RESET;
 		}
 
-		const header = `${color}╭─ ${icon} ${type} [${timestamp}]${ANSI_RESET}\n`;
-		const footer = `\n${color}╰${'─'.repeat(this.maxLineLength - 1)}${ANSI_RESET}\n`;
-		const wrappedMessage = this.wrapText(message, `${color}│ `, `${ANSI_RESET}\n`);
+		const header = `${color}╭─ ${icon} ${type} [${timestamp}]${ANSI_RESET}`;
+		const footer = `${color}╰${'─'.repeat(this.maxLineLength - 1)}${ANSI_RESET}`;
+		const wrappedMessage = this.wrapText(message.trim(), `${color}│ `, ANSI_RESET);
 
-		return `${header}\n${wrappedMessage}${footer}\n`;
+		return `${header}\n${wrappedMessage}\n${footer}`;
 	}
 
 	formatRawLogEntry(entry: string): string {
@@ -117,7 +117,7 @@ export class LogFormatter {
 		if (typeof header !== 'undefined' && typeof messageLines !== 'undefined') {
 			const [type, timestamp] = header.replace('## ', '').split(' [');
 			if (typeof type !== 'undefined' && typeof timestamp !== 'undefined') {
-				return this.formatLogEntry(type, timestamp.replace(']', ''), messageLines.join('\n'));
+				return this.formatLogEntry(type, timestamp.replace(']', ''), messageLines.join('\n').trim());
 			} else {
 				return messageLines.join('\n');
 			}
