@@ -141,6 +141,7 @@ export class ProjectEditor {
 		const projectInfo: ProjectInfo = { type: 'empty', content: '', tier: null };
 
 		const bbaiDir = await this.getBbaiDir();
+		/*
 		await generateCtags(this.bbaiDir, this.projectRoot);
 		const ctagsContent = await readCtagsFile(bbaiDir);
 		if (ctagsContent) {
@@ -148,6 +149,7 @@ export class ProjectEditor {
 			projectInfo.content = ctagsContent;
 			projectInfo.tier = 0; // Assuming ctags is always tier 0
 		}
+		 */
 
 		if (projectInfo.type === 'empty') {
 			const projectRoot = await this.getProjectRoot();

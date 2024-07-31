@@ -321,7 +321,7 @@ function handleConversationUpdate(formatter: LogFormatter, data: ConversationRes
 
 	console.log(summaryLine1 + padding + colors.bold.cyan('─┐'));
 	console.log(titleLine);
-	console.log(summaryLine2 + ' '.repeat(maxLength - summaryLine2.length) + colors.bold.cyan('─┘'));
+	console.log(summaryLine2 + ' '.repeat(maxLength - summaryLine2.length) + colors.bold.cyan('─┘') + '\n');
 
 	// 	console.log(colors.dim.italic(
 	// 		`Token Usage: Input: ${tokenUsage.inputTokens}, Output: ${tokenUsage.outputTokens}, Total: ${tokenUsage.totalTokens}`,
