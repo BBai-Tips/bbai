@@ -19,7 +19,7 @@ const ERROR_ICON = '❌';
 const UNKNOWN_ICON = '❓';
 
 export class LogFormatter {
-	private static readonly ENTRY_SEPARATOR = '\n<<<BBAI_LOG_ENTRY_SEPARATOR>>>\n';
+	private static readonly ENTRY_SEPARATOR = '<<<BBAI_LOG_ENTRY_SEPARATOR>>>';
 
 	private maxLineLength: number;
 
@@ -139,7 +139,7 @@ export class LogFormatter {
 	}
 
 	static getEntrySeparator(): string {
-		return this.ENTRY_SEPARATOR;
+		return this.ENTRY_SEPARATOR.trim();
 	}
 }
 
@@ -153,7 +153,7 @@ export async function displayFormattedLogs(
 	const logFile = join(bbaiDir, 'cache', 'conversations', conversationId, 'conversation.log');
 
 	const processEntry = (entry: string) => {
-		console.debug('Debug: Raw entry before processing:\n', entry);
+		console.debug('Debug: Raw entry before processing:\n', entry.trimStart());
 		if (entry.trim() !== '') {
 			const formattedEntry = formatter.formatRawLogEntry(entry);
 			if (callback) {
@@ -175,8 +175,8 @@ export async function displayFormattedLogs(
 			let entry = '';
 			let line: string | null;
 			while ((line = await bufReader.readString('\n')) !== null) {
-				console.debug('Debug: Read line:', line);
-				if (line.includes('<<<BBAI_LOG_ENTRY_SEPARATOR>>>')) {
+				console.debug('Debug: Read line:', line.trimEnd());
+				if (line.includes(LogFormatter.getEntrySeparator())) {
 					processEntry(entry);
 					entry = '';
 					console.debug('Debug: Entry separator found, resetting entry');
@@ -217,10 +217,15 @@ export async function writeLogEntry(
 	const bbaiDir = await getBbaiDir(Deno.cwd());
 	const logFile = join(bbaiDir, 'cache', 'conversations', conversationId, 'conversation.log');
 
+	const separator = LogFormatter.getEntrySeparator();
 	const timestamp = new Date().toISOString();
-	const entry = LogFormatter.createRawEntry(type, timestamp, message);
+	let entry = LogFormatter.createRawEntry(type, timestamp, message);
+
+	// Ensure entry ends with a single newline and the separator
+	entry = entry.trimEnd() + '\n' + separator + '\n';
 
 	try {
+		// Append the entry to the log file
 		await Deno.writeTextFile(logFile, entry, { append: true });
 	} catch (error) {
 		console.error(`Error writing log entry: ${error.message}`);
@@ -233,7 +238,7 @@ export async function countLogEntries(conversationId: string): Promise<number> {
 
 	try {
 		const content = await Deno.readTextFile(logFile);
-		const entries = content.split(LogFormatter.getEntrySeparator().trim());
+		const entries = content.split(LogFormatter.getEntrySeparator());
 		// Filter out any empty entries
 		return entries.filter((entry) => entry.trim() !== '').length;
 	} catch (error) {
