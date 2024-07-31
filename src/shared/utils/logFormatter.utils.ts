@@ -105,9 +105,9 @@ export class LogFormatter {
 				color = ANSI_RESET;
 		}
 
-		const header = `${color}╭─ ${icon} ${type} [${timestamp}]${ANSI_RESET}`;
-		const footer = `${color}╰${'─'.repeat(this.maxLineLength - 1)}${ANSI_RESET}`;
-		const wrappedMessage = this.wrapText(message, `${color}│ `, `${ANSI_RESET}`);
+		const header = `${color}╭─ ${icon} ${type} [${timestamp}]${ANSI_RESET}\n`;
+		const footer = `\n${color}╰${'─'.repeat(this.maxLineLength - 1)}${ANSI_RESET}\n`;
+		const wrappedMessage = this.wrapText(message, `${color}│ `, `${ANSI_RESET}\n`);
 
 		return `${header}\n${wrappedMessage}${footer}\n`;
 	}
@@ -153,7 +153,7 @@ export async function displayFormattedLogs(
 			} else {
 				console.log(formattedEntry);
 			}
-			console.debug('Debug: Formatted entry:\n', formattedEntry);
+			console.debug('Debug: Formatted entry:\n' + formattedEntry);
 		}
 	};
 
