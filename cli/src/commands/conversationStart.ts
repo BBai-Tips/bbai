@@ -1,18 +1,18 @@
 import { Command } from 'cliffy/command/mod.ts';
 import { Input, Select } from 'cliffy/prompt/mod.ts';
-import highlight from 'highlight';
+//import highlight from 'highlight';
 import { readLines } from '@std/io';
 import { ansi, colors, tty } from 'cliffy/ansi/mod.ts';
-import { KeyCode, parse } from 'cliffy/keycode/mod.ts';
+//import { KeyCode, parse } from 'cliffy/keycode/mod.ts';
 
 import { logger } from 'shared/logger.ts';
 import { apiClient } from '../utils/apiClient.ts';
 import { LogFormatter } from 'shared/logFormatter.ts';
 import { ConversationLogger } from 'shared/conversationLogger.ts';
 import { LLMProviderMessageMeta, LLMProviderMessageResponse } from '../../../api/src/types/llms.types.ts';
-import { isApiRunning } from '../utils/pid.utils.ts';
-import { apiStart } from './apiStart.ts';
-import { apiStop } from './apiStop.ts';
+//import { isApiRunning } from '../utils/pid.utils.ts';
+//import { apiStart } from './apiStart.ts';
+//import { apiStop } from './apiStop.ts';
 import { getBbaiDir, getProjectRoot } from 'shared/dataDir.ts';
 import { addToPromptHistory, getPromptHistory } from '../utils/promptHistory.utils.ts';
 
@@ -42,27 +42,29 @@ export const conversationStart = new Command()
 	.option('-m, --model <string>', 'LLM model to use for the conversation')
 	.option('--text', 'Return plain text instead of JSON')
 	.action(async (options) => {
-		let apiStartedByUs = false;
+		//let apiStartedByUs = false;
 
 		try {
 			const startDir = Deno.cwd();
 			const bbaiDir = await getBbaiDir(Deno.cwd());
-			const projectRoot = await getProjectRoot(Deno.cwd());
+			//const projectRoot = await getProjectRoot(Deno.cwd());
 
 			// Check if API is running, start it if not
-			const apiRunning = await isApiRunning(startDir);
+			/*
+			const apiRunning = await isApiRunning(projectRoot);
 			if (!apiRunning) {
 				console.log('API is not running. Starting it now...');
 				await apiStart.action();
 				apiStartedByUs = true;
 				console.log('API started successfully.');
 			}
+ */
 
 			// Ensure API is stopped when the process exits
 			const cleanup = async () => {
-				if (apiStartedByUs) {
-					await apiStop.action();
-				}
+				//if (apiStartedByUs) {
+				//	apiStop.action();
+				//}
 			};
 			Deno.addSignalListener('SIGINT', cleanup);
 			Deno.addSignalListener('SIGTERM', cleanup);
@@ -139,16 +141,16 @@ export const conversationStart = new Command()
 							info: true,
 							//list: true,
 							suggestions: history,
-							completeOnEmpty: true,
-							history: {
-								enable: true,
-								persistent: true,
-							},
-							suggestions: [
-								'apiStart',
-								'apiStatus',
-								'conversationStart',
-							],
+							//completeOnEmpty: true,
+							//history: {
+							//	enable: true,
+							//	persistent: true,
+							//},
+							//suggestions: [
+							//	'apiStart',
+							//	'apiStatus',
+							//	'conversationStart',
+							//],
 							//transform: (input: string) => highlight(input, { language: 'plaintext' }).value,
 						});
 						return input;
@@ -281,8 +283,8 @@ export const conversationStart = new Command()
 			));
 			logger.error(`Unexpected error: ${error.message}`);
 			logger.error(`Stack trace: ${error.stack}`);
-		} finally {
-			await cleanup();
+			//} finally {
+			//	await cleanup();
 		}
 	});
 
@@ -292,7 +294,7 @@ function highlightOutput(text: string): string {
 }
 
 function handleConversationUpdate(formatter: LogFormatter, data: ConversationResponse, conversationId?: string) {
-	const isNewConversation = !conversationId;
+	//const isNewConversation = !conversationId;
 	conversationId = data.conversationId;
 	const statementCount = data.statementCount;
 	const turnCount = data.turnCount;

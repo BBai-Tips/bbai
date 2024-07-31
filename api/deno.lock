@@ -483,7 +483,8 @@
     "https://deno.land/x/emit/mod.ts": "https://deno.land/x/emit@0.40.0/mod.ts",
     "https://esm.sh/@types/json-schema@7.0.15/index.d.ts": "https://esm.sh/v135/@types/json-schema@7.0.15/index.d.ts",
     "https://esm.sh/v135/@types/common-tags@~1.8/index.d.ts": "https://esm.sh/v135/@types/common-tags@1.8.4/index.d.ts",
-    "https://esm.sh/v135/@types/diff@~5/index.d.ts": "https://esm.sh/v135/@types/diff@5.2.1/index.d.ts"
+    "https://esm.sh/v135/@types/diff@~5/index.d.ts": "https://esm.sh/v135/@types/diff@5.2.1/index.d.ts",
+    "https://esm.sh/v135/@types/md5@~2.3/index.d.ts": "https://esm.sh/v135/@types/md5@2.3.5/index.d.ts"
   },
   "remote": {
     "https://deno.land/std@0.186.0/_util/asserts.ts": "178dfc49a464aee693a7e285567b3d0b555dc805ff490505a8aae34f9cfb1462",

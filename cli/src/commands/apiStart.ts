@@ -50,9 +50,9 @@ export const apiStart = new Command()
 				'--allow-net',
 				'--allow-run',
 			];
-			if (logLevel === 'debug') {
-				cmdArgs.push('--watch');
-			}
+			//if (logLevel === 'debug') {
+			//	cmdArgs.push('--watch');
+			//}
 
 			command = new Deno.Command(Deno.execPath(), {
 				args: [...cmdArgs, join(projectRoot, 'api/src/main.ts'), '--log-file', logFilePath],

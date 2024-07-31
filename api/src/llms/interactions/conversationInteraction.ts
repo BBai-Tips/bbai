@@ -122,7 +122,7 @@ class LLMConversationInteraction extends LLMInteraction {
 	}
 
 	protected async hydrateMessages(messages: LLMMessage[]): Promise<LLMMessage[]> {
-		const hydratedFiles = new Set<string>();
+		const hydratedFiles = new Map<string, number>();
 
 		const processContentPart = async <T extends LLMMessageContentPart>(
 			contentPart: T,
@@ -130,20 +130,29 @@ class LLMConversationInteraction extends LLMInteraction {
 		): Promise<T> => {
 			if (contentPart.type === 'text' && contentPart.text.startsWith('File added:')) {
 				const filePath = contentPart.text.split(': ')[1].trim();
-				logger.error(`Hydrating message for file: ${filePath} - extracted from: ${contentPart.text}`);
+				const currentTurn = messages.length - messages.findIndex((m) => m.id === messageId);
+				const lastHydratedTurn = hydratedFiles.get(filePath) || 0;
 
-				if (!hydratedFiles.has(filePath)) {
+				if (currentTurn > lastHydratedTurn) {
+					logger.info(
+						`Hydrating message for file: ${filePath} - Current Turn: ${currentTurn}, Last Hydrated Turn: ${lastHydratedTurn}`,
+					);
 					const fileXml = await this.createFileXmlString(filePath);
 					if (fileXml) {
-						hydratedFiles.add(filePath);
+						hydratedFiles.set(filePath, currentTurn);
 						return { ...contentPart, text: fileXml } as T;
 					}
 				} else {
+					logger.info(
+						`Skipping hydration for file: ${filePath} - Current Turn: ${currentTurn}, Last Hydrated Turn: ${lastHydratedTurn}`,
+					);
 					return {
 						...contentPart,
-						text: `Note: File ${filePath} is outdated here and will appear in a later message.`,
+						text: `Note: File ${filePath} content is up-to-date as of turn ${lastHydratedTurn}.`,
 					} as T;
 				}
+				//} else {
+				//	logger.debug(`Skipping content part: ${contentPart.type}`);
 			}
 			if (contentPart.type === 'tool_result' && Array.isArray(contentPart.content)) {
 				const updatedContent = await Promise.all(

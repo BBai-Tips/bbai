@@ -521,6 +521,16 @@ export class ProjectEditor {
 	): Promise<string> {
 		let feedback = '';
 		switch (tool.toolName) {
+			case 'search_project': {
+				const { pattern, file_pattern } = tool.toolInput as { pattern: string; file_pattern?: string };
+				const repoSearchResults = await this.handleSearchProject(
+					pattern,
+					file_pattern || undefined,
+					tool.toolUseId,
+				);
+				feedback = `Project search completed. ${repoSearchResults.length} files found matching the pattern.`;
+				break;
+			}
 			case 'request_files': {
 				const fileNames = (tool.toolInput as { fileNames: string[] }).fileNames;
 				const filesAdded = await this.handleRequestFiles(fileNames, tool.toolUseId || '');
@@ -539,16 +549,6 @@ export class ProjectEditor {
 				const { filePath, patch } = tool.toolInput as { filePath: string; patch: string };
 				await this.handleApplyPatch(filePath, patch, tool.toolUseId);
 				feedback = `Patch applied successfully to file: ${filePath}`;
-				break;
-			}
-			case 'search_project': {
-				const { pattern, file_pattern } = tool.toolInput as { pattern: string; file_pattern?: string };
-				const repoSearchResults = await this.handleSearchProject(
-					pattern,
-					file_pattern || undefined,
-					tool.toolUseId,
-				);
-				feedback = `Project search completed. ${repoSearchResults.length} files found matching the pattern.`;
 				break;
 			}
 			case 'search_and_replace': {
