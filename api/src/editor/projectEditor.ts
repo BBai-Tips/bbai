@@ -597,7 +597,6 @@ export class ProjectEditor {
 		try {
 			const { files, error: _error } = await searchFiles(this.projectRoot, pattern, file_pattern);
 
-			// Add tool result message
 			const resultMessage = `Found ${files.length} files matching the pattern "${pattern}"${
 				file_pattern ? ` with file pattern "${file_pattern}"` : ''
 			}:\n${files.join('\n')}`;
@@ -633,12 +632,17 @@ export class ProjectEditor {
 			let content = await Deno.readTextFile(fullFilePath);
 
 			let changesMade = false;
+			let allOperationsSkipped = true;
 			for (const operation of operations) {
 				const { search, replace } = operation;
 
 				// Validate that search and replace strings are different
 				if (search === replace) {
-					logger.warn(`Search and replace strings are identical for operation: ${JSON.stringify(operation)}`);
+					const warningMessage = `Warning: Search and replace strings are identical for operation: ${
+						JSON.stringify(operation)
+					}. Operation skipped.`;
+					logger.warn(warningMessage);
+					this.conversation?.addMessageForToolResult(toolUseId, warningMessage, true);
 					continue; // Skip this operation
 				}
 
@@ -648,6 +652,7 @@ export class ProjectEditor {
 				// Check if the content actually changed
 				if (content !== originalContent) {
 					changesMade = true;
+					allOperationsSkipped = false;
 				}
 			}
 
@@ -662,11 +667,20 @@ export class ProjectEditor {
 					await persistence.logPatch(filePath, JSON.stringify(operations));
 					await this.createCommitAfterPatching();
 				}
+
+				// Add success tool result message
+				this.conversation?.addMessageForToolResult(
+					toolUseId,
+					`Search and replace operations applied successfully to file: ${filePath}`,
+				);
 			} else {
-				logger.info(`No changes were made to the file: ${filePath}`);
+				const noChangesMessage = allOperationsSkipped
+					? `No changes were made to the file: ${filePath}. All operations were skipped due to identical search and replace strings.`
+					: `No changes were made to the file: ${filePath}. The search strings were not found in the file content.`;
+				logger.info(noChangesMessage);
+				this.conversation?.addMessageForToolResult(toolUseId, noChangesMessage, true);
 			}
 
-			// Add tool result message
 			this.conversation?.addMessageForToolResult(
 				toolUseId,
 				`Search and replace operations applied successfully to file: ${filePath}`,
@@ -752,7 +766,6 @@ export class ProjectEditor {
 				await this.createCommitAfterPatching();
 			}
 
-			// Add tool result message
 			this.conversation?.addMessageForToolResult(toolUseId, `Patch applied successfully to file: ${filePath}`);
 		} catch (error) {
 			let errorMessage: string;
