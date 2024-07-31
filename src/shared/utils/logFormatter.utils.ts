@@ -140,6 +140,7 @@ export async function displayFormattedLogs(
 	const logFile = join(bbaiDir, 'cache', 'conversations', conversationId, 'conversation.log');
 
 	const processEntry = (entry: string) => {
+		console.debug('Debug: Raw entry before processing:\n', entry);
 		if (entry.trim() !== '') {
 			const formattedEntry = formatter.formatRawLogEntry(entry);
 			if (callback) {
@@ -147,6 +148,7 @@ export async function displayFormattedLogs(
 			} else {
 				console.log(formattedEntry);
 			}
+			console.debug('Debug: Formatted entry:\n', formattedEntry);
 		}
 	};
 
@@ -160,9 +162,11 @@ export async function displayFormattedLogs(
 			let entry = '';
 			let line: string | null;
 			while ((line = await bufReader.readString('\n')) !== null) {
+				console.debug('Debug: Read line:', line);
 				if (line.includes('<<<BBAI_LOG_ENTRY_SEPARATOR>>>')) {
 					processEntry(entry);
 					entry = '';
+					console.debug('Debug: Entry separator found, resetting entry');
 				} else {
 					entry += line;
 				}
@@ -204,7 +208,7 @@ export async function writeLogEntry(
 	const entry = LogFormatter.createRawEntry(type, timestamp, message);
 
 	try {
-		await Deno.writeTextFile(logFile, entry + '\n', { append: true });
+		await Deno.writeTextFile(logFile, entry, { append: true });
 	} catch (error) {
 		console.error(`Error writing log entry: ${error.message}`);
 	}
