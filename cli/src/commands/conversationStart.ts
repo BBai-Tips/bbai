@@ -325,72 +325,8 @@ function handleConversationUpdate(formatter: LogFormatter, data: ConversationRes
 	// 		`Token Usage: Input: ${tokenUsage.inputTokens}, Output: ${tokenUsage.outputTokens}, Total: ${tokenUsage.totalTokens}`,
 	// 	));
 }
+
 function handleConversationComplete(response: ConversationResponse, options: { id?: string; text?: boolean }) {
-	const isNewConversation = !options.id;
-	const conversationId = response.conversationId;
-	const statementCount = response.statementCount;
-	const turnCount = response.turnCount;
-	const totalTurnCount = response.totalTurnCount;
-	const tokenUsage = response.response.usage;
-
-	if (!options.text) {
-		console.log(JSON.stringify(
-			{
-				...response,
-				isNewConversation,
-				conversationId,
-				statementCount,
-				turnCount,
-				totalTurnCount,
-				tokenUsage,
-			},
-			null,
-			2,
-		));
-	} else {
-		console.log(highlightOutput(response.response.answerContent[0].text));
-
-		console.log(colors.bold.cyan('\n┌─────────────── Conversation Summary ───────────────┐'));
-		console.log(colors.bold.cyan('│                                                    │'));
-		console.log(
-			colors.bold.cyan('│  ') + colors.yellow(`Conversation ID: ${colors.bold(conversationId.padEnd(31))}`) +
-				colors.bold.cyan(' │'),
-		);
-		console.log(
-			colors.bold.cyan('│  ') + colors.green(`Statement Count: ${statementCount.toString().padEnd(31)}`) +
-				colors.bold.cyan(' │'),
-		);
-		console.log(
-			colors.bold.cyan('│  ') + colors.magenta(`Turn Count: ${turnCount.toString().padEnd(36)}`) +
-				colors.bold.cyan(' │'),
-		);
-		console.log(
-			colors.bold.cyan('│  ') + colors.blue(`Total Turn Count: ${totalTurnCount.toString().padEnd(30)}`) +
-				colors.bold.cyan(' │'),
-		);
-		console.log(colors.bold.cyan('│                                                    │'));
-		console.log(colors.bold.cyan('│  Token Usage:                                      │'));
-		const summaryLine1 = colors.bold.cyan(`┌─ Summary `) + colors.yellow(`ID: ${colors.bold(conversationId)} `) +
-			colors.green(`${symbols.info} ${statementCount} `) + colors.magenta(`${symbols.radioOn} ${turnCount} `) +
-			colors.blue(`${symbols.clockwiseRightAndLeftSemicircleArrows} ${totalTurnCount}`);
-
-		const summaryLine2 = colors.bold.cyan(`└─ `) + colors.red(`${symbols.arrowDown} ${tokenUsage.inputTokens} `) +
-			colors.yellow(`${symbols.arrowUp} ${tokenUsage.outputTokens} `) +
-			colors.green(`${symbols.radioOn} ${tokenUsage.totalTokens}`);
-
-		const maxLength = Math.max(summaryLine1.length, summaryLine2.length);
-		const padding = ' '.repeat(maxLength - summaryLine1.length);
-
-		console.log(summaryLine1 + padding + colors.bold.cyan('─┐'));
-		console.log(summaryLine2 + ' '.repeat(maxLength - summaryLine2.length) + colors.bold.cyan('─┘'));
-
-		console.log(colors.dim.italic(
-			`Token Usage: Input: ${tokenUsage.inputTokens}, Output: ${tokenUsage.outputTokens}, Total: ${tokenUsage.totalTokens}`,
-		));
-	}
-}
-
-function handleConversationCompleteUpdated(response: ConversationResponse, options: { id?: string; text?: boolean }) {
 	const isNewConversation = !options.id;
 	const conversationId = response.conversationId;
 	const statementCount = response.statementCount;
@@ -424,7 +360,7 @@ function handleConversationCompleteUpdated(response: ConversationResponse, optio
 				colors.bold.cyan(' │'),
 		);
 		console.log(
-			colors.bold.cyan('│  ') + colors.white(`Title: ${title.padEnd(40)}`) +
+			colors.bold.cyan('│  ') + colors.green(`Title: ${title.padEnd(40)}`) +
 				colors.bold.cyan(' │'),
 		);
 		console.log(
