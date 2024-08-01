@@ -313,9 +313,9 @@ function handleConversationUpdate(formatter: LogFormatter, data: ConversationRes
 		colors.green(`${symbols.info} ${statementCount} `) + colors.magenta(`${symbols.radioOn} ${turnCount} `) +
 		colors.blue(`${symbols.clockwiseRightAndLeftSemicircleArrows} ${totalTurnCount}`);
 
-	const summaryLine2 = colors.bold.cyan(`└─ `) + colors.red(`${symbols.arrowDown} ${tokenUsage.inputTokens} `) +
-		colors.yellow(`${symbols.arrowUp} ${tokenUsage.outputTokens} `) +
-		colors.green(`${symbols.radioOn} ${tokenUsage.totalTokens}`);
+	const summaryLine2 = colors.bold.cyan(`└─ `) + colors.red(`${symbols.arrowDown} ${tokenUsage?.inputTokens} `) +
+		colors.yellow(`${symbols.arrowUp} ${tokenUsage?.outputTokens} `) +
+		colors.green(`${symbols.radioOn} ${tokenUsage?.totalTokens}`);
 
 	const titleLine = colors.bold.cyan(`│ Title: ${colors.white(title.padEnd(45))} │`);
 	const maxLength = Math.max(summaryLine1.length, summaryLine2.length, titleLine.length);
@@ -326,7 +326,7 @@ function handleConversationUpdate(formatter: LogFormatter, data: ConversationRes
 	console.log(summaryLine2 + ' '.repeat(maxLength - summaryLine2.length) + colors.bold.cyan('─┘') + '\n');
 
 	// 	console.log(colors.dim.italic(
-	// 		`Token Usage: Input: ${tokenUsage.inputTokens}, Output: ${tokenUsage.outputTokens}, Total: ${tokenUsage.totalTokens}`,
+	// 		`Token Usage: Input: ${tokenUsage?.inputTokens}, Output: ${tokenUsage?.outputTokens}, Total: ${tokenUsage?.totalTokens}`,
 	// 	));
 }
 
@@ -384,9 +384,9 @@ function handleConversationComplete(response: ConversationResponse, options: { i
 			colors.green(`${symbols.info} ${statementCount} `) + colors.magenta(`${symbols.radioOn} ${turnCount} `) +
 			colors.blue(`${symbols.clockwiseRightAndLeftSemicircleArrows} ${totalTurnCount}`);
 
-		const summaryLine2 = colors.bold.cyan(`└─ `) + colors.red(`${symbols.arrowDown} ${tokenUsage.inputTokens} `) +
-			colors.yellow(`${symbols.arrowUp} ${tokenUsage.outputTokens} `) +
-			colors.green(`${symbols.radioOn} ${tokenUsage.totalTokens}`);
+		const summaryLine2 = colors.bold.cyan(`└─ `) + colors.red(`${symbols.arrowDown} ${tokenUsage?.inputTokens} `) +
+			colors.yellow(`${symbols.arrowUp} ${tokenUsage?.outputTokens} `) +
+			colors.green(`${symbols.radioOn} ${tokenUsage?.totalTokens}`);
 
 		const titleLine = colors.bold.cyan(`│ Title: ${colors.white(title.padEnd(45))} │`);
 		const maxLength = Math.max(summaryLine1.length, summaryLine2.length, titleLine.length);
@@ -397,7 +397,7 @@ function handleConversationComplete(response: ConversationResponse, options: { i
 		console.log(summaryLine2 + ' '.repeat(maxLength - summaryLine2.length) + colors.bold.cyan('─┘'));
 
 		console.log(colors.dim.italic(
-			`Token Usage: Input: ${tokenUsage.inputTokens}, Output: ${tokenUsage.outputTokens}, Total: ${tokenUsage.totalTokens}`,
+			`Token Usage: Input: ${tokenUsage?.inputTokens}, Output: ${tokenUsage?.outputTokens}, Total: ${tokenUsage?.totalTokens}`,
 		));
 	}
 }
