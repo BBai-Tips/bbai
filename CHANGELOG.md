@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 
+## [0.0.5a-alpha] - 2024-08-01
+
+### Changed
+
+- Hot fix for multiple tool result blocks
+- Hot fix for undefined usage tokens
+
+
 ## [0.0.5-alpha] - 2024-08-01
 
 ### Changed
@@ -26,6 +34,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Use haiku to create semantic names for conversations based on initial prompts
 - Use haiku to write commit messages
 
+
 ## [0.0.3-alpha] - 2024-07-27
 
 ### Changed
@@ -38,6 +47,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - file searching, adding to conversation, and patching
   - project editor to handle different data sources (only local filesystem so far)
 
+
 ## [0.0.2-alpha] - 2024-07-23
 
 ### Added
@@ -45,6 +55,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Basic CLI and API functionality
 - File handling capabilities
 - Conversation management features
+
 
 ## [0.0.1-alpha] - 2023-07-20
 - Initial alpha release

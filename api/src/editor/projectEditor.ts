@@ -634,6 +634,7 @@ export class ProjectEditor {
 
 			let changesMade = false;
 			let allOperationsSkipped = true;
+			const toolWarnings = [];
 			for (const operation of operations) {
 				const { search, replace } = operation;
 
@@ -643,7 +644,7 @@ export class ProjectEditor {
 						JSON.stringify(operation)
 					}. Operation skipped.`;
 					logger.warn(warningMessage);
-					this.conversation?.addMessageForToolResult(toolUseId, warningMessage, true);
+					toolWarnings.push(warningMessage);
 					continue; // Skip this operation
 				}
 
@@ -655,6 +656,10 @@ export class ProjectEditor {
 					changesMade = true;
 					allOperationsSkipped = false;
 				}
+			}
+			let toolWarning = '';
+			if (toolWarnings.length > 0) {
+				toolWarning = `Tool Use Warnings: \n${toolWarnings.join('\n')}\n`;
 			}
 
 			if (changesMade) {
@@ -672,20 +677,15 @@ export class ProjectEditor {
 				// Add success tool result message
 				this.conversation?.addMessageForToolResult(
 					toolUseId,
-					`Search and replace operations applied successfully to file: ${filePath}`,
+					`${toolWarning}Search and replace operations applied successfully to file: ${filePath}`,
 				);
 			} else {
 				const noChangesMessage = allOperationsSkipped
-					? `No changes were made to the file: ${filePath}. All operations were skipped due to identical search and replace strings.`
-					: `No changes were made to the file: ${filePath}. The search strings were not found in the file content.`;
+					? `${toolWarning}No changes were made to the file: ${filePath}. All operations were skipped due to identical search and replace strings.`
+					: `${toolWarning}No changes were made to the file: ${filePath}. The search strings were not found in the file content.`;
 				logger.info(noChangesMessage);
 				this.conversation?.addMessageForToolResult(toolUseId, noChangesMessage, true);
 			}
-
-			this.conversation?.addMessageForToolResult(
-				toolUseId,
-				`Search and replace operations applied successfully to file: ${filePath}`,
-			);
 		} catch (error) {
 			let errorMessage = `Failed to apply search and replace to ${filePath}: ${error.message}`;
 			logger.error(errorMessage);

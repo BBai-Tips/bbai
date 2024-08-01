@@ -1,4 +1,4 @@
-import { join, relative } from '@std/path';
+import { globToRegExp, join, relative } from '@std/path';
 import { exists, walk } from '@std/fs';
 import { ConfigManager } from 'shared/configManager.ts';
 import { logger } from './logger.utils.ts';
@@ -63,8 +63,9 @@ async function generateFileListingTier(
 
 function shouldExclude(path: string, excludeOptions: string[]): boolean {
 	return excludeOptions.some((option) => {
-		const pattern = option.replace('--exclude=', '').replace(/\*/g, '.*');
-		return new RegExp(pattern).test(path);
+		const pattern = option.replace('--exclude=', '');
+		const regex = globToRegExp(pattern, { extended: true, globstar: true });
+		return regex.test(path);
 	});
 }
 
