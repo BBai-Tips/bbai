@@ -5,6 +5,8 @@ import { config } from 'shared/configManager.ts';
 import { apiStart } from './commands/apiStart.ts';
 import { apiStop } from './commands/apiStop.ts';
 import { apiStatus } from './commands/apiStatus.ts';
+import { apiRestart } from './commands/apiRestart.ts';
+//import { chat } from './commands/chat.ts';
 import { conversationStart } from './commands/conversationStart.ts';
 import { conversationClear } from './commands/conversationClear.ts';
 import { conversationPersist } from './commands/conversationPersist.ts';
@@ -31,7 +33,6 @@ const cli = new Command()
 	.command('remove', filesRemove)
 	.command('list', filesList)
 	.command('chat', conversationStart)
-	.alias('c')
 	.command('clear', conversationClear)
 	.command('request', requestChanges)
 	.command('undo', undoLastChange)
@@ -43,7 +44,8 @@ const cli = new Command()
 	.command('resume', conversationResume)
 	.command('start', apiStart)
 	.command('stop', apiStop)
-	.command('status', apiStatus);
+	.command('status', apiStatus)
+	.command('restart', apiRestart);
 
 export const main = async () => {
 	await cli.parse(Deno.args);

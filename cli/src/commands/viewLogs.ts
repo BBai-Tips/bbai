@@ -4,6 +4,7 @@ import { config } from 'shared/configManager.ts';
 import { getBbaiDir } from 'shared/dataDir.ts';
 import { join } from '@std/path';
 //import { ensureDir } from '@std/fs';
+import { displayFormattedLogs } from 'shared/logFormatter.ts';
 
 export const viewLogs = new Command()
 	.name('logs')
@@ -31,28 +32,41 @@ export const viewLogs = new Command()
 				return;
 			}
 
-			if (options.follow) {
-				const command = new Deno.Command('tail', {
-					args: ['-f', logFilePath],
-					stdout: 'piped',
-					stderr: 'piped',
-				});
-				const process = command.spawn();
-				for await (const chunk of process.stdout) {
-					await Deno.stdout.write(chunk);
-				}
+			if (!options.api && options.id) {
+				// Use the new LogFormatter for conversation logs
+				await displayFormattedLogs(
+					options.id,
+					(formattedEntry) => {
+						console.log(formattedEntry);
+					},
+					options.follow,
+				);
+				return;
 			} else {
-				const command = new Deno.Command('tail', {
-					args: ['-n', options.lines.toString(), logFilePath],
-					stdout: 'piped',
-					stderr: 'piped',
-				});
-				const { stdout, stderr } = await command.output();
-
-				if (stderr.length > 0) {
-					console.error(JSON.stringify({ error: new TextDecoder().decode(stderr) }));
+				// For API logs, use the existing tail command
+				if (options.follow) {
+					const command = new Deno.Command('tail', {
+						args: ['-f', logFilePath],
+						stdout: 'piped',
+						stderr: 'piped',
+					});
+					const process = command.spawn();
+					for await (const chunk of process.stdout) {
+						await Deno.stdout.write(chunk);
+					}
 				} else {
-					console.log(new TextDecoder().decode(stdout));
+					const command = new Deno.Command('tail', {
+						args: ['-n', options.lines.toString(), logFilePath],
+						stdout: 'piped',
+						stderr: 'piped',
+					});
+					const { stdout, stderr } = await command.output();
+
+					if (stderr.length > 0) {
+						console.error(JSON.stringify({ error: new TextDecoder().decode(stderr) }));
+					} else {
+						console.log(new TextDecoder().decode(stdout));
+					}
 				}
 			}
 		} catch (error) {

@@ -1,4 +1,5 @@
 import Ajv from 'ajv';
+import md5 from 'md5';
 
 import { LLMCallbackType, LLMProvider as LLMProviderEnum } from '../../types.ts';
 import type {
@@ -71,7 +72,7 @@ class LLM {
 	protected createRequestCacheKey(
 		messageParams: LLMProviderMessageRequest,
 	): string[] {
-		const cacheKey = ['messageRequest', this.llmProviderName, JSON.stringify(messageParams)];
+		const cacheKey = ['messageRequest', this.llmProviderName, md5(JSON.stringify(messageParams))];
 		logger.info(`provider[${this.llmProviderName}] using cache key: ${cacheKey}`);
 		return cacheKey;
 	}

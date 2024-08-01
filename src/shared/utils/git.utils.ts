@@ -27,4 +27,15 @@ export class GitUtils {
 			throw new Error(`Failed to stage and commit changes: ${error.message}`);
 		}
 	}
+
+	static async getCurrentCommit(repoPath: string): Promise<string | null> {
+		const git: SimpleGit = simpleGit(repoPath);
+
+		try {
+			const result = await git.revparse(['HEAD']);
+			return result.trim();
+		} catch (error) {
+			throw new Error(`Failed to get current commit: ${error.message}`);
+		}
+	}
 }

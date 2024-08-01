@@ -141,6 +141,7 @@ export class ProjectEditor {
 		const projectInfo: ProjectInfo = { type: 'empty', content: '', tier: null };
 
 		const bbaiDir = await this.getBbaiDir();
+		/*
 		await generateCtags(this.bbaiDir, this.projectRoot);
 		const ctagsContent = await readCtagsFile(bbaiDir);
 		if (ctagsContent) {
@@ -148,6 +149,7 @@ export class ProjectEditor {
 			projectInfo.content = ctagsContent;
 			projectInfo.tier = 0; // Assuming ctags is always tier 0
 		}
+		 */
 
 		if (projectInfo.type === 'empty') {
 			const projectRoot = await this.getProjectRoot();
@@ -202,7 +204,7 @@ export class ProjectEditor {
 
 		const applyPatchTool: LLMTool = {
 			name: 'apply_patch',
-			description: 'Apply a patch to a file',
+			description: 'Apply a well-formed patch to a file',
 			input_schema: {
 				type: 'object',
 				properties: {
@@ -212,10 +214,45 @@ export class ProjectEditor {
 					},
 					patch: {
 						type: 'string',
-						description: 'The patch to be applied in diff format',
+						description: 'The carefully written and well-formed patch to be applied in unified diff format',
 					},
 				},
 				required: ['filePath', 'patch'],
+			},
+		};
+
+		const searchAndReplaceTool: LLMTool = {
+			name: 'search_and_replace',
+			description: 'Apply a list of search and replace operations to a file',
+			input_schema: {
+				type: 'object',
+				properties: {
+					filePath: {
+						type: 'string',
+						description: 'The path of the file to be modified',
+					},
+					operations: {
+						type: 'array',
+						items: {
+							type: 'object',
+							properties: {
+								search: {
+									type: 'string',
+									description:
+										'The exact literal text to search for, with all leading and trailing whitespace from the original file',
+								},
+								replace: {
+									type: 'string',
+									description:
+										'The text to replace with, matching the same indent level as the original file',
+								},
+							},
+							required: ['search', 'replace'],
+						},
+						description: 'List of literal search and replace operations to apply',
+					},
+				},
+				required: ['filePath', 'operations'],
 			},
 		};
 
@@ -240,8 +277,8 @@ export class ProjectEditor {
 		};
 
 		this.conversation?.addTool(requestFilesTool);
-		//this.conversation?.addTool(vectorSearchTool);
 		this.conversation?.addTool(applyPatchTool);
+		this.conversation?.addTool(searchAndReplaceTool);
 		this.conversation?.addTool(searchProjectTool);
 	}
 
@@ -273,7 +310,7 @@ export class ProjectEditor {
 		return conversation;
 	}
 	async createChat(): Promise<LLMChatInteraction> {
-		const chat = new LLMChatInteraction(this.llmProviderFast);
+		const chat = new LLMChatInteraction(this.llmProviderFast, this.conversation?.id);
 		await chat.init();
 		return chat;
 	}
@@ -484,6 +521,7 @@ export class ProjectEditor {
 			statementCount: this.statementCount,
 			turnCount,
 			totalTurnCount: this.totalTurnCount,
+			title: this.conversation?.title || '',
 		};
 	}
 
@@ -493,6 +531,16 @@ export class ProjectEditor {
 	): Promise<string> {
 		let feedback = '';
 		switch (tool.toolName) {
+			case 'search_project': {
+				const { pattern, file_pattern } = tool.toolInput as { pattern: string; file_pattern?: string };
+				const repoSearchResults = await this.handleSearchProject(
+					pattern,
+					file_pattern || undefined,
+					tool.toolUseId,
+				);
+				feedback = `Project search completed. ${repoSearchResults.length} files found matching the pattern.`;
+				break;
+			}
 			case 'request_files': {
 				const fileNames = (tool.toolInput as { fileNames: string[] }).fileNames;
 				const filesAdded = await this.handleRequestFiles(fileNames, tool.toolUseId || '');
@@ -513,14 +561,13 @@ export class ProjectEditor {
 				feedback = `Patch applied successfully to file: ${filePath}`;
 				break;
 			}
-			case 'search_project': {
-				const { pattern, file_pattern } = tool.toolInput as { pattern: string; file_pattern?: string };
-				const repoSearchResults = await this.handleSearchProject(
-					pattern,
-					file_pattern || undefined,
-					tool.toolUseId,
-				);
-				feedback = `Project search completed. ${repoSearchResults.length} files found matching the pattern.`;
+			case 'search_and_replace': {
+				const { filePath, operations } = tool.toolInput as {
+					filePath: string;
+					operations: Array<{ search: string; replace: string }>;
+				};
+				await this.handleSearchAndReplace(filePath, operations, tool.toolUseId);
+				feedback = `Search and replace operations applied successfully to file: ${filePath}`;
 				break;
 			}
 			default: {
@@ -550,7 +597,6 @@ export class ProjectEditor {
 		try {
 			const { files, error: _error } = await searchFiles(this.projectRoot, pattern, file_pattern);
 
-			// Add tool result message
 			const resultMessage = `Found ${files.length} files matching the pattern "${pattern}"${
 				file_pattern ? ` with file pattern "${file_pattern}"` : ''
 			}:\n${files.join('\n')}`;
@@ -567,9 +613,98 @@ export class ProjectEditor {
 		}
 	}
 
+	async handleSearchAndReplace(
+		filePath: string,
+		operations: Array<{ search: string; replace: string }>,
+		toolUseId: string,
+	): Promise<void> {
+		if (!this.isPathWithinProject(filePath)) {
+			throw createError(ErrorType.FileHandling, `Access denied: ${filePath} is outside the project directory`, {
+				name: 'search-and-replace',
+				filePath,
+				operation: 'search-replace',
+			} as FileHandlingErrorOptions);
+		}
+
+		const fullFilePath = join(this.projectRoot, filePath);
+		logger.info(`Handling search and replace for file: ${fullFilePath}`);
+
+		try {
+			let content = await Deno.readTextFile(fullFilePath);
+
+			let changesMade = false;
+			let allOperationsSkipped = true;
+			for (const operation of operations) {
+				const { search, replace } = operation;
+
+				// Validate that search and replace strings are different
+				if (search === replace) {
+					const warningMessage = `Warning: Search and replace strings are identical for operation: ${
+						JSON.stringify(operation)
+					}. Operation skipped.`;
+					logger.warn(warningMessage);
+					this.conversation?.addMessageForToolResult(toolUseId, warningMessage, true);
+					continue; // Skip this operation
+				}
+
+				const originalContent = content;
+				content = content.replaceAll(search, replace);
+
+				// Check if the content actually changed
+				if (content !== originalContent) {
+					changesMade = true;
+					allOperationsSkipped = false;
+				}
+			}
+
+			if (changesMade) {
+				await Deno.writeTextFile(fullFilePath, content);
+				this.patchedFiles.add(filePath);
+
+				// Log the applied changes
+				if (this.conversation) {
+					logger.info(`Saving conversation search and replace: ${this.conversation.id}`);
+					const persistence = new ConversationPersistence(this.conversation.id, this);
+					await persistence.logPatch(filePath, JSON.stringify(operations));
+					await this.createCommitAfterPatching();
+				}
+
+				// Add success tool result message
+				this.conversation?.addMessageForToolResult(
+					toolUseId,
+					`Search and replace operations applied successfully to file: ${filePath}`,
+				);
+			} else {
+				const noChangesMessage = allOperationsSkipped
+					? `No changes were made to the file: ${filePath}. All operations were skipped due to identical search and replace strings.`
+					: `No changes were made to the file: ${filePath}. The search strings were not found in the file content.`;
+				logger.info(noChangesMessage);
+				this.conversation?.addMessageForToolResult(toolUseId, noChangesMessage, true);
+			}
+
+			this.conversation?.addMessageForToolResult(
+				toolUseId,
+				`Search and replace operations applied successfully to file: ${filePath}`,
+			);
+		} catch (error) {
+			let errorMessage = `Failed to apply search and replace to ${filePath}: ${error.message}`;
+			logger.error(errorMessage);
+
+			// Add error tool result message
+			this.conversation?.addMessageForToolResult(toolUseId, errorMessage, true);
+
+			throw createError(ErrorType.FileHandling, errorMessage, {
+				name: 'search-and-replace',
+				filePath: filePath,
+				operation: 'search-replace',
+			} as FileHandlingErrorOptions);
+		}
+	}
+
 	async handleApplyPatch(filePath: string, patch: string, toolUseId: string): Promise<void> {
 		if (!this.isPathWithinProject(filePath)) {
 			throw createError(ErrorType.FileHandling, `Access denied: ${filePath} is outside the project directory`, {
+				name: 'apply-patch',
 				filePath,
 				operation: 'patch',
 			} as FileHandlingErrorOptions);
@@ -612,14 +747,14 @@ export class ProjectEditor {
 					});
 
 					if (patchedContent === false) {
-						throw createError(
-							ErrorType.FileHandling,
-							'Failed to apply patch. The patch does not match the current file content.',
-							{
-								filePath,
-								operation: 'patch',
-							} as FileHandlingErrorOptions,
-						);
+						const errorMessage =
+							'Failed to apply patch. The patch does not match the current file content. ' +
+							'Consider using the `search_and_replace` tool for more precise modifications.';
+						throw createError(ErrorType.FileHandling, errorMessage, {
+							name: 'apply-patch',
+							filePath,
+							operation: 'patch',
+						} as FileHandlingErrorOptions);
 					}
 
 					await Deno.writeTextFile(fullFilePath, patchedContent);
@@ -635,7 +770,6 @@ export class ProjectEditor {
 				await this.createCommitAfterPatching();
 			}
 
-			// Add tool result message
 			this.conversation?.addMessageForToolResult(toolUseId, `Patch applied successfully to file: ${filePath}`);
 		} catch (error) {
 			let errorMessage: string;
@@ -652,6 +786,7 @@ export class ProjectEditor {
 			this.conversation?.addMessageForToolResult(toolUseId, errorMessage, true);
 
 			throw createError(ErrorType.FileHandling, errorMessage, {
+				name: 'apply-patch',
 				filePath: filePath,
 				operation: 'patch',
 			} as FileHandlingErrorOptions);
@@ -799,6 +934,7 @@ export class ProjectEditor {
 	async updateFile(filePath: string, _content: string): Promise<void> {
 		if (!this.isPathWithinProject(filePath)) {
 			throw createError(ErrorType.FileHandling, `Access denied: ${filePath} is outside the project directory`, {
+				name: 'update-file',
 				filePath,
 				operation: 'write',
 			} as FileHandlingErrorOptions);

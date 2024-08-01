@@ -13,6 +13,7 @@ import LLMMessage from '../message.ts';
 import LLMTool from '../tool.ts';
 import { logger } from 'shared/logger.ts';
 import { readFileContent } from 'shared/dataDir.ts';
+import { GitUtils } from 'shared/git.ts';
 
 export interface FileMetadata {
 	path: string;
@@ -34,6 +35,7 @@ class LLMConversationInteraction extends LLMInteraction {
 	private _files: Map<string, FileMetadata> = new Map();
 	private systemPromptFiles: string[] = [];
 	public title: string = '';
+	private currentCommit: string | null = null;
 
 	constructor(llm: LLM, conversationId?: ConversationId) {
 		super(llm, conversationId);
@@ -43,6 +45,7 @@ class LLMConversationInteraction extends LLMInteraction {
 		const projectInfo = await this.llm.invoke(LLMCallbackType.PROJECT_INFO);
 		system = this.appendProjectInfoToSystem(system, projectInfo);
 		system = await this.appendFilesToSystem(system);
+		system = await this.appendGitCommitToSystem(system);
 		return new Promise((resolve) => resolve(system));
 	}
 	public async prepareMessages(messages: LLMMessage[]): Promise<LLMMessage[]> {
@@ -50,6 +53,19 @@ class LLMConversationInteraction extends LLMInteraction {
 	}
 	public async prepareTools(tools: LLMTool[]): Promise<LLMTool[]> {
 		return new Promise((resolve) => resolve(tools));
+	}
+
+	private async getCurrentGitCommit(): Promise<string | null> {
+		const projectRoot = await this.llm.invoke(LLMCallbackType.PROJECT_ROOT);
+		return GitUtils.getCurrentCommit(projectRoot);
+	}
+
+	private async appendGitCommitToSystem(system: string): Promise<string> {
+		this.currentCommit = await this.getCurrentGitCommit();
+		if (this.currentCommit) {
+			system += `\n\n<git-commit>${this.currentCommit}</git-commit>`;
+		}
+		return system;
 	}
 
 	protected async createFileXmlString(filePath: string): Promise<string | null> {
@@ -106,7 +122,7 @@ class LLMConversationInteraction extends LLMInteraction {
 	}
 
 	protected async hydrateMessages(messages: LLMMessage[]): Promise<LLMMessage[]> {
-		const hydratedFiles = new Set<string>();
+		const hydratedFiles = new Map<string, number>();
 
 		const processContentPart = async <T extends LLMMessageContentPart>(
 			contentPart: T,
@@ -114,20 +130,29 @@ class LLMConversationInteraction extends LLMInteraction {
 		): Promise<T> => {
 			if (contentPart.type === 'text' && contentPart.text.startsWith('File added:')) {
 				const filePath = contentPart.text.split(': ')[1].trim();
-				logger.error(`Hydrating message for file: ${filePath} - extracted from: ${contentPart.text}`);
+				const currentTurn = messages.length - messages.findIndex((m) => m.id === messageId);
+				const lastHydratedTurn = hydratedFiles.get(filePath) || 0;
 
-				if (!hydratedFiles.has(filePath)) {
+				if (currentTurn > lastHydratedTurn) {
+					logger.info(
+						`Hydrating message for file: ${filePath} - Current Turn: ${currentTurn}, Last Hydrated Turn: ${lastHydratedTurn}`,
+					);
 					const fileXml = await this.createFileXmlString(filePath);
 					if (fileXml) {
-						hydratedFiles.add(filePath);
+						hydratedFiles.set(filePath, currentTurn);
 						return { ...contentPart, text: fileXml } as T;
 					}
 				} else {
+					logger.info(
+						`Skipping hydration for file: ${filePath} - Current Turn: ${currentTurn}, Last Hydrated Turn: ${lastHydratedTurn}`,
+					);
 					return {
 						...contentPart,
-						text: `Note: File ${filePath} is outdated here and will appear in a later message.`,
+						text: `Note: File ${filePath} content is up-to-date as of turn ${lastHydratedTurn}.`,
 					} as T;
 				}
+				//} else {
+				//	logger.debug(`Skipping content part: ${contentPart.type}`);
 			}
 			if (contentPart.type === 'tool_result' && Array.isArray(contentPart.content)) {
 				const updatedContent = await Promise.all(
@@ -336,6 +361,13 @@ class LLMConversationInteraction extends LLMInteraction {
 			speakOptions = {} as LLMSpeakWithOptions;
 		}
 
+		if (this._statementCount === 0) {
+			// This is the first statement in the conversation
+			this.currentCommit = await this.getCurrentGitCommit();
+			if (this.currentCommit) {
+				prompt = `Current Git commit: ${this.currentCommit}\n\n${prompt}`;
+			}
+		}
 		this._turnCount++;
 		this.addMessageForUserRole({ type: 'text', text: prompt });
 		this.conversationLogger?.logUserMessage(prompt);
@@ -347,6 +379,7 @@ class LLMConversationInteraction extends LLMInteraction {
 		const msg = contentPart.text;
 
 		this.conversationLogger.logAssistantMessage(msg);
+		this._statementCount++;
 
 		return response;
 	}
