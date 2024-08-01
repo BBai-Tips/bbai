@@ -310,7 +310,7 @@ export class ProjectEditor {
 		return conversation;
 	}
 	async createChat(): Promise<LLMChatInteraction> {
-		const chat = new LLMChatInteraction(this.llmProviderFast, this.conversation.id);
+		const chat = new LLMChatInteraction(this.llmProviderFast, this.conversation?.id);
 		await chat.init();
 		return chat;
 	}
@@ -620,8 +620,9 @@ export class ProjectEditor {
 	): Promise<void> {
 		if (!this.isPathWithinProject(filePath)) {
 			throw createError(ErrorType.FileHandling, `Access denied: ${filePath} is outside the project directory`, {
+				name: 'search-and-replace',
 				filePath,
-				operation: 'search_and_replace',
+				operation: 'search-replace',
 			} as FileHandlingErrorOptions);
 		}
 
@@ -693,8 +694,9 @@ export class ProjectEditor {
 			this.conversation?.addMessageForToolResult(toolUseId, errorMessage, true);
 
 			throw createError(ErrorType.FileHandling, errorMessage, {
+				name: 'search-and-replace',
 				filePath: filePath,
-				operation: 'search_and_replace',
+				operation: 'search-replace',
 			} as FileHandlingErrorOptions);
 		}
 	}
@@ -702,6 +704,7 @@ export class ProjectEditor {
 	async handleApplyPatch(filePath: string, patch: string, toolUseId: string): Promise<void> {
 		if (!this.isPathWithinProject(filePath)) {
 			throw createError(ErrorType.FileHandling, `Access denied: ${filePath} is outside the project directory`, {
+				name: 'apply-patch',
 				filePath,
 				operation: 'patch',
 			} as FileHandlingErrorOptions);
@@ -748,6 +751,7 @@ export class ProjectEditor {
 							'Failed to apply patch. The patch does not match the current file content. ' +
 							'Consider using the `search_and_replace` tool for more precise modifications.';
 						throw createError(ErrorType.FileHandling, errorMessage, {
+							name: 'apply-patch',
 							filePath,
 							operation: 'patch',
 						} as FileHandlingErrorOptions);
@@ -782,6 +786,7 @@ export class ProjectEditor {
 			this.conversation?.addMessageForToolResult(toolUseId, errorMessage, true);
 
 			throw createError(ErrorType.FileHandling, errorMessage, {
+				name: 'apply-patch',
 				filePath: filePath,
 				operation: 'patch',
 			} as FileHandlingErrorOptions);
@@ -929,6 +934,7 @@ export class ProjectEditor {
 	async updateFile(filePath: string, _content: string): Promise<void> {
 		if (!this.isPathWithinProject(filePath)) {
 			throw createError(ErrorType.FileHandling, `Access denied: ${filePath} is outside the project directory`, {
+				name: 'update-file',
 				filePath,
 				operation: 'write',
 			} as FileHandlingErrorOptions);

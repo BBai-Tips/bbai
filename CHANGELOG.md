@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 
+## [0.0.5-alpha] - 2024-08-01
+
+### Changed
+
+- Added terminal support for multi-turn conversations
+- Applied formatting to chat logs for easier reading
+
+
 ## [0.0.4-alpha] - 2024-07-28
 
 ### Changed

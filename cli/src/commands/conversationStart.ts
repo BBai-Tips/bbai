@@ -10,6 +10,7 @@ import { apiClient } from '../utils/apiClient.ts';
 import { LogFormatter } from 'shared/logFormatter.ts';
 import { ConversationLogger } from 'shared/conversationLogger.ts';
 import { LLMProviderMessageMeta, LLMProviderMessageResponse } from '../../../api/src/types/llms.types.ts';
+import { LLMMessageContentPartTextBlock } from '../../../api/src/llms/message.ts';
 //import { isApiRunning } from '../utils/pid.utils.ts';
 //import { apiStart } from './apiStart.ts';
 //import { apiStop } from './apiStop.ts';
@@ -212,7 +213,7 @@ export const conversationStart = new Command()
 									turnCount: 0,
 									totalTurnCount: 0,
 									title: 'Error',
-								};
+								} as ConversationResponse;
 								handleConversationUpdate(formatter, errorData, conversationId);
 								logger.error(`API request failed: ${errorMessage}`);
 								logger.error(`Error body: ${errorBody}`);
@@ -303,7 +304,8 @@ function handleConversationUpdate(formatter: LogFormatter, data: ConversationRes
 	const tokenUsage = data.response.usage;
 
 	const timestamp = LogFormatter.getTimestamp();
-	const entry = LogFormatter.createRawEntry('Assistant Message', timestamp, data.response.answerContent[0].text);
+	const contentPart = data.response.answerContent[0] as LLMMessageContentPartTextBlock;
+	const entry = LogFormatter.createRawEntry('Assistant Message', timestamp, contentPart.text);
 	const formattedEntry = formatter.formatRawLogEntry(highlightOutput(entry));
 	console.log(formattedEntry);
 
@@ -353,7 +355,8 @@ function handleConversationComplete(response: ConversationResponse, options: { i
 			2,
 		));
 	} else {
-		console.log(highlightOutput(response.response.answerContent[0].text));
+		const contentPart = response.response.answerContent[0] as LLMMessageContentPartTextBlock;
+		console.log(highlightOutput(contentPart.text));
 
 		console.log(colors.bold.cyan('\n┌─────────────── Conversation ───────────────┐'));
 		console.log(colors.bold.cyan('│                                                    │'));

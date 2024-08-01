@@ -28,10 +28,6 @@ export interface APIErrorOptions extends ErrorOptions {
 	expose?: boolean;
 }
 
-export interface ErrorOptions {
-	name: string;
-}
-
 export interface LLMErrorOptions extends ErrorOptions {
 	provider: LLMProvider;
 	model?: string;
@@ -112,7 +108,7 @@ export const isValidationError = (value: unknown): value is ValidationError => {
 
 export interface FileHandlingErrorOptions extends ErrorOptions {
 	filePath: string;
-	operation: 'read' | 'write' | 'patch' | 'delete';
+	operation: 'read' | 'write' | 'patch' | 'search-replace' | 'delete';
 }
 
 export class FileHandlingError extends Error {

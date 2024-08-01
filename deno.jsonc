@@ -1,6 +1,6 @@
 {
 	"name": "bbai",
-	"version": "0.0.4-alpha",
+	"version": "0.0.5-alpha",
 	"exports": "./cli/src/main.ts",
 	"tasks": {
 		"format": "deno fmt src/ && deno task -c ./cli/deno.jsonc format && deno task -c ./api/deno.jsonc format",
