@@ -9,10 +9,10 @@ const updateVersion = async (newVersion: string) => {
 		json.version = newVersion;
 		await Deno.writeTextFile(file, JSON.stringify(json, null, 2));
 		//deno fmt file
-		const formatCommand = new Deno.Command("deno", {
-			args: ["fmt", file],
-			stdout: "piped",
-			stderr: "piped",
+		const formatCommand = new Deno.Command('deno', {
+			args: ['fmt', file],
+			stdout: 'piped',
+			stderr: 'piped',
 		});
 		await formatCommand.output();
 	}
@@ -37,9 +37,9 @@ const updateChangelog = async (newVersion: string) => {
 	const changelog = await Deno.readTextFile(changelogPath);
 
 	// Get commit messages since last tag
-	const command = new Deno.Command("git", {
-		args: ["log", "$(git describe --tags --abbrev=0)..HEAD", "--pretty=format:%s"],
-		stdout: "piped",
+	const command = new Deno.Command('git', {
+		args: ['log', '$(git describe --tags --abbrev=0)..HEAD', '--pretty=format:%s'],
+		stdout: 'piped',
 	});
 	const { stdout } = await command.output();
 	const commitMessages = new TextDecoder().decode(stdout).split('\n');
@@ -54,7 +54,7 @@ const updateChangelog = async (newVersion: string) => {
 		Security: [],
 	};
 
-	commitMessages.forEach(msg => {
+	commitMessages.forEach((msg) => {
 		if (msg.toLowerCase().startsWith('add')) {
 			categories.Added.push(msg);
 		} else if (msg.toLowerCase().startsWith('change') || msg.toLowerCase().startsWith('update')) {
@@ -73,13 +73,13 @@ const updateChangelog = async (newVersion: string) => {
 	});
 
 	// Create new changelog entry
-	let newEntry = `\n## [${newVersion}] - ${new Date().toISOString().split('T')[0]}\n`;
+	let newEntry = `\n\n## [${newVersion}] - ${new Date().toISOString().split('T')[0]}\n`;
 
 	for (const [category, messages] of Object.entries(categories)) {
 		if (messages.length > 0) {
 			newEntry += `\n### ${category}\n`;
-			messages.forEach(msg => {
-				newEntry += `- ${msg.charAt(0).toUpperCase() + msg.slice(1)}\n`;
+			messages.forEach((msg) => {
+				if (msg) newEntry += `- ${msg.charAt(0).toUpperCase() + msg.slice(1)}\n`;
 			});
 		}
 	}
@@ -95,13 +95,13 @@ const updateChangelog = async (newVersion: string) => {
 	if (unreleasedMatch) {
 		const updatedChangelog = changelog.replace(
 			unreleasedRegex,
-			`## [Unreleased]\n\n${newEntry}`
+			`## [Unreleased]\n\n${newEntry}`,
 		);
 		await Deno.writeTextFile(changelogPath, updatedChangelog);
 	} else {
 		const updatedChangelog = changelog.replace(
-			"# Changelog",
-			`# Changelog\n\n## [Unreleased]\n\n${newEntry}`
+			'# Changelog',
+			`# Changelog\n\n## [Unreleased]\n\n${newEntry}`,
 		);
 		await Deno.writeTextFile(changelogPath, updatedChangelog);
 	}
@@ -116,5 +116,5 @@ if (import.meta.main) {
 		Deno.exit(1);
 	}
 	updateVersion(newVersion);
-	console.log("Version update complete. Please review the changes in CHANGELOG.md before committing.");
+	console.log('Version update complete. Please review the changes in CHANGELOG.md before committing.');
 }

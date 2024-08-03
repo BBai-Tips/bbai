@@ -50,6 +50,7 @@ export interface LLMAnswerToolUse {
 	toolInput?: unknown;
 	toolUseId: string;
 	toolName: string;
+	toolValidation: { validated: boolean; results: string };
 }
 
 export interface LLMMessageProviderResponse {
@@ -69,7 +70,7 @@ export interface LLMMessageProviderResponse {
 }
 
 class LLMMessage {
-	public timestamp: string;
+	public timestamp: string = new Date().toISOString();
 	constructor(
 		public role: 'user' | 'assistant' | 'system' | 'tool', // system and tool are only for openai
 		public content: LLMMessageContentParts,
@@ -77,7 +78,13 @@ class LLMMessage {
 		public providerResponse?: LLMMessageProviderResponse,
 		public id?: string,
 	) {
-		this.timestamp = new Date().toISOString();
+		this.setTimestamp();
+	}
+
+	public setTimestamp(): void {
+		if (!this.timestamp) {
+			this.timestamp = new Date().toISOString();
+		}
 	}
 }
 

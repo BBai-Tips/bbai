@@ -7,8 +7,9 @@ import {
 	LLMSpeakWithOptions,
 	LLMSpeakWithResponse,
 } from '../../types.ts';
-import LLMMessage, { LLMMessageContentPartTextBlock } from '../message.ts';
-import LLMTool from '../tool.ts';
+import LLMMessage, { LLMMessageContentPartTextBlock } from '../llmMessage.ts';
+import LLMTool from '../llmTool.ts';
+import { logger } from 'shared/logger.ts';
 
 class LLMChatInteraction extends LLMInteraction {
 	constructor(llm: LLM, conversationId?: ConversationId) {
@@ -38,6 +39,7 @@ class LLMChatInteraction extends LLMInteraction {
 		}
 
 		this._turnCount++;
+		//logger.debug(`chat - calling addMessageForUserRole for turn ${this._turnCount}` );
 		this.addMessageForUserRole({ type: 'text', text: prompt });
 		this.conversationLogger.logAuxiliaryMessage(prompt);
 

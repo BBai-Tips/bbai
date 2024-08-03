@@ -10,6 +10,7 @@ import {
 	LLMError,
 	RateLimitError,
 	ValidationError,
+	VectorSearchError,
 } from '../errors/error.ts';
 
 export { ErrorType };
@@ -20,6 +21,7 @@ import type {
 	LLMErrorOptions,
 	LLMRateLimitErrorOptions,
 	LLMValidationErrorOptions,
+	VectorSearchErrorOptions,
 } from '../errors/error.ts';
 
 export const createError = (
@@ -31,7 +33,8 @@ export const createError = (
 		| LLMErrorOptions
 		| LLMRateLimitErrorOptions
 		| LLMValidationErrorOptions
-		| FileHandlingErrorOptions,
+		| FileHandlingErrorOptions
+		| VectorSearchErrorOptions,
 ): Error => {
 	if (!ErrorTypes.includes(errorType)) {
 		throw new Error(`Unknown error type: ${errorType}`);
@@ -60,6 +63,8 @@ export const createError = (
 				default:
 					return new FileHandlingError(message, fileOptions);
 			}
+		case ErrorType.VectorSearch:
+			return new VectorSearchError(message, options as VectorSearchErrorOptions);
 		default:
 			return new Error(`Unknown error type: ${errorType} - ${message}`);
 	}
