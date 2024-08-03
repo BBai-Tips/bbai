@@ -8,9 +8,9 @@ import type {
 	LLMMessageContentPart,
 	LLMMessageContentPartTextBlock,
 	LLMMessageContentPartToolResultBlock,
-} from '../message.ts';
-import LLMMessage from '../message.ts';
-import LLMTool from '../tool.ts';
+} from '../llmMessage.ts';
+import LLMMessage from '../llmMessage.ts';
+import LLMTool from '../llmTool.ts';
 import { logger } from 'shared/logger.ts';
 import { readFileContent } from 'shared/dataDir.ts';
 import { GitUtils } from 'shared/git.ts';
@@ -172,7 +172,14 @@ class LLMConversationInteraction extends LLMInteraction {
 				const updatedContent = await Promise.all(
 					message.content.map((part) => processContentPart(part, message.id || '')),
 				);
-				return { ...message, content: updatedContent };
+				const updatedMessage = new LLMMessage(
+					message.role,
+					updatedContent,
+					message.tool_call_id,
+					message.providerResponse,
+					message.id,
+				);
+				return updatedMessage;
 			}
 			return message;
 		};
@@ -182,82 +189,54 @@ class LLMConversationInteraction extends LLMInteraction {
 		return processedMessages.reverse();
 	}
 
-	addFileToMessages(
+	addFileForMessage(
 		filePath: string,
 		metadata: Omit<FileMetadata, 'path' | 'inSystemPrompt'>,
-		toolUseId: string,
-	): void {
+		messageId: string,
+		toolUseId?: string,
+	): { filePath: string; fileMetadata: FileMetadata } {
 		const fileMetadata: FileMetadata = {
 			...metadata,
+			messageId,
 			path: filePath,
 			inSystemPrompt: false,
 			toolUseId,
 		};
-		this._files.set(filePath, fileMetadata);
 
-		this.conversationLogger?.logToolResult('add_file', `File added: ${filePath}`);
-		const messageId = this.addMessageForToolResult(toolUseId, `File added: ${filePath}`);
-		fileMetadata.messageId = messageId;
+		if (!fileMetadata.error) {
+			this._files.set(filePath, fileMetadata);
+		}
+		return { filePath, fileMetadata };
 	}
 
-	addFilesToMessages(
+	addFilesForMessage(
 		filesToAdd: Array<{ fileName: string; metadata: Omit<FileMetadata, 'path' | 'inSystemPrompt'> }>,
-		toolUseId: string,
-	): void {
+		messageId: string,
+		toolUseId?: string,
+	): Array<{ filePath: string; fileMetadata: FileMetadata }> {
 		const conversationFiles = [];
-		const contentParts = [];
-		let allFilesFailed = true;
 
 		for (const fileToAdd of filesToAdd) {
 			const filePath = fileToAdd.fileName;
 			const fileMetadata: FileMetadata = {
 				...fileToAdd.metadata,
+				messageId,
 				path: filePath,
 				inSystemPrompt: false,
+				toolUseId,
 			};
 			conversationFiles.push({
 				filePath,
 				fileMetadata,
 			});
-
-			if (fileMetadata.error) {
-				contentParts.push({
-					'type': 'text',
-					'text': `Error adding file ${filePath}: ${fileMetadata.error}`,
-				} as LLMMessageContentPartTextBlock);
-			} else {
-				contentParts.push({
-					'type': 'text',
-					'text': `File added: ${filePath}`,
-				} as LLMMessageContentPartTextBlock);
-				allFilesFailed = false;
-			}
 		}
-
-		const filesSummary = filesToAdd.map((file) => `${file.fileName} (${file.metadata.error ? 'Error' : 'Success'})`)
-			.join(', ');
-		const toolResultContentPart = {
-			type: 'tool_result',
-			tool_use_id: toolUseId,
-			content: [
-				{
-					type: 'text',
-					text: `Files added to the conversation: ${filesSummary}`,
-				} as LLMMessageContentPartTextBlock,
-				...contentParts,
-			],
-			is_error: allFilesFailed,
-		} as LLMMessageContentPartToolResultBlock;
-
-		this.conversationLogger?.logToolResult('add_files', `Files added to the conversation: ${filesSummary}`);
-		const messageId = this.addMessageForUserRole(toolResultContentPart);
 
 		for (const fileToAdd of conversationFiles) {
 			if (!fileToAdd.fileMetadata.error) {
-				fileToAdd.fileMetadata.messageId = messageId;
 				this._files.set(fileToAdd.filePath, fileToAdd.fileMetadata);
 			}
 		}
+		return conversationFiles;
 	}
 
 	addFileForSystemPrompt(
@@ -271,7 +250,7 @@ class LLMConversationInteraction extends LLMInteraction {
 		};
 		this._files.set(filePath, fileMetadata);
 		this.systemPromptFiles.push(filePath);
-		this.conversationLogger?.logToolResult('add_system_file', `File added to system prompt: ${filePath}`);
+		//this.conversationLogger?.logToolResult('add_system_file', `File added to system prompt: ${filePath}`);
 	}
 
 	removeFile(filePath: string): boolean {
@@ -283,7 +262,7 @@ class LLMConversationInteraction extends LLMInteraction {
 			if (fileMetadata.inSystemPrompt) {
 				this.systemPromptFiles = this.systemPromptFiles.filter((path) => path !== filePath);
 			}
-			this.conversationLogger?.logToolResult('remove_file', `File removed: ${filePath}`);
+			//this.conversationLogger?.logToolResult('remove_file', `File removed: ${filePath}`);
 			return this._files.delete(filePath);
 		}
 		return false;
@@ -353,6 +332,7 @@ class LLMConversationInteraction extends LLMInteraction {
 		return this._statementCount;
 	}
 
+	// converse is called for first turn in a statement; subsequent turns call speakWithLLM
 	public async converse(
 		prompt: string,
 		speakOptions?: LLMSpeakWithOptions,
@@ -363,12 +343,15 @@ class LLMConversationInteraction extends LLMInteraction {
 
 		if (this._statementCount === 0) {
 			// This is the first statement in the conversation
+			/*
 			this.currentCommit = await this.getCurrentGitCommit();
 			if (this.currentCommit) {
 				prompt = `Current Git commit: ${this.currentCommit}\n\n${prompt}`;
 			}
+			 */
 		}
 		this._turnCount++;
+		//logger.debug(`converse - calling addMessageForUserRole for turn ${this._turnCount}` );
 		this.addMessageForUserRole({ type: 'text', text: prompt });
 		this.conversationLogger?.logUserMessage(prompt);
 

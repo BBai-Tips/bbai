@@ -50,6 +50,7 @@
       "jsr:@std/yaml@^0.224.0": "jsr:@std/yaml@0.224.3",
       "npm:@anthropic-ai/tokenizer": "npm:@anthropic-ai/tokenizer@0.0.4",
       "npm:@types/node": "npm:@types/node@18.16.19",
+      "npm:glob-to-regexp": "npm:glob-to-regexp@0.4.1",
       "npm:path-to-regexp@6.2.1": "npm:path-to-regexp@6.2.1",
       "npm:swagger-jsdoc@6.2.8": "npm:swagger-jsdoc@6.2.8"
     },
@@ -360,6 +361,10 @@
       },
       "fs.realpath@1.0.0": {
         "integrity": "sha512-OO0pH2lK6a0hZnAdau5ItzHPI6pUlvI7jMVnxUQRtw4owF2wk8lOSabtGDCTP4Ggrg2MbGnWO9X8K1t4+fGMDw==",
+        "dependencies": {}
+      },
+      "glob-to-regexp@0.4.1": {
+        "integrity": "sha512-lkX1HJXwyMcprw/5YUZc2s7DrpAiHB21/V+E1rHUrVNokkvB6bqMzT0VfV6/86ZNabt1k14YOIaT7nDvOX3Iiw==",
         "dependencies": {}
       },
       "glob@7.1.6": {

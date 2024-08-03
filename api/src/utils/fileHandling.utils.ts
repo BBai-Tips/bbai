@@ -1,7 +1,10 @@
-import { globToRegExp, join, relative } from '@std/path';
+import { join, relative } from '@std/path';
+import globToRegExp from 'npm:glob-to-regexp';
 import { exists, walk } from '@std/fs';
 import { ConfigManager } from 'shared/configManager.ts';
-import { logger } from './logger.utils.ts';
+import { logger } from 'shared/logger.ts';
+import { FileHandlingErrorOptions } from '../errors/error.ts';
+import { createError, ErrorType } from '../utils/error.utils.ts';
 import { countTokens } from 'anthropic-tokenizer';
 import { contentType } from '@std/media-types';
 
@@ -22,12 +25,14 @@ export async function generateFileListing(projectRoot: string): Promise<string |
 	const excludeOptions = await getExcludeOptions(projectRoot);
 	logger.debug(`Exclude options for file listing: ${JSON.stringify(excludeOptions)}`);
 
+	let tierIdx = 0;
 	for (const tier of FILE_LISTING_TIERS) {
+		tierIdx++;
 		logger.debug(`Generating file listing for tier: ${JSON.stringify(tier)}`);
 		const listing = await generateFileListingTier(projectRoot, excludeOptions, tier.depth, tier.includeMetadata);
 		const tokenCount = countTokens(listing);
 		logger.info(
-			`Created file listing for ${tier} using ${tokenCount} tokens - depth: ${tier.depth} - includeMetadata: ${tier.includeMetadata}`,
+			`Created file listing for tier ${tierIdx} using ${tokenCount} tokens - depth: ${tier.depth} - includeMetadata: ${tier.includeMetadata}`,
 		);
 		if (tokenCount <= tokenLimit) {
 			logger.info(`File listing generated successfully within token limit (${tokenLimit})`);
@@ -45,7 +50,7 @@ async function generateFileListingTier(
 	maxDepth: number,
 	includeMetadata: boolean,
 ): Promise<string> {
-	let listing = '';
+	const listing = [];
 	for await (const entry of walk(projectRoot, { maxDepth, includeDirs: false })) {
 		const relativePath = relative(projectRoot, entry.path);
 		if (shouldExclude(relativePath, excludeOptions)) continue;
@@ -53,18 +58,18 @@ async function generateFileListingTier(
 		if (includeMetadata) {
 			const stat = await Deno.stat(entry.path);
 			const mimeType = contentType(entry.name) || 'application/octet-stream';
-			listing += `${relativePath} (${mimeType}, ${stat.size} bytes, modified: ${stat.mtime?.toISOString()})\n`;
+			listing.push(`${relativePath} (${mimeType}, ${stat.size} bytes, modified: ${stat.mtime?.toISOString()})`);
 		} else {
-			listing += `${relativePath}\n`;
+			listing.push(`${relativePath}`);
 		}
 	}
-	return listing;
+	return listing.sort().join('\n');
 }
 
 function shouldExclude(path: string, excludeOptions: string[]): boolean {
 	return excludeOptions.some((option) => {
 		const pattern = option.replace('--exclude=', '');
-		const regex = globToRegExp(pattern, { extended: true, globstar: true });
+		const regex = globToRegExp(pattern);
 		return regex.test(path);
 	});
 }
@@ -76,31 +81,73 @@ async function getExcludeOptions(projectRoot: string): Promise<string[]> {
 		join(projectRoot, '.bbai', 'tags.ignore'),
 	];
 
-	const excludeOptions = [];
+	const patterns = [];
 	for (const file of excludeFiles) {
 		if (await exists(file)) {
 			const content = await Deno.readTextFile(file);
-			const patterns = content.split('\n')
-				.map((line) => line.trim())
-				.filter((line) => line && !line.startsWith('#'));
-			excludeOptions.push(...patterns.map((pattern) => `--exclude=${pattern}`));
+			patterns.push(
+				content.split('\n')
+					.map((line) => line.trim())
+					.filter((line) => line && !line.startsWith('#')),
+			);
 		}
 	}
+	patterns.unshift('.bbai/*', '.git/*');
 
+	const uniquePatterns = [...new Set(patterns)];
+	const excludeOptions = [...uniquePatterns.map((pattern) => `--exclude=${pattern}`)];
+
+	/*
 	if (excludeOptions.length === 0) {
 		excludeOptions.push('--exclude=.bbai/*');
 	}
+	 */
 
 	return excludeOptions;
+}
+
+import { normalize, resolve } from '@std/path';
+
+export function isPathWithinProject(projectRoot: string, filePath: string): boolean {
+	const normalizedPath = normalize(filePath);
+	const resolvedPath = resolve(projectRoot, normalizedPath);
+	return resolvedPath.startsWith(projectRoot);
+}
+
+export async function readProjectFileContent(projectRoot: string, filePath: string): Promise<string> {
+	const fullFilePath = join(projectRoot, filePath);
+	logger.info(`Reading contents of File ${fullFilePath}`);
+	try {
+		const content = await Deno.readTextFile(fullFilePath);
+		return content;
+	} catch (error) {
+		if (error instanceof Deno.errors.NotFound) {
+			throw new Error(`File not found: ${fullFilePath}`);
+		}
+		throw error;
+	}
+}
+
+export async function updateFile(projectRoot: string, filePath: string, _content: string): Promise<void> {
+	if (!isPathWithinProject(projectRoot, filePath)) {
+		throw createError(ErrorType.FileHandling, `Access denied: ${filePath} is outside the project directory`, {
+			name: 'update-file',
+			filePath,
+			operation: 'write',
+		} as FileHandlingErrorOptions);
+	}
+
+	// TODO: Implement file update logic
+	logger.info(`File ${filePath} updated in the project`);
 }
 
 export async function searchFiles(
 	projectRoot: string,
 	pattern: string,
 	filePattern?: string,
-): Promise<{ files: string[]; error: string | null }> {
+): Promise<{ files: string[]; errorMessage: string | null }> {
 	const excludeOptions = await getExcludeOptions(projectRoot);
-	let grepCommand = ['-r', '-l', '-E', `${pattern}`];
+	const grepCommand = ['-r', '-l', '-E', `${pattern}`];
 
 	if (filePattern) {
 		grepCommand.push('--include', filePattern);
@@ -112,7 +159,7 @@ export async function searchFiles(
 		grepCommand.push(option.replace('--exclude=', '--exclude=./'));
 	}
 	grepCommand.push('.');
-	//logger.debug(`Search command in dir ${projectRoot}: grep `, grepCommand);
+	logger.debug(`Search command in dir ${projectRoot}: grep `, grepCommand.join(' '));
 
 	const command = new Deno.Command('grep', {
 		args: grepCommand,
@@ -128,9 +175,9 @@ export async function searchFiles(
 	if (code === 0 || code === 1) { // grep returns 1 if no matches found, which is not an error for us
 		const output = new TextDecoder().decode(rawOutput).trim();
 		const files = output.split('\n').filter(Boolean);
-		return { files, error: null };
+		return { files, errorMessage: null };
 	} else {
 		const errorMessage = new TextDecoder().decode(rawError).trim();
-		return { files: [], error: errorMessage };
+		return { files: [], errorMessage };
 	}
 }

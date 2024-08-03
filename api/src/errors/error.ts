@@ -8,6 +8,7 @@ export enum ErrorType {
 	LLMRateLimit = 'RateLimitError',
 	LLMValidation = 'ValidationError',
 	FileHandling = 'FileHandlingError',
+	VectorSearch = 'VectorSearchError',
 }
 export const ErrorTypes = [
 	ErrorType.API,
@@ -15,6 +16,7 @@ export const ErrorTypes = [
 	ErrorType.LLMRateLimit,
 	ErrorType.LLMValidation,
 	ErrorType.FileHandling,
+	ErrorType.VectorSearch,
 ];
 
 export interface ErrorOptions {
@@ -108,7 +110,7 @@ export const isValidationError = (value: unknown): value is ValidationError => {
 
 export interface FileHandlingErrorOptions extends ErrorOptions {
 	filePath: string;
-	operation: 'read' | 'write' | 'patch' | 'search-replace' | 'delete';
+	operation: 'read' | 'write' | 'delete' | 'patch' | 'search-replace' | 'search-project' | 'request-files';
 }
 
 export class FileHandlingError extends Error {
@@ -152,3 +154,22 @@ export class FileWriteError extends FileHandlingError {
 		this.name = 'FileWriteError';
 	}
 }
+
+export interface VectorSearchErrorOptions extends ErrorOptions {
+	query: string;
+	operation: 'index' | 'search' | 'delete';
+}
+
+export class VectorSearchError extends Error {
+	constructor(
+		message: string,
+		public options: VectorSearchErrorOptions,
+	) {
+		super(message);
+		this.name = ErrorType.VectorSearch;
+	}
+}
+
+export const isVectorSearchError = (value: unknown): value is VectorSearchError => {
+	return value instanceof VectorSearchError;
+};

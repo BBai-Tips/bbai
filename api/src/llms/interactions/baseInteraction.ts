@@ -3,12 +3,14 @@ import LLM from '../providers/baseLLM.ts';
 import { ConversationId, LLMCallbackType } from '../../types.ts';
 import type {
 	LLMMessageContentPart,
+	LLMMessageContentPartImageBlock,
 	LLMMessageContentParts,
 	LLMMessageContentPartTextBlock,
 	LLMMessageContentPartToolResultBlock,
-} from '../message.ts';
-import LLMMessage from '../message.ts';
-import LLMTool from '../tool.ts';
+	LLMMessageProviderResponse,
+} from '../llmMessage.ts';
+import LLMMessage from '../llmMessage.ts';
+import LLMTool from '../llmTool.ts';
 import { ConversationLogger } from 'shared/conversationLogger.ts';
 import { crypto } from '@std/crypto';
 import { logger } from 'shared/logger.ts';
@@ -61,38 +63,55 @@ class LLMInteraction {
 		return uuid.replace(/-/g, '').substring(0, 8);
 	}
 
-	public addMessageForUserRole(contentPart: LLMMessageContentPart): string {
+	public addMessageForUserRole(content: LLMMessageContentPart | LLMMessageContentParts): string {
 		const lastMessage = this.getLastMessage();
 		//logger.debug('lastMessage for user', lastMessage);
-		//this.conversationLogger?.logUserMessage(contentPart.text);
+		//this.conversationLogger?.logUserMessage(content);
 		if (lastMessage && lastMessage.role === 'user') {
-			// Append contentPart to the content array of the last user message
-			logger.debug('Adding content to existing user message', JSON.stringify(contentPart, null, 2));
-			lastMessage.content.push(contentPart);
+			// Append content to the content array of the last user message
+			logger.debug('Adding content to existing user message', JSON.stringify(content, null, 2));
+			if (Array.isArray(content)) {
+				lastMessage.content.push(...content);
+			} else {
+				lastMessage.content.push(content);
+			}
 			return lastMessage.id ?? '';
 		} else {
 			// Add a new user message
-			logger.debug('Adding content to new user message', JSON.stringify(contentPart, null, 2));
-			const newMessage = new LLMMessage('user', [contentPart]);
+			logger.debug('Adding content to new user message', JSON.stringify(content, null, 2));
+			const newMessage = new LLMMessage('user', Array.isArray(content) ? content : [content]);
 			this.addMessage(newMessage);
 			return newMessage.id ?? '';
 		}
 	}
 
-	public addMessageForAssistantRole(contentPart: LLMMessageContentPart): string {
+	public addMessageForAssistantRole(
+		content: LLMMessageContentPart | LLMMessageContentParts,
+		tool_call_id?: string,
+		providerResponse?: LLMMessageProviderResponse,
+	): string {
 		const lastMessage = this.getLastMessage();
 		//logger.debug('lastMessage for assistant', lastMessage);
-		//this.conversationLogger?.logAssistantMessage(contentPart);
+		//this.conversationLogger?.logAssistantMessage(content);
 		if (lastMessage && lastMessage.role === 'assistant') {
 			logger.error('Why are we adding another assistant message - SOMETHING IS WRONG!');
-			// Append contentPart to the content array of the last assistant message
-			logger.debug('Adding content to existing assistant message', JSON.stringify(contentPart, null, 2));
-			lastMessage.content.push(contentPart);
+			// Append content to the content array of the last assistant message
+			logger.debug('Adding content to existing assistant message', JSON.stringify(content, null, 2));
+			if (Array.isArray(content)) {
+				lastMessage.content.push(...content);
+			} else {
+				lastMessage.content.push(content);
+			}
 			return lastMessage.id ?? '';
 		} else {
-			// Add a new user message
-			logger.debug('Adding content to new assistant message', JSON.stringify(contentPart, null, 2));
-			const newMessage = new LLMMessage('assistant', [contentPart]);
+			// Add a new assistant message
+			logger.debug('Adding content to new assistant message', JSON.stringify(content, null, 2));
+			const newMessage = new LLMMessage(
+				'assistant',
+				Array.isArray(content) ? content : [content],
+				tool_call_id,
+				providerResponse,
+			);
 			this.addMessage(newMessage);
 			return newMessage.id ?? '';
 		}
@@ -100,14 +119,14 @@ class LLMInteraction {
 
 	public addMessageForToolResult(
 		toolUseId: string,
-		content: string,
+		content: string | LLMMessageContentPart | LLMMessageContentParts,
 		isError: boolean = false,
 	): string {
 		const toolResult = {
 			type: 'tool_result',
 			tool_use_id: toolUseId,
-			content: [
-				{
+			content: Array.isArray(content) ? content : [
+				typeof content !== 'string' ? content : {
 					'type': 'text',
 					'text': content,
 				} as LLMMessageContentPartTextBlock,
@@ -121,14 +140,69 @@ class LLMInteraction {
 			this.conversationLogger?.logToolResult(toolUseId, content);
 		}
 
-		return this.addMessageForUserRole(toolResult);
+		const lastMessage = this.getLastMessage();
+		if (lastMessage && lastMessage.role === 'user') {
+			// Check if there's an existing tool result with the same toolUseId
+			const existingToolResultIndex = lastMessage.content.findIndex(
+				(part): part is LLMMessageContentPartToolResultBlock =>
+					part.type === 'tool_result' && part.tool_use_id === toolUseId,
+			);
+
+			if (existingToolResultIndex !== -1) {
+				// Update existing tool result
+				const existingToolResult = lastMessage
+					.content[existingToolResultIndex] as LLMMessageContentPartToolResultBlock;
+				if (existingToolResult.content && Array.isArray(existingToolResult.content)) {
+					existingToolResult.content.push(
+						...(Array.isArray(toolResult.content)
+							? toolResult.content as (LLMMessageContentPartTextBlock | LLMMessageContentPartImageBlock)[]
+							: toolResult.content && 'type' in toolResult.content &&
+									((toolResult.content as LLMMessageContentPart).type === 'text' ||
+										(toolResult.content as LLMMessageContentPart).type === 'image')
+							? [toolResult.content as LLMMessageContentPartTextBlock | LLMMessageContentPartImageBlock]
+							: []),
+					);
+				} else {
+					existingToolResult.content = Array.isArray(toolResult.content)
+						? toolResult.content as (LLMMessageContentPartTextBlock | LLMMessageContentPartImageBlock)[]
+						: toolResult.content && 'type' in toolResult.content &&
+								((toolResult.content as LLMMessageContentPart).type === 'text' ||
+									(toolResult.content as LLMMessageContentPart).type === 'image')
+						? [toolResult.content as LLMMessageContentPartTextBlock | LLMMessageContentPartImageBlock]
+						: [];
+				}
+				existingToolResult.is_error = existingToolResult.is_error || isError;
+				logger.debug('Updating existing tool result', JSON.stringify(toolResult, null, 2));
+				return lastMessage.id ?? '';
+			} else {
+				// Add new tool result to existing user message
+				logger.debug('Adding new tool result to existing user message', JSON.stringify(toolResult, null, 2));
+				lastMessage.content.push(toolResult);
+				return lastMessage.id ?? '';
+			}
+		} else {
+			// Add a new user message with the tool result
+			logger.debug('Adding new user message with tool result', JSON.stringify(toolResult, null, 2));
+			const newMessage = new LLMMessage('user', [toolResult]);
+			this.addMessage(newMessage);
+			return newMessage.id ?? '';
+		}
 	}
 
-	public addMessage(message: Omit<LLMMessage, 'timestamp'>): void {
-		const completeMessage: LLMMessage = {
-			...message,
-			timestamp: new Date().toISOString(),
-		};
+	public addMessage(message: Omit<LLMMessage, 'timestamp'> | LLMMessage): void {
+		let completeMessage: LLMMessage;
+		if (message instanceof LLMMessage) {
+			completeMessage = message;
+			completeMessage.setTimestamp();
+		} else {
+			completeMessage = new LLMMessage(
+				message.role,
+				message.content,
+				message.tool_call_id,
+				message.providerResponse,
+				message.id,
+			);
+		}
 		this.messages.push(completeMessage);
 	}
 
@@ -223,7 +297,7 @@ class LLMInteraction {
 
 	addTools(tools: LLMTool[]): void {
 		tools.forEach((tool: LLMTool) => {
-			this.tools.set(tool.name, tool);
+			this.addTool(tool);
 		});
 	}
 
@@ -234,7 +308,8 @@ class LLMInteraction {
 	allTools(): Map<string, LLMTool> {
 		return this.tools;
 	}
-	getTools(): LLMTool[] {
+
+	getAllTools(): LLMTool[] {
 		return Array.from(this.tools.values());
 	}
 	listTools(): string[] {
@@ -255,8 +330,9 @@ class LLMInteraction {
 		}
 
 		this._turnCount++;
+		//logger.debug(`speakWithLLM - calling addMessageForUserRole for turn ${this._turnCount}` );
 		this.addMessageForUserRole({ type: 'text', text: prompt });
-		this.conversationLogger?.logUserMessage(prompt);
+		//this.conversationLogger?.logUserMessage(prompt);
 
 		const response = await this.llm.speakWithRetry(this, speakOptions);
 

@@ -4,9 +4,13 @@ import { ms } from 'ms';
 import { LLMProvider, OpenAIModel } from '../../types.ts';
 import LLM from './baseLLM.ts';
 import LLMInteraction from '../interactions/baseInteraction.ts';
-import LLMMessage, { LLMMessageContentPart, LLMMessageContentParts } from '../message.ts';
-import type { LLMMessageContentPartTextBlock, LLMMessageContentPartToolUseBlock } from '../message.ts';
-import LLMTool from '../tool.ts';
+import LLMMessage, {
+	LLMMessageContentPart,
+	LLMMessageContentParts,
+	LLMMessageContentPartTextBlock,
+	LLMMessageContentPartToolUseBlock,
+} from '../llmMessage.ts';
+import LLMTool from '../llmTool.ts';
 import { createError } from '../../utils/error.utils.ts';
 import { ErrorType, LLMErrorOptions } from '../../errors/error.ts';
 import { logger } from 'shared/logger.ts';

@@ -1,7 +1,13 @@
-import { dirname, join, normalize, resolve } from '@std/path';
+import { join } from '@std/path';
 import * as diff from 'diff';
 import { ensureDir } from '@std/fs';
-import { searchFiles } from 'shared/fileListing.ts';
+import {
+	FILE_LISTING_TIERS,
+	generateFileListing,
+	isPathWithinProject,
+	readProjectFileContent,
+} from '../utils/fileHandling.utils.ts';
+import { generateCtags, readCtagsFile } from '../utils/ctags.utils.ts';
 
 import { LLMFactory } from '../llms/llmProvider.ts';
 import LLMConversationInteraction, { FileMetadata, ProjectInfo } from '../llms/interactions/conversationInteraction.ts';
@@ -15,18 +21,18 @@ import {
 	LLMCallbacks,
 	LLMMessageContentPart,
 	LLMProvider,
+	LLMProviderMessageMeta,
+	LLMProviderMessageResponse,
 	LLMSpeakWithOptions,
 	LLMSpeakWithResponse,
 } from '../types.ts';
-import LLMMessage, { LLMMessageContentPartTextBlock } from '../llms/message.ts';
-import LLMTool from '../llms/tool.ts';
+import LLMMessage, { LLMAnswerToolUse, LLMMessageContentPartTextBlock } from '../llms/llmMessage.ts';
+import LLMTool from '../llms/llmTool.ts';
+import LLMTools, { LLMToolsToolSetType } from '../llms/llmTools.ts';
 import { ConversationPersistence } from '../utils/conversationPersistence.utils.ts';
 import { GitUtils } from 'shared/git.ts';
 import { createError, ErrorType } from '../utils/error.utils.ts';
 import { FileHandlingErrorOptions } from '../errors/error.ts';
-import { generateCtags, readCtagsFile } from 'shared/ctags.ts';
-import { FILE_LISTING_TIERS, generateFileListing } from 'shared/fileListing.ts';
-import { LLMAnswerToolUse } from '../llms/message.ts';
 import {
 	getBbaiCacheDir,
 	getBbaiDir,
@@ -37,19 +43,24 @@ import {
 	writeToBbaiDir,
 } from 'shared/dataDir.ts';
 import { stripIndents } from 'common-tags';
+import { generateConversationTitle } from '../utils/conversation.utils.ts';
+import { runFormatCommand } from '../utils/project.utils.ts';
+import { generateCommitMessage, stageAndCommitAfterPatching } from '../utils/git.utils.ts';
 
 export class ProjectEditor {
-	private conversation: LLMConversationInteraction | null = null;
-	private chat: LLMChatInteraction | null = null;
-	private promptManager: PromptManager;
+	public conversation: LLMConversationInteraction | null = null;
+	public chat: LLMChatInteraction | null = null;
+	public promptManager: PromptManager;
+	public toolManager!: LLMTools;
 	private llmProvider!: LLM;
 	private llmProviderFast!: LLM;
 	public startDir: string;
 	public projectRoot: string;
 	private bbaiDir: string;
 	private statementCount: number = 0;
-	private patchedFiles: Set<string> = new Set();
-	private patchContents: Map<string, string> = new Map();
+	public toolSet: LLMToolsToolSetType = 'coding';
+	public patchedFiles: Set<string> = new Set();
+	public patchContents: Map<string, string> = new Map();
 	private formatCommand: string = 'deno task format'; // Default format command
 	private totalTurnCount: number = 0;
 	private _projectInfo: ProjectInfo = {
@@ -60,7 +71,8 @@ export class ProjectEditor {
 	private interactionCallbacks: LLMCallbacks = {
 		PROJECT_ROOT: () => this.projectRoot,
 		PROJECT_INFO: () => this.projectInfo,
-		PROJECT_FILE_CONTENT: async (filePath: string): Promise<string> => await this.readProjectFileContent(filePath),
+		PROJECT_FILE_CONTENT: async (filePath: string): Promise<string> =>
+			await readProjectFileContent(this.projectRoot, filePath),
 		PREPARE_SYSTEM_PROMPT: async (system: string): Promise<string> =>
 			this.conversation
 				? await this.conversation.prepareSytemPrompt(system)
@@ -99,6 +111,7 @@ export class ProjectEditor {
 			this.bbaiDir = await this.getBbaiDir();
 			this.llmProvider = LLMFactory.getProvider(this.interactionCallbacks);
 			this.llmProviderFast = LLMFactory.getProvider(this.interactionCallbacksFast);
+			this.toolManager = new LLMTools(this.toolSet);
 		} catch (error) {
 			console.error('Failed to initialize LLMProvider:', error);
 			throw error;
@@ -154,6 +167,7 @@ export class ProjectEditor {
 		if (projectInfo.type === 'empty') {
 			const projectRoot = await this.getProjectRoot();
 			const fileListingContent = await generateFileListing(projectRoot);
+
 			if (fileListingContent) {
 				projectInfo.type = 'file-listing';
 				projectInfo.content = fileListingContent;
@@ -168,125 +182,12 @@ export class ProjectEditor {
 		this.projectInfo = projectInfo;
 	}
 
-	private addDefaultTools(): void {
-		const requestFilesTool: LLMTool = {
-			name: 'request_files',
-			description: 'Request files to be added to the chat',
-			input_schema: {
-				type: 'object',
-				properties: {
-					fileNames: {
-						type: 'array',
-						items: { type: 'string' },
-						description: 'Array of file names to be added to the chat',
-					},
-				},
-				required: ['fileNames'],
-			},
-		};
-
-		/*
-		const vectorSearchTool: LLMTool = {
-			name: 'vector_search',
-			description: 'Perform a vector search on the project files',
-			input_schema: {
-				type: 'object',
-				properties: {
-					query: {
-						type: 'string',
-						description: 'The search query to use for vector search',
-					},
-				},
-				required: ['query'],
-			},
-		};
-		 */
-
-		const applyPatchTool: LLMTool = {
-			name: 'apply_patch',
-			description: 'Apply a well-formed patch to a file',
-			input_schema: {
-				type: 'object',
-				properties: {
-					filePath: {
-						type: 'string',
-						description: 'The path of the file to be patched',
-					},
-					patch: {
-						type: 'string',
-						description: 'The carefully written and well-formed patch to be applied in unified diff format',
-					},
-				},
-				required: ['filePath', 'patch'],
-			},
-		};
-
-		const searchAndReplaceTool: LLMTool = {
-			name: 'search_and_replace',
-			description: 'Apply a list of search and replace operations to a file',
-			input_schema: {
-				type: 'object',
-				properties: {
-					filePath: {
-						type: 'string',
-						description: 'The path of the file to be modified',
-					},
-					operations: {
-						type: 'array',
-						items: {
-							type: 'object',
-							properties: {
-								search: {
-									type: 'string',
-									description:
-										'The exact literal text to search for, with all leading and trailing whitespace from the original file',
-								},
-								replace: {
-									type: 'string',
-									description:
-										'The text to replace with, matching the same indent level as the original file',
-								},
-							},
-							required: ['search', 'replace'],
-						},
-						description: 'List of literal search and replace operations to apply',
-					},
-				},
-				required: ['filePath', 'operations'],
-			},
-		};
-
-		const searchProjectTool: LLMTool = {
-			name: 'search_project',
-			description: 'Search the project for files matching a pattern',
-			input_schema: {
-				type: 'object',
-				properties: {
-					pattern: {
-						type: 'string',
-						description: 'The search pattern to use (grep-compatible regular expression)',
-					},
-					file_pattern: {
-						type: 'string',
-						description:
-							'Optional file pattern to limit the search to specific file types (e.g., "*.ts" for TypeScript files)',
-					},
-				},
-				required: ['pattern'],
-			},
-		};
-
-		this.conversation?.addTool(requestFilesTool);
-		this.conversation?.addTool(applyPatchTool);
-		this.conversation?.addTool(searchAndReplaceTool);
-		this.conversation?.addTool(searchProjectTool);
+	private addToolsToConversation(): void {
+		const tools = this.toolManager.getAllTools();
+		this.conversation?.addTools(tools);
 	}
 
-	private isPathWithinProject(filePath: string): boolean {
-		const normalizedPath = normalize(filePath);
-		const resolvedPath = resolve(this.projectRoot, normalizedPath);
-		return resolvedPath.startsWith(this.projectRoot);
-	}
+	// isPathWithinProject is now imported from fileHandling.utils.ts
 
 	/*
 	private determineStorageLocation(_filePath: string, content: string, source: 'tool' | 'user'): 'system' | 'message' {
@@ -316,15 +217,7 @@ export class ProjectEditor {
 	}
 
 	private async generateConversationTitle(prompt: string): Promise<string> {
-		const chat = await this.createChat();
-		const titlePrompt = stripIndents`
-			Create a very short title (max 5 words) for a conversation based on the following prompt:
-			"${prompt.substring(0, 500)}${prompt.length > 500 ? '...' : ''}"
-			
-			Respond with the title only, no additional text.`;
-		const response = await chat.chat(titlePrompt);
-		const contentPart = response.messageResponse.answerContent[0] as LLMMessageContentPartTextBlock;
-		return contentPart.text.trim();
+		return generateConversationTitle(await this.createChat(), prompt);
 	}
 
 	async speakWithLLM(
@@ -332,13 +225,22 @@ export class ProjectEditor {
 		provider?: LLMProvider,
 		model?: string,
 		conversationId?: ConversationId,
-	): Promise<any> {
+	): Promise<{
+		response: LLMProviderMessageResponse;
+		messageMeta: LLMProviderMessageMeta;
+		conversationId: string;
+		statementCount: number;
+		turnCount: number;
+		totalTurnCount: number;
+		title: string;
+	}> {
 		logger.info(
 			`Starting speakWithLLM. Prompt: "${prompt.substring(0, 50)}...", ConversationId: ${conversationId}`,
 		);
 		logger.debug(`Full prompt: ${prompt}`);
 		logger.debug(`Provider: ${provider}, Model: ${model}`);
 
+		// we have a conversationId so load and hydrate from storage
 		if (conversationId) {
 			logger.info(`Attempting to load existing conversation: ${conversationId}`);
 			try {
@@ -354,6 +256,9 @@ export class ProjectEditor {
 				logger.debug(`Retrieved metadata for conversation ${conversationId}`);
 				// logger.debug(`Retrieved metadata for conversation ${conversationId}:`, metadata);
 
+				// [TODO] - remove this once the tools is being saved to persistence properly
+				this.addToolsToConversation();
+
 				this.statementCount = metadata.statementCount || 0;
 				this.totalTurnCount = metadata.totalTurnCount || 0;
 				logger.info(
@@ -367,6 +272,7 @@ export class ProjectEditor {
 			}
 		}
 
+		// we don't have a conversation so let's start a new one
 		if (!this.conversation) {
 			logger.info(`Creating a new conversation.`);
 			try {
@@ -381,7 +287,7 @@ export class ProjectEditor {
 				this.conversation.baseSystem = systemPrompt;
 				if (model) this.conversation.model = model;
 
-				this.addDefaultTools();
+				this.addToolsToConversation();
 
 				logger.info(`Created new conversation: ${this.conversation.id}`);
 				this.statementCount = 0;
@@ -398,16 +304,14 @@ export class ProjectEditor {
 			//maxTokens: 1000,
 		};
 
-		await this.updateProjectInfo();
-
 		const maxTurns = 25; // Maximum number of turns for the run loop
 		let turnCount = 0;
-		let currentResponse: LLMSpeakWithResponse;
+		let currentResponse: LLMSpeakWithResponse | null = null;
 
 		try {
-			logger.info(`Calling speakWithLLM with prompt: "${prompt.substring(0, 50)}..."`);
+			logger.info(`Calling speakWithLLM for turn ${turnCount} with prompt: "${prompt.substring(0, 50)}..."`);
 
-			currentResponse = await this.conversation.speakWithLLM(prompt, speakOptions);
+			currentResponse = await this.conversation.converse(prompt, speakOptions);
 			logger.info('Received response from LLM');
 			//logger.debug('LLM Response:', currentResponse);
 
@@ -447,14 +351,14 @@ export class ProjectEditor {
 				// Handle tool calls and collect feedback
 				let toolFeedback = '';
 				if (currentResponse.messageResponse.toolsUsed && currentResponse.messageResponse.toolsUsed.length > 0) {
-					for (const tool of currentResponse.messageResponse.toolsUsed) {
-						logger.info('Handling tool', tool);
+					for (const toolUse of currentResponse.messageResponse.toolsUsed) {
+						logger.info('Handling tool', toolUse);
 						try {
-							const feedback = await this.handleToolUse(tool, currentResponse.messageResponse);
+							const feedback = await this.handleToolUse(toolUse, currentResponse.messageResponse);
 							toolFeedback += feedback + '\n';
 						} catch (error) {
-							logger.warn(`Error handling tool ${tool.toolName}: ${error.message}`);
-							toolFeedback += `Error with ${tool.toolName}: ${error.message}\n`;
+							logger.warn(`Error handling tool ${toolUse.toolName}: ${error.message}`);
+							toolFeedback += `Error with ${toolUse.toolName}: ${error.message}\n`;
 						}
 					}
 				}
@@ -526,353 +430,22 @@ export class ProjectEditor {
 	}
 
 	private async handleToolUse(
-		tool: LLMAnswerToolUse,
+		toolUse: LLMAnswerToolUse,
 		_response: unknown,
 	): Promise<string> {
-		let feedback = '';
-		switch (tool.toolName) {
-			case 'search_project': {
-				const { pattern, file_pattern } = tool.toolInput as { pattern: string; file_pattern?: string };
-				const repoSearchResults = await this.handleSearchProject(
-					pattern,
-					file_pattern || undefined,
-					tool.toolUseId,
-				);
-				feedback = `Project search completed. ${repoSearchResults.length} files found matching the pattern.`;
-				break;
-			}
-			case 'request_files': {
-				const fileNames = (tool.toolInput as { fileNames: string[] }).fileNames;
-				const filesAdded = await this.handleRequestFiles(fileNames, tool.toolUseId || '');
-				const addedFileNames = filesAdded.map((file) => file.fileName).join(', ');
-				feedback = `Files added to the conversation: ${addedFileNames}`;
-				break;
-			}
-			case 'vector_search': {
-				const query = (tool.toolInput as { query: string }).query;
-				const vectorSearchResults = await this.handleVectorSearch(query, tool.toolUseId);
-				feedback =
-					`Vector search completed for query: "${query}". ${vectorSearchResults.length} results found.`;
-				break;
-			}
-			case 'apply_patch': {
-				const { filePath, patch } = tool.toolInput as { filePath: string; patch: string };
-				await this.handleApplyPatch(filePath, patch, tool.toolUseId);
-				feedback = `Patch applied successfully to file: ${filePath}`;
-				break;
-			}
-			case 'search_and_replace': {
-				const { filePath, operations } = tool.toolInput as {
-					filePath: string;
-					operations: Array<{ search: string; replace: string }>;
-				};
-				await this.handleSearchAndReplace(filePath, operations, tool.toolUseId);
-				feedback = `Search and replace operations applied successfully to file: ${filePath}`;
-				break;
-			}
-			default: {
-				logger.warn(`Unknown tool used: ${tool.toolName}`);
-				feedback = `Unknown tool used: ${tool.toolName}`;
-			}
-		}
+		//logger.debug(`handleToolUse - calling toolManager for ${toolUse.toolName}`);
+		const { messageId: _messageId, feedback, isError } = await this.toolManager.handleToolUse(toolUse, this);
+		//logger.debug(`handleToolUse - got feedback from toolManager: ${feedback}`);
+		this.conversation?.conversationLogger?.logToolResult(
+			toolUse.toolName,
+			`BBai was ${isError ? 'unsuccessful' : 'successful'} with tool run: \n${feedback}`,
+		);
 		return feedback;
 	}
 
-	async handleRequestFiles(
+	// prepareFilesForConversation is called by request_files tool and by handler for user requests
+	async prepareFilesForConversation(
 		fileNames: string[],
-		toolUseId: string,
-	): Promise<Array<{ fileName: string; metadata: Omit<FileMetadata, 'path' | 'inSystemPrompt'> }>> {
-		return await this.addFiles(fileNames, 'tool', toolUseId);
-	}
-
-	async handleVectorSearch(query: string, _toolUseId: string): Promise<any> {
-		return await this.searchEmbeddings(query);
-	}
-
-	async handleSearchProject(
-		pattern: string,
-		file_pattern: string | undefined,
-		toolUseId: string,
-	): Promise<string[]> {
-		try {
-			const { files, error: _error } = await searchFiles(this.projectRoot, pattern, file_pattern);
-
-			const resultMessage = `Found ${files.length} files matching the pattern "${pattern}"${
-				file_pattern ? ` with file pattern "${file_pattern}"` : ''
-			}:\n${files.join('\n')}`;
-			this.conversation?.addMessageForToolResult(toolUseId, resultMessage);
-
-			return files;
-		} catch (error) {
-			const errorMessage = error.message;
-			logger.error(`Error searching project: ${errorMessage}`);
-
-			// Add error tool result message
-			this.conversation?.addMessageForToolResult(toolUseId, `Error searching project: ${errorMessage}`, true);
-			return [];
-		}
-	}
-
-	async handleSearchAndReplace(
-		filePath: string,
-		operations: Array<{ search: string; replace: string }>,
-		toolUseId: string,
-	): Promise<void> {
-		if (!this.isPathWithinProject(filePath)) {
-			throw createError(ErrorType.FileHandling, `Access denied: ${filePath} is outside the project directory`, {
-				name: 'search-and-replace',
-				filePath,
-				operation: 'search-replace',
-			} as FileHandlingErrorOptions);
-		}
-
-		const fullFilePath = join(this.projectRoot, filePath);
-		logger.info(`Handling search and replace for file: ${fullFilePath}`);
-
-		try {
-			let content = await Deno.readTextFile(fullFilePath);
-
-			let changesMade = false;
-			let allOperationsSkipped = true;
-			const toolWarnings = [];
-			for (const operation of operations) {
-				const { search, replace } = operation;
-
-				// Validate that search and replace strings are different
-				if (search === replace) {
-					const warningMessage = `Warning: Search and replace strings are identical for operation: ${
-						JSON.stringify(operation)
-					}. Operation skipped.`;
-					logger.warn(warningMessage);
-					toolWarnings.push(warningMessage);
-					continue; // Skip this operation
-				}
-
-				const originalContent = content;
-				content = content.replaceAll(search, replace);
-
-				// Check if the content actually changed
-				if (content !== originalContent) {
-					changesMade = true;
-					allOperationsSkipped = false;
-				}
-			}
-			let toolWarning = '';
-			if (toolWarnings.length > 0) {
-				toolWarning = `Tool Use Warnings: \n${toolWarnings.join('\n')}\n`;
-			}
-
-			if (changesMade) {
-				await Deno.writeTextFile(fullFilePath, content);
-				this.patchedFiles.add(filePath);
-
-				// Log the applied changes
-				if (this.conversation) {
-					logger.info(`Saving conversation search and replace: ${this.conversation.id}`);
-					const persistence = new ConversationPersistence(this.conversation.id, this);
-					await persistence.logPatch(filePath, JSON.stringify(operations));
-					await this.createCommitAfterPatching();
-				}
-
-				// Add success tool result message
-				this.conversation?.addMessageForToolResult(
-					toolUseId,
-					`${toolWarning}Search and replace operations applied successfully to file: ${filePath}`,
-				);
-			} else {
-				const noChangesMessage = allOperationsSkipped
-					? `${toolWarning}No changes were made to the file: ${filePath}. All operations were skipped due to identical search and replace strings.`
-					: `${toolWarning}No changes were made to the file: ${filePath}. The search strings were not found in the file content.`;
-				logger.info(noChangesMessage);
-				this.conversation?.addMessageForToolResult(toolUseId, noChangesMessage, true);
-			}
-		} catch (error) {
-			let errorMessage = `Failed to apply search and replace to ${filePath}: ${error.message}`;
-			logger.error(errorMessage);
-
-			// Add error tool result message
-			this.conversation?.addMessageForToolResult(toolUseId, errorMessage, true);
-
-			throw createError(ErrorType.FileHandling, errorMessage, {
-				name: 'search-and-replace',
-				filePath: filePath,
-				operation: 'search-replace',
-			} as FileHandlingErrorOptions);
-		}
-	}
-
-	async handleApplyPatch(filePath: string, patch: string, toolUseId: string): Promise<void> {
-		if (!this.isPathWithinProject(filePath)) {
-			throw createError(ErrorType.FileHandling, `Access denied: ${filePath} is outside the project directory`, {
-				name: 'apply-patch',
-				filePath,
-				operation: 'patch',
-			} as FileHandlingErrorOptions);
-		}
-
-		const fullFilePath = join(this.projectRoot, filePath);
-		logger.info(`Handling patch for file: ${fullFilePath}\nWith patch:\n${patch}`);
-
-		try {
-			const parsedPatch = diff.parsePatch(patch);
-
-			for (const patchPart of parsedPatch) {
-				if (patchPart.oldFileName === '/dev/null') {
-					// This is a new file
-					const newFilePath = patchPart.newFileName
-						? join(this.projectRoot, patchPart.newFileName)
-						: undefined;
-					if (!newFilePath) {
-						throw new Error('New file path is undefined');
-					}
-
-					this.patchedFiles.add(newFilePath);
-					this.patchContents.set(newFilePath, patch);
-
-					const newFileContent = patchPart.hunks.map((h) =>
-						h.lines.filter((l) => l[0] === '+').map((l) => l.slice(1)).join('\n')
-					).join('\n');
-
-					await ensureDir(dirname(newFilePath));
-					await Deno.writeTextFile(newFilePath, newFileContent);
-					logger.info(`Created new file: ${patchPart.newFileName}`);
-				} else {
-					this.patchedFiles.add(filePath);
-					this.patchContents.set(filePath, patch);
-					// Existing file, apply patch as before
-					const currentContent = await Deno.readTextFile(fullFilePath);
-
-					const patchedContent = diff.applyPatch(currentContent, patchPart, {
-						fuzzFactor: 2,
-					});
-
-					if (patchedContent === false) {
-						const errorMessage =
-							'Failed to apply patch. The patch does not match the current file content. ' +
-							'Consider using the `search_and_replace` tool for more precise modifications.';
-						throw createError(ErrorType.FileHandling, errorMessage, {
-							name: 'apply-patch',
-							filePath,
-							operation: 'patch',
-						} as FileHandlingErrorOptions);
-					}
-
-					await Deno.writeTextFile(fullFilePath, patchedContent);
-					logger.info(`Patch applied to existing file: ${filePath}`);
-				}
-			}
-
-			// Log the applied patch
-			if (this.conversation) {
-				logger.info(`Saving conversation patch: ${this.conversation.id}`);
-				const persistence = new ConversationPersistence(this.conversation.id, this);
-				await persistence.logPatch(filePath, patch);
-				await this.createCommitAfterPatching();
-			}
-
-			this.conversation?.addMessageForToolResult(toolUseId, `Patch applied successfully to file: ${filePath}`);
-		} catch (error) {
-			let errorMessage: string;
-			if (error instanceof Deno.errors.NotFound) {
-				errorMessage = `File not found: ${filePath}`;
-			} else if (error instanceof Deno.errors.PermissionDenied) {
-				errorMessage = `Permission denied for file: ${filePath}`;
-			} else {
-				errorMessage = `Failed to apply patch to ${filePath}: ${error.message}`;
-			}
-			logger.error(errorMessage);
-
-			// Add error tool result message
-			this.conversation?.addMessageForToolResult(toolUseId, errorMessage, true);
-
-			throw createError(ErrorType.FileHandling, errorMessage, {
-				name: 'apply-patch',
-				filePath: filePath,
-				operation: 'patch',
-			} as FileHandlingErrorOptions);
-		}
-	}
-
-	private async createCommitAfterPatching(): Promise<void> {
-		if (this.patchedFiles.size === 0) {
-			return;
-		}
-
-		const commitMessage = await this.generateCommitMessage();
-		const patchedFilesArray = Array.from(this.patchedFiles);
-
-		try {
-			await this.runFormatCommand();
-			await GitUtils.stageAndCommit(this.projectRoot, patchedFilesArray, commitMessage);
-			logger.info(`Created commit for patched files: ${patchedFilesArray.join(', ')}`);
-			this.patchedFiles.clear();
-			this.patchContents.clear();
-		} catch (error) {
-			logger.error(`Failed to create commit: ${error.message}`);
-		}
-	}
-
-	private async runFormatCommand(): Promise<void> {
-		try {
-			const process = Deno.run({
-				cmd: this.formatCommand.split(' '),
-				cwd: this.projectRoot,
-			});
-			const status = await process.status();
-			if (!status.success) {
-				throw new Error(`Format command exited with status ${status.code}`);
-			}
-		} catch (error) {
-			logger.error(`Failed to run format command: ${error.message}`);
-		}
-	}
-
-	protected createFilePatchXmlString(filePath: string, patchContent: string): string | null {
-		try {
-			logger.info('createFilePatchXmlString - filePath', filePath);
-			return `<file path="${filePath}">\n${patchContent}\n</file>`;
-		} catch (error) {
-			logger.error(`Error creating XML string for ${filePath}: ${error.message}`);
-		}
-		return null;
-	}
-
-	private async generateCommitMessage(): Promise<string> {
-		const patchedFilesArray = Array.from(this.patchedFiles);
-		const fileCount = patchedFilesArray.length;
-		const fileList = patchedFilesArray.map((file) => {
-			return `- ${file}`;
-		}).join('\n');
-		const filePatchList = patchedFilesArray.map((file) => {
-			const patchContent = this.patchContents.get(file) || '';
-			return this.createFilePatchXmlString(file, patchContent);
-		}).join('\n');
-
-		const chat = await this.createChat();
-		const prompt = stripIndents`
-			The following files were modified:
-			${filePatchList}
-			
-			Create a short git commit message summarizing the changes. Use past tense.`;
-		const response = await chat.chat(prompt);
-		const contentPart: LLMMessageContentPart = response.messageResponse
-			.answerContent[0] as LLMMessageContentPartTextBlock;
-		const msg = contentPart.text;
-
-		return stripIndents`${msg}
-			
-			Applied patches from bbai to ${fileCount} file${fileCount > 1 ? 's' : ''}
-
-			Files modified:
-			${fileList}
-			`;
-	}
-	// ... rest of the class ...
-
-	async addFiles(
-		fileNames: string[],
-		source: 'tool' | 'user',
-		toolUseId: string,
 	): Promise<Array<{ fileName: string; metadata: Omit<FileMetadata, 'path' | 'inSystemPrompt'> }>> {
 		if (!this.conversation) {
 			throw new Error('Conversation not started. Call startConversation first.');
@@ -882,7 +455,7 @@ export class ProjectEditor {
 
 		for (const fileName of fileNames) {
 			try {
-				if (!this.isPathWithinProject(fileName)) {
+				if (!isPathWithinProject(this.projectRoot, fileName)) {
 					throw new Error(`Access denied: ${fileName} is outside the project directory`);
 				}
 
@@ -895,7 +468,7 @@ export class ProjectEditor {
 				};
 				filesAdded.push({ fileName, metadata });
 
-				logger.info(`File ${fileName} added to messages by ${source}`);
+				logger.info(`ProjectEditor has prepared file ${fileName}`);
 			} catch (error) {
 				logger.error(`Error adding file ${fileName}: ${error.message}`);
 				filesAdded.push({
@@ -909,46 +482,30 @@ export class ProjectEditor {
 			}
 		}
 
-		this.conversation.addFilesToMessages(filesAdded, toolUseId);
-
-		// const storageLocation = this.determineStorageLocation(fullFilePath, content, source);
-		// if (storageLocation === 'system') {
-		// 	this.conversation.addFileForSystemPrompt(fileName, metadata);
-		// } else {
-		// 	this.conversation.addFileToMessages(fileName, metadata, toolUseId);
-		// }
-
 		return filesAdded;
 	}
 
-	public async readProjectFileContent(filePath: string): Promise<string> {
-		const fullFilePath = join(this.projectRoot, filePath);
-		logger.info(`Reading contents of File ${fullFilePath}`);
-		const content = await readFileContent(fullFilePath);
-		if (content === null) {
-			throw new Error(`File not found: ${fullFilePath}`);
-		}
-		return content;
+	public async stageAndCommitAfterPatching(): Promise<void> {
+		await stageAndCommitAfterPatching(
+			this.projectRoot,
+			this.patchedFiles,
+			this.patchContents,
+			this,
+		);
+		this.patchedFiles.clear();
+		this.patchContents.clear();
 	}
 
-	async updateFile(filePath: string, _content: string): Promise<void> {
-		if (!this.isPathWithinProject(filePath)) {
-			throw createError(ErrorType.FileHandling, `Access denied: ${filePath} is outside the project directory`, {
-				name: 'update-file',
-				filePath,
-				operation: 'write',
-			} as FileHandlingErrorOptions);
-		}
+	// runFormatCommand is now imported from project.utils.ts
 
-		// TODO: Implement file update logic
-		logger.info(`File ${filePath} updated in the project`);
-	}
+	// createFilePatchXmlString is now imported from patch.utils.ts
 
-	async searchEmbeddings(query: string): Promise<any> {
-		// TODO: Implement embedding search logic
-		logger.info(`Searching embeddings for: ${query}`);
-		return [];
-	}
+	// generateCommitMessage is now imported from git.utils.ts
+
+	// readProjectFileContent is now imported from fileHandling.utils.ts
+	// updateFile is now imported from fileHandling.utils.ts
+
+	// searchEmbeddings is now imported from embedding.utils.ts
 
 	async revertLastPatch(): Promise<void> {
 		if (!this.conversation) {

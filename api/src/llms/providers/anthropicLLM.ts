@@ -4,9 +4,12 @@ import type { ClientOptions } from 'anthropic';
 import { AnthropicModel, LLMCallbackType, LLMProvider } from '../../types.ts';
 import LLM from './baseLLM.ts';
 import LLMInteraction from '../interactions/baseInteraction.ts';
-import LLMMessage, { LLMMessageContentParts } from '../message.ts';
-import type { LLMMessageContentPartTextBlock, LLMMessageContentPartToolResultBlock } from '../message.ts';
-import LLMTool from '../tool.ts';
+import LLMMessage, {
+	LLMMessageContentParts,
+	LLMMessageContentPartTextBlock,
+	LLMMessageContentPartToolResultBlock,
+} from '../llmMessage.ts';
+import LLMTool from '../llmTool.ts';
 import { createError } from '../../utils/error.utils.ts';
 import { ErrorType, LLMErrorOptions } from '../../errors/error.ts';
 import { logger } from 'shared/logger.ts';
@@ -44,6 +47,7 @@ class AnthropicLLM extends LLM {
 	}
 
 	private asProviderToolType(tools: Map<string, LLMTool>): Anthropic.Tool[] {
+		//logger.debug('llms-anthropic-asProviderToolType', tools);
 		return Array.from(tools.values()).map((tool) => ({
 			name: tool.name,
 			description: tool.description,
@@ -64,6 +68,7 @@ class AnthropicLLM extends LLM {
 			await this.invoke(LLMCallbackType.PREPARE_MESSAGES, speakOptions?.messages || interaction.getMessages()),
 		);
 
+		//logger.debug('llms-anthropic-prepareMessageParams-tools', interaction.allTools());
 		const tools = this.asProviderToolType(
 			await this.invoke(LLMCallbackType.PREPARE_TOOLS, speakOptions?.tools || interaction.allTools()),
 		);
@@ -81,6 +86,7 @@ class AnthropicLLM extends LLM {
 			temperature,
 			stream: false,
 		};
+		//logger.debug('llms-anthropic-prepareMessageParams', messageParams);
 
 		return messageParams;
 	}
@@ -178,24 +184,12 @@ class AnthropicLLM extends LLM {
 			// Prompt the model to provide a valid tool input
 			const prevMessage = interaction.getLastMessage();
 			if (prevMessage && prevMessage.providerResponse && prevMessage.providerResponse.isTool) {
-				interaction.addMessage({
-					role: 'user',
-					//[TODO] we're assuming a single tool is provided, and we're assuming only a single tool is used by LLM
-					content: [
-						{
-							type: 'tool_result',
-							is_error: true,
-							tool_use_id: prevMessage.providerResponse.toolsUsed![0].toolUseId,
-							content: [
-								{
-									'type': 'text',
-									'text':
-										"The previous tool input was invalid. Please provide a valid input according to the tool's schema",
-								} as LLMMessageContentPartTextBlock,
-							],
-						} as LLMMessageContentPartToolResultBlock,
-					],
-				});
+				//[TODO] we're assuming a single tool is provided, and we're assuming only a single tool is used by LLM
+				interaction.addMessageForToolResult(
+					prevMessage.providerResponse.toolsUsed![0].toolUseId,
+					"The previous tool input was invalid. Please provide a valid input according to the tool's schema",
+					true,
+				);
 			} else {
 				logger.warn(
 					`provider[${this.llmProviderName}] modifySpeakWithInteractionOptions - Tool input validation failed, but no tool response found`,

@@ -72,12 +72,14 @@ export class ConversationPersistence {
 				temperature: conversation.temperature,
 				turnCount: conversation.turnCount,
 				totalTokenUsage: conversation.totalTokenUsage,
-				tools: conversation.getTools(),
+				tools: conversation.getAllTools(),
+				//tools: this.projectEditor.toolManager.getAllTools(),
 				// following attributes are for reference only; they are not set when conversation is loaded
 				projectInfoType: this.projectEditor.projectInfo.type,
 				projectInfoTier: this.projectEditor.projectInfo.tier,
 				projectInfoContent: '',
 			};
+
 			if (config.api?.environment === 'localdev') {
 				metadata.projectInfoContent = this.projectEditor.projectInfo.content;
 			}

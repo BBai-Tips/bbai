@@ -1,10 +1,16 @@
 import { join } from '@std/path';
 import { ensureDir } from '@std/fs';
 
-import type { ConversationId } from '../../../api/src/types.ts';
+import type { ConversationId } from 'api/types.ts';
 import { getBbaiDir } from 'shared/dataDir.ts';
 import { LogFormatter } from 'shared/logFormatter.ts';
 //import { logger } from 'shared/logger.ts';
+import {
+	LLMMessageContentPart,
+	LLMMessageContentPartImageBlock,
+	LLMMessageContentParts,
+	LLMMessageContentPartTextBlock,
+} from 'api/llms/llmMessage.ts';
 
 export class ConversationLogger {
 	private logFile!: string;
@@ -28,7 +34,7 @@ export class ConversationLogger {
 
 	private async logEntry(type: string, message: string) {
 		const timestamp = this.getTimestamp();
-		const entry = LogFormatter.createRawEntry(type, timestamp, message);
+		const entry = LogFormatter.createRawEntryWithSeparator(type, timestamp, message);
 		await this.appendToLog(entry);
 	}
 
@@ -49,8 +55,14 @@ export class ConversationLogger {
 		await this.logEntry('Tool Use', message);
 	}
 
-	async logToolResult(toolName: string, result: string) {
-		const message = `Tool: ${toolName}\nResult: ${result}`;
+	async logToolResult(toolName: string, result: string | LLMMessageContentPart | LLMMessageContentParts) {
+		const message = `Tool: ${toolName}\nResult: ${
+			Array.isArray(result)
+				? 'text' in result[0] ? (result[0] as LLMMessageContentPartTextBlock).text : JSON.stringify(result[0])
+				: typeof result !== 'string'
+				? 'text' in result ? (result as LLMMessageContentPartTextBlock).text : JSON.stringify(result)
+				: result
+		}`;
 		await this.logEntry('Tool Result', message);
 	}
 

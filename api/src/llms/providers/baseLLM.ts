@@ -11,10 +11,10 @@ import type {
 	LLMTokenUsage,
 	LLMValidateResponseCallback,
 } from '../../types.ts';
-import LLMMessage from '../message.ts';
-import type { LLMMessageContentPart } from '../message.ts';
-//import LLMTool from '../tool.ts';
-import type { LLMToolInputSchema } from '../tool.ts';
+import LLMMessage from '../llmMessage.ts';
+import type { LLMMessageContentPart } from '../llmMessage.ts';
+//import LLMTool from '../llmTool.ts';
+import type { LLMToolInputSchema } from '../llmTool.ts';
 import LLMInteraction from '../interactions/baseInteraction.ts';
 import { logger } from 'shared/logger.ts';
 import { config } from 'shared/configManager.ts';
@@ -194,14 +194,12 @@ class LLM {
 				}
 			}
 
-			// Create and save the assistant's message
-			const assistantMessage = new LLMMessage(
-				'assistant',
+			// Add the assistant's message
+			interaction.addMessageForAssistantRole(
 				llmSpeakWithResponse.messageResponse.answerContent,
 				undefined,
 				llmSpeakWithResponse.messageResponse,
 			);
-			interaction.addMessage(assistantMessage);
 
 			llmSpeakWithResponse.messageResponse.fromCache = false;
 
@@ -231,6 +229,7 @@ class LLM {
 			totalProviderRequests++;
 			try {
 				llmSpeakWithResponse = await this.speakWithPlus(interaction, retrySpeakOptions);
+				//logger.debug(`provider[${this.llmProviderName}] speakWithRetry-llmSpeakWithResponse`, llmSpeakWithResponse );
 
 				totalTokenUsage.inputTokens += llmSpeakWithResponse.messageResponse.usage.inputTokens;
 				totalTokenUsage.outputTokens += llmSpeakWithResponse.messageResponse.usage.outputTokens;
@@ -241,6 +240,7 @@ class LLM {
 					interaction,
 					retrySpeakOptions.validateResponseCallback,
 				);
+				//logger.debug(`speakWithRetry - validation response: ${validationFailedReason}`);
 
 				if (validationFailedReason === null) {
 					break; // Success, break out of the loop
@@ -297,7 +297,7 @@ class LLM {
 		) {
 			for (const toolUse of llmProviderMessageResponse.toolsUsed) {
 				const tool = interaction.getTool(toolUse.toolName ?? '');
-				//logger.error(`Validating Tool: ${toolUse.toolName}`);
+				//logger.error(`validateResponse - Validating Tool: ${toolUse.toolName}`);
 				if (tool) {
 					if (llmProviderMessageResponse.messageStop.stopReason === 'max_tokens') {
 						logger.error(`Tool input exceeded max tokens`);
@@ -307,10 +307,13 @@ class LLM {
 					const inputSchema: LLMToolInputSchema = tool.input_schema;
 					const validate = ajv.compile(inputSchema);
 					const valid = validate(toolUse.toolInput);
-					//logger.error(`Tool is valid: ${toolUse.toolName}`);
+					//logger.error(`validateResponse - Tool is valid: ${toolUse.toolName}`);
+					toolUse.toolValidation.validated = true;
 					if (!valid) {
-						logger.error(`Tool input validation failed: ${ajv.errorsText(validate.errors)}`);
-						return `Tool input validation failed: ${ajv.errorsText(validate.errors)}`;
+						const validationErrors = ajv.errorsText(validate.errors);
+						toolUse.toolValidation.results = `validation failed: ${validationErrors}`;
+						logger.error(`Tool input validation failed: ${validationErrors}`);
+						return `Tool input validation failed: ${validationErrors}`;
 					}
 				} else {
 					logger.error(`Tool not found: ${toolUse.toolName}`);
@@ -342,6 +345,7 @@ class LLM {
 					toolUseId: answerPart.id,
 					toolName: answerPart.name,
 					toolThinking: currentToolThinking,
+					toolValidation: { validated: false, results: '' },
 				});
 				currentToolThinking = '';
 			}

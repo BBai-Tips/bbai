@@ -1,8 +1,10 @@
 .aider*
-.bbai*
+.bbai/*
 .BBEditLSPWorkspaceConfig.json
 build/*
 deployment/releases/*
 playground/*
 tags
 tags.ignore
+
+*/.DS_Store

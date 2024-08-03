@@ -1,7 +1,7 @@
 import { join, relative } from '@std/path';
 import { ensureDir, exists, walk } from '@std/fs';
 import { ConfigManager } from 'shared/configManager.ts';
-import { logger } from './logger.utils.ts';
+import { logger } from 'shared/logger.ts';
 import { countTokens } from 'anthropic-tokenizer';
 import { contentType } from '@std/media-types';
 

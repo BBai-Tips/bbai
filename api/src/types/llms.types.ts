@@ -1,11 +1,11 @@
 import LLMInteraction from '../llms/interactions/baseInteraction.ts';
 
-import LLMTool from '../llms/tool.ts';
-export type { LLMToolInputSchema } from '../llms/tool.ts';
+import LLMTool from '../llms/llmTool.ts';
+export type { LLMToolInputSchema } from '../llms/llmTool.ts';
 
-import LLMMessage from '../llms/message.ts';
-import type { LLMAnswerToolUse, LLMMessageContentParts } from '../llms/message.ts';
-export type { LLMMessageContentPart, LLMMessageContentParts } from '../llms/message.ts';
+import LLMMessage from '../llms/llmMessage.ts';
+import type { LLMAnswerToolUse, LLMMessageContentParts } from '../llms/llmMessage.ts';
+export type { LLMMessageContentPart, LLMMessageContentParts } from '../llms/llmMessage.ts';
 
 export type ConversationId = string;
 

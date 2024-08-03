@@ -9,8 +9,8 @@ import { logger } from 'shared/logger.ts';
 import { apiClient } from '../utils/apiClient.ts';
 import { LogFormatter } from 'shared/logFormatter.ts';
 import { ConversationLogger } from 'shared/conversationLogger.ts';
-import { LLMProviderMessageMeta, LLMProviderMessageResponse } from '../../../api/src/types/llms.types.ts';
-import { LLMMessageContentPartTextBlock } from '../../../api/src/llms/message.ts';
+import { LLMProviderMessageMeta, LLMProviderMessageResponse } from 'api/types/llms.ts';
+import { LLMMessageContentPartTextBlock } from 'api/llms/llmMessage.ts';
 //import { isApiRunning } from '../utils/pid.utils.ts';
 //import { apiStart } from './apiStart.ts';
 //import { apiStop } from './apiStop.ts';
@@ -171,6 +171,10 @@ export const conversationStart = new Command()
 						if (prompt.toLowerCase() === 'exit') {
 							console.log('Exiting chat...');
 							break;
+						}
+						if (prompt === '') {
+							console.log('Ask something first...\n');
+							continue;
 						}
 
 						try {

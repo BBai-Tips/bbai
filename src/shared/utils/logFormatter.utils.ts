@@ -79,6 +79,12 @@ export class LogFormatter {
 		// [TODO] add token usage to header line
 		return `## ${type} [${timestamp}]\n${message.trim()}`;
 	}
+	static createRawEntryWithSeparator(type: string, timestamp: string, message: string): string {
+		let rawEntry = LogFormatter.createRawEntry(type, timestamp, message);
+		// Ensure entry ends with a single newline and the separator
+		rawEntry = rawEntry.trimEnd() + '\n' + LogFormatter.getEntrySeparator() + '\n';
+		return rawEntry;
+	}
 
 	static getTimestamp(): string {
 		return new Date().toISOString();
@@ -116,7 +122,7 @@ export class LogFormatter {
 				color = ANSI_RESET;
 		}
 
-		const header = `${color}╭─ ${icon} ${type} [${timestamp}]${ANSI_RESET}`;
+		const header = `${color}╭─ ${icon}   ${type} [${timestamp}]${ANSI_RESET}`;
 		const footer = `${color}╰${'─'.repeat(this.maxLineLength - 1)}${ANSI_RESET}`;
 		const wrappedMessage = this.wrapText(message.trim(), `${color}│ `, ANSI_RESET);
 
@@ -220,12 +226,8 @@ export async function writeLogEntry(
 	const bbaiDir = await getBbaiDir(Deno.cwd());
 	const logFile = join(bbaiDir, 'cache', 'conversations', conversationId, 'conversation.log');
 
-	const separator = LogFormatter.getEntrySeparator();
 	const timestamp = new Date().toISOString();
-	let entry = LogFormatter.createRawEntry(type, timestamp, message);
-
-	// Ensure entry ends with a single newline and the separator
-	entry = entry.trimEnd() + '\n' + separator + '\n';
+	const entry = LogFormatter.createRawEntryWithSeparator(type, timestamp, message);
 
 	try {
 		// Append the entry to the log file
