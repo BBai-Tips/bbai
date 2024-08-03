@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Add websocket support for live updates of conversation logging
+
+
+## [0.0.6-alpha] - 2024-08-03
+
+### Changed
+
+- Move tools to a ToolManager class
+- Migrate each tool to dedicated class
+- Fixes for gathering ProjectDetails
+- Improved conversation logging
+- More reliable file hydration in messages
+- Better tool input validation and handling
+
 
 ## [0.0.5a-alpha] - 2024-08-01
 
