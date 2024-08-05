@@ -1,6 +1,6 @@
 import LLMTool, { LLMToolInputSchema } from '../llmTool.ts';
-import { LLMAnswerToolUse } from '../llmMessage.ts';
-import { ProjectEditor } from '../../editor/projectEditor.ts';
+import { LLMAnswerToolUse } from 'api/llms/llmMessage.ts';
+import ProjectEditor from '../../editor/projectEditor.ts';
 import { searchFiles } from '../../utils/fileHandling.utils.ts';
 import { logger } from 'shared/logger.ts';
 import { createError, ErrorType } from '../../utils/error.utils.ts';

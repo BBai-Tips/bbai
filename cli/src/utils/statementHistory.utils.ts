@@ -1,11 +1,10 @@
-import { getBbaiDir } from 'shared/dataDir.ts';
 import { ensureFile } from '@std/fs';
 import { join } from '@std/path';
 
-const HISTORY_FILE = 'prompt_history.json';
+const HISTORY_FILE = 'statement_history.json';
 const MAX_HISTORY_SIZE = 100;
 
-export async function getPromptHistory(bbaiDir: string): Promise<string[]> {
+export async function getStatementHistory(bbaiDir: string): Promise<string[]> {
 	const historyPath = join(bbaiDir, HISTORY_FILE);
 	await ensureFile(historyPath);
 
@@ -17,17 +16,17 @@ export async function getPromptHistory(bbaiDir: string): Promise<string[]> {
 	}
 }
 
-export async function addToPromptHistory(bbaiDir: string, prompt: string): Promise<void> {
+export async function addToStatementHistory(bbaiDir: string, statement: string): Promise<void> {
 	const historyPath = join(bbaiDir, HISTORY_FILE);
 	await ensureFile(historyPath);
 
-	let history = await getPromptHistory(bbaiDir);
+	let history = await getStatementHistory(bbaiDir);
 
 	// Remove duplicate if exists
-	history = history.filter((item) => item !== prompt);
+	history = history.filter((item) => item !== statement);
 
-	// Add new prompt to the beginning
-	history.unshift(prompt);
+	// Add new statement to the beginning
+	history.unshift(statement);
 
 	// Limit history size
 	history = history.slice(0, MAX_HISTORY_SIZE);

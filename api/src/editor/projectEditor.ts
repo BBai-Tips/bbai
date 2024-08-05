@@ -1,14 +1,12 @@
 import { join } from '@std/path';
 import * as diff from 'diff';
-import { ensureDir } from '@std/fs';
+
 import {
 	FILE_LISTING_TIERS,
 	generateFileListing,
 	isPathWithinProject,
 	readProjectFileContent,
 } from '../utils/fileHandling.utils.ts';
-import { generateCtags, readCtagsFile } from '../utils/ctags.utils.ts';
-
 import { LLMFactory } from '../llms/llmProvider.ts';
 import LLMConversationInteraction, { FileMetadata, ProjectInfo } from '../llms/interactions/conversationInteraction.ts';
 import LLMChatInteraction from '../llms/interactions/chatInteraction.ts';
@@ -17,52 +15,56 @@ import { logger } from 'shared/logger.ts';
 import { config } from 'shared/configManager.ts';
 import { PromptManager } from '../prompts/promptManager.ts';
 import {
-	ConversationId,
 	LLMCallbacks,
-	LLMMessageContentPart,
-	LLMProvider,
 	LLMProviderMessageMeta,
 	LLMProviderMessageResponse,
 	LLMSpeakWithOptions,
 	LLMSpeakWithResponse,
-} from '../types.ts';
-import LLMMessage, { LLMAnswerToolUse, LLMMessageContentPartTextBlock } from '../llms/llmMessage.ts';
+} from 'api/types.ts';
+import {
+	ConversationEntry,
+	ConversationId,
+	ConversationMetrics,
+	ConversationResponse,
+	ConversationStart,
+	TokenUsage,
+} from 'shared/types.ts';
+import LLMMessage, { LLMAnswerToolUse } from 'api/llms/llmMessage.ts';
 import LLMTool from '../llms/llmTool.ts';
-import LLMTools, { LLMToolsToolSetType } from '../llms/llmTools.ts';
+import LLMToolManager, { LLMToolManagerToolSetType } from '../llms/llmToolManager.ts';
 import { ConversationPersistence } from '../utils/conversationPersistence.utils.ts';
-import { GitUtils } from 'shared/git.ts';
-import { createError, ErrorType } from '../utils/error.utils.ts';
-import { FileHandlingErrorOptions } from '../errors/error.ts';
+import type { ConversationLoggerEntryType } from 'shared/conversationLogger.ts';
 import {
 	getBbaiCacheDir,
 	getBbaiDir,
 	getProjectRoot,
-	readFileContent,
 	readFromBbaiDir,
 	removeFromBbaiDir,
 	writeToBbaiDir,
 } from 'shared/dataDir.ts';
-import { stripIndents } from 'common-tags';
 import { generateConversationTitle } from '../utils/conversation.utils.ts';
 import { runFormatCommand } from '../utils/project.utils.ts';
-import { generateCommitMessage, stageAndCommitAfterPatching } from '../utils/git.utils.ts';
+import { stageAndCommitAfterPatching } from '../utils/git.utils.ts';
+import EventManager, { EventPayloadMap } from 'shared/eventManager.ts';
 
-export class ProjectEditor {
-	public conversation: LLMConversationInteraction | null = null;
+class ProjectEditor {
+	private conversationId: ConversationId; // only used for conversation init - use this.conversation.id after that
+	public conversation!: LLMConversationInteraction;
 	public chat: LLMChatInteraction | null = null;
-	public promptManager: PromptManager;
-	public toolManager!: LLMTools;
+	public promptManager!: PromptManager;
+	public toolManager!: LLMToolManager;
+	public eventManager!: EventManager;
 	private llmProvider!: LLM;
 	private llmProviderFast!: LLM;
 	public startDir: string;
 	public projectRoot: string;
-	private bbaiDir: string;
-	private statementCount: number = 0;
-	public toolSet: LLMToolsToolSetType = 'coding';
+	public statementCount: number = 0;
+	public turnCount: number = 0;
+	private totalTurnCount: number = 0;
+	public toolSet: LLMToolManagerToolSetType = 'coding';
 	public patchedFiles: Set<string> = new Set();
 	public patchContents: Map<string, string> = new Map();
 	private formatCommand: string = 'deno task format'; // Default format command
-	private totalTurnCount: number = 0;
 	private _projectInfo: ProjectInfo = {
 		type: 'empty',
 		content: '',
@@ -73,6 +75,27 @@ export class ProjectEditor {
 		PROJECT_INFO: () => this.projectInfo,
 		PROJECT_FILE_CONTENT: async (filePath: string): Promise<string> =>
 			await readProjectFileContent(this.projectRoot, filePath),
+		LOG_ENTRY_HANDLER: async (
+			type: ConversationLoggerEntryType,
+			timestamp: string,
+			content: string,
+			conversationStats: ConversationMetrics,
+			tokenUsage: TokenUsage,
+		): Promise<void> => {
+			const conversationEntry: ConversationEntry = {
+				type,
+				timestamp,
+				conversationId: this.conversation.id,
+				conversationTitle: this.conversation.title,
+				content,
+				conversationStats,
+				tokenUsage,
+			};
+			this.eventManager.emit(
+				'projectEditor:conversationEntry',
+				conversationEntry as EventPayloadMap['projectEditor']['projectEditor:conversationEntry'],
+			);
+		},
 		PREPARE_SYSTEM_PROMPT: async (system: string): Promise<string> =>
 			this.conversation
 				? await this.conversation.prepareSytemPrompt(system)
@@ -90,6 +113,27 @@ export class ProjectEditor {
 		PROJECT_ROOT: () => this.projectRoot,
 		PROJECT_INFO: () => this.projectInfo,
 		PROJECT_FILE_CONTENT: (_filePath: string) => '',
+		LOG_ENTRY_HANDLER: async (
+			type: ConversationLoggerEntryType,
+			timestamp: string,
+			content: string,
+			conversationStats: ConversationMetrics,
+			tokenUsage: TokenUsage,
+		): Promise<void> => {
+			const conversationEntry: ConversationEntry = {
+				type,
+				timestamp,
+				conversationId: this.conversation.id,
+				conversationTitle: this.conversation.title,
+				content,
+				conversationStats,
+				tokenUsage,
+			};
+			this.eventManager.emit(
+				'projectEditor:conversationEntry',
+				conversationEntry as EventPayloadMap['projectEditor']['projectEditor:conversationEntry'],
+			);
+		},
 		PREPARE_SYSTEM_PROMPT: async (system: string): Promise<string> =>
 			this.chat ? await this.chat.prepareSytemPrompt(system) : (new Promise((resolve) => resolve(system))),
 		PREPARE_MESSAGES: async (messages: LLMMessage[]): Promise<LLMMessage[]> =>
@@ -98,24 +142,30 @@ export class ProjectEditor {
 			this.chat ? await this.chat.prepareTools(tools) : (new Promise((resolve) => resolve(tools))),
 	};
 
-	constructor(startDir: string) {
-		this.promptManager = new PromptManager(this);
-		this.projectRoot = '.';
-		this.bbaiDir = '.bbai';
+	constructor(conversationId: ConversationId, startDir: string) {
+		if (!conversationId) {
+			throw new Error('ConversationId is required');
+		}
+		this.projectRoot = '.'; // init() will overwrite this
+		this.conversationId = conversationId;
 		this.startDir = startDir;
 	}
 
-	public async init(): Promise<void> {
+	public async init(): Promise<ProjectEditor> {
 		try {
 			this.projectRoot = await this.getProjectRoot();
-			this.bbaiDir = await this.getBbaiDir();
+			//this.bbaiDir = await this.getBbaiDir();
 			this.llmProvider = LLMFactory.getProvider(this.interactionCallbacks);
 			this.llmProviderFast = LLMFactory.getProvider(this.interactionCallbacksFast);
-			this.toolManager = new LLMTools(this.toolSet);
+			this.promptManager = await new PromptManager().init(this);
+			this.toolManager = new LLMToolManager(this.toolSet);
+			this.eventManager = EventManager.getInstance();
+			await this.initConversation(this.conversationId);
 		} catch (error) {
-			console.error('Failed to initialize LLMProvider:', error);
+			logger.error('Failed to initialize LLMProvider:', error);
 			throw error;
 		}
+		return this;
 	}
 
 	public async getProjectRoot(): Promise<string> {
@@ -153,10 +203,9 @@ export class ProjectEditor {
 	protected async updateProjectInfo(): Promise<void> {
 		const projectInfo: ProjectInfo = { type: 'empty', content: '', tier: null };
 
-		const bbaiDir = await this.getBbaiDir();
 		/*
 		await generateCtags(this.bbaiDir, this.projectRoot);
-		const ctagsContent = await readCtagsFile(bbaiDir);
+		const ctagsContent = await readCtagsFile(this.bbaiDir);
 		if (ctagsContent) {
 			projectInfo.type = 'ctags';
 			projectInfo.content = ctagsContent;
@@ -182,12 +231,10 @@ export class ProjectEditor {
 		this.projectInfo = projectInfo;
 	}
 
-	private addToolsToConversation(): void {
+	private addToolsToConversation(conversation: LLMConversationInteraction): void {
 		const tools = this.toolManager.getAllTools();
-		this.conversation?.addTools(tools);
+		conversation.addTools(tools);
 	}
-
-	// isPathWithinProject is now imported from fileHandling.utils.ts
 
 	/*
 	private determineStorageLocation(_filePath: string, content: string, source: 'tool' | 'user'): 'system' | 'message' {
@@ -205,128 +252,69 @@ export class ProjectEditor {
 	}
 	 */
 
-	async createConversation(): Promise<LLMConversationInteraction> {
-		const conversation = new LLMConversationInteraction(this.llmProvider);
-		await conversation.init();
-		return conversation;
-	}
-	async createChat(): Promise<LLMChatInteraction> {
-		const chat = new LLMChatInteraction(this.llmProviderFast, this.conversation?.id);
-		await chat.init();
-		return chat;
-	}
+	private async initConversation(conversationId: ConversationId): Promise<void> {
+		logger.info(`Initializing a conversation with ID: ${conversationId}`);
 
-	private async generateConversationTitle(prompt: string): Promise<string> {
-		return generateConversationTitle(await this.createChat(), prompt);
-	}
-
-	async speakWithLLM(
-		prompt: string,
-		provider?: LLMProvider,
-		model?: string,
-		conversationId?: ConversationId,
-	): Promise<{
-		response: LLMProviderMessageResponse;
-		messageMeta: LLMProviderMessageMeta;
-		conversationId: string;
-		statementCount: number;
-		turnCount: number;
-		totalTurnCount: number;
-		title: string;
-	}> {
-		logger.info(
-			`Starting speakWithLLM. Prompt: "${prompt.substring(0, 50)}...", ConversationId: ${conversationId}`,
-		);
-		logger.debug(`Full prompt: ${prompt}`);
-		logger.debug(`Provider: ${provider}, Model: ${model}`);
-
-		// we have a conversationId so load and hydrate from storage
-		if (conversationId) {
-			logger.info(`Attempting to load existing conversation: ${conversationId}`);
-			try {
-				const persistence = new ConversationPersistence(conversationId, this);
-				await persistence.init();
-				logger.debug(`ConversationPersistence initialized for ${conversationId}`);
-
-				this.conversation = await persistence.loadConversation(this.llmProvider);
-				//this.chat = await persistence.loadChat(this.llmProvider);
-				logger.info(`Loaded existing conversation: ${conversationId}`);
-
-				const metadata = await persistence.getMetadata();
-				logger.debug(`Retrieved metadata for conversation ${conversationId}`);
-				// logger.debug(`Retrieved metadata for conversation ${conversationId}:`, metadata);
-
-				// [TODO] - remove this once the tools is being saved to persistence properly
-				this.addToolsToConversation();
-
-				this.statementCount = metadata.statementCount || 0;
-				this.totalTurnCount = metadata.totalTurnCount || 0;
-				logger.info(
-					`Conversation metadata loaded. StatementCount: ${this.statementCount}, TotalTurnCount: ${this.totalTurnCount}`,
-				);
-			} catch (error) {
-				logger.warn(`Failed to load conversation ${conversationId}: ${error.message}`);
-				logger.error(`Error details:`, error);
-				logger.debug(`Stack trace:`, error.stack);
-				this.conversation = null;
-			}
+		let conversation = await this.loadConversation(conversationId);
+		if (!conversation) {
+			conversation = await this.startConversation(conversationId);
 		}
 
-		// we don't have a conversation so let's start a new one
-		if (!this.conversation) {
-			logger.info(`Creating a new conversation.`);
-			try {
-				const systemPrompt = await this.promptManager.getPrompt('system', {
-					userDefinedContent: 'You are an AI assistant helping with code and project management.',
-				});
+		logger.info(`Adding tools to conversation: ${conversation.id}`);
+		this.addToolsToConversation(conversation);
 
-				this.conversation = await this.createConversation();
-				//this.chat = await this.createChat();
+		this.conversation = conversation;
+	}
 
-				this.conversation.title = await this.generateConversationTitle(prompt);
-				this.conversation.baseSystem = systemPrompt;
-				if (model) this.conversation.model = model;
-
-				this.addToolsToConversation();
-
-				logger.info(`Created new conversation: ${this.conversation.id}`);
-				this.statementCount = 0;
-				this.totalTurnCount = 0;
-			} catch (error) {
-				logger.error(`Error creating new conversation:`, error);
-				throw error;
-			}
-		}
-
-		this.statementCount++;
-		const speakOptions: LLMSpeakWithOptions = {
-			//temperature: 0.7,
-			//maxTokens: 1000,
-		};
-
-		const maxTurns = 25; // Maximum number of turns for the run loop
-		let turnCount = 0;
-		let currentResponse: LLMSpeakWithResponse | null = null;
+	async startConversation(conversationId: ConversationId): Promise<LLMConversationInteraction> {
+		let conversation: LLMConversationInteraction | null;
 
 		try {
-			logger.info(`Calling speakWithLLM for turn ${turnCount} with prompt: "${prompt.substring(0, 50)}..."`);
+			const systemPrompt = await this.promptManager.getPrompt('system', {
+				userDefinedContent: 'You are an AI assistant helping with code and project management.',
+			});
 
-			currentResponse = await this.conversation.converse(prompt, speakOptions);
-			logger.info('Received response from LLM');
-			//logger.debug('LLM Response:', currentResponse);
+			conversation = await this.createConversation(conversationId);
+			conversation.baseSystem = systemPrompt;
+			logger.info(`Started new conversation: ${conversation.id}`);
 
-			this.totalTurnCount++;
-			turnCount++;
+			this.statementCount = 0;
+			this.totalTurnCount = 0;
 		} catch (error) {
-			logger.error(`Error in LLM communication:`, error);
+			logger.error(`Error creating new conversation:`, error);
 			throw error;
 		}
-
+		return conversation;
+	}
+	async loadConversation(conversationId: ConversationId): Promise<LLMConversationInteraction | null> {
+		logger.info(`Attempting to load existing conversation: ${conversationId}`);
+		let conversation: LLMConversationInteraction | null = null;
 		try {
-			// Save the conversation immediately after the first response
-			logger.info(
-				`Saving conversation at beginning of statement: ${this.conversation.id}[${this.statementCount}][${turnCount}]`,
-			);
+			const persistence = new ConversationPersistence(conversationId, this);
+			await persistence.init();
+
+			conversation = await persistence.loadConversation(this.llmProvider);
+			if (!conversation) {
+				logger.warn(`No conversation found for ID: ${conversationId}`);
+				return null;
+			}
+			logger.info(`Loaded existing conversation: ${conversationId}`);
+
+			const metadata = await persistence.getMetadata();
+
+			this.statementCount = metadata.statementCount || 0;
+			this.totalTurnCount = metadata.totalTurnCount || 0;
+		} catch (error) {
+			logger.warn(`Failed to load conversation ${conversationId}: ${error.message}`);
+			logger.error(`Error details:`, error);
+			logger.debug(`Stack trace:`, error.stack);
+			return null;
+		}
+		return conversation;
+	}
+
+	async saveInitialConversationWithResponse(currentResponse: LLMSpeakWithResponse): Promise<void> {
+		try {
 			const persistence = new ConversationPersistence(this.conversation.id, this);
 			await persistence.saveConversation(this.conversation);
 			await persistence.saveMetadata({
@@ -345,14 +333,125 @@ export class ProjectEditor {
 			logger.error(`Error persisting the conversation:`, error);
 			throw error;
 		}
+	}
 
-		while (turnCount < maxTurns) {
+	async saveConversationAfterStatement(): Promise<void> {
+		try {
+			const persistence = new ConversationPersistence(this.conversation.id, this);
+			await persistence.saveConversation(this.conversation);
+			await persistence.saveMetadata({
+				statementCount: this.statementCount,
+				totalTurnCount: this.totalTurnCount,
+			});
+		} catch (error) {
+			logger.error(`Error persisting the conversation:`, error);
+			throw error;
+		}
+	}
+
+	async createConversation(conversationId: ConversationId): Promise<LLMConversationInteraction> {
+		const conversation = new LLMConversationInteraction(this.llmProvider, conversationId);
+		await conversation.init();
+		return conversation;
+	}
+	async createChat(): Promise<LLMChatInteraction> {
+		const chat = new LLMChatInteraction(this.llmProviderFast, this.conversation?.id);
+		await chat.init();
+		return chat;
+	}
+
+	private async generateConversationTitle(statement: string): Promise<string> {
+		return generateConversationTitle(await this.createChat(), statement);
+	}
+
+	async handleStatement(
+		statement: string,
+	): Promise<{
+		response: LLMProviderMessageResponse;
+		messageMeta: LLMProviderMessageMeta;
+		conversationId: ConversationId;
+		conversationTitle: string;
+		conversationStats: ConversationMetrics;
+		tokenUsage: TokenUsage;
+	}> {
+		if (!statement) {
+			this.eventManager.emit(
+				'projectEditor:conversationError',
+				{
+					conversationId: this.conversation.id,
+					conversationTitle: this.conversation.title || '',
+					statementCount: this.statementCount,
+					error: 'Missing statement',
+					code: 'EMPTY_PROMPT',
+				} as EventPayloadMap['projectEditor']['projectEditor:conversationError'],
+			);
+			throw new Error('Missing statement');
+		}
+		/*
+		logger.info(
+			`Starting handleStatement. Prompt: "${
+				statement.substring(0, 50)
+			}...", ConversationId: ${this.conversation.id}`,
+		);
+		 */
+
+		if (!this.conversation.title) {
+			this.conversation.title = await this.generateConversationTitle(statement);
+		}
+		await this.updateProjectInfo();
+
+		this.statementCount++;
+
+		const conversationReady: ConversationStart = {
+			conversationId: this.conversation.id,
+			conversationTitle: this.conversation.title,
+			statementCount: this.statementCount,
+		};
+		this.eventManager.emit(
+			'projectEditor:conversationReady',
+			conversationReady as EventPayloadMap['projectEditor']['projectEditor:conversationReady'],
+		);
+
+		const speakOptions: LLMSpeakWithOptions = {
+			//temperature: 0.7,
+			//maxTokens: 1000,
+		};
+
+		const maxTurns = 25; // Maximum number of turns for the run loop
+		this.turnCount = 0;
+		let currentResponse: LLMSpeakWithResponse | null = null;
+
+		try {
+			logger.info(
+				`Calling conversation.converse for turn ${this.turnCount} with statement: "${
+					statement.substring(0, 50)
+				}..."`,
+			);
+
+			currentResponse = await this.conversation.converse(statement, speakOptions);
+			logger.info('Received response from LLM');
+			//logger.debug('LLM Response:', currentResponse);
+
+			this.totalTurnCount++;
+			this.turnCount++;
+		} catch (error) {
+			logger.error(`Error in LLM communication:`, error);
+			throw error;
+		}
+
+		// Save the conversation immediately after the first response
+		logger.info(
+			`Saving conversation at beginning of statement: ${this.conversation.id}[${this.statementCount}][${this.turnCount}]`,
+		);
+		await this.saveInitialConversationWithResponse(currentResponse);
+
+		while (this.turnCount < maxTurns) {
 			try {
 				// Handle tool calls and collect feedback
 				let toolFeedback = '';
 				if (currentResponse.messageResponse.toolsUsed && currentResponse.messageResponse.toolsUsed.length > 0) {
 					for (const toolUse of currentResponse.messageResponse.toolsUsed) {
-						logger.info('Handling tool', toolUse);
+						//logger.info('Handling tool', toolUse);
 						try {
 							const feedback = await this.handleToolUse(toolUse, currentResponse.messageResponse);
 							toolFeedback += feedback + '\n';
@@ -368,13 +467,13 @@ export class ProjectEditor {
 					try {
 						await this.updateProjectInfo();
 
-						prompt =
+						statement =
 							`Tool use feedback:\n${toolFeedback}\nPlease acknowledge this feedback and continue the conversation.`;
 
-						turnCount++;
+						this.turnCount++;
 						this.totalTurnCount++;
 
-						currentResponse = await this.conversation.speakWithLLM(prompt, speakOptions);
+						currentResponse = await this.conversation.speakWithLLM(statement, speakOptions);
 						//logger.info('tool response', currentResponse);
 					} catch (error) {
 						logger.error(`Error in LLM communication: ${error.message}`);
@@ -385,8 +484,8 @@ export class ProjectEditor {
 					break;
 				}
 			} catch (error) {
-				logger.error(`Error in conversation turn ${turnCount}: ${error.message}`);
-				if (turnCount === maxTurns - 1) {
+				logger.error(`Error in conversation turn ${this.turnCount}: ${error.message}`);
+				if (this.turnCount === maxTurns - 1) {
 					throw error; // If it's the last turn, throw the error to be caught by the outer try-catch
 				}
 				// For non-fatal errors, log and continue to the next turn
@@ -402,40 +501,46 @@ export class ProjectEditor {
 			}
 		}
 
-		if (turnCount >= maxTurns) {
+		if (this.formatCommand) await runFormatCommand(this.projectRoot, this.formatCommand);
+
+		if (this.turnCount >= maxTurns) {
 			logger.warn(`Reached maximum number of turns (${maxTurns}) in conversation.`);
 		}
 
 		// Final save of the entire conversation at the end of the loop
 		logger.info(
-			`Saving conversation at end of statement: ${this.conversation.id}[${this.statementCount}][${turnCount}]`,
+			`Saving conversation at end of statement: ${this.conversation.id}[${this.statementCount}][${this.turnCount}]`,
 		);
-		const persistence = new ConversationPersistence(this.conversation.id, this);
-		await persistence.saveConversation(this.conversation);
-		await persistence.saveMetadata({
-			statementCount: this.statementCount,
-			totalTurnCount: this.totalTurnCount,
-		});
-		logger.info(`Final save of conversation: ${this.conversation.id}[${this.statementCount}][${turnCount}]`);
+		await this.saveConversationAfterStatement();
+		logger.info(`Final save of conversation: ${this.conversation.id}[${this.statementCount}][${this.turnCount}]`);
 
-		return {
+		const statementAnswer = {
 			response: currentResponse.messageResponse,
 			messageMeta: currentResponse.messageMeta,
-			conversationId: this.conversation?.id || '',
-			statementCount: this.statementCount,
-			turnCount,
-			totalTurnCount: this.totalTurnCount,
-			title: this.conversation?.title || '',
-		};
+			conversationId: this.conversation.id || '',
+			conversationTitle: this.conversation.title || '',
+			conversationStats: {
+				statementCount: this.statementCount,
+				turnCount: this.turnCount,
+				totalTurnCount: this.totalTurnCount,
+			},
+			tokenUsage: currentResponse.messageResponse.usage,
+		} as ConversationResponse;
+
+		this.eventManager.emit(
+			'projectEditor:conversationAnswer',
+			statementAnswer as EventPayloadMap['projectEditor']['projectEditor:conversationAnswer'],
+		);
+
+		return statementAnswer;
 	}
 
 	private async handleToolUse(
 		toolUse: LLMAnswerToolUse,
 		_response: unknown,
 	): Promise<string> {
-		//logger.debug(`handleToolUse - calling toolManager for ${toolUse.toolName}`);
 		const { messageId: _messageId, feedback, isError } = await this.toolManager.handleToolUse(toolUse, this);
-		//logger.debug(`handleToolUse - got feedback from toolManager: ${feedback}`);
+		//logger.debug(`handleToolUse for ${toolUse.toolName}` - got feedback from toolManager: ${feedback}`);
 		this.conversation?.conversationLogger?.logToolResult(
 			toolUse.toolName,
 			`BBai was ${isError ? 'unsuccessful' : 'successful'} with tool run: \n${feedback}`,
@@ -443,7 +548,7 @@ export class ProjectEditor {
 		return feedback;
 	}
 
-	// prepareFilesForConversation is called by request_files tool and by handler for user requests
+	// prepareFilesForConversation is called by request_files tool and by add_file handler for user requests
 	async prepareFilesForConversation(
 		fileNames: string[],
 	): Promise<Array<{ fileName: string; metadata: Omit<FileMetadata, 'path' | 'inSystemPrompt'> }>> {
@@ -496,17 +601,6 @@ export class ProjectEditor {
 		this.patchContents.clear();
 	}
 
-	// runFormatCommand is now imported from project.utils.ts
-
-	// createFilePatchXmlString is now imported from patch.utils.ts
-
-	// generateCommitMessage is now imported from git.utils.ts
-
-	// readProjectFileContent is now imported from fileHandling.utils.ts
-	// updateFile is now imported from fileHandling.utils.ts
-
-	// searchEmbeddings is now imported from embedding.utils.ts
-
 	async revertLastPatch(): Promise<void> {
 		if (!this.conversation) {
 			throw new Error('No active conversation. Cannot revert patch.');
@@ -550,3 +644,5 @@ export class ProjectEditor {
 		}
 	}
 }
+
+export default ProjectEditor;

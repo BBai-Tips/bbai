@@ -1,4 +1,5 @@
-import { ConversationId, LLMProvider } from '../types.ts';
+import { LLMProvider } from 'api/types.ts';
+import { ConversationId } from 'shared/types.ts';
 export type { ErrorObject as AjvErrorObject } from 'ajv';
 import { Status } from '@oak/oak';
 

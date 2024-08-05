@@ -1,6 +1,7 @@
 import type { LLMSpeakWithOptions, LLMSpeakWithResponse, LLMTokenUsage } from '../../types.ts';
 import LLM from '../providers/baseLLM.ts';
-import { ConversationId, LLMCallbackType } from '../../types.ts';
+import { LLMCallbackType } from 'api/types.ts';
+import { ConversationId, ConversationMetrics, TokenUsage } from 'shared/types.ts';
 import type {
 	LLMMessageContentPart,
 	LLMMessageContentPartImageBlock,
@@ -9,9 +10,9 @@ import type {
 	LLMMessageContentPartToolResultBlock,
 	LLMMessageProviderResponse,
 } from '../llmMessage.ts';
-import LLMMessage from '../llmMessage.ts';
+import LLMMessage from 'api/llms/llmMessage.ts';
 import LLMTool from '../llmTool.ts';
-import { ConversationLogger } from 'shared/conversationLogger.ts';
+import { ConversationLogger, ConversationLoggerEntryType } from 'shared/conversationLogger.ts';
 import { crypto } from '@std/crypto';
 import { logger } from 'shared/logger.ts';
 
@@ -37,15 +38,31 @@ class LLMInteraction {
 		this.llm = llm;
 	}
 
-	public async init(): Promise<void> {
+	public async init(): Promise<LLMInteraction> {
 		try {
 			const projectRoot = await this.llm.invoke(LLMCallbackType.PROJECT_ROOT);
-			this.conversationLogger = new ConversationLogger(projectRoot, this.id);
-			await this.conversationLogger.initialize();
+			const logEntryHandler = async (
+				type: ConversationLoggerEntryType,
+				timestamp: string,
+				content: string,
+				conversationStats: ConversationMetrics,
+				tokenUsage: TokenUsage,
+			) => {
+				await this.llm.invoke(
+					LLMCallbackType.LOG_ENTRY_HANDLER,
+					type,
+					timestamp,
+					content,
+					conversationStats,
+					tokenUsage,
+				);
+			};
+			this.conversationLogger = await new ConversationLogger(projectRoot, this.id, logEntryHandler).init();
 		} catch (error) {
-			console.error('Failed to initialize LLMConversationInteraction:', error);
+			logger.error('Failed to initialize LLMConversationInteraction:', error);
 			throw error;
 		}
+		return this;
 	}
 
 	public prepareSytemPrompt(_system: string): Promise<string> {
@@ -69,7 +86,7 @@ class LLMInteraction {
 		//this.conversationLogger?.logUserMessage(content);
 		if (lastMessage && lastMessage.role === 'user') {
 			// Append content to the content array of the last user message
-			logger.debug('Adding content to existing user message', JSON.stringify(content, null, 2));
+			//logger.debug('Adding content to existing user message', JSON.stringify(content, null, 2));
 			if (Array.isArray(content)) {
 				lastMessage.content.push(...content);
 			} else {
@@ -78,7 +95,7 @@ class LLMInteraction {
 			return lastMessage.id ?? '';
 		} else {
 			// Add a new user message
-			logger.debug('Adding content to new user message', JSON.stringify(content, null, 2));
+			//logger.debug('Adding content to new user message', JSON.stringify(content, null, 2));
 			const newMessage = new LLMMessage('user', Array.isArray(content) ? content : [content]);
 			this.addMessage(newMessage);
 			return newMessage.id ?? '';
@@ -96,7 +113,7 @@ class LLMInteraction {
 		if (lastMessage && lastMessage.role === 'assistant') {
 			logger.error('Why are we adding another assistant message - SOMETHING IS WRONG!');
 			// Append content to the content array of the last assistant message
-			logger.debug('Adding content to existing assistant message', JSON.stringify(content, null, 2));
+			//logger.debug('Adding content to existing assistant message', JSON.stringify(content, null, 2));
 			if (Array.isArray(content)) {
 				lastMessage.content.push(...content);
 			} else {
@@ -105,7 +122,7 @@ class LLMInteraction {
 			return lastMessage.id ?? '';
 		} else {
 			// Add a new assistant message
-			logger.debug('Adding content to new assistant message', JSON.stringify(content, null, 2));
+			//logger.debug('Adding content to new assistant message', JSON.stringify(content, null, 2));
 			const newMessage = new LLMMessage(
 				'assistant',
 				Array.isArray(content) ? content : [content],
@@ -292,7 +309,7 @@ class LLMInteraction {
 
 	addTool(tool: LLMTool): void {
 		this.tools.set(tool.name, tool);
-		this.conversationLogger.logToolResult('add_tool', `Tool added: ${tool.name}`);
+		//this.conversationLogger.logToolResult('add_tool', `Tool added: ${tool.name}`);
 	}
 
 	addTools(tools: LLMTool[]): void {
@@ -318,7 +335,7 @@ class LLMInteraction {
 
 	clearTools(): void {
 		this.tools.clear();
-		this.conversationLogger?.logToolResult('clear_tools', 'All tools cleared');
+		//this.conversationLogger.logToolResult('clear_tools', 'All tools cleared');
 	}
 
 	async speakWithLLM(
@@ -332,15 +349,22 @@ class LLMInteraction {
 		this._turnCount++;
 		//logger.debug(`speakWithLLM - calling addMessageForUserRole for turn ${this._turnCount}` );
 		this.addMessageForUserRole({ type: 'text', text: prompt });
-		//this.conversationLogger?.logUserMessage(prompt);
+		//this.conversationLogger.logUserMessage(prompt);
 
 		const response = await this.llm.speakWithRetry(this, speakOptions);
 
 		const contentPart: LLMMessageContentPart = response.messageResponse
 			.answerContent[0] as LLMMessageContentPartTextBlock;
-		const msg = contentPart.text;
 
-		this.conversationLogger.logAssistantMessage(msg);
+		const msg = contentPart.text;
+		const conversationStats: ConversationMetrics = {
+			statementCount: 0, //this.statementCount,
+			turnCount: 0, //this.turnCount,
+			totalTurnCount: 0, //this.totalTurnCount,
+		};
+		const tokenUsage: TokenUsage = response.messageResponse.usage;
+
+		this.conversationLogger.logAssistantMessage(msg, conversationStats, tokenUsage);
 
 		return response;
 	}

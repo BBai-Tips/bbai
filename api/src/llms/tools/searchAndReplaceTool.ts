@@ -1,8 +1,8 @@
 import LLMTool, { LLMToolInputSchema } from '../llmTool.ts';
-import { LLMAnswerToolUse } from '../llmMessage.ts';
-import { ProjectEditor } from '../../editor/projectEditor.ts';
+import { LLMAnswerToolUse } from 'api/llms/llmMessage.ts';
+import ProjectEditor from '../../editor/projectEditor.ts';
 import { createError, ErrorType } from '../../utils/error.utils.ts';
-import { FileHandlingErrorOptions, LLMValidationErrorOptions } from '../../errors/error.ts';
+import { FileHandlingErrorOptions } from '../../errors/error.ts';
 import { isPathWithinProject } from '../../utils/fileHandling.utils.ts';
 import { ConversationPersistence } from '../../utils/conversationPersistence.utils.ts';
 import { logger } from 'shared/logger.ts';
@@ -53,7 +53,7 @@ export class LLMToolSearchAndReplace extends LLMTool {
 		toolUse: LLMAnswerToolUse,
 		projectEditor: ProjectEditor,
 	): Promise<{ messageId: string; feedback: string }> {
-		const { toolUseId, toolInput } = toolUse;
+		const { toolUseId: _toolUseId, toolInput } = toolUse;
 		const { filePath, operations } = toolInput as {
 			filePath: string;
 			operations: Array<{ search: string; replace: string }>;

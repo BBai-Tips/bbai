@@ -2,12 +2,12 @@ import { ensureDir, exists } from '@std/fs';
 import { join } from '@std/path';
 import LLMConversationInteraction from '../llms/interactions/conversationInteraction.ts';
 import LLM from '../llms/providers/baseLLM.ts';
-import type { ConversationId } from '../types.ts';
+import { ConversationId } from 'shared/types.ts';
 import { logger } from 'shared/logger.ts';
 import { config } from 'shared/configManager.ts';
 import { createError, ErrorType } from './error.utils.ts';
 import { FileHandlingErrorOptions } from '../errors/error.ts';
-import { ProjectEditor } from '../editor/projectEditor.ts';
+import ProjectEditor from '../editor/projectEditor.ts';
 import { ProjectInfo } from '../llms/interactions/conversationInteraction.ts';
 import { stripIndents } from 'common-tags';
 
@@ -31,7 +31,7 @@ export class ConversationPersistence {
 		}
 	}
 
-	async init(): Promise<void> {
+	async init(): Promise<ConversationPersistence> {
 		const bbaiDir = await this.projectEditor.getBbaiDir();
 		const conversationDir = join(bbaiDir, 'cache', 'conversations');
 		this.conversationDir = join(conversationDir, this.conversationId);
@@ -43,6 +43,7 @@ export class ConversationPersistence {
 		this.conversationMappingPath = join(this.conversationDir, 'conversation_mapping.json');
 		this.filesDir = join(this.conversationDir, 'files');
 		await ensureDir(this.filesDir);
+		return this;
 	}
 
 	static async listConversations(_options: {
@@ -120,6 +121,74 @@ export class ConversationPersistence {
 		} catch (error) {
 			logger.error(`Error saving conversation: ${error.message}`);
 			this.handleSaveError(error, this.metadataPath);
+		}
+	}
+
+	async loadConversation(llm: LLM): Promise<LLMConversationInteraction | null> {
+		try {
+			await this.ensureInitialized();
+
+			if (!await exists(this.metadataPath)) {
+				//logger.warn(`Conversation metadata file not found: ${this.metadataPath}`);
+				return null;
+			}
+
+			const metadataContent = await Deno.readTextFile(this.metadataPath);
+			const metadata = JSON.parse(metadataContent);
+			const conversation = new LLMConversationInteraction(llm, this.conversationId);
+			await conversation.init();
+
+			conversation.id = metadata.id;
+			conversation.title = metadata.title;
+			conversation.baseSystem = metadata.system;
+			conversation.model = metadata.model;
+			conversation.maxTokens = metadata.maxTokens;
+			conversation.temperature = metadata.temperature;
+			conversation.updateTotals(metadata.totalTokenUsage, metadata.turnCount);
+			conversation.addTools(metadata.tools);
+
+			if (await exists(this.messagesPath)) {
+				const messagesContent = await Deno.readTextFile(this.messagesPath);
+				const messageLines = messagesContent.trim().split('\n');
+
+				for (const line of messageLines) {
+					try {
+						const messageData = JSON.parse(line);
+						conversation.addMessage(messageData);
+					} catch (error) {
+						logger.error(`Error parsing message: ${error.message}`);
+						// Continue to the next message if there's an error
+					}
+				}
+			}
+
+			// Load files
+			if (await exists(this.filesDir)) {
+				for await (const entry of Deno.readDir(this.filesDir)) {
+					if (entry.isFile && entry.name.endsWith('.meta')) {
+						const filePath = join(this.filesDir, entry.name.replace('.meta', ''));
+						const metadataContent = await Deno.readTextFile(join(this.filesDir, entry.name));
+						const fileMetadata = JSON.parse(metadataContent);
+
+						if (fileMetadata.inSystemPrompt) {
+							conversation.addFileForSystemPrompt(filePath, fileMetadata);
+						}
+						logger.info(`Loaded file: ${filePath}`);
+					}
+				}
+			}
+
+			return conversation;
+		} catch (error) {
+			logger.error(`Error saving conversation: ${error.message}`);
+			throw createError(
+				ErrorType.FileHandling,
+				`File or directory not found when loading conversation: ${this.metadataPath}`,
+				{
+					filePath: this.metadataPath,
+					operation: 'read',
+				} as FileHandlingErrorOptions,
+			);
 		}
 	}
 
@@ -248,61 +317,6 @@ export class ConversationPersistence {
 		}
 	}
 
-	async loadConversation(llm: LLM): Promise<LLMConversationInteraction> {
-		await this.ensureInitialized();
-
-		if (!await exists(this.metadataPath)) {
-			throw new Error(`Conversation metadata file not found: ${this.metadataPath}`);
-		}
-
-		const metadataContent = await Deno.readTextFile(this.metadataPath);
-		const metadata = JSON.parse(metadataContent);
-		const conversation = new LLMConversationInteraction(llm, this.conversationId);
-		await conversation.init();
-
-		conversation.id = metadata.id;
-		conversation.title = metadata.title;
-		conversation.baseSystem = metadata.system;
-		conversation.model = metadata.model;
-		conversation.maxTokens = metadata.maxTokens;
-		conversation.temperature = metadata.temperature;
-		conversation.updateTotals(metadata.totalTokenUsage, metadata.turnCount);
-		conversation.addTools(metadata.tools);
-
-		if (await exists(this.messagesPath)) {
-			const messagesContent = await Deno.readTextFile(this.messagesPath);
-			const messageLines = messagesContent.trim().split('\n');
-
-			for (const line of messageLines) {
-				try {
-					const messageData = JSON.parse(line);
-					conversation.addMessage(messageData);
-				} catch (error) {
-					logger.error(`Error parsing message: ${error.message}`);
-					// Continue to the next message if there's an error
-				}
-			}
-		}
-
-		// Load files
-		if (await exists(this.filesDir)) {
-			for await (const entry of Deno.readDir(this.filesDir)) {
-				if (entry.isFile && entry.name.endsWith('.meta')) {
-					const filePath = join(this.filesDir, entry.name.replace('.meta', ''));
-					const metadataContent = await Deno.readTextFile(join(this.filesDir, entry.name));
-					const fileMetadata = JSON.parse(metadataContent);
-
-					if (fileMetadata.inSystemPrompt) {
-						conversation.addFileForSystemPrompt(filePath, fileMetadata);
-					}
-					logger.info(`Loaded file: ${filePath}`);
-				}
-			}
-		}
-
-		return conversation;
-	}
-
 	async logPatch(filePath: string, patch: string): Promise<void> {
 		await this.ensureInitialized();
 
@@ -317,6 +331,8 @@ export class ConversationPersistence {
 	}
 
 	async getPatchLog(): Promise<Array<{ timestamp: string; filePath: string; patch: string }>> {
+		await this.ensureInitialized();
+
 		if (!await exists(this.patchLogPath)) {
 			return [];
 		}
@@ -328,6 +344,8 @@ export class ConversationPersistence {
 	}
 
 	async removeLastPatch(): Promise<void> {
+		await this.ensureInitialized();
+
 		if (!await exists(this.patchLogPath)) {
 			return;
 		}

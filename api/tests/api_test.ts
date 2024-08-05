@@ -1,7 +1,8 @@
 import { assertEquals, assertObjectMatch, delay } from './deps.ts';
 import { app } from '../src/main.ts';
 import { superoak } from 'superoak';
-import { ProjectEditor } from '../src/editor/projectEditor.ts';
+import ProjectEditor from '../src/editor/projectEditor.ts';
+import { ConversationId } from 'shared/types.ts';
 
 // Mock ProjectEditor
 class MockProjectEditor {
@@ -54,7 +55,7 @@ Deno.test({
 // NOT IMPLEMENTED - missing project root and other deps not configured during testing
 
 /*
-let conversationId: string;
+let conversationId: ConversationId;
 Deno.test("Start conversation endpoint", async () => {
   const request = await superoak(app);
   const response = await request
@@ -67,7 +68,7 @@ Deno.test("Start conversation endpoint", async () => {
     .expect("Content-Type", /json/);
 
   assertObjectMatch(response.body, {
-    conversationId: String,
+    conversationId: ConversationId,
     response: Object
   });
   conversationId = response.body.response.body;
@@ -87,7 +88,7 @@ Deno.test("Continue conversation endpoint", async () => {
     .expect("Content-Type", /json/);
 
   assertObjectMatch(response.body, {
-    conversationId: String,
+    conversationId: ConversationId,
     response: Object
   });
 });
@@ -105,7 +106,7 @@ Deno.test("Add file to conversation endpoint", async () => {
 
   assertObjectMatch(response.body, {
     message: "File added to conversation",
-    conversationId: String,
+    conversationId: ConversationId,
     filePath: String
   });
 });

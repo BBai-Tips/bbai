@@ -1,15 +1,12 @@
 import { join } from '@std/path';
 
-import type { ConversationId, LLMSpeakWithOptions, LLMSpeakWithResponse } from '../../types.ts';
+import type { LLMSpeakWithOptions, LLMSpeakWithResponse } from 'api/types.ts';
+import { ConversationId, ConversationMetrics, TokenUsage } from 'shared/types.ts';
 import LLMInteraction from './baseInteraction.ts';
 import LLM from '../providers/baseLLM.ts';
-import { LLMCallbackType } from '../../types.ts';
-import type {
-	LLMMessageContentPart,
-	LLMMessageContentPartTextBlock,
-	LLMMessageContentPartToolResultBlock,
-} from '../llmMessage.ts';
-import LLMMessage from '../llmMessage.ts';
+import { LLMCallbackType } from 'api/types.ts';
+import type { LLMMessageContentPart, LLMMessageContentPartTextBlock } from 'api/llms/llmMessage.ts';
+import LLMMessage from 'api/llms/llmMessage.ts';
 import LLMTool from '../llmTool.ts';
 import { logger } from 'shared/logger.ts';
 import { readFileContent } from 'shared/dataDir.ts';
@@ -359,9 +356,16 @@ class LLMConversationInteraction extends LLMInteraction {
 
 		const contentPart: LLMMessageContentPart = response.messageResponse
 			.answerContent[0] as LLMMessageContentPartTextBlock;
-		const msg = contentPart.text;
 
-		this.conversationLogger.logAssistantMessage(msg);
+		const msg = contentPart.text;
+		const conversationStats: ConversationMetrics = {
+			statementCount: this._statementCount,
+			turnCount: this._turnCount,
+			totalTurnCount: 0, //this.totalTurnCount,
+		};
+		const tokenUsage: TokenUsage = response.messageResponse.usage;
+
+		this.conversationLogger.logAssistantMessage(msg, conversationStats, tokenUsage);
 		this._statementCount++;
 
 		return response;

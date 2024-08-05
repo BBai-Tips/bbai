@@ -1,7 +1,9 @@
-import { Context } from '@oak/oak';
+import { Context, RouterContext } from '@oak/oak';
 import { logger } from 'shared/logger.ts';
-import { ProjectEditor } from '../../editor/projectEditor.ts';
+import ProjectEditorManager from '../../editor/projectEditorManager.ts';
 import { ConversationPersistence } from '../../utils/conversationPersistence.utils.ts';
+//import { speakWithEmitter } from "../emitters.ts";
+import { ConversationId } from 'shared/types.ts';
 
 /**
  * @openapi
@@ -16,18 +18,12 @@ import { ConversationPersistence } from '../../utils/conversationPersistence.uti
  *           schema:
  *             type: object
  *             required:
- *               - prompt
+ *               - statement
  *               - startDir
  *             properties:
- *               prompt:
+ *               statement:
  *                 type: string
- *                 description: The initial prompt to start the conversation
- *               provider:
- *                 type: string
- *                 description: The LLM provider to use (optional)
- *               model:
- *                 type: string
- *                 description: The specific model to use (optional)
+ *                 description: The initial statement to start the conversation
  *               startDir:
  *                 type: string
  *                 description: The starting directory for the project
@@ -44,11 +40,11 @@ export const startConversation = async (ctx: Context) => {
 
 	try {
 		const body = await ctx.request.body.json();
-		const { prompt, provider, model, startDir } = body;
+		const { statement, startDir } = body;
 
-		if (!prompt) {
+		if (!statement) {
 			ctx.response.status = 400;
-			ctx.response.body = { error: 'Missing prompt' };
+			ctx.response.body = { error: 'Missing statement' };
 			return;
 		}
 
@@ -57,12 +53,20 @@ export const startConversation = async (ctx: Context) => {
 			ctx.response.body = { error: 'Missing startDir' };
 			return;
 		}
+		const editorManager: ProjectEditorManager = new ProjectEditorManager();
+		const conversationId: ConversationId | undefined = undefined;
+
+		if (editorManager.isConversationActive(conversationId)) {
+			ctx.response.status = 400;
+			ctx.response.body = { error: 'Conversation is already in use' };
+			return;
+		}
 
 		logger.debug(`Creating ProjectEditor for dir: ${startDir}`);
-		const projectEditor = new ProjectEditor(startDir);
+		const projectEditor = await editorManager.getOrCreateEditor(conversationId, startDir);
 		await projectEditor.init();
 
-		const response = await projectEditor.speakWithLLM(prompt, provider, model);
+		const response = await projectEditor.handleStatement(statement);
 
 		ctx.response.body = response;
 	} catch (error) {
@@ -100,12 +104,12 @@ export const startConversation = async (ctx: Context) => {
  *           schema:
  *             type: object
  *             required:
- *               - prompt
+ *               - statement
  *               - startDir
  *             properties:
- *               prompt:
+ *               statement:
  *                 type: string
- *                 description: The prompt to continue the conversation
+ *                 description: The statement to continue the conversation
  *               startDir:
  *                 type: string
  *                 description: The starting directory for the project
@@ -117,28 +121,25 @@ export const startConversation = async (ctx: Context) => {
  *       500:
  *         description: Internal server error
  */
+
 export const continueConversation = async (
-	{ params, request, response }: {
-		params: { id: string };
-		request: Context['request'];
-		response: Context['response'];
-	},
+	{ params, request, response }: RouterContext<'/v1/conversation/:id', { id: string }>,
 ) => {
 	logger.debug('continueConversation called');
 
 	try {
 		const { id: conversationId } = params;
 		const body = await request.body.json();
-		const { prompt, startDir } = body;
+		const { statement, startDir } = body;
 
 		logger.info(
-			`Continuing conversation. ConversationId: ${conversationId}, Prompt: "${prompt?.substring(0, 50)}..."`,
+			`Continuing conversation. ConversationId: ${conversationId}, Prompt: "${statement?.substring(0, 50)}..."`,
 		);
 
-		if (!prompt) {
-			logger.warn('Missing prompt');
+		if (!statement) {
+			logger.warn('Missing statement');
 			response.status = 400;
-			response.body = { error: 'Missing prompt' };
+			response.body = { error: 'Missing statement' };
 			return;
 		}
 
@@ -149,14 +150,23 @@ export const continueConversation = async (
 			return;
 		}
 
+		logger.debug(`Creating ProjectEditorManger`);
+		const editorManager: ProjectEditorManager = new ProjectEditorManager();
+
+		if (editorManager.isConversationActive(conversationId)) {
+			response.status = 400;
+			response.body = { error: 'Conversation is already in use' };
+			return;
+		}
+
 		logger.debug(`Creating ProjectEditor for dir: ${startDir}`);
-		const projectEditor = new ProjectEditor(startDir);
+		const projectEditor = await editorManager.getOrCreateEditor(conversationId, startDir);
 		await projectEditor.init();
 
-		logger.info(`Calling speakWithLLM for conversation: ${conversationId}`);
-		const result = await projectEditor.speakWithLLM(prompt, undefined, undefined, conversationId);
+		const result = await projectEditor.handleStatement(statement);
 
-		logger.debug('Response received from speakWithLLM');
+		logger.debug('Response received from handleStatement');
+		response.status = 200;
 		response.body = result;
 	} catch (error) {
 		logger.error(`Error in continueConversation: ${error.message}`, error);
@@ -187,14 +197,30 @@ export const continueConversation = async (
  *         description: Internal server error
  */
 export const getConversation = async (
-	{ params, response }: { params: { id: string }; response: Context['response'] },
+	{ params, request, response }: RouterContext<'/v1/conversation/:id', { id: string }>,
 ) => {
 	try {
-		const { id: conversationId } = params;
+		const _conversationId = params.id;
+		const _startDir = request.url.searchParams.get('startDir') || '';
+
 		/*
-		const conversation = await persistence.loadConversation();
+		logger.debug(`Creating ProjectEditorManger`);
+		const editorManager: ProjectEditorManager = new ProjectEditorManager();
+
+		logger.debug(`Creating ProjectEditor for dir: ${startDir}`);
+		const projectEditor = await editorManager.getOrCreateEditor(conversationId, startDir);
+		await projectEditor.init();
+
+		const persistence = new ConversationPersistence(conversationId, projectEditor);
+		await persistence.init();
+		logger.debug(`ConversationPersistence initialized for ${conversationId}`);
+
+		const conversation = await persistence.loadConversation(llmProvider);
+		 */
 
 		response.status = 200;
+		response.body = { error: 'Not implemented' };
+		/*
 		response.body = {
 			id: conversation.id,
 			llmProviderName: conversation.llmProviderName,
@@ -206,7 +232,7 @@ export const getConversation = async (
 			totalTokenUsage: conversation.totalTokenUsage,
 			messages: conversation.getMessages(),
 		};
- */
+		 */
 	} catch (error) {
 		logger.error(`Error in getConversation: ${error.message}`);
 		response.status = 404;

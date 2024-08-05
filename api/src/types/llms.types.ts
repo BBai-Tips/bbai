@@ -7,8 +7,6 @@ import LLMMessage from '../llms/llmMessage.ts';
 import type { LLMAnswerToolUse, LLMMessageContentParts } from '../llms/llmMessage.ts';
 export type { LLMMessageContentPart, LLMMessageContentParts } from '../llms/llmMessage.ts';
 
-export type ConversationId = string;
-
 export enum AnthropicModel {
 	CLAUDE_3_HAIKU = 'claude-3-haiku-20240307',
 	CLAUDE_3_SONNET = 'claude-3-sonnet-20240229',
@@ -197,6 +195,7 @@ export enum LLMCallbackType {
 	PROJECT_ROOT = 'PROJECT_ROOT',
 	PROJECT_INFO = 'PROJECT_INFO',
 	PROJECT_FILE_CONTENT = 'PROJECT_FILE_CONTENT',
+	LOG_ENTRY_HANDLER = 'LOG_ENTRY_HANDLER',
 	PREPARE_SYSTEM_PROMPT = 'PREPARE_SYSTEM_PROMPT',
 	PREPARE_MESSAGES = 'PREPARE_MESSAGES',
 	PREPARE_TOOLS = 'PREPARE_TOOLS',

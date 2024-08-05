@@ -4,7 +4,7 @@ import { parse as parseYaml } from '@std/yaml';
 import { stripIndents } from 'common-tags';
 import { loadConfig, readFileContent, resolveFilePath } from 'shared/dataDir.ts';
 import * as defaultPrompts from './defaultPrompts.ts';
-import { ProjectEditor } from '../editor/projectEditor.ts';
+import ProjectEditor from '../editor/projectEditor.ts';
 
 interface PromptMetadata {
 	name: string;
@@ -20,19 +20,20 @@ interface Prompt {
 export class PromptManager {
 	private userPromptsDir: string;
 	private config: Record<string, any>;
-	public projectEditor: ProjectEditor;
+	//public projectEditor: ProjectEditor;
 
-	constructor(projectEditor: ProjectEditor) {
-		this.projectEditor = projectEditor;
+	constructor() {
+		// [TODO] the projectEditor needs to be weak ref since it's causing a circular dependancy - projectEditor keeps a copy of us too.
+		//this.projectEditor = projectEditor;
 		this.userPromptsDir = '';
 		this.config = {};
-		this.initialize();
 	}
 
-	private async initialize() {
-		const bbaiDir = await this.projectEditor.getBbaiDir();
+	async init(projectEditor: ProjectEditor): Promise<PromptManager> {
+		const bbaiDir = await projectEditor.getBbaiDir();
 		this.userPromptsDir = join(bbaiDir, 'prompts');
 		this.config = await loadConfig();
+		return this;
 	}
 
 	private async loadGuidelines(): Promise<string | null> {

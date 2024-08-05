@@ -1,11 +1,10 @@
 import LLMTool, { LLMToolInputSchema } from '../llmTool.ts';
-import { ProjectEditor } from '../../editor/projectEditor.ts';
-import { LLMAnswerToolUse } from '../llmMessage.ts';
+import ProjectEditor from '../../editor/projectEditor.ts';
+import { LLMAnswerToolUse } from 'api/llms/llmMessage.ts';
 import { logger } from 'shared/logger.ts';
 import { createError, ErrorType } from '../../utils/error.utils.ts';
 import { searchEmbeddings } from '../../utils/embedding.utils.ts';
 import { VectorSearchErrorOptions } from '../../errors/error.ts';
-import { LLMValidationErrorOptions } from '../../errors/error.ts';
 
 export class LLMToolVectorSearch extends LLMTool {
 	constructor() {
@@ -32,7 +31,7 @@ export class LLMToolVectorSearch extends LLMTool {
 		toolUse: LLMAnswerToolUse,
 		projectEditor: ProjectEditor,
 	): Promise<{ messageId: string; feedback: string }> {
-		const { toolUseId, toolInput } = toolUse;
+		const { toolUseId: _toolUseId, toolInput } = toolUse;
 
 		const { query } = toolInput as { query: string };
 		try {

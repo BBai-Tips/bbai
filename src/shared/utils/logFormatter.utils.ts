@@ -3,6 +3,7 @@ import { join } from '@std/path';
 import { BufReader } from '@std/io';
 
 import { getBbaiDir } from 'shared/dataDir.ts';
+import { ConversationId, ConversationMetrics, TokenUsage } from 'shared/types.ts';
 
 const ANSI_RESET = '\x1b[0m';
 const ANSI_RED = '\x1b[31m';
@@ -18,16 +19,31 @@ const AUXILIARY_ICON = '📎';
 const ERROR_ICON = '❌';
 const UNKNOWN_ICON = '❓';
 
+import { ConversationLoggerEntryType } from 'shared/conversationLogger.ts';
+
 export class LogFormatter {
 	private static readonly ENTRY_SEPARATOR = '<<<BBAI_LOG_ENTRY_SEPARATOR>>>';
 
-	private maxLineLength: number;
+	private _maxLineLength: number;
+
+	private static readonly iconColorMap: Record<
+		ConversationLoggerEntryType,
+		{ icon: string; color: string; label: string }
+	> = {
+		user: { icon: USER_ICON, color: ANSI_GREEN, label: 'User Message' },
+		assistant: { icon: ASSISTANT_ICON, color: ANSI_BLUE, label: 'Assistant Message' },
+		tool_use: { icon: TOOL_ICON, color: ANSI_YELLOW, label: 'Tool Use' },
+		tool_result: { icon: TOOL_ICON, color: ANSI_YELLOW, label: 'Tool Result' },
+		auxiliary: { icon: AUXILIARY_ICON, color: ANSI_CYAN, label: 'Auxiliary Message' },
+		error: { icon: ERROR_ICON, color: ANSI_RED, label: 'Error' },
+		//text_change: { icon: TOOL_ICON, color: ANSI_YELLOW, label: 'Text Change' },
+	};
 
 	constructor(maxLineLength?: number) {
-		this.maxLineLength = this.getMaxLineLength(maxLineLength);
+		this._maxLineLength = LogFormatter.getMaxLineLength(maxLineLength);
 	}
 
-	private getMaxLineLength(userDefinedLength?: number): number {
+	static getMaxLineLength(userDefinedLength?: number): number {
 		if (userDefinedLength && userDefinedLength > 0) {
 			return userDefinedLength;
 		}
@@ -35,8 +51,12 @@ export class LogFormatter {
 		return columns > 0 ? columns : 120; // Default to 120 if unable to determine console width
 	}
 
+	get maxLineLength(): number {
+		return this._maxLineLength;
+	}
+
 	private wrapText(text: string, indent: string, tail: string): string {
-		const effectiveMaxLength = this.maxLineLength - indent.length - tail.length;
+		const effectiveMaxLength = this._maxLineLength - indent.length - tail.length;
 		const paragraphs = text.split('\n');
 		const wrappedParagraphs = paragraphs.map((paragraph, index) => {
 			if (paragraph.trim() === '') {
@@ -75,12 +95,26 @@ export class LogFormatter {
 		return wrappedParagraphs.filter((p, i) => p !== '' || (i > 0 && i < wrappedParagraphs.length - 1)).join('\n');
 	}
 
-	static createRawEntry(type: string, timestamp: string, message: string): string {
+	static createRawEntry(
+		type: ConversationLoggerEntryType,
+		timestamp: string,
+		message: string,
+		conversationStats: ConversationMetrics,
+		tokenUsage: TokenUsage,
+	): string {
 		// [TODO] add token usage to header line
-		return `## ${type} [${timestamp}]\n${message.trim()}`;
+		const { label } = LogFormatter.iconColorMap[type] || { label: 'Unknown' };
+		return `## ${label} [${timestamp}]\n${message.trim()}`;
 	}
-	static createRawEntryWithSeparator(type: string, timestamp: string, message: string): string {
-		let rawEntry = LogFormatter.createRawEntry(type, timestamp, message);
+
+	static createRawEntryWithSeparator(
+		type: ConversationLoggerEntryType,
+		timestamp: string,
+		message: string,
+		conversationStats: ConversationMetrics,
+		tokenUsage: TokenUsage,
+	): string {
+		let rawEntry = LogFormatter.createRawEntry(type, timestamp, message, conversationStats, tokenUsage);
 		// Ensure entry ends with a single newline and the separator
 		rawEntry = rawEntry.trimEnd() + '\n' + LogFormatter.getEntrySeparator() + '\n';
 		return rawEntry;
@@ -90,40 +124,18 @@ export class LogFormatter {
 		return new Date().toISOString();
 	}
 
-	formatLogEntry(type: string, timestamp: string, message: string): string {
-		let icon: string;
-		let color: string;
+	formatLogEntry(
+		type: ConversationLoggerEntryType,
+		timestamp: string,
+		message: string,
+		conversationStats: ConversationMetrics,
+		tokenUsage: TokenUsage,
+	): string {
+		const { icon, color, label } = LogFormatter.iconColorMap[type] ||
+			{ icon: UNKNOWN_ICON, color: ANSI_RESET, label: 'Unknown' };
 
-		switch (type) {
-			case 'User Message':
-				icon = USER_ICON;
-				color = ANSI_GREEN;
-				break;
-			case 'Assistant Message':
-				icon = ASSISTANT_ICON;
-				color = ANSI_BLUE;
-				break;
-			case 'Auxiliary Message':
-				icon = AUXILIARY_ICON;
-				color = ANSI_CYAN;
-				break;
-			case 'Tool Use':
-			case 'Tool Result':
-			case 'Diff Patch':
-				icon = TOOL_ICON;
-				color = ANSI_YELLOW;
-				break;
-			case 'Error':
-				icon = ERROR_ICON;
-				color = ANSI_RED;
-				break;
-			default:
-				icon = UNKNOWN_ICON;
-				color = ANSI_RESET;
-		}
-
-		const header = `${color}╭─ ${icon}   ${type} [${timestamp}]${ANSI_RESET}`;
-		const footer = `${color}╰${'─'.repeat(this.maxLineLength - 1)}${ANSI_RESET}`;
+		const header = `${color}╭─ ${icon}   ${label} [${timestamp}]${ANSI_RESET}`;
+		const footer = `${color}╰${'─'.repeat(this._maxLineLength - 1)}${ANSI_RESET}`;
 		const wrappedMessage = this.wrapText(message.trim(), `${color}│ `, ANSI_RESET);
 
 		return `${header}\n${wrappedMessage}\n${footer}`;
@@ -132,9 +144,19 @@ export class LogFormatter {
 	formatRawLogEntry(entry: string): string {
 		const [header, ...messageLines] = entry.split('\n');
 		if (typeof header !== 'undefined' && typeof messageLines !== 'undefined') {
-			const [type, timestamp] = header.replace('## ', '').split(' [');
-			if (typeof type !== 'undefined' && typeof timestamp !== 'undefined') {
-				return this.formatLogEntry(type, timestamp.replace(']', ''), messageLines.join('\n').trim());
+			const [typeString, timestamp] = header.replace('## ', '').split(' [');
+			// need to parse out the conversationStats and tokenUsage
+			const conversationStats: ConversationMetrics = { statementCount: 0, turnCount: 0, totalTurnCount: 0 };
+			const tokenUsage: TokenUsage = { inputTokens: 0, outputTokens: 0, totalTokens: 0 };
+			if (typeof typeString !== 'undefined' && typeof timestamp !== 'undefined') {
+				const type = typeString as ConversationLoggerEntryType;
+				return this.formatLogEntry(
+					type,
+					timestamp.replace(']', ''),
+					messageLines.join('\n').trim(),
+					conversationStats,
+					tokenUsage,
+				);
 			} else {
 				return messageLines.join('\n');
 			}
@@ -144,7 +166,7 @@ export class LogFormatter {
 	}
 
 	formatSeparator(): string {
-		return `${ANSI_BLUE}${'─'.repeat(this.maxLineLength)}${ANSI_RESET}\n`;
+		return `${ANSI_BLUE}${'─'.repeat(this._maxLineLength)}${ANSI_RESET}\n`;
 	}
 
 	static getEntrySeparator(): string {
@@ -153,7 +175,7 @@ export class LogFormatter {
 }
 
 export async function displayFormattedLogs(
-	conversationId: string,
+	conversationId: ConversationId,
 	callback?: (formattedEntry: string) => void,
 	follow = false,
 ): Promise<void> {
@@ -219,15 +241,17 @@ export async function displayFormattedLogs(
 }
 
 export async function writeLogEntry(
-	conversationId: string,
-	type: string,
+	conversationId: ConversationId,
+	type: ConversationLoggerEntryType,
 	message: string,
+	conversationStats: ConversationMetrics,
+	tokenUsage: TokenUsage,
 ): Promise<void> {
 	const bbaiDir = await getBbaiDir(Deno.cwd());
 	const logFile = join(bbaiDir, 'cache', 'conversations', conversationId, 'conversation.log');
 
 	const timestamp = new Date().toISOString();
-	const entry = LogFormatter.createRawEntryWithSeparator(type, timestamp, message);
+	const entry = LogFormatter.createRawEntryWithSeparator(type, timestamp, message, conversationStats, tokenUsage);
 
 	try {
 		// Append the entry to the log file
@@ -237,7 +261,7 @@ export async function writeLogEntry(
 	}
 }
 
-export async function countLogEntries(conversationId: string): Promise<number> {
+export async function countLogEntries(conversationId: ConversationId): Promise<number> {
 	const bbaiDir = await getBbaiDir(Deno.cwd());
 	const logFile = join(bbaiDir, 'cache', 'conversations', conversationId, 'conversation.log');
 

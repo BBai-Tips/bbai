@@ -1,15 +1,10 @@
 import LLMInteraction from './baseInteraction.ts';
 import LLM from '../providers/baseLLM.ts';
-import {
-	AnthropicModel,
-	ConversationId,
-	LLMMessageContentPart,
-	LLMSpeakWithOptions,
-	LLMSpeakWithResponse,
-} from '../../types.ts';
-import LLMMessage, { LLMMessageContentPartTextBlock } from '../llmMessage.ts';
+import { AnthropicModel, LLMMessageContentPart, LLMSpeakWithOptions, LLMSpeakWithResponse } from 'api/types.ts';
+import { ConversationId } from 'shared/types.ts';
+import LLMMessage, { LLMMessageContentPartTextBlock } from 'api/llms/llmMessage.ts';
 import LLMTool from '../llmTool.ts';
-import { logger } from 'shared/logger.ts';
+//import { logger } from 'shared/logger.ts';
 
 class LLMChatInteraction extends LLMInteraction {
 	constructor(llm: LLM, conversationId?: ConversationId) {

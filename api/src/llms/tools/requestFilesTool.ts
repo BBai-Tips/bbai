@@ -1,13 +1,8 @@
 import { logger } from 'shared/logger.ts';
 import LLMTool, { LLMToolInputSchema } from '../llmTool.ts';
-import {
-	LLMAnswerToolUse,
-	LLMMessageContentPartTextBlock,
-	LLMMessageContentPartToolResultBlock,
-} from '../llmMessage.ts';
-import { ProjectEditor } from '../../editor/projectEditor.ts';
+import { LLMAnswerToolUse, LLMMessageContentPartTextBlock } from 'api/llms/llmMessage.ts';
+import ProjectEditor from '../../editor/projectEditor.ts';
 import { createError, ErrorType } from '../../utils/error.utils.ts';
-import { FileHandlingErrorOptions, LLMValidationErrorOptions } from '../../errors/error.ts';
 
 export class LLMToolRequestFiles extends LLMTool {
 	constructor() {
@@ -35,7 +30,7 @@ export class LLMToolRequestFiles extends LLMTool {
 		toolUse: LLMAnswerToolUse,
 		projectEditor: ProjectEditor,
 	): Promise<{ messageId: string; feedback: string }> {
-		const { toolUseId, toolInput } = toolUse;
+		const { toolUseId: _toolUseId, toolInput } = toolUse;
 		const { fileNames } = toolInput as { fileNames: string[] };
 
 		try {
@@ -68,7 +63,7 @@ export class LLMToolRequestFiles extends LLMTool {
 				projectEditor,
 			);
 
-			const _conversationFiles = projectEditor.conversation?.addFilesForMessage(
+			projectEditor.conversation?.addFilesForMessage(
 				filesAdded,
 				messageId,
 				toolUse.toolUseId,

@@ -1,8 +1,8 @@
 import { JSONSchema4 } from 'json-schema';
 import Ajv from 'ajv';
 
-import { ProjectEditor } from '../editor/projectEditor.ts';
-import { LLMAnswerToolUse } from './llmMessage.ts';
+import ProjectEditor from '../editor/projectEditor.ts';
+import { LLMAnswerToolUse } from 'api/llms/llmMessage.ts';
 
 export type LLMToolInputSchema = JSONSchema4;
 

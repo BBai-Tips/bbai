@@ -1,22 +1,22 @@
 import { logger } from 'shared/logger.ts';
 import LLMTool from './llmTool.ts';
-import { LLMAnswerToolUse, LLMMessageContentPart, LLMMessageContentParts } from './llmMessage.ts';
-import { ProjectEditor } from '../editor/projectEditor.ts';
-import { LLMToolRequestFiles } from './tools/requestFiles.ts';
-import { LLMToolSearchProject } from './tools/searchProject.ts';
-import { LLMToolApplyPatch } from './tools/applyPatch.ts';
-import { LLMToolSearchAndReplace } from './tools/searchAndReplace.ts';
-import { LLMToolVectorSearch } from './tools/vectorSearch.ts';
+import { LLMAnswerToolUse, LLMMessageContentPart, LLMMessageContentParts } from 'api/llms/llmMessage.ts';
+import ProjectEditor from '../editor/projectEditor.ts';
+import { LLMToolRequestFiles } from './tools/requestFilesTool.ts';
+import { LLMToolSearchProject } from './tools/searchProjectTool.ts';
+//import { LLMToolApplyPatch } from './tools/applyPatchTool.ts';
+import { LLMToolSearchAndReplace } from './tools/searchAndReplaceTool.ts';
+//import { LLMToolVectorSearch } from './tools/vectorSearchTool.ts';
 import { createError, ErrorType } from '../utils/error.utils.ts';
 import { LLMValidationErrorOptions } from '../errors/error.ts';
 
-export type LLMToolsToolSetType = 'coding' | 'research' | 'creative';
+export type LLMToolManagerToolSetType = 'coding' | 'research' | 'creative';
 
-class LLMTools {
+class LLMToolManager {
 	private tools: Map<string, LLMTool> = new Map();
-	public toolSet: LLMToolsToolSetType = 'coding';
+	public toolSet: LLMToolManagerToolSetType = 'coding';
 
-	constructor(toolSet?: LLMToolsToolSetType) {
+	constructor(toolSet?: LLMToolManagerToolSetType) {
 		if (toolSet) {
 			this.toolSet = toolSet;
 		}
@@ -122,4 +122,4 @@ class LLMTools {
 	}
 }
 
-export default LLMTools;
+export default LLMToolManager;
