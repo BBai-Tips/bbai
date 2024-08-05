@@ -32,12 +32,7 @@
    - 'User' message showing 'tool result' should be clearly separate from rest of the conversation
 
 ## Logging and Output
-1. Refactor conversation logging:
-   - Write human-friendly and machine-parseable output to chat log
-   - Allow users to tail the chat log directly for as-is viewing
-   - Use `bbai logs` for fancy formatting
-   - Make `bbai logs` check the TERM width and use that for max width
-2. Implement terse and verbose options for conversation log:
+1. Implement terse and verbose options for conversation log:
    - Verbose option to show results of tool use and details such as contents of patches being applied
    - Implement fancy formatting for showing patches, similar to git diff output
 
@@ -49,10 +44,7 @@
 ## Improvements and Fixes
 1. Fix ctags multi-tier functionality:
    - Currently goes through all tiers and says all are too big
-2. Create a 'chat' class similar to LLMConversation:
-   - designed for quick (fast) LLM conversations, eg to ask for a git message or for the 'title' of a conversation
-3. Update `bbai chat` to support proper readline text entry rather than just typing on stdin
-4. Implement conversation state management:
+2. Implement conversation state management:
    - Keep state of conversations with a currently active 'speak with'
    - Use KV (or similar) to create "conversation locking" in ProjectEditor to allow only a single active conversation
 
@@ -85,8 +77,56 @@
 2. ✓ Implement git commit after patching [done]
 4. ✓ Use haiku to write commit messages
 
+## Improvements and Fixes
+1. ✓ Create a 'chat' class similar to LLMConversation:
+   - designed for quick (fast) LLM conversations, eg to ask for a git message or for the 'title' of a conversation
+2. ✓ Update `bbai chat` to support proper readline text entry rather than just typing on stdin
+
+## Logging and Output
+1. ✓ Refactor conversation logging:
+   - Write human-friendly and machine-parseable output to chat log
+   - Allow users to tail the chat log directly for as-is viewing
+   - Use `bbai logs` for fancy formatting
+   - Make `bbai logs` check the TERM width and use that for max width
+
 ## For CHANGELOG
 
 - Implement a repoInfo persistence solution
 - Create an 'add task' tool allowing Claude to give bbai a list of tasks to complete
 
+
+## Charlie's thoughts
+
+tool manager class
+
+new files need to be staged before commiting
+
+statementCount and turnCount in persisted messages is not correct. statementCount is starting at zero with every request, it needs to be restored from persisted conversation. turnCount stays at 1, so the value we're storing isn't the value that's updated during the loop.
+
+at start of each conversation, get current git commit, save it with the "Add File" content of new message.
+
+when running `bbai chat` check if api is running; if not start it, and then kill it when exiting
+ this has been done but api isn't responding - it's maybe on different IP. Also ensure the api logs go to file and not to chat terminal (Unless debug cli arg is passed)
+
+don't start api in watch mode if auto-started by `bbai chat` can we pass args via action(...)
+
+websocket mode to get live updtes between terminal and api
+
+tool use conversation log entry needs to be type `agent` not `user`
+
+Add 'bbai restart' command for api, can just do a stop/start, look in cli/src/main.ts for entry point. There are also commands for `apiStart` and `apiStop`.
+
+Exclude args are not being respected for file listing in `fileHandling.utils.ts`
+
+don't persist a conversation for a quick chat
+
+after prompt in console - print a divider line
+
+DONE:
+
+- do clear screen when starting editor
+- In LogFormatter, formatted log entries don't have new lines
+- in conversationStart chat terminal, make the summary block with coversation id, turn count, token usage, etc look fancy
+- when hydrating files, process messages in reverse order, and keep track of which files have been hydrated. If earlier message asks for same file again, don't add the file and instead make a note that file in this message is outdated and will appear in later message.
+- validate results of search/replace in `handleSearchAndReplace`. Confirm the search and replace strings don't match, then confirm the original and modified text don't match - if they do then the search/replace failed. 
+- chat history in terminal

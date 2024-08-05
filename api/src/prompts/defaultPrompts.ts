@@ -93,3 +93,31 @@ export const gitCommitMessage: Prompt = {
 };
 
 // Add other default prompts here as needed
+
+/*
+undo_command_reply =
+Last changes discarded via git reset. Await further instructions before repeating. You may inquire about the reversion rationale.
+ */
+
+/*
+added_files =
+Files added to chat: ${filePaths}. Proceed with analysis.
+ */
+
+/*
+run_output =
+Command executed: ${cmdString}
+Output:
+${cmdOutput}
+
+Analyze and proceed accordingly.
+ */
+
+/*
+summarize =
+Summarize this partial conversation, focusing on recent messages. Organize by topic. Include function names, libraries, packages, and referenced filenames. Exclude code blocks. Write in first person as the user, addressing the assistant as "you". Begin with "I asked you...". Avoid conclusive language.
+ */
+
+/*
+summary_prefix = "I spoke to you previously about a number of things.\n"
+ */
