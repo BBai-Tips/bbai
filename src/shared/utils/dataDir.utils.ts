@@ -19,9 +19,9 @@ export async function getBbaiDir(startDir: string): Promise<string> {
 	return bbaiDir;
 }
 
-export async function getBbaiCacheDir(startDir: string): Promise<string> {
+export async function getBbaiDataDir(startDir: string): Promise<string> {
 	const bbaiDir = await getBbaiDir(startDir);
-	const repoCacheDir = join(bbaiDir, 'cache');
+	const repoCacheDir = join(bbaiDir, 'data');
 	await ensureDir(repoCacheDir);
 	return repoCacheDir;
 }
@@ -57,15 +57,15 @@ export async function removeFromBbaiDir(startDir: string, filename: string): Pro
 	}
 }
 
-export async function writeToBbaiCacheDir(startDir: string, filename: string, content: string): Promise<void> {
-	const cacheDir = await getBbaiCacheDir(startDir);
-	const filePath = join(cacheDir, filename);
+export async function writeToBbaiDataDir(startDir: string, filename: string, content: string): Promise<void> {
+	const dataDir = await getBbaiDataDir(startDir);
+	const filePath = join(dataDir, filename);
 	await Deno.writeTextFile(filePath, content);
 }
 
-export async function readFromBbaiCacheDir(startDir: string, filename: string): Promise<string | null> {
-	const cacheDir = await getBbaiCacheDir(startDir);
-	const filePath = join(cacheDir, filename);
+export async function readFromBbaiDataDir(startDir: string, filename: string): Promise<string | null> {
+	const dataDir = await getBbaiDataDir(startDir);
+	const filePath = join(dataDir, filename);
 	try {
 		return await Deno.readTextFile(filePath);
 	} catch (error) {
@@ -76,9 +76,9 @@ export async function readFromBbaiCacheDir(startDir: string, filename: string): 
 	}
 }
 
-export async function removeFromBbaiCacheDir(startDir: string, filename: string): Promise<void> {
-	const cacheDir = await getBbaiCacheDir(startDir);
-	const filePath = join(cacheDir, filename);
+export async function removeFromBbaiDataDir(startDir: string, filename: string): Promise<void> {
+	const dataDir = await getBbaiDataDir(startDir);
+	const filePath = join(dataDir, filename);
 	try {
 		await Deno.remove(filePath);
 	} catch (error) {

@@ -2,9 +2,20 @@ import { JSONSchema4 } from 'json-schema';
 import Ajv from 'ajv';
 
 import ProjectEditor from '../editor/projectEditor.ts';
-import { LLMAnswerToolUse } from 'api/llms/llmMessage.ts';
+import { LLMAnswerToolUse, LLMMessageContentPart, LLMMessageContentParts } from 'api/llms/llmMessage.ts';
 
 export type LLMToolInputSchema = JSONSchema4;
+export type LLMToolRunResultContent = string | LLMMessageContentPart | LLMMessageContentParts;
+
+export interface LLMToolFinalizeResult {
+	messageId: string;
+	toolResponse: string;
+}
+export interface LLMToolRunResult {
+	messageId: string;
+	toolResponse: string;
+	bbaiResponse: string;
+}
 
 abstract class LLMTool {
 	constructor(
@@ -23,7 +34,7 @@ abstract class LLMTool {
 	abstract runTool(
 		toolUse: LLMAnswerToolUse,
 		projectEditor: ProjectEditor,
-	): Promise<{ messageId: string; feedback: string }>;
+	): Promise<LLMToolRunResult>;
 }
 
 export default LLMTool;

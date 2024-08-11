@@ -1,9 +1,10 @@
 import { logger } from 'shared/logger.ts';
-import LLMTool from './llmTool.ts';
+import LLMTool, { LLMToolFinalizeResult, LLMToolRunResultContent } from './llmTool.ts';
 import { LLMAnswerToolUse, LLMMessageContentPart, LLMMessageContentParts } from 'api/llms/llmMessage.ts';
 import ProjectEditor from '../editor/projectEditor.ts';
 import { LLMToolRequestFiles } from './tools/requestFilesTool.ts';
 import { LLMToolSearchProject } from './tools/searchProjectTool.ts';
+import { LLMToolRunCommand } from './tools/runCommandTool.ts';
 //import { LLMToolApplyPatch } from './tools/applyPatchTool.ts';
 import { LLMToolSearchAndReplace } from './tools/searchAndReplaceTool.ts';
 //import { LLMToolVectorSearch } from './tools/vectorSearchTool.ts';
@@ -27,6 +28,7 @@ class LLMToolManager {
 		this.registerTool(new LLMToolRequestFiles());
 		this.registerTool(new LLMToolSearchProject());
 		this.registerTool(new LLMToolSearchAndReplace());
+		this.registerTool(new LLMToolRunCommand());
 		//this.registerTool(new LLMToolApplyPatch()); // Claude isn't good enough yet writing diff patches
 		//this.registerTool(new LLMToolVectorSearch());
 	}
@@ -46,7 +48,7 @@ class LLMToolManager {
 	async handleToolUse(
 		toolUse: LLMAnswerToolUse,
 		projectEditor: ProjectEditor,
-	): Promise<{ messageId: string; feedback: string; isError: boolean }> {
+	): Promise<{ messageId: string; toolResponse: string; bbaiResponse: string; isError: boolean }> {
 		try {
 			const tool = this.getTool(toolUse.toolName);
 			if (!tool) {
@@ -68,46 +70,50 @@ class LLMToolManager {
 			//logger.debug(`handleToolUse - calling runTool for ${toolUse.toolName}`);
 
 			// runTool will call finalizeToolUse, which handles addMessageForToolResult
-			const { messageId, feedback } = await tool.runTool(toolUse, projectEditor);
-			return { messageId, feedback, isError: false };
+			const { messageId, toolResponse, bbaiResponse } = await tool.runTool(toolUse, projectEditor);
+			return { messageId, toolResponse, bbaiResponse, isError: false };
 		} catch (error) {
 			logger.error(`Error executing tool ${toolUse.toolName}: ${error.message}`);
-			const { messageId, feedback } = this.finalizeToolUse(
+			const { messageId, toolResponse } = this.finalizeToolUse(
 				toolUse,
 				error.message,
 				true,
 				projectEditor,
 			);
-			return { messageId, feedback: `Error with ${toolUse.toolName}: ${feedback}`, isError: true };
+			return {
+				messageId,
+				toolResponse: `Error with ${toolUse.toolName}: ${toolResponse}`,
+				bbaiResponse: 'BBai could not run the tool',
+				isError: true,
+			};
 		}
 	}
 
 	finalizeToolUse(
 		toolUse: LLMAnswerToolUse,
-		toolResult: string | LLMMessageContentPart | LLMMessageContentParts,
+		toolRunResultContent: LLMToolRunResultContent,
 		isError: boolean,
 		projectEditor: ProjectEditor,
-	): { messageId: string; feedback: string } {
+	): LLMToolFinalizeResult {
 		//logger.debug(`finalizeToolUse - calling addMessageForToolResult for ${toolUse.toolName}`);
-		const messageId = projectEditor.conversation?.addMessageForToolResult(toolUse.toolUseId, toolResult, isError) ||
+		const messageId =
+			projectEditor.conversation?.addMessageForToolResult(toolUse.toolUseId, toolRunResultContent, isError) ||
 			'';
-		const feedback = isError
-			? `Tool ${toolUse.toolName} failed to run: ${
-				Array.isArray(toolResult)
-					? this.getTextContent(toolResult[0])
-					: typeof toolResult !== 'string'
-					? this.getTextContent(toolResult)
-					: toolResult
-			}`
-			: `Tool ${toolUse.toolName} executed successfully: ${
-				Array.isArray(toolResult)
-					? this.getTextContent(toolResult[0])
-					: typeof toolResult !== 'string'
-					? this.getTextContent(toolResult)
-					: toolResult
-			}`;
+		const toolResponse = isError
+			? `Tool ${toolUse.toolName} failed to run:\n${this.getContentFromToolResult(toolRunResultContent)}`
+			: `Tool ${toolUse.toolName} executed successfully:\n${this.getContentFromToolResult(toolRunResultContent)}`;
 
-		return { messageId, feedback };
+		return { messageId, toolResponse };
+	}
+
+	private getContentFromToolResult(toolRunResultContent: LLMToolRunResultContent): string {
+		if (Array.isArray(toolRunResultContent)) {
+			return toolRunResultContent.map((part) => this.getTextContent(part)).join('\n');
+		} else if (typeof toolRunResultContent !== 'string') {
+			return this.getTextContent(toolRunResultContent);
+		} else {
+			return toolRunResultContent;
+		}
 	}
 
 	private getTextContent(content: LLMMessageContentPart): string {

@@ -2,18 +2,17 @@ import { assertEquals, assertObjectMatch, delay } from './deps.ts';
 import { app } from '../src/main.ts';
 import { superoak } from 'superoak';
 import ProjectEditor from '../src/editor/projectEditor.ts';
-import { ConversationId } from 'shared/types.ts';
+//import type { ConversationId } from 'shared/types.ts';
+import { GitUtils } from 'shared/git.ts';
 
-// Mock ProjectEditor
-class MockProjectEditor {
-	async init() {}
-	async getProjectRoot() {
-		return '/mock/project/root';
-	}
+const projectEditor = await getProjectEditor(Deno.makeTempDirSync());
+const testProjectRoot = projectEditor.projectRoot;
+console.log('Project editor root:', testProjectRoot);
+
+async function getProjectEditor(testProjectRoot: string): Promise<ProjectEditor> {
+	await GitUtils.initGit(testProjectRoot);
+	return await new ProjectEditor('test-conversation-id', testProjectRoot).init();
 }
-
-// Replace ProjectEditor with MockProjectEditor
-(globalThis as any).ProjectEditor = MockProjectEditor;
 
 Deno.test({
 	name: 'API root endpoint returns correct message',
@@ -62,7 +61,7 @@ Deno.test("Start conversation endpoint", async () => {
     .post("/api/v1/conversation")
     .send({
       prompt: "Test prompt",
-      startDir: "/test/dir"
+      startDir: "testProjectRoot"
     })
     .expect(200)
     .expect("Content-Type", /json/);

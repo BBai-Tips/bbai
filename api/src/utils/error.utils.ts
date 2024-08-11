@@ -1,5 +1,6 @@
 import {
 	APIError,
+	CommandExecutionErrorOptions,
 	ErrorType,
 	ErrorTypes,
 	FileHandlingError,
@@ -34,7 +35,8 @@ export const createError = (
 		| LLMRateLimitErrorOptions
 		| LLMValidationErrorOptions
 		| FileHandlingErrorOptions
-		| VectorSearchErrorOptions,
+		| VectorSearchErrorOptions
+		| CommandExecutionErrorOptions,
 ): Error => {
 	if (!ErrorTypes.includes(errorType)) {
 		throw new Error(`Unknown error type: ${errorType}`);
@@ -64,6 +66,9 @@ export const createError = (
 					return new FileHandlingError(message, fileOptions);
 			}
 		case ErrorType.VectorSearch:
+			return new VectorSearchError(message, options as VectorSearchErrorOptions);
+		case ErrorType.CommandExecution:
+			return new Error(message); // You might want to create a specific CommandExecutionError class
 			return new VectorSearchError(message, options as VectorSearchErrorOptions);
 		default:
 			return new Error(`Unknown error type: ${errorType} - ${message}`);

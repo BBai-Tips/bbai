@@ -1,15 +1,5 @@
 import { Command } from 'cliffy/command/mod.ts';
-import {
-	displayConversationComplete,
-	displayConversationEntry,
-	displayConversationStart,
-	displayConversationUpdate,
-	displayDividerLine,
-	getMultilineInput,
-	initializeTerminal,
-	showSpinner,
-	stopSpinner,
-} from '../utils/terminalHandler.utils.ts';
+import { Spinner, TerminalHandler } from '../utils/terminalHandler.utils.ts';
 import { readLines } from '@std/io';
 
 import { logger } from 'shared/logger.ts';
@@ -17,8 +7,7 @@ import { apiClient } from '../utils/apiClient.ts';
 import { LogFormatter } from 'shared/logFormatter.ts';
 import { ConversationEntry, ConversationId, ConversationResponse, ConversationStart } from 'shared/types.ts';
 import { isApiRunning } from '../utils/pid.utils.ts';
-import { apiStart } from './apiStart.ts';
-import { apiStop } from './apiStop.ts';
+import { startApiServer, stopApiServer } from '../utils/apiControl.utils.ts';
 import { getBbaiDir, getProjectRoot } from 'shared/dataDir.ts';
 import { addToStatementHistory } from '../utils/statementHistory.utils.ts';
 import { websocketManager } from '../utils/websocketManager.ts';
@@ -42,20 +31,25 @@ export const conversationStart = new Command()
 		const cleanup = async () => {
 			// Ensure API is stopped when the process exits
 			if (apiStartedByUs) {
-				apiStop.parse();
+				await stopApiServer(projectRoot);
 			}
 		};
-		Deno.addSignalListener('SIGINT', cleanup);
-		Deno.addSignalListener('SIGTERM', cleanup);
+		const exit = async () => {
+			cleanup();
+			Deno.exit(0);
+		};
+		Deno.addSignalListener('SIGINT', exit);
+		Deno.addSignalListener('SIGTERM', exit);
 
 		try {
 			// Check if API is running, start it if not
 			const apiRunning = await isApiRunning(projectRoot);
 			if (!apiRunning) {
 				console.log('API is not running. Starting it now...');
-				//await apiStart.parse();
-				//apiStartedByUs = true;
-				//console.log('API started successfully.');
+				await startApiServer(projectRoot);
+				//await new Promise((resolve) => setTimeout(resolve, 1000));
+				apiStartedByUs = true;
+				console.log('API started successfully.');
 			}
 
 			const startDir = Deno.cwd();
@@ -96,7 +90,8 @@ export const conversationStart = new Command()
 
 				if (response.ok) {
 					const data = await response.json();
-					displayConversationComplete(data, options);
+					const terminalHandler = new TerminalHandler(bbaiDir);
+					terminalHandler.displayConversationComplete(data, options);
 				} else {
 					const errorBody = await response.text();
 					console.error(JSON.stringify(
@@ -112,31 +107,41 @@ export const conversationStart = new Command()
 					logger.error(`Error body: ${errorBody}`);
 				}
 			} else {
+				const terminalHandler = new TerminalHandler(bbaiDir);
+
 				// we're running in a terminal
-				initializeTerminal();
+				terminalHandler.initializeTerminal();
 
 				await websocketManager.setupWebsocket(conversationId);
 
-				const formatter = new LogFormatter();
+				// Spinner is now managed by terminalHandler
+				terminalHandler.startSpinner('Setting up...');
 
 				// Set up event listeners
+				let conversationStartDisplayed = false;
 				eventManager.on('cli:conversationReady', (data) => {
-					displayConversationStart(formatter, data as ConversationStart, conversationId);
+					if (!conversationStartDisplayed) {
+						terminalHandler.displayConversationStart(data as ConversationStart, conversationId, true);
+						conversationStartDisplayed = true;
+					}
 				}, conversationId);
 
 				eventManager.on('cli:conversationEntry', (data) => {
-					displayConversationEntry(formatter, data as ConversationEntry, conversationId);
+					terminalHandler.displayConversationEntry(data as ConversationEntry, conversationId, true);
 				}, conversationId);
 
 				eventManager.on('cli:conversationAnswer', (data) => {
-					displayConversationUpdate(formatter, data as ConversationResponse, conversationId);
+					terminalHandler.displayConversationUpdate(data as ConversationResponse, conversationId, false);
 				}, conversationId);
+
+				eventManager.on('cli:websocketReconnected', handleWebsocketReconnection);
 
 				await websocketManager.waitForReady(conversationId!);
 
 				// Main chat loop
 				while (true) {
-					statement = await getMultilineInput(bbaiDir);
+					terminalHandler.hideSpinner();
+					statement = await terminalHandler.getMultilineInput();
 
 					const statementCmd = statement.toLowerCase();
 					if (statementCmd === 'exit' || statementCmd === 'quit') {
@@ -148,15 +153,16 @@ export const conversationStart = new Command()
 						continue;
 					}
 
-					displayDividerLine(formatter);
+					// terminalHandler.displayDividerLine();
 
 					try {
 						//console.log(`Processing statement using conversationId: ${conversationId}`);
-						await processStatement(conversationId!, statement);
+						await processStatement(terminalHandler, conversationId!, statement);
 					} catch (error) {
 						logger.error(`Error in chat: ${error.message}`);
 					}
 				}
+				await cleanup();
 				Deno.exit(0);
 			}
 		} catch (error) {
@@ -175,14 +181,23 @@ export const conversationStart = new Command()
 		}
 	});
 
-const processStatement = async (conversationId: ConversationId, statement: string): Promise<void> => {
+function handleWebsocketReconnection() {
+	//console.log(palette.info('WebSocket reconnected. Redrawing prompt...'));
+	//redrawPrompt();
+}
+
+const processStatement = async (
+	terminalHandler: TerminalHandler,
+	conversationId: ConversationId,
+	statement: string,
+): Promise<void> => {
 	await addToStatementHistory(bbaiDir, statement);
 	const task = 'converse';
-	const spinner = showSpinner('Processing statement...');
+	terminalHandler.startSpinner('Claude is thinking...');
 	try {
 		websocketManager.ws?.send(JSON.stringify({ conversationId, startDir, task, statement }));
 		await websocketManager.waitForAnswer(conversationId);
 	} finally {
-		stopSpinner(spinner, 'Statement processed');
+		terminalHandler.stopSpinner('Claude is finished');
 	}
 };

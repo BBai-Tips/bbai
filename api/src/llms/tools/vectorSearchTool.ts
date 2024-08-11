@@ -1,4 +1,4 @@
-import LLMTool, { LLMToolInputSchema } from '../llmTool.ts';
+import LLMTool, { LLMToolInputSchema, LLMToolRunResult } from '../llmTool.ts';
 import ProjectEditor from '../../editor/projectEditor.ts';
 import { LLMAnswerToolUse } from 'api/llms/llmMessage.ts';
 import { logger } from 'shared/logger.ts';
@@ -30,25 +30,23 @@ export class LLMToolVectorSearch extends LLMTool {
 	async runTool(
 		toolUse: LLMAnswerToolUse,
 		projectEditor: ProjectEditor,
-	): Promise<{ messageId: string; feedback: string }> {
+	): Promise<LLMToolRunResult> {
 		const { toolUseId: _toolUseId, toolInput } = toolUse;
 
 		const { query } = toolInput as { query: string };
 		try {
 			const vectorSearchResults = await searchEmbeddings(query);
 
-			const { messageId, feedback } = projectEditor.toolManager.finalizeToolUse(
+			const { messageId, toolResponse } = projectEditor.toolManager.finalizeToolUse(
 				toolUse,
 				vectorSearchResults,
 				false,
 				projectEditor,
 			);
 
-			return {
-				messageId,
-				feedback:
-					`${feedback}\nBBai has completed vector search for query: "${query}". ${vectorSearchResults.length} results found.\n${vectorSearchResults}`,
-			};
+			const bbaiResponse =
+				`BBai has completed vector search for query: "${query}". ${vectorSearchResults.length} results found.\n${vectorSearchResults}`;
+			return { messageId, toolResponse, bbaiResponse };
 		} catch (error) {
 			logger.error(`Error performing vector search: ${error.message}`);
 			throw createError(ErrorType.VectorSearch, `Error performing vector search: ${error.message}`, {

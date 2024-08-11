@@ -4,6 +4,7 @@ export type { ErrorObject as AjvErrorObject } from 'ajv';
 import { Status } from '@oak/oak';
 
 export enum ErrorType {
+	CommandExecution = 'CommandExecution',
 	API = 'APIError',
 	LLM = 'LLMError',
 	LLMRateLimit = 'RateLimitError',
@@ -19,6 +20,11 @@ export const ErrorTypes = [
 	ErrorType.FileHandling,
 	ErrorType.VectorSearch,
 ];
+
+export interface CommandExecutionErrorOptions extends ErrorOptions {
+	command: string;
+	args?: string[];
+}
 
 export interface ErrorOptions {
 	name: string;
@@ -111,7 +117,15 @@ export const isValidationError = (value: unknown): value is ValidationError => {
 
 export interface FileHandlingErrorOptions extends ErrorOptions {
 	filePath: string;
-	operation: 'read' | 'write' | 'delete' | 'patch' | 'search-replace' | 'search-project' | 'request-files';
+	operation:
+		| 'read'
+		| 'write'
+		| 'delete'
+		| 'patch'
+		| 'search-project'
+		| 'search-replace'
+		| 'request-files'
+		| 'remove-files';
 }
 
 export class FileHandlingError extends Error {

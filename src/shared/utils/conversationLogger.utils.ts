@@ -2,7 +2,7 @@ import { join } from '@std/path';
 import { ensureDir } from '@std/fs';
 
 import type { ConversationId, ConversationMetrics, TokenUsage } from 'shared/types.ts';
-import { getBbaiDir } from 'shared/dataDir.ts';
+import { getBbaiDataDir } from 'shared/dataDir.ts';
 import { LogFormatter } from 'shared/logFormatter.ts';
 //import { logger } from 'shared/logger.ts';
 import {
@@ -30,10 +30,10 @@ export class ConversationLogger {
 	) {}
 
 	async init(): Promise<ConversationLogger> {
-		const bbaiDir = await getBbaiDir(this.startDir);
-		const logsDir = join(bbaiDir, 'cache', 'conversations', this.conversationId);
-		await ensureDir(logsDir);
-		this.logFile = join(logsDir, 'conversation.log');
+		const bbaiDataDir = await getBbaiDataDir(this.startDir);
+		const conversationLogsDir = join(bbaiDataDir, 'conversations', this.conversationId);
+		await ensureDir(conversationLogsDir);
+		this.logFile = join(conversationLogsDir, 'conversation.log');
 		return this;
 	}
 

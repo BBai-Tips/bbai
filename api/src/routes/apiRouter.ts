@@ -5,56 +5,12 @@ import {
 	continueConversation,
 	deleteConversation,
 	getConversation,
-	startConversation,
+	listConversations,
 	undoConversation,
 } from './api/conversation.handlers.ts';
 import { websocketConversation } from './api/websocket.handlers.ts';
-// import WebSocketHandler from './api/websocket.handlers.ts';
-// import EventManager from 'shared/eventManager.ts';
 
 const apiRouter = new Router();
-/*
-const connectedClients = new Set<WebSocket>();
-
-const startConversationWithWebSocket = async (ctx: Context) => {
-	const result = await startConversation(ctx);
-	await broadcastConversationUpdate(result);
-	return result;
-};
-const continueConversationWithWebSocket = async (ctx: Context) => {
-	const result = await continueConversation(ctx);
-	await broadcastConversationUpdate(result);
-	return result;
-};
-async function broadcastConversationUpdate(update: any) {
-	for (const client of connectedClients) {
-		await client.send(JSON.stringify(update));
-	}
-}
-
-function handleWebSocketConnection(ws: WebSocket) {
-	connectedClients.add(ws);
-
-	ws.onclose = () => {
-		connectedClients.delete(ws);
-	};
-
-	ws.onmessage = (msg) => {
-		//try {
-		await speakWithEmitter.postAndWait({ ...data, createdBy });
-		ws.send({ isSuccessful: true });
-		//} catch {
-		//  ctx.throw(400);
-		//}
-	};
-
-	for await (const speakWithResponse of speakWithEmitter) {
-		//if (speakWithResponse.conversationId === conversationId) {
-		ws.send(JSON.stringify(speakWithResponse));
-		//}
-	}
-}
- */
 
 apiRouter
 	.get('/v1/status', (ctx: Context) => {
@@ -62,7 +18,8 @@ apiRouter
 	})
 	// Conversation endpoints
 	.get('/v1/ws/conversation/:id', websocketConversation)
-	.post('/v1/conversation', startConversation)
+	//.post('/v1/conversation', startConversation)
+	.get('/v1/conversation', listConversations)
 	.get('/v1/conversation/:id', getConversation)
 	.post('/v1/conversation/:id', continueConversation)
 	.delete('/v1/conversation/:id', deleteConversation)

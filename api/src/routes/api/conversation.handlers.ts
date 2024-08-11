@@ -3,7 +3,13 @@ import { logger } from 'shared/logger.ts';
 import ProjectEditorManager from '../../editor/projectEditorManager.ts';
 import { ConversationPersistence } from '../../utils/conversationPersistence.utils.ts';
 //import { speakWithEmitter } from "../emitters.ts";
-import { ConversationId } from 'shared/types.ts';
+import {
+	ConversationId,
+	ConversationMetadata,
+	ConversationResponse,
+	ConversationTokenUsage,
+	TokenUsage,
+} from 'shared/types.ts';
 
 /**
  * @openapi
@@ -163,11 +169,19 @@ export const continueConversation = async (
 		const projectEditor = await editorManager.getOrCreateEditor(conversationId, startDir);
 		await projectEditor.init();
 
-		const result = await projectEditor.handleStatement(statement);
+		const result: ConversationResponse = await projectEditor.handleStatement(statement);
 
 		logger.debug('Response received from handleStatement');
 		response.status = 200;
-		response.body = result;
+		response.body = {
+			conversationId: result.conversationId,
+			response: result.response,
+			messageMeta: result.messageMeta,
+			conversationTitle: result.conversationTitle,
+			conversationStats: result.conversationStats,
+			tokenUsageStatement: result.tokenUsageStatement,
+			tokenUsageConversation: result.tokenUsageConversation,
+		};
 	} catch (error) {
 		logger.error(`Error in continueConversation: ${error.message}`, error);
 		response.status = 500;
@@ -313,6 +327,7 @@ export const deleteConversation = async (
 export const listConversations = async (
 	{ request, response }: { request: Context['request']; response: Context['response'] },
 ) => {
+	const startDir = request.url.searchParams.get('startDir');
 	try {
 		const params = request.url.searchParams;
 		const page = params.get('page') || '1';
@@ -321,17 +336,31 @@ export const listConversations = async (
 		const endDate = params.get('endDate');
 		const llmProviderName = params.get('llmProviderName');
 
-		const conversations = await ConversationPersistence.listConversations({
+		if (!startDir) {
+			response.status = 400;
+			response.body = { error: 'Missing startDir parameter' };
+			return;
+		}
+
+		const conversations: ConversationMetadata[] = await ConversationPersistence.listConversations({
 			page: parseInt(page),
 			pageSize: parseInt(pageSize),
 			startDate: startDate ? new Date(startDate) : undefined,
 			endDate: endDate ? new Date(endDate) : undefined,
 			llmProviderName: llmProviderName || undefined,
+			startDir: startDir,
 		});
 
 		response.status = 200;
 		response.body = {
-			conversations,
+			conversations: conversations.map((conv) => ({
+				id: conv.id,
+				title: conv.title,
+				createdAt: conv.createdAt,
+				updatedAt: conv.updatedAt,
+				llmProviderName: conv.llmProviderName,
+				model: conv.model,
+			})),
 			pagination: {
 				page: parseInt(page),
 				pageSize: parseInt(pageSize),

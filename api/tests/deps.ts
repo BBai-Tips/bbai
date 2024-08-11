@@ -1,5 +1,15 @@
-import { assert, assertEquals, assertObjectMatch } from '@std/assert';
-export { assert, assertEquals, assertObjectMatch };
+import {
+	assert,
+	assertEquals,
+	assertExists,
+	assertObjectMatch,
+	assertRejects,
+	assertStringIncludes,
+} from '@std/assert';
+export { assert, assertEquals, assertExists, assertObjectMatch, assertRejects, assertStringIncludes };
+
+import { afterEach, beforeEach, describe, it } from '@std/testing/bdd';
+export { afterEach, beforeEach, describe, it };
 
 import { delay } from '@std/async';
 export { delay };

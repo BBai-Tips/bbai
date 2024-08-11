@@ -1,4 +1,4 @@
-import LLMTool, { LLMToolInputSchema } from '../llmTool.ts';
+import LLMTool, { LLMToolInputSchema, LLMToolRunResult } from '../llmTool.ts';
 import { LLMAnswerToolUse } from 'api/llms/llmMessage.ts';
 import ProjectEditor from '../../editor/projectEditor.ts';
 import { searchFiles } from '../../utils/fileHandling.utils.ts';
@@ -33,25 +33,30 @@ export class LLMToolSearchProject extends LLMTool {
 	async runTool(
 		toolUse: LLMAnswerToolUse,
 		projectEditor: ProjectEditor,
-	): Promise<{ messageId: string; feedback: string }> {
+	): Promise<LLMToolRunResult> {
 		const { toolInput } = toolUse;
 		const { pattern, file_pattern } = toolInput as { pattern: string; file_pattern?: string };
 
 		try {
 			const { files, errorMessage } = await searchFiles(projectEditor.projectRoot, pattern, file_pattern);
 
-			const resultMessage = `BBai has found ${files.length} files matching the pattern "${pattern}"${
+			const resultMessage = `${
+				errorMessage ? `Error: ${errorMessage}\n\n` : ''
+			}${files.length} files match the pattern "${pattern}"${
 				file_pattern ? ` with file pattern "${file_pattern}"` : ''
-			}:\n<files>\n${files.join('\n')}\n</files>`;
+			}${files.length > 0 ? `\n<files>\n${files.join('\n')}\n</files>` : ''}`;
 
-			const { messageId, feedback } = projectEditor.toolManager.finalizeToolUse(
+			const { messageId, toolResponse } = projectEditor.toolManager.finalizeToolUse(
 				toolUse,
 				resultMessage,
 				!!errorMessage,
 				projectEditor,
 			);
 
-			return { messageId, feedback: `${feedback}\n${resultMessage}` };
+			const bbaiResponse = `BBai found ${files.length} files matching the pattern "${pattern}"${
+				file_pattern ? ` with file pattern "${file_pattern}"` : ''
+			}$`;
+			return { messageId, toolResponse, bbaiResponse };
 		} catch (error) {
 			logger.error(`Error searching project: ${error.message}`);
 

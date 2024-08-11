@@ -4,6 +4,10 @@
 This document is primarily intended for the AI assistant to understand the project's conventions and guidelines. While you're welcome to read it, please be aware that changes to this file should only be made when explicitly instructed, as they directly affect how the AI interprets and works with the project.
 
 ## IMPORTANT NOTE FOR ASSISTANT
+
+Refer to LLM_INSTRUCTIONS.md as needed for guidance on project-specific files and their purposes. This file (CONVENTIONS.md) will always be available in the chat context, but other files should be requested when their specific information is required.
+
+
 DO NOT MAKE ANY CODE CHANGES UNTIL EXPLICITLY ASKED TO DO SO. The coding assistant will prompt for code changes. Respect those instructions but wait until explicitly told to write code.
 
 ## Project Overview
@@ -120,6 +124,8 @@ Key API Endpoints:
 - Controller files: use `.controller` (e.g., `auth.controller.ts`)
 - Middleware files: use `.middleware` (e.g., `error.middleware.ts`)
 - Model files: singular form without suffixes (e.g., `user.ts`)
+- Tool files: use `Tool` suffix (e.g., `searchAndReplaceTool.ts`)
+- Test files: match the name of the file being tested with `.test` suffix (e.g., `searchAndReplaceTool.test.ts`)
 
 ## Script Conventions
 - Include shebang line for Deno scripts
@@ -130,6 +136,9 @@ Key API Endpoints:
 - Sanitize and validate all data input
 - Restrict LLM access to files added to conversation by `bbai`
 - Prevent `bbai` from adding files outside the current git repo
+- Always use `isPathWithinProject` to ensure file operations are restricted to the project directory
+- Implement proper error handling for network requests in data retrieval tools
+- Sanitize and validate command inputs to prevent injection attacks in system command tools
 
 ## Testing & Documentation
 - Write unit tests using Deno's built-in testing functionality
@@ -137,6 +146,11 @@ Key API Endpoints:
 - Use JSDoc comments for code documentation
 - Use Swagger/OpenAPI comments for API endpoints
 - Create documentation site at https://bbai.tips
+- Refer to TESTING.md for comprehensive testing guidelines and current test coverage
+- Each tool should have its own test file in the `api/tests/llms/tools` directory
+- Tests should cover basic functionality, edge cases, and error scenarios
+- Use `Deno.test()` for creating test cases, with `sanitizeResources` and `sanitizeOps` set to `false`
+- Use a temporary directory for file-based tests to ensure a clean state for each test
 
 ## AI Integration
 - Use VoyageAI for code-specific embedding model
@@ -145,6 +159,10 @@ Key API Endpoints:
 - Create LLM provider abstraction layer
 - Implement pipelines for common conversations
 - Use embeddings for vector similarity for code chunks
+- Refer to NEW_TOOL.md for guidelines on creating new AI tools
+- Implement robust error handling and input validation for all AI tools
+- Ensure proper integration of new tools with the LLMToolManager
+- Consider different types of tools (file manipulation, data retrieval, system command) and their specific requirements
 
 ## Deployment
 - Support multiple package managers (brew, npm, cargo)

@@ -35,7 +35,7 @@ import LLMToolManager, { LLMToolManagerToolSetType } from '../llms/llmToolManage
 import { ConversationPersistence } from '../utils/conversationPersistence.utils.ts';
 import type { ConversationLoggerEntryType } from 'shared/conversationLogger.ts';
 import {
-	getBbaiCacheDir,
+	getBbaiDataDir,
 	getBbaiDir,
 	getProjectRoot,
 	readFromBbaiDir,
@@ -43,7 +43,7 @@ import {
 	writeToBbaiDir,
 } from 'shared/dataDir.ts';
 import { generateConversationTitle } from '../utils/conversation.utils.ts';
-import { runFormatCommand } from '../utils/project.utils.ts';
+//import { runFormatCommand } from '../utils/project.utils.ts';
 import { stageAndCommitAfterPatching } from '../utils/git.utils.ts';
 import EventManager, { EventPayloadMap } from 'shared/eventManager.ts';
 
@@ -64,7 +64,7 @@ class ProjectEditor {
 	public toolSet: LLMToolManagerToolSetType = 'coding';
 	public patchedFiles: Set<string> = new Set();
 	public patchContents: Map<string, string> = new Map();
-	private formatCommand: string = 'deno task format'; // Default format command
+	//private formatCommand: string = 'deno task format'; // Default format command
 	private _projectInfo: ProjectInfo = {
 		type: 'empty',
 		content: '',
@@ -89,7 +89,7 @@ class ProjectEditor {
 				conversationTitle: this.conversation.title,
 				content,
 				conversationStats,
-				tokenUsage,
+				tokenUsageStatement: tokenUsage,
 			};
 			this.eventManager.emit(
 				'projectEditor:conversationEntry',
@@ -127,7 +127,7 @@ class ProjectEditor {
 				conversationTitle: this.conversation.title,
 				content,
 				conversationStats,
-				tokenUsage,
+				tokenUsageStatement: tokenUsage,
 			};
 			this.eventManager.emit(
 				'projectEditor:conversationEntry',
@@ -176,8 +176,8 @@ class ProjectEditor {
 		return await getBbaiDir(this.startDir);
 	}
 
-	public async getBbaiCacheDir(): Promise<string> {
-		return await getBbaiCacheDir(this.startDir);
+	public async getBbaiDataDir(): Promise<string> {
+		return await getBbaiDataDir(this.startDir);
 	}
 
 	public async writeToBbaiDir(filename: string, content: string): Promise<void> {
@@ -290,8 +290,7 @@ class ProjectEditor {
 		logger.info(`Attempting to load existing conversation: ${conversationId}`);
 		let conversation: LLMConversationInteraction | null = null;
 		try {
-			const persistence = new ConversationPersistence(conversationId, this);
-			await persistence.init();
+			const persistence = await new ConversationPersistence(conversationId, this).init();
 
 			conversation = await persistence.loadConversation(this.llmProvider);
 			if (!conversation) {
@@ -315,11 +314,15 @@ class ProjectEditor {
 
 	async saveInitialConversationWithResponse(currentResponse: LLMSpeakWithResponse): Promise<void> {
 		try {
-			const persistence = new ConversationPersistence(this.conversation.id, this);
+			const persistence = await new ConversationPersistence(this.conversationId, this).init();
 			await persistence.saveConversation(this.conversation);
 			await persistence.saveMetadata({
-				statementCount: this.statementCount,
-				totalTurnCount: this.totalTurnCount,
+				conversationStats: {
+					statementCount: this.statementCount,
+					turnCount: this.turnCount,
+					totalTurnCount: this.totalTurnCount,
+				},
+				// totalTurnCount removed
 			});
 
 			// Save system prompt and project info if running in local development
@@ -337,11 +340,15 @@ class ProjectEditor {
 
 	async saveConversationAfterStatement(): Promise<void> {
 		try {
-			const persistence = new ConversationPersistence(this.conversation.id, this);
+			const persistence = await new ConversationPersistence(this.conversationId, this).init();
 			await persistence.saveConversation(this.conversation);
 			await persistence.saveMetadata({
-				statementCount: this.statementCount,
-				totalTurnCount: this.totalTurnCount,
+				conversationStats: {
+					statementCount: this.statementCount,
+					turnCount: this.turnCount,
+					totalTurnCount: this.totalTurnCount,
+				},
+				// totalTurnCount removed
 			});
 		} catch (error) {
 			logger.error(`Error persisting the conversation:`, error);
@@ -364,25 +371,20 @@ class ProjectEditor {
 		return generateConversationTitle(await this.createChat(), statement);
 	}
 
-	async handleStatement(
-		statement: string,
-	): Promise<{
-		response: LLMProviderMessageResponse;
-		messageMeta: LLMProviderMessageMeta;
-		conversationId: ConversationId;
-		conversationTitle: string;
-		conversationStats: ConversationMetrics;
-		tokenUsage: TokenUsage;
-	}> {
+	async handleStatement(statement: string): Promise<ConversationResponse> {
 		if (!statement) {
 			this.eventManager.emit(
 				'projectEditor:conversationError',
 				{
 					conversationId: this.conversation.id,
 					conversationTitle: this.conversation.title || '',
-					statementCount: this.statementCount,
+					conversationStats: {
+						statementCount: this.statementCount,
+						turnCount: this.turnCount,
+						totalTurnCount: this.totalTurnCount,
+					},
 					error: 'Missing statement',
-					code: 'EMPTY_PROMPT',
+					code: 'EMPTY_PROMPT' as const,
 				} as EventPayloadMap['projectEditor']['projectEditor:conversationError'],
 			);
 			throw new Error('Missing statement');
@@ -402,10 +404,15 @@ class ProjectEditor {
 
 		this.statementCount++;
 
-		const conversationReady: ConversationStart = {
+		const conversationReady: ConversationStart & { conversationStats: ConversationMetrics } = {
 			conversationId: this.conversation.id,
 			conversationTitle: this.conversation.title,
 			statementCount: this.statementCount,
+			conversationStats: {
+				statementCount: this.statementCount,
+				turnCount: this.turnCount,
+				totalTurnCount: this.totalTurnCount,
+			},
 		};
 		this.eventManager.emit(
 			'projectEditor:conversationReady',
@@ -447,14 +454,14 @@ class ProjectEditor {
 
 		while (this.turnCount < maxTurns) {
 			try {
-				// Handle tool calls and collect feedback
+				// Handle tool calls and collect toolResponse
 				let toolFeedback = '';
 				if (currentResponse.messageResponse.toolsUsed && currentResponse.messageResponse.toolsUsed.length > 0) {
 					for (const toolUse of currentResponse.messageResponse.toolsUsed) {
 						//logger.info('Handling tool', toolUse);
 						try {
-							const feedback = await this.handleToolUse(toolUse, currentResponse.messageResponse);
-							toolFeedback += feedback + '\n';
+							const toolResponse = await this.handleToolUse(toolUse, currentResponse.messageResponse);
+							toolFeedback += toolResponse + '\n';
 						} catch (error) {
 							logger.warn(`Error handling tool ${toolUse.toolName}: ${error.message}`);
 							toolFeedback += `Error with ${toolUse.toolName}: ${error.message}\n`;
@@ -462,7 +469,7 @@ class ProjectEditor {
 					}
 				}
 
-				// If there's tool feedback, send it back to the LLM
+				// If there's tool toolResponse, send it back to the LLM
 				if (toolFeedback) {
 					try {
 						await this.updateProjectInfo();
@@ -474,13 +481,26 @@ class ProjectEditor {
 						this.totalTurnCount++;
 
 						currentResponse = await this.conversation.speakWithLLM(statement, speakOptions);
+
+						/*
+						// Emit conversation entry event with updated stats
+						this.eventManager.emit(
+							'projectEditor:conversationEntry',
+							{
+								type: 'human',
+								timestamp: new Date().toISOString(),
+								content: statement,
+								...getConversationStats(),
+							} as EventPayloadMap['projectEditor']['projectEditor:conversationEntry']
+						);
+ */
 						//logger.info('tool response', currentResponse);
 					} catch (error) {
 						logger.error(`Error in LLM communication: ${error.message}`);
 						throw error; // This error is likely fatal, so we'll throw it to be caught by the outer try-catch
 					}
 				} else {
-					// No more tool feedback, exit the loop
+					// No more tool toolResponse, exit the loop
 					break;
 				}
 			} catch (error) {
@@ -501,7 +521,7 @@ class ProjectEditor {
 			}
 		}
 
-		if (this.formatCommand) await runFormatCommand(this.projectRoot, this.formatCommand);
+		//if (this.formatCommand) await runFormatCommand(this.projectRoot, this.formatCommand);
 
 		if (this.turnCount >= maxTurns) {
 			logger.warn(`Reached maximum number of turns (${maxTurns}) in conversation.`);
@@ -514,18 +534,46 @@ class ProjectEditor {
 		await this.saveConversationAfterStatement();
 		logger.info(`Final save of conversation: ${this.conversation.id}[${this.statementCount}][${this.turnCount}]`);
 
-		const statementAnswer = {
-			response: currentResponse.messageResponse,
-			messageMeta: currentResponse.messageMeta,
+		const getConversationStats = () => ({
 			conversationId: this.conversation.id || '',
 			conversationTitle: this.conversation.title || '',
+			conversationStats: {
+				conversationStats: {
+					statementCount: this.statementCount,
+					turnCount: this.turnCount,
+					totalTurnCount: this.totalTurnCount,
+				},
+				turnCount: this.turnCount,
+				// totalTurnCount removed
+			},
+			tokenUsage: currentResponse.messageResponse.usage || {
+				inputTokens: 0,
+				outputTokens: 0,
+				totalTokens: 0,
+			},
+		});
+
+		const statementAnswer: ConversationResponse = {
+			response: currentResponse.messageResponse,
+			messageMeta: currentResponse.messageMeta,
+			conversationId: this.conversation.id,
+			conversationTitle: this.conversation.title,
 			conversationStats: {
 				statementCount: this.statementCount,
 				turnCount: this.turnCount,
 				totalTurnCount: this.totalTurnCount,
 			},
-			tokenUsage: currentResponse.messageResponse.usage,
-		} as ConversationResponse;
+			tokenUsageStatement: currentResponse.messageResponse.usage || {
+				inputTokens: 0,
+				outputTokens: 0,
+				totalTokens: 0,
+			},
+			tokenUsageConversation: {
+				inputTokensTotal: this.conversation.getInputTokensTotal(),
+				outputTokensTotal: this.conversation.getOutputTokensTotal(),
+				totalTokensTotal: this.conversation.getTotalTokensTotal(),
+			},
+		};
 
 		this.eventManager.emit(
 			'projectEditor:conversationAnswer',
@@ -539,13 +587,27 @@ class ProjectEditor {
 		toolUse: LLMAnswerToolUse,
 		_response: unknown,
 	): Promise<string> {
-		const { messageId: _messageId, feedback, isError } = await this.toolManager.handleToolUse(toolUse, this);
-		//logger.debug(`handleToolUse for ${toolUse.toolName}` - got feedback from toolManager: ${feedback}`);
+		/*
+		this.conversation?.conversationLogger?.logToolUse(
+			toolUse.toolName,
+			JSON.stringify(toolUse.toolInput),
+		);
+ */
+		const { messageId: _messageId, toolResponse, bbaiResponse, isError } = await this.toolManager.handleToolUse(
+			toolUse,
+			this,
+		);
+		//logger.debug(`handleToolUse for ${toolUse.toolName}` - got toolResponse from toolManager: ${toolResponse}`);
+		//logger.debug(`handleToolUse for ${toolUse.toolName}` - got bbaiResponse from toolManager: ${bbaiResponse}`);
+		if (isError) {
+			this.conversation?.conversationLogger?.logError(`Tool Result (${toolUse.toolName}): ${toolResponse}`);
+		}
 		this.conversation?.conversationLogger?.logToolResult(
 			toolUse.toolName,
-			`BBai was ${isError ? 'unsuccessful' : 'successful'} with tool run: \n${feedback}`,
+			`BBai was ${isError ? 'unsuccessful' : 'successful'} with tool run: \n${bbaiResponse}`,
 		);
-		return feedback;
+
+		return toolResponse;
 	}
 
 	// prepareFilesForConversation is called by request_files tool and by add_file handler for user requests
@@ -560,7 +622,7 @@ class ProjectEditor {
 
 		for (const fileName of fileNames) {
 			try {
-				if (!isPathWithinProject(this.projectRoot, fileName)) {
+				if (!await isPathWithinProject(this.projectRoot, fileName)) {
 					throw new Error(`Access denied: ${fileName} is outside the project directory`);
 				}
 
@@ -576,12 +638,15 @@ class ProjectEditor {
 				logger.info(`ProjectEditor has prepared file ${fileName}`);
 			} catch (error) {
 				logger.error(`Error adding file ${fileName}: ${error.message}`);
+				// [TODO] Sanitize the error message so it doesn't send (eg) fill file path
+				//const errorMessage = error.message.includes('No such file or directory') ? 'File Not Found' : '';
+				const errorMessage = error.message;
 				filesAdded.push({
 					fileName,
 					metadata: {
 						size: 0,
 						lastModified: new Date(),
-						error: error.message,
+						error: errorMessage,
 					},
 				});
 			}
@@ -606,7 +671,7 @@ class ProjectEditor {
 			throw new Error('No active conversation. Cannot revert patch.');
 		}
 
-		const persistence = new ConversationPersistence(this.conversation.id, this);
+		const persistence = await new ConversationPersistence(this.conversationId, this).init();
 		const patchLog = await persistence.getPatchLog();
 
 		if (patchLog.length === 0) {

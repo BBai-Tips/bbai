@@ -1,4 +1,4 @@
-import LLMTool, { LLMToolInputSchema } from '../llmTool.ts';
+import LLMTool, { LLMToolInputSchema, LLMToolRunResult } from '../llmTool.ts';
 import { LLMAnswerToolUse } from 'api/llms/llmMessage.ts';
 import ProjectEditor from '../../editor/projectEditor.ts';
 import { isPathWithinProject } from '../../utils/fileHandling.utils.ts';
@@ -38,12 +38,12 @@ export class LLMToolApplyPatch extends LLMTool {
 	async runTool(
 		toolUse: LLMAnswerToolUse,
 		projectEditor: ProjectEditor,
-	): Promise<{ messageId: string; feedback: string }> {
+	): Promise<LLMToolRunResult> {
 		const { toolUseId: _toolUseId, toolInput } = toolUse;
 
 		const { filePath, patch } = toolInput as { filePath: string; patch: string };
 
-		if (!isPathWithinProject(projectEditor.projectRoot, filePath)) {
+		if (!await isPathWithinProject(projectEditor.projectRoot, filePath)) {
 			throw createError(ErrorType.FileHandling, `Access denied: ${filePath} is outside the project directory`, {
 				name: 'apply-patch',
 				filePath,
@@ -110,14 +110,14 @@ export class LLMToolApplyPatch extends LLMTool {
 				await persistence.logPatch(filePath, patch);
 				await projectEditor.stageAndCommitAfterPatching();
 			}
-			const { messageId, feedback } = projectEditor.toolManager.finalizeToolUse(
+			const { messageId, toolResponse } = projectEditor.toolManager.finalizeToolUse(
 				toolUse,
 				`Patch applied to file: ${filePath}`,
 				false,
 				projectEditor,
 			);
-
-			return { messageId, feedback: `${feedback}\nBBai has applied patch successfully to file: ${filePath}` };
+			const bbaiResponse = `BBai has applied patch successfully to file: ${filePath}`;
+			return { messageId, toolResponse, bbaiResponse };
 		} catch (error) {
 			let errorMessage: string;
 			if (error instanceof Deno.errors.NotFound) {

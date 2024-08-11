@@ -2,7 +2,7 @@
 import { join } from '@std/path';
 import { BufReader } from '@std/io';
 
-import { getBbaiDir } from 'shared/dataDir.ts';
+import { getBbaiDataDir } from 'shared/dataDir.ts';
 import { ConversationId, ConversationMetrics, TokenUsage } from 'shared/types.ts';
 
 const ANSI_RESET = '\x1b[0m';
@@ -180,8 +180,9 @@ export async function displayFormattedLogs(
 	follow = false,
 ): Promise<void> {
 	const formatter = new LogFormatter();
-	const bbaiDir = await getBbaiDir(Deno.cwd());
-	const logFile = join(bbaiDir, 'cache', 'conversations', conversationId, 'conversation.log');
+
+	const bbaiDataDir = await getBbaiDataDir(Deno.cwd());
+	const logFile = join(bbaiDataDir, 'conversations', conversationId, 'conversation.log');
 
 	const processEntry = (entry: string) => {
 		//console.debug('Debug: Raw entry before processing:\n', entry.trimStart());
@@ -247,8 +248,8 @@ export async function writeLogEntry(
 	conversationStats: ConversationMetrics,
 	tokenUsage: TokenUsage,
 ): Promise<void> {
-	const bbaiDir = await getBbaiDir(Deno.cwd());
-	const logFile = join(bbaiDir, 'cache', 'conversations', conversationId, 'conversation.log');
+	const bbaiDataDir = await getBbaiDataDir(Deno.cwd());
+	const logFile = join(bbaiDataDir, 'conversations', conversationId, 'conversation.log');
 
 	const timestamp = new Date().toISOString();
 	const entry = LogFormatter.createRawEntryWithSeparator(type, timestamp, message, conversationStats, tokenUsage);
@@ -262,8 +263,8 @@ export async function writeLogEntry(
 }
 
 export async function countLogEntries(conversationId: ConversationId): Promise<number> {
-	const bbaiDir = await getBbaiDir(Deno.cwd());
-	const logFile = join(bbaiDir, 'cache', 'conversations', conversationId, 'conversation.log');
+	const bbaiDataDir = await getBbaiDataDir(Deno.cwd());
+	const logFile = join(bbaiDataDir, 'conversations', conversationId, 'conversation.log');
 
 	try {
 		const content = await Deno.readTextFile(logFile);

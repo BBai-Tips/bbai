@@ -11,7 +11,7 @@ import type {
 	LLMMessageProviderResponse,
 } from '../llmMessage.ts';
 import LLMMessage from 'api/llms/llmMessage.ts';
-import LLMTool from '../llmTool.ts';
+import LLMTool, { LLMToolRunResultContent } from '../llmTool.ts';
 import { ConversationLogger, ConversationLoggerEntryType } from 'shared/conversationLogger.ts';
 import { crypto } from '@std/crypto';
 import { logger } from 'shared/logger.ts';
@@ -136,26 +136,28 @@ class LLMInteraction {
 
 	public addMessageForToolResult(
 		toolUseId: string,
-		content: string | LLMMessageContentPart | LLMMessageContentParts,
+		toolRunResultContent: LLMToolRunResultContent,
 		isError: boolean = false,
 	): string {
 		const toolResult = {
 			type: 'tool_result',
 			tool_use_id: toolUseId,
-			content: Array.isArray(content) ? content : [
-				typeof content !== 'string' ? content : {
+			content: Array.isArray(toolRunResultContent) ? toolRunResultContent : [
+				typeof toolRunResultContent !== 'string' ? toolRunResultContent : {
 					'type': 'text',
-					'text': content,
+					'text': toolRunResultContent,
 				} as LLMMessageContentPartTextBlock,
 			],
 			is_error: isError,
 		} as LLMMessageContentPartToolResultBlock;
 
+		/*
 		if (isError) {
-			this.conversationLogger?.logError(`Tool Result (${toolUseId}): ${content}`);
+			this.conversationLogger?.logError(`Tool Result (${toolUseId}): ${JSON.stringify(toolRunResultContent)}`);
 		} else {
-			this.conversationLogger?.logToolResult(toolUseId, content);
+			this.conversationLogger?.logToolResult(toolUseId, toolRunResultContent);
 		}
+ */
 
 		const lastMessage = this.getLastMessage();
 		if (lastMessage && lastMessage.role === 'user') {
@@ -364,7 +366,7 @@ class LLMInteraction {
 		};
 		const tokenUsage: TokenUsage = response.messageResponse.usage;
 
-		this.conversationLogger.logAssistantMessage(msg, conversationStats, tokenUsage);
+		//this.conversationLogger.logAssistantMessage(msg, conversationStats, tokenUsage);
 
 		return response;
 	}

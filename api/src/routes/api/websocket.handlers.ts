@@ -91,7 +91,8 @@ class WebSocketHandler {
 		}
 
 		try {
-			await projectEditor?.handleStatement(statement);
+			const _result = await projectEditor?.handleStatement(statement);
+			//logger.debug(`handleStatement result: ${JSON.stringify(result)}`);
 		} catch (error) {
 			logger.error('Error handling statement:', error);
 			this.eventManager.emit('projectEditor:conversationError', {
@@ -147,6 +148,7 @@ class WebSocketHandler {
 
 	// Method to send messages back to the client
 	private sendMessage(ws: WebSocket, type: string, data: any) {
+		//logger.debug(`Sending WebSocket message: type=${type}, data=${JSON.stringify(data)}`);
 		//logger.debug('WebSocketHandler-sendMessage called');
 		ws.send(JSON.stringify({ type, data }));
 	}

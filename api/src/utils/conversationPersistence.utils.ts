@@ -1,8 +1,17 @@
 import { ensureDir, exists } from '@std/fs';
 import { join } from '@std/path';
+import { getProjectRoot } from 'shared/dataDir.ts';
 import LLMConversationInteraction from '../llms/interactions/conversationInteraction.ts';
 import LLM from '../llms/providers/baseLLM.ts';
-import { ConversationId } from 'shared/types.ts';
+import {
+	ConversationDetailedMetadata,
+	ConversationId,
+	ConversationMetadata,
+	ConversationMetrics,
+	ConversationTokenUsage,
+	TokenUsage,
+} from 'shared/types.ts';
+
 import { logger } from 'shared/logger.ts';
 import { config } from 'shared/configManager.ts';
 import { createError, ErrorType } from './error.utils.ts';
@@ -16,7 +25,7 @@ export class ConversationPersistence {
 	private metadataPath!: string;
 	private messagesPath!: string;
 	private patchLogPath!: string;
-	private conversationMappingPath!: string;
+	private conversationsMetadataPath!: string;
 	private filesDir!: string;
 	private initialized: boolean = false;
 
@@ -32,57 +41,115 @@ export class ConversationPersistence {
 	}
 
 	async init(): Promise<ConversationPersistence> {
-		const bbaiDir = await this.projectEditor.getBbaiDir();
-		const conversationDir = join(bbaiDir, 'cache', 'conversations');
-		this.conversationDir = join(conversationDir, this.conversationId);
+		const bbaiDataDir = await this.projectEditor.getBbaiDataDir();
+		const conversationsDir = join(bbaiDataDir, 'conversations');
+		this.conversationsMetadataPath = join(bbaiDataDir, 'conversations.json');
+
+		this.conversationDir = join(conversationsDir, this.conversationId);
 		await ensureDir(this.conversationDir);
 
 		this.metadataPath = join(this.conversationDir, 'metadata.json');
 		this.messagesPath = join(this.conversationDir, 'messages.jsonl');
 		this.patchLogPath = join(this.conversationDir, 'patches.jsonl');
-		this.conversationMappingPath = join(this.conversationDir, 'conversation_mapping.json');
 		this.filesDir = join(this.conversationDir, 'files');
 		await ensureDir(this.filesDir);
 		return this;
 	}
 
-	static async listConversations(_options: {
+	static async listConversations(options: {
 		page: number;
 		pageSize: number;
 		startDate?: Date;
 		endDate?: Date;
 		llmProviderName?: string;
-	}): Promise<any[]> {
-		// TODO: Implement actual conversation listing logic
-		// This is a placeholder implementation
-		return [];
+		startDir: string;
+	}): Promise<ConversationMetadata[]> {
+		const projectRoot = await getProjectRoot(options.startDir);
+		const bbaiDataDir = join(projectRoot, '.bbai', 'data');
+		const conversationsDir = join(bbaiDataDir, 'conversations');
+		const conversationsMetadataPath = join(bbaiDataDir, 'conversations.json');
+
+		if (!await exists(conversationsMetadataPath)) {
+			await Deno.writeTextFile(conversationsMetadataPath, JSON.stringify([]));
+			return [];
+		}
+
+		const content = await Deno.readTextFile(conversationsMetadataPath);
+		let conversations: ConversationMetadata[] = JSON.parse(content);
+
+		// Apply filters
+		if (options.startDate) {
+			conversations = conversations.filter((conv) => new Date(conv.createdAt) >= options.startDate!);
+		}
+		if (options.endDate) {
+			conversations = conversations.filter((conv) => new Date(conv.createdAt) <= options.endDate!);
+		}
+		if (options.llmProviderName) {
+			conversations = conversations.filter((conv) => conv.llmProviderName === options.llmProviderName);
+		}
+
+		// Apply pagination
+		const startIndex = (options.page - 1) * options.pageSize;
+		conversations = conversations.slice(startIndex, startIndex + options.pageSize);
+
+		return conversations;
 	}
 
 	async saveConversation(conversation: LLMConversationInteraction): Promise<void> {
 		try {
 			await this.ensureInitialized();
-			await this.updateConversationMapping(conversation.id, conversation.title);
 
-			const metadata = {
+			logger.info(`Preparing to save metadata at project level for conversation: ${conversation.id}`);
+
+			const metadata: ConversationMetadata = {
 				id: conversation.id,
 				title: conversation.title,
 				llmProviderName: conversation.llmProviderName,
-				system: conversation.baseSystem,
 				model: conversation.model,
-				maxTokens: conversation.maxTokens,
-				temperature: conversation.temperature,
-				turnCount: conversation.turnCount,
-				totalTokenUsage: conversation.totalTokenUsage,
-				tools: conversation.getAllTools(),
-				//tools: this.projectEditor.toolManager.getAllTools(),
-				// following attributes are for reference only; they are not set when conversation is loaded
-				projectInfoType: this.projectEditor.projectInfo.type,
-				projectInfoTier: this.projectEditor.projectInfo.tier,
-				projectInfoContent: '',
+				createdAt: new Date().toISOString(),
+				updatedAt: new Date().toISOString(),
 			};
 
+			await this.updateConversationsMetadata(metadata);
+
+			logger.info(`Saved metadata to project level for conversation: ${conversation.id}`);
+
+			const detailedMetadata: ConversationDetailedMetadata = {
+				...metadata,
+				system: conversation.baseSystem,
+				temperature: conversation.temperature,
+				maxTokens: conversation.maxTokens,
+
+				conversationStats: {
+					statementCount: conversation.statementCount,
+					turnCount: conversation.turnCount,
+					totalTurnCount: conversation.getTotalTurnCount(),
+				},
+				tokenUsage: {
+					inputTokensTotal: conversation.getInputTokensTotal(),
+					outputTokensTotal: conversation.getOutputTokensTotal(),
+					totalTokensTotal: conversation.getTotalTokensTotal(),
+				},
+
+				tools: conversation.getAllTools().map((tool) => ({ name: tool.name, description: tool.description })),
+
+				// following attributes are for reference only; they are not set when conversation is loaded
+				projectInfoType: this.projectEditor.projectInfo.type,
+				projectInfoTier: this.projectEditor.projectInfo.tier ?? undefined,
+				projectInfoContent: this.projectEditor.projectInfo.content,
+			};
+
+			logger.info(`Preparing to save metadata for conversation: ${conversation.id}`);
+
+			await Deno.writeTextFile(
+				join(this.conversationDir, 'metadata.json'),
+				JSON.stringify(detailedMetadata, null, 2),
+			);
+			logger.info(`Read metadata for conversation: ${conversation.id}`);
+
+			// projectInfoContent is only included for 'localdev' environment
 			if (config.api?.environment === 'localdev') {
-				metadata.projectInfoContent = this.projectEditor.projectInfo.content;
+				(metadata as any).projectInfoContent = this.projectEditor.projectInfo.content;
 			}
 
 			await Deno.writeTextFile(this.metadataPath, JSON.stringify(metadata, null, 2));
@@ -134,7 +201,7 @@ export class ConversationPersistence {
 			}
 
 			const metadataContent = await Deno.readTextFile(this.metadataPath);
-			const metadata = JSON.parse(metadataContent);
+			const metadata: ConversationDetailedMetadata = JSON.parse(metadataContent);
 			const conversation = new LLMConversationInteraction(llm, this.conversationId);
 			await conversation.init();
 
@@ -144,8 +211,12 @@ export class ConversationPersistence {
 			conversation.model = metadata.model;
 			conversation.maxTokens = metadata.maxTokens;
 			conversation.temperature = metadata.temperature;
-			conversation.updateTotals(metadata.totalTokenUsage, metadata.turnCount);
-			conversation.addTools(metadata.tools);
+			conversation.updateTotals({
+				inputTokens: metadata.tokenUsage.inputTokensTotal,
+				outputTokens: metadata.tokenUsage.outputTokensTotal,
+				totalTokens: metadata.tokenUsage.totalTokensTotal,
+			}, metadata.conversationStats.turnCount);
+			//conversation.addTools((metadata.tools || []).map(tool => ({ ...tool, input_schema: {}, validateInput: () => true, runTool: async () => ({ result: '' }) })));
 
 			if (await exists(this.messagesPath)) {
 				const messagesContent = await Deno.readTextFile(this.messagesPath);
@@ -192,65 +263,61 @@ export class ConversationPersistence {
 		}
 	}
 
-	private async updateConversationMapping(id: string, title: string): Promise<void> {
-		let mapping: {
-			idToTitle: Record<string, string>;
-			titleToId: Record<string, string>;
-		} = {
-			idToTitle: {},
-			titleToId: {},
-		};
+	private async updateConversationsMetadata(conversation: ConversationMetadata): Promise<void> {
+		let conversations: ConversationMetadata[] = [];
 
-		if (await exists(this.conversationMappingPath)) {
-			const content = await Deno.readTextFile(this.conversationMappingPath);
-			mapping = JSON.parse(content);
+		if (await exists(this.conversationsMetadataPath)) {
+			const content = await Deno.readTextFile(this.conversationsMetadataPath);
+			conversations = JSON.parse(content);
 		}
 
-		// Update both mappings
-		mapping.idToTitle[id] = title;
-		mapping.titleToId[title] = id;
+		const index = conversations.findIndex((conv) => conv.id === conversation.id);
+		if (index !== -1) {
+			conversations[index] = conversation;
+		} else {
+			conversations.push(conversation);
+		}
 
 		await Deno.writeTextFile(
-			this.conversationMappingPath,
-			JSON.stringify(mapping, null, 2),
+			this.conversationsMetadataPath,
+			JSON.stringify(conversations, null, 2),
 		);
 
 		logger.info(
-			`Updated conversation mapping for conversation: ${id} with title: ${title}`,
+			`Updated conversations metadata for conversation: ${conversation.id}`,
 		);
 	}
 
 	async getConversationIdByTitle(title: string): Promise<string | null> {
-		if (await exists(this.conversationMappingPath)) {
-			const content = await Deno.readTextFile(this.conversationMappingPath);
-			const mapping = JSON.parse(content);
-			return mapping.titleToId[title] || null;
+		if (await exists(this.conversationsMetadataPath)) {
+			const content = await Deno.readTextFile(this.conversationsMetadataPath);
+			const conversations: ConversationMetadata[] = JSON.parse(content);
+			const conversation = conversations.find((conv) => conv.title === title);
+			return conversation ? conversation.id : null;
 		}
 		return null;
 	}
 
 	async getConversationTitleById(id: string): Promise<string | null> {
-		if (await exists(this.conversationMappingPath)) {
-			const content = await Deno.readTextFile(this.conversationMappingPath);
-			const mapping = JSON.parse(content);
-			return mapping.idToTitle[id] || null;
+		if (await exists(this.conversationsMetadataPath)) {
+			const content = await Deno.readTextFile(this.conversationsMetadataPath);
+			const conversations: ConversationMetadata[] = JSON.parse(content);
+			const conversation = conversations.find((conv) => conv.id === id);
+			return conversation ? conversation.title : null;
 		}
 		return null;
 	}
 
 	async getAllConversations(): Promise<{ id: string; title: string }[]> {
-		if (await exists(this.conversationMappingPath)) {
-			const content = await Deno.readTextFile(this.conversationMappingPath);
-			const mapping = JSON.parse(content) as {
-				idToTitle: Record<string, string>;
-				titleToId: Record<string, string>;
-			};
-			return Object.entries(mapping.idToTitle).map(([id, title]) => ({ id, title }));
+		if (await exists(this.conversationsMetadataPath)) {
+			const content = await Deno.readTextFile(this.conversationsMetadataPath);
+			const conversations: ConversationMetadata[] = JSON.parse(content);
+			return conversations.map(({ id, title }) => ({ id, title }));
 		}
 		return [];
 	}
 
-	async saveMetadata(metadata: { statementCount: number; totalTurnCount: number }): Promise<void> {
+	async saveMetadata(metadata: Partial<ConversationDetailedMetadata>): Promise<void> {
 		await this.ensureInitialized();
 		const existingMetadata = await this.getMetadata();
 		const updatedMetadata = { ...existingMetadata, ...metadata };

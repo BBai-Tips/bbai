@@ -118,57 +118,55 @@ class LLMConversationInteraction extends LLMInteraction {
 		return system;
 	}
 
-	protected async hydrateMessages(messages: LLMMessage[]): Promise<LLMMessage[]> {
+	async hydrateMessages(messages: LLMMessage[]): Promise<LLMMessage[]> {
 		const hydratedFiles = new Map<string, number>();
 
 		const processContentPart = async <T extends LLMMessageContentPart>(
 			contentPart: T,
 			messageId: string,
+			turnIndex: number,
 		): Promise<T> => {
 			if (contentPart.type === 'text' && contentPart.text.startsWith('File added:')) {
 				const filePath = contentPart.text.split(': ')[1].trim();
-				const currentTurn = messages.length - messages.findIndex((m) => m.id === messageId);
-				const lastHydratedTurn = hydratedFiles.get(filePath) || 0;
 
-				if (currentTurn > lastHydratedTurn) {
-					logger.info(
-						`Hydrating message for file: ${filePath} - Current Turn: ${currentTurn}, Last Hydrated Turn: ${lastHydratedTurn}`,
-					);
+				if (!hydratedFiles.has(filePath)) {
+					logger.info(`Hydrating message for file: ${filePath} - Turn: ${turnIndex}`);
 					const fileXml = await this.createFileXmlString(filePath);
 					if (fileXml) {
-						hydratedFiles.set(filePath, currentTurn);
+						hydratedFiles.set(filePath, turnIndex);
 						return { ...contentPart, text: fileXml } as T;
 					}
 				} else {
+					const lastHydratedTurn = hydratedFiles.get(filePath)!;
 					logger.info(
-						`Skipping hydration for file: ${filePath} - Current Turn: ${currentTurn}, Last Hydrated Turn: ${lastHydratedTurn}`,
+						`Skipping hydration for file: ${filePath} - Current Turn: ${turnIndex}, Last Hydrated Turn: ${lastHydratedTurn}`,
 					);
 					return {
 						...contentPart,
 						text: `Note: File ${filePath} content is up-to-date as of turn ${lastHydratedTurn}.`,
 					} as T;
 				}
-				//} else {
-				//	logger.debug(`Skipping content part: ${contentPart.type}`);
 			}
 			if (contentPart.type === 'tool_result' && Array.isArray(contentPart.content)) {
 				const updatedContent = await Promise.all(
-					contentPart.content.map((part) => processContentPart(part, messageId)),
+					contentPart.content.map((part) => processContentPart(part, messageId, turnIndex)),
 				);
 				return { ...contentPart, content: updatedContent } as T;
 			}
 			return contentPart;
 		};
 
-		const processMessage = async (message: LLMMessage): Promise<LLMMessage> => {
+		const processMessage = async (message: LLMMessage, index: number): Promise<LLMMessage> => {
 			if (!message || typeof message !== 'object') {
 				logger.error(`Invalid message encountered: ${JSON.stringify(message)}`);
 				return message;
 			}
 			if (message.role === 'user') {
-				const updatedContent = await Promise.all(
-					message.content.map((part) => processContentPart(part, message.id || '')),
-				);
+				const updatedContent = [];
+				for (const part of message.content) {
+					const processedPart = await processContentPart(part, message.id || '', index);
+					updatedContent.push(processedPart);
+				}
 				const updatedMessage = new LLMMessage(
 					message.role,
 					updatedContent,
@@ -182,7 +180,11 @@ class LLMConversationInteraction extends LLMInteraction {
 		};
 
 		const reversedMessages = [...messages].reverse();
-		const processedMessages = await Promise.all(reversedMessages.map(processMessage));
+		const processedMessages = [];
+		for (let i = 0; i < reversedMessages.length; i++) {
+			const processedMessage = await processMessage(reversedMessages[i], i);
+			processedMessages.push(processedMessage);
+		}
 		return processedMessages.reverse();
 	}
 
@@ -327,6 +329,26 @@ class LLMConversationInteraction extends LLMInteraction {
 
 	public get statementCount(): number {
 		return this._statementCount;
+	}
+
+	public getTotalTurnCount(): number {
+		return this._turnCount;
+	}
+
+	public getInputTokensTotal(): number {
+		return this.totalTokenUsage.inputTokens;
+	}
+
+	public getOutputTokensTotal(): number {
+		return this.totalTokenUsage.outputTokens;
+	}
+
+	public getTotalTokensTotal(): number {
+		return this.totalTokenUsage.totalTokens;
+	}
+
+	public getTokenUsage(): TokenUsage {
+		return this.totalTokenUsage;
 	}
 
 	// converse is called for first turn in a statement; subsequent turns call speakWithLLM

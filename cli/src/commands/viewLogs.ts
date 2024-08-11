@@ -21,7 +21,7 @@ export const viewLogs = new Command()
 
 		const bbaiDir = await getBbaiDir(Deno.cwd());
 		const logFile = !options.api && options.id
-			? join('cache', 'conversations', options.id, 'conversation.log')
+			? join('data', 'conversations', options.id, 'conversation.log')
 			: config.logFile ?? 'api.log';
 		const logFilePath = join(bbaiDir, logFile);
 

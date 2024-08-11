@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+
+
+## [0.0.7-alpha] - 2024-08-05
+
+### Changed
+
 - Added websocket support for live updates of conversation logging
 - Added event manager
 - Added manager for project editors

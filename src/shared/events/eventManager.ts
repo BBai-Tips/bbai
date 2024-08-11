@@ -1,6 +1,12 @@
 import type { ConversationLoggerEntryType } from 'shared/conversationLogger.ts';
 import { LLMProviderMessageMeta, LLMProviderMessageResponse } from 'api/types/llms.ts';
-import { ConversationEntry, ConversationId, ConversationResponse, ConversationStart } from 'shared/types.ts';
+import {
+	ConversationEntry,
+	ConversationId,
+	ConversationMetrics,
+	ConversationResponse,
+	ConversationStart,
+} from 'shared/types.ts';
 
 export type EventMap = {
 	projectEditor: {
@@ -11,7 +17,7 @@ export type EventMap = {
 		conversationError: {
 			conversationId: ConversationId;
 			conversationTitle: string;
-			statementCount: number;
+			conversationStats: ConversationMetrics;
 			error: string;
 			code?:
 				| 'INVALID_CONVERSATION_ID'
@@ -27,6 +33,7 @@ export type EventMap = {
 		conversationReady: ConversationStart;
 		conversationEntry: ConversationEntry;
 		conversationAnswer: ConversationResponse;
+		websocketReconnected: { conversationId: ConversationId };
 	};
 	logs: Record<string, unknown>;
 	files: Record<string, unknown>;

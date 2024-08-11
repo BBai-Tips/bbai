@@ -17,6 +17,7 @@ import { conversationStart } from './commands/conversationStart.ts';
 //import { filesRemove } from './commands/filesRemove.ts';
 //import { filesList } from './commands/filesList.ts';
 import { viewLogs } from './commands/viewLogs.ts';
+import { conversationList } from './commands/conversationList.ts';
 import { init } from './commands/init.ts';
 
 //logger.debug('CLI Config:', config.cli);
@@ -42,6 +43,7 @@ const cli = new Command()
 	//.command('remove', filesRemove)
 	//.command('list', filesList)
 	.command('logs', viewLogs)
+	.command('list', conversationList)
 	// the api commands are all a group, but they should have top-level entries
 	.command('start', apiStart)
 	.command('stop', apiStop)

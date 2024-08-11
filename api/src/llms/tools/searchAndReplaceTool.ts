@@ -1,4 +1,4 @@
-import LLMTool, { LLMToolInputSchema } from '../llmTool.ts';
+import LLMTool, { LLMToolInputSchema, LLMToolRunResult } from '../llmTool.ts';
 import { LLMAnswerToolUse } from 'api/llms/llmMessage.ts';
 import ProjectEditor from '../../editor/projectEditor.ts';
 import { createError, ErrorType } from '../../utils/error.utils.ts';
@@ -22,7 +22,7 @@ export class LLMToolSearchAndReplace extends LLMTool {
 			properties: {
 				filePath: {
 					type: 'string',
-					description: 'The path of the file to be modified',
+					description: 'The path of the file to be modified or created',
 				},
 				operations: {
 					type: 'array',
@@ -44,6 +44,10 @@ export class LLMToolSearchAndReplace extends LLMTool {
 					},
 					description: 'List of literal search and replace operations to apply',
 				},
+				createIfMissing: {
+					type: 'boolean',
+					description: 'Create the file if it does not exist',
+				},
 			},
 			required: ['filePath', 'operations'],
 		};
@@ -52,14 +56,15 @@ export class LLMToolSearchAndReplace extends LLMTool {
 	async runTool(
 		toolUse: LLMAnswerToolUse,
 		projectEditor: ProjectEditor,
-	): Promise<{ messageId: string; feedback: string }> {
+	): Promise<LLMToolRunResult> {
 		const { toolUseId: _toolUseId, toolInput } = toolUse;
-		const { filePath, operations } = toolInput as {
+		const { filePath, operations, createIfMissing = false } = toolInput as {
 			filePath: string;
 			operations: Array<{ search: string; replace: string }>;
+			createIfMissing?: boolean;
 		};
 
-		if (!isPathWithinProject(projectEditor.projectRoot, filePath)) {
+		if (!await isPathWithinProject(projectEditor.projectRoot, filePath)) {
 			throw createError(ErrorType.FileHandling, `Access denied: ${filePath} is outside the project directory`, {
 				name: 'search-and-replace',
 				filePath,
@@ -71,7 +76,19 @@ export class LLMToolSearchAndReplace extends LLMTool {
 		logger.info(`Handling search and replace for file: ${fullFilePath}`);
 
 		try {
-			let content = await Deno.readTextFile(fullFilePath);
+			let content: string;
+			let fileCreated = false;
+			try {
+				content = await Deno.readTextFile(fullFilePath);
+			} catch (error) {
+				if (error instanceof Deno.errors.NotFound && createIfMissing) {
+					content = '';
+					fileCreated = true;
+					logger.info(`File ${fullFilePath} not found. Creating new file.`);
+				} else {
+					throw error;
+				}
+			}
 
 			let changesMade = false;
 			let allOperationsSkipped = true;
@@ -103,7 +120,7 @@ export class LLMToolSearchAndReplace extends LLMTool {
 				toolWarning = `Tool Use Warnings: \n${toolWarnings.join('\n')}\n`;
 			}
 
-			if (changesMade) {
+			if (changesMade || fileCreated) {
 				await Deno.writeTextFile(fullFilePath, content);
 				projectEditor.patchedFiles.add(filePath);
 				projectEditor.patchContents.set(filePath, JSON.stringify(operations));
@@ -115,17 +132,17 @@ export class LLMToolSearchAndReplace extends LLMTool {
 					await persistence.logPatch(filePath, JSON.stringify(operations));
 					await projectEditor.stageAndCommitAfterPatching();
 				}
-				const { messageId, feedback } = projectEditor.toolManager.finalizeToolUse(
+				const { messageId, toolResponse } = projectEditor.toolManager.finalizeToolUse(
 					toolUse,
-					`Search and replace operations applied successfully to file: ${filePath}`,
+					fileCreated
+						? `File created and search and replace operations applied successfully to file: ${filePath}`
+						: `Search and replace operations applied successfully to file: ${filePath}`,
 					false,
 					projectEditor,
 				);
 
-				return {
-					messageId,
-					feedback: `${feedback}\n${toolWarning}`,
-				};
+				const bbaiResponse = `BBai applied search and replace operations: ${toolWarning}`;
+				return { messageId, toolResponse, bbaiResponse };
 			} else {
 				const noChangesMessage = allOperationsSkipped
 					? `${toolWarning}No changes were made to the file: ${filePath}. All operations were skipped due to identical search and replace strings.`

@@ -4,32 +4,23 @@ import { apiClient } from './apiClient.ts';
 
 export class WebsocketManager {
 	public ws: WebSocket | null = null;
+	private MAX_RETRIES = 5;
+	private BASE_DELAY = 1000; // 1 second
+	private retryCount = 0;
 
 	async setupWebsocket(conversationId?: ConversationId): Promise<void> {
-		const MAX_RETRIES = 5;
-		const BASE_DELAY = 1000; // 1 second
-		let retryCount = 0;
-
 		const connectWebSocket = async (): Promise<WebSocket> => {
 			try {
 				//console.log('WebsocketManager: Attempting to connect to WebSocket');
 				return await apiClient.connectWebSocket(`/api/v1/ws/conversation/${conversationId}`);
 			} catch (error) {
-				if (retryCount >= MAX_RETRIES) {
-					console.error(
-						`WebsocketManager: Failed to connect after ${MAX_RETRIES} attempts: ${error.message}`,
-					);
-					throw new Error(`Failed to connect after ${MAX_RETRIES} attempts: ${error.message}`);
-				}
-				retryCount++;
-				const delay = Math.min(BASE_DELAY * Math.pow(2, retryCount) + Math.random() * 1000, 30000);
-				console.log(`WebsocketManager: Connection attempt failed. Retrying in ${delay / 1000} seconds...`);
-				await new Promise((resolve) => setTimeout(resolve, delay));
+				await this.handleRetry(error);
 				return connectWebSocket();
 			}
 		};
 
 		this.ws = await connectWebSocket();
+		this.retryCount = 0; // Reset retry count on successful connection
 		//console.log('WebsocketManager: WebSocket connection established');
 
 		this.ws.onmessage = (event) => {
@@ -50,14 +41,13 @@ export class WebsocketManager {
 				//console.info('WebsocketManager: Emitting cli:conversationAnswer event', msgData);
 				eventManager.emit(
 					'cli:conversationEntry',
-					{ ...msgData.data } as EventPayloadMap['cli']['cli:conversationEntry'],
-					//{ conversationId: msgData.data.conversationId } as EventPayloadMap['cli']['cli:conversationEntry'],
+					{ ...msgData.data, expectingMoreInput: true } as EventPayloadMap['cli']['cli:conversationEntry'],
 				);
 			} else if (msgData.type === 'conversationAnswer') {
 				//console.info('WebsocketManager: Emitting cli:conversationAnswer event', msgData);
 				eventManager.emit(
 					'cli:conversationAnswer',
-					{ ...msgData.data } as EventPayloadMap['cli']['cli:conversationAnswer'],
+					{ ...msgData.data, expectingMoreInput: false } as EventPayloadMap['cli']['cli:conversationAnswer'],
 				);
 				eventManager.emit(
 					'cli:conversationWaitForAnswer',
@@ -82,13 +72,24 @@ export class WebsocketManager {
 		};
 
 		this.ws.onclose = async () => {
-			//console.log('WebsocketManager: WebSocket connection closed. Attempting to reconnect...');
-			//await this.setupWebsocket(conversationId);
+			console.log('WebsocketManager: WebSocket connection closed. Attempting to reconnect...');
+			await this.handleRetry(new Error('WebSocket connection closed'));
+			await this.setupWebsocket(conversationId);
+			eventManager.emit(
+				'cli:websocketReconnected',
+				{ conversationId } as EventPayloadMap['cli']['cli:websocketReconnected'],
+			);
 		};
 
-		this.ws.onerror = (_error) => {
-			//console.error('WebsocketManager: WebSocket error:', error);
-			console.error('WebsocketManager: WebSocket error. Attempting to reconnect...');
+		this.ws.onerror = async (event) => {
+			const error = event instanceof ErrorEvent ? event.error : new Error('Unknown WebSocket error');
+			console.error('WebsocketManager: WebSocket error:', error);
+			await this.handleRetry(error);
+			await this.setupWebsocket(conversationId);
+			eventManager.emit(
+				'cli:websocketReconnected',
+				{ conversationId } as EventPayloadMap['cli']['cli:websocketReconnected'],
+			);
 		};
 	}
 
@@ -106,6 +107,19 @@ export class WebsocketManager {
 			EventPayloadMap['cli']['cli:conversationWaitForAnswer']
 		>;
 		//console.log(`WebsocketManager: Received answer event for conversation ${conversationId}`);
+	}
+
+	private async handleRetry(error: Error): Promise<void> {
+		if (this.retryCount >= this.MAX_RETRIES) {
+			console.error(
+				`WebsocketManager: Failed to connect after ${this.MAX_RETRIES} attempts: ${error.message}`,
+			);
+			throw new Error(`Failed to connect after ${this.MAX_RETRIES} attempts: ${error.message}`);
+		}
+		this.retryCount++;
+		const delay = Math.min(this.BASE_DELAY * Math.pow(2, this.retryCount) + Math.random() * 1000, 30000);
+		console.log(`WebsocketManager: Connection attempt failed. Retrying in ${delay / 1000} seconds...`);
+		await new Promise((resolve) => setTimeout(resolve, delay));
 	}
 }
 
