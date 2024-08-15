@@ -4,7 +4,7 @@ import { ensureDir } from '@std/fs';
 import { ConversationId, ConversationMetrics, ConversationTokenUsage, TokenUsage } from 'shared/types.ts';
 import { getBbaiDataDir } from 'shared/dataDir.ts';
 import { LogFormatter } from 'shared/logFormatter.ts';
-//import { logger } from 'shared/logger.ts';
+import { logger } from 'shared/logger.ts';
 import {
 	LLMMessageContentPart,
 	LLMMessageContentPartImageBlock,
@@ -121,32 +121,37 @@ export class ConversationLogger {
 
 	async logToolUse(
 		toolName: string,
-		input: object,
+		toolInput: object,
 		conversationStats?: ConversationMetrics,
 		tokenUsageTurn?: TokenUsage,
 		tokenUsageStatement?: TokenUsage,
 		tokenUsageConversation?: ConversationTokenUsage,
 	) {
+		console.log(`Entering logToolUse for: ${toolName}`);
 		let message: string;
 		try {
-			const formatter = LLMToolManager.getToolFormatter(toolName);
-			if (formatter) {
-				message = formatter.formatToolUse(toolName, input);
-			} else {
-				message = `Tool: ${toolName}\nInput: \n${JSON.stringify(input, null, 2)}`;
-			}
+			console.log('Attempting to format tool input...');
+			message = `Tool: ${toolName}\nInput: \n${JSON.stringify(toolInput, null, 2)}`;
+			console.log('Formatted message:', message);
 		} catch (error) {
 			console.error(`Error formatting tool use for ${toolName}:`, error);
 			message = `Tool: ${toolName}\nInput: [Error formatting input]`;
 		}
-		await this.logEntry(
-			'tool_use',
-			message,
-			conversationStats,
-			tokenUsageTurn,
-			tokenUsageStatement,
-			tokenUsageConversation,
-		);
+		console.log('Calling logEntry...');
+		try {
+			await this.logEntry(
+				'tool_use',
+				message,
+				conversationStats,
+				tokenUsageTurn,
+				tokenUsageStatement,
+				tokenUsageConversation,
+			);
+			console.log('logEntry completed successfully');
+		} catch (error) {
+			console.error('Error in logEntry:', error);
+		}
+		console.log(`Exiting logToolUse for: ${toolName}`);
 	}
 
 	async logToolResult(
@@ -159,18 +164,17 @@ export class ConversationLogger {
 	) {
 		let message: string;
 		try {
-			const formatter = LLMToolManager.getToolFormatter(toolName);
-			if (formatter) {
-				message = formatter.formatToolResult(toolName, result);
-			} else {
-				message = `Tool: ${toolName}\nResult: ${this.formatDefaultToolResult(result)}`;
-			}
+			//const formatter = LLMToolManager.getToolFormatter(toolName);
+			//if (formatter) {
+			//	message = formatter.formatToolResult(toolName, result);
+			//} else {
+			message = `Tool: ${toolName}\nResult: ${this.formatDefaultToolResult(result)}`;
+			//}
 		} catch (error) {
 			console.error(`Error formatting tool result for ${toolName}:`, error);
 			message = `Tool: ${toolName}\nResult: [Error formatting result]`;
 		}
 		await this.logEntry('tool_result', message);
-	}
 	}
 
 	async logError(error: string) {
@@ -184,15 +188,17 @@ export class ConversationLogger {
 
 	private formatDefaultToolResult(result: string | LLMMessageContentPart | LLMMessageContentParts): string {
 		try {
-		if (Array.isArray(result)) {
-			return 'text' in result[0]
-				? (result[0] as LLMMessageContentPartTextBlock).text
-				: JSON.stringify(result[0], null, 2);
-		} else if (typeof result !== 'string') {
-			return 'text' in result ? (result as LLMMessageContentPartTextBlock).text : JSON.stringify(result, null, 2);
-		} else {
-			return result;
-		}
+			if (Array.isArray(result)) {
+				return 'text' in result[0]
+					? (result[0] as LLMMessageContentPartTextBlock).text
+					: JSON.stringify(result[0], null, 2);
+			} else if (typeof result !== 'string') {
+				return 'text' in result
+					? (result as LLMMessageContentPartTextBlock).text
+					: JSON.stringify(result, null, 2);
+			} else {
+				return result;
+			}
 		} catch (error) {
 			console.error('Error in formatDefaultToolResult:', error);
 			return '[Error formatting result]';
