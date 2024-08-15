@@ -88,7 +88,7 @@ If you encounter any issues during installation or use:
 
 1. Check the chat logs: `bbai logs`
 2. Check the API logs: `bbai logs --api`
-3. Inspect the JSON files under `.bbai/cache/conversations` for more detailed information
+3. Inspect the JSON files under `.bbai/data/conversations` for more detailed information
 
 As BBai is still in alpha, please take necessary precautions when using it with important projects. If you encounter any problems, please create an issue on the [BBai GitHub repository](https://github.com/BBai-Tips/bbai).
 

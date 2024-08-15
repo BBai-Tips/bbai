@@ -1,18 +1,18 @@
-import { assertEquals, assertObjectMatch, delay } from './deps.ts';
-import { app } from '../src/main.ts';
+import { assertEquals, assertObjectMatch, delay } from '../deps.ts';
+import { app } from '../../src/main.ts';
 import { superoak } from 'superoak';
-import { ProjectEditor } from '../src/editor/projectEditor.ts';
+import ProjectEditor from '../../src/editor/projectEditor.ts';
+//import type { ConversationId } from 'shared/types.ts';
+import { GitUtils } from 'shared/git.ts';
 
-// Mock ProjectEditor
-class MockProjectEditor {
-	async init() {}
-	async getProjectRoot() {
-		return '/mock/project/root';
-	}
+const projectEditor = await getProjectEditor(Deno.makeTempDirSync());
+const testProjectRoot = projectEditor.projectRoot;
+console.log('Project editor root:', testProjectRoot);
+
+async function getProjectEditor(testProjectRoot: string): Promise<ProjectEditor> {
+	await GitUtils.initGit(testProjectRoot);
+	return await new ProjectEditor(testProjectRoot).init();
 }
-
-// Replace ProjectEditor with MockProjectEditor
-(globalThis as any).ProjectEditor = MockProjectEditor;
 
 Deno.test({
 	name: 'API root endpoint returns correct message',
@@ -54,20 +54,20 @@ Deno.test({
 // NOT IMPLEMENTED - missing project root and other deps not configured during testing
 
 /*
-let conversationId: string;
+let conversationId: ConversationId;
 Deno.test("Start conversation endpoint", async () => {
   const request = await superoak(app);
   const response = await request
     .post("/api/v1/conversation")
     .send({
       prompt: "Test prompt",
-      startDir: "/test/dir"
+      startDir: "testProjectRoot"
     })
     .expect(200)
     .expect("Content-Type", /json/);
 
   assertObjectMatch(response.body, {
-    conversationId: String,
+    conversationId: ConversationId,
     response: Object
   });
   conversationId = response.body.response.body;
@@ -87,7 +87,7 @@ Deno.test("Continue conversation endpoint", async () => {
     .expect("Content-Type", /json/);
 
   assertObjectMatch(response.body, {
-    conversationId: String,
+    conversationId: ConversationId,
     response: Object
   });
 });
@@ -105,7 +105,7 @@ Deno.test("Add file to conversation endpoint", async () => {
 
   assertObjectMatch(response.body, {
     message: "File added to conversation",
-    conversationId: String,
+    conversationId: ConversationId,
     filePath: String
   });
 });

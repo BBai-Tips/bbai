@@ -1,11 +1,11 @@
-import LLMTool, { LLMToolInputSchema } from '../llmTool.ts';
-import { ProjectEditor } from '../../editor/projectEditor.ts';
-import { LLMAnswerToolUse } from '../llmMessage.ts';
+import LLMTool, { LLMToolInputSchema, LLMToolRunResult } from '../llmTool.ts';
+import LLMConversationInteraction from '../interactions/conversationInteraction.ts';
+import ProjectEditor from '../../editor/projectEditor.ts';
+import { LLMAnswerToolUse } from 'api/llms/llmMessage.ts';
 import { logger } from 'shared/logger.ts';
 import { createError, ErrorType } from '../../utils/error.utils.ts';
 import { searchEmbeddings } from '../../utils/embedding.utils.ts';
 import { VectorSearchErrorOptions } from '../../errors/error.ts';
-import { LLMValidationErrorOptions } from '../../errors/error.ts';
 
 export class LLMToolVectorSearch extends LLMTool {
 	constructor() {
@@ -29,27 +29,27 @@ export class LLMToolVectorSearch extends LLMTool {
 	}
 
 	async runTool(
+		interaction: LLMConversationInteraction,
 		toolUse: LLMAnswerToolUse,
 		projectEditor: ProjectEditor,
-	): Promise<{ messageId: string; feedback: string }> {
-		const { toolUseId, toolInput } = toolUse;
+	): Promise<LLMToolRunResult> {
+		const { toolUseId: _toolUseId, toolInput } = toolUse;
 
 		const { query } = toolInput as { query: string };
 		try {
 			const vectorSearchResults = await searchEmbeddings(query);
 
-			const { messageId, feedback } = projectEditor.toolManager.finalizeToolUse(
+			const { messageId, toolResponse } = projectEditor.orchestratorController.toolManager.finalizeToolUse(
+				interaction,
 				toolUse,
 				vectorSearchResults,
 				false,
-				projectEditor,
+				//projectEditor,
 			);
 
-			return {
-				messageId,
-				feedback:
-					`${feedback}\nBBai has completed vector search for query: "${query}". ${vectorSearchResults.length} results found.\n${vectorSearchResults}`,
-			};
+			const bbaiResponse =
+				`BBai has completed vector search for query: "${query}". ${vectorSearchResults.length} results found.\n${vectorSearchResults}`;
+			return { messageId, toolResponse, bbaiResponse };
 		} catch (error) {
 			logger.error(`Error performing vector search: ${error.message}`);
 			throw createError(ErrorType.VectorSearch, `Error performing vector search: ${error.message}`, {

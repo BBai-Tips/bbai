@@ -263,7 +263,8 @@ class LLM {
 			await new Promise((resolve) => setTimeout(resolve, 1000));
 		}
 
-		interaction.updateTotals(totalTokenUsage, totalProviderRequests);
+		//interaction.updateTotals(totalTokenUsage, totalProviderRequests);
+		interaction.updateTotals(totalTokenUsage);
 		//await interaction.save(); // Persist the interaction even if all retries failed
 
 		if (llmSpeakWithResponse) {

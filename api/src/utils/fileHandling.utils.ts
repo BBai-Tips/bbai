@@ -1,12 +1,14 @@
-import { join, relative } from '@std/path';
-import globToRegExp from 'npm:glob-to-regexp';
+import { join, normalize, relative, resolve } from '@std/path';
 import { exists, walk } from '@std/fs';
+import globToRegExp from 'npm:glob-to-regexp';
+//import { globToRegExp } from '@std/path';
+import { countTokens } from 'anthropic-tokenizer';
+import { contentType } from '@std/media-types';
+
 import { ConfigManager } from 'shared/configManager.ts';
 import { logger } from 'shared/logger.ts';
 import { FileHandlingErrorOptions } from '../errors/error.ts';
 import { createError, ErrorType } from '../utils/error.utils.ts';
-import { countTokens } from 'anthropic-tokenizer';
-import { contentType } from '@std/media-types';
 
 export const FILE_LISTING_TIERS = [
 	{ depth: Infinity, includeMetadata: true },
@@ -46,32 +48,49 @@ export async function generateFileListing(projectRoot: string): Promise<string |
 
 async function generateFileListingTier(
 	projectRoot: string,
-	excludeOptions: string[],
+	excludePatterns: string[],
 	maxDepth: number,
 	includeMetadata: boolean,
 ): Promise<string> {
 	const listing = [];
 	for await (const entry of walk(projectRoot, { maxDepth, includeDirs: false })) {
 		const relativePath = relative(projectRoot, entry.path);
-		if (shouldExclude(relativePath, excludeOptions)) continue;
+		if (shouldExclude(relativePath, excludePatterns)) continue;
 
 		if (includeMetadata) {
 			const stat = await Deno.stat(entry.path);
 			const mimeType = contentType(entry.name) || 'application/octet-stream';
 			listing.push(`${relativePath} (${mimeType}, ${stat.size} bytes, modified: ${stat.mtime?.toISOString()})`);
 		} else {
-			listing.push(`${relativePath}`);
+			listing.push(relativePath);
 		}
 	}
 	return listing.sort().join('\n');
 }
 
-function shouldExclude(path: string, excludeOptions: string[]): boolean {
-	return excludeOptions.some((option) => {
-		const pattern = option.replace('--exclude=', '');
-		const regex = globToRegExp(pattern);
-		return regex.test(path);
+function shouldExclude(path: string, excludePatterns: string[]): boolean {
+	return excludePatterns.some((pattern) => {
+		// Handle negation patterns
+		if (pattern.startsWith('!')) {
+			return !isMatch(path, pattern.slice(1));
+		}
+		return isMatch(path, pattern);
 	});
+}
+
+function isMatch(path: string, pattern: string): boolean {
+	// Handle directory patterns
+	if (pattern.endsWith('/')) {
+		pattern += '**';
+	}
+
+	// Handle simple wildcard patterns
+	if (pattern.includes('*') && !pattern.includes('**')) {
+		pattern = pattern.split('*').join('**');
+	}
+
+	const regex = globToRegExp(pattern, { extended: true, globstar: true });
+	return regex.test(path) || regex.test(join(path, ''));
 }
 
 async function getExcludeOptions(projectRoot: string): Promise<string[]> {
@@ -81,37 +100,40 @@ async function getExcludeOptions(projectRoot: string): Promise<string[]> {
 		join(projectRoot, '.bbai', 'tags.ignore'),
 	];
 
-	const patterns = [];
+	const patterns = ['.bbai/*', '.git/*'];
 	for (const file of excludeFiles) {
 		if (await exists(file)) {
 			const content = await Deno.readTextFile(file);
 			patterns.push(
-				content.split('\n')
+				...content.split('\n')
 					.map((line) => line.trim())
-					.filter((line) => line && !line.startsWith('#')),
+					.filter((line) => line && !line.startsWith('#'))
+					.map((line) => line.replace(/^\/*/, '')), // Remove leading slashes
 			);
 		}
 	}
-	patterns.unshift('.bbai/*', '.git/*');
 
 	const uniquePatterns = [...new Set(patterns)];
-	const excludeOptions = [...uniquePatterns.map((pattern) => `--exclude=${pattern}`)];
-
-	/*
-	if (excludeOptions.length === 0) {
-		excludeOptions.push('--exclude=.bbai/*');
-	}
-	 */
-
-	return excludeOptions;
+	return uniquePatterns;
 }
 
-import { normalize, resolve } from '@std/path';
+export async function isPathWithinProject(projectRoot: string, filePath: string): Promise<boolean> {
+	const normalizedProjectRoot = normalize(projectRoot);
+	const normalizedFilePath = normalize(filePath);
+	const absoluteFilePath = resolve(normalizedProjectRoot, normalizedFilePath);
 
-export function isPathWithinProject(projectRoot: string, filePath: string): boolean {
-	const normalizedPath = normalize(filePath);
-	const resolvedPath = resolve(projectRoot, normalizedPath);
-	return resolvedPath.startsWith(projectRoot);
+	try {
+		// For existing files, resolve symlinks
+		const resolvedPath = await Deno.realPath(absoluteFilePath);
+		return resolvedPath.startsWith(await Deno.realPath(normalizedProjectRoot));
+	} catch (error) {
+		if (error instanceof Deno.errors.NotFound) {
+			// For non-existing files, check if the absolute path is within the project root
+			return absoluteFilePath.startsWith(normalizedProjectRoot);
+		}
+		// For other errors, re-throw
+		throw error;
+	}
 }
 
 export async function readProjectFileContent(projectRoot: string, filePath: string): Promise<string> {
@@ -129,7 +151,7 @@ export async function readProjectFileContent(projectRoot: string, filePath: stri
 }
 
 export async function updateFile(projectRoot: string, filePath: string, _content: string): Promise<void> {
-	if (!isPathWithinProject(projectRoot, filePath)) {
+	if (!await isPathWithinProject(projectRoot, filePath)) {
 		throw createError(ErrorType.FileHandling, `Access denied: ${filePath} is outside the project directory`, {
 			name: 'update-file',
 			filePath,
@@ -146,38 +168,41 @@ export async function searchFiles(
 	pattern: string,
 	filePattern?: string,
 ): Promise<{ files: string[]; errorMessage: string | null }> {
-	const excludeOptions = await getExcludeOptions(projectRoot);
-	const grepCommand = ['-r', '-l', '-E', `${pattern}`];
+	try {
+		const excludeOptions = await getExcludeOptions(projectRoot);
+		const grepCommand = ['-r', '-l', '-E', `${pattern}`];
 
-	if (filePattern) {
-		grepCommand.push('--include', filePattern);
-	}
+		if (filePattern) {
+			grepCommand.push('--include', filePattern);
+		}
 
-	// Add exclude options
-	grepCommand.push('--exclude=./.git*');
-	for (const option of excludeOptions) {
-		grepCommand.push(option.replace('--exclude=', '--exclude=./'));
-	}
-	grepCommand.push('.');
-	logger.debug(`Search command in dir ${projectRoot}: grep `, grepCommand.join(' '));
+		// Add exclude options
+		for (const option of excludeOptions) {
+			grepCommand.push('--exclude-dir', option);
+			grepCommand.push('--exclude', option);
+		}
+		grepCommand.push('.');
+		logger.debug(`Search command in dir ${projectRoot}: grep ${grepCommand.join(' ')}`);
 
-	const command = new Deno.Command('grep', {
-		args: grepCommand,
-		cwd: projectRoot,
-		stdout: 'piped',
-		stderr: 'piped',
-	});
+		const command = new Deno.Command('grep', {
+			args: grepCommand,
+			cwd: projectRoot,
+			stdout: 'piped',
+			stderr: 'piped',
+		});
 
-	const { code, stdout, stderr } = await command.output();
-	const rawOutput = stdout;
-	const rawError = stderr;
+		const { code, stdout, stderr } = await command.output();
+		const rawOutput = new TextDecoder().decode(stdout).trim();
+		const rawError = new TextDecoder().decode(stderr).trim();
 
-	if (code === 0 || code === 1) { // grep returns 1 if no matches found, which is not an error for us
-		const output = new TextDecoder().decode(rawOutput).trim();
-		const files = output.split('\n').filter(Boolean);
-		return { files, errorMessage: null };
-	} else {
-		const errorMessage = new TextDecoder().decode(rawError).trim();
-		return { files: [], errorMessage };
+		if (code === 0 || code === 1) { // grep returns 1 if no matches found, which is not an error for us
+			const files = rawOutput.split('\n').filter(Boolean);
+			return { files, errorMessage: null };
+		} else {
+			return { files: [], errorMessage: rawError };
+		}
+	} catch (error) {
+		logger.error(`Error in searchFiles: ${error.message}`);
+		return { files: [], errorMessage: error.message };
 	}
 }

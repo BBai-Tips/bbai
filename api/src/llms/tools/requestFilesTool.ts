@@ -1,13 +1,9 @@
+import LLMTool, { LLMToolInputSchema, LLMToolRunResult } from '../llmTool.ts';
+import LLMConversationInteraction from '../interactions/conversationInteraction.ts';
 import { logger } from 'shared/logger.ts';
-import LLMTool, { LLMToolInputSchema } from '../llmTool.ts';
-import {
-	LLMAnswerToolUse,
-	LLMMessageContentPartTextBlock,
-	LLMMessageContentPartToolResultBlock,
-} from '../llmMessage.ts';
-import { ProjectEditor } from '../../editor/projectEditor.ts';
+import { LLMAnswerToolUse, LLMMessageContentPartTextBlock } from 'api/llms/llmMessage.ts';
+import ProjectEditor from '../../editor/projectEditor.ts';
 import { createError, ErrorType } from '../../utils/error.utils.ts';
-import { FileHandlingErrorOptions, LLMValidationErrorOptions } from '../../errors/error.ts';
 
 export class LLMToolRequestFiles extends LLMTool {
 	constructor() {
@@ -28,55 +24,67 @@ export class LLMToolRequestFiles extends LLMTool {
 				},
 			},
 			required: ['fileNames'],
+			description:
+				`Request files for the chat when you need to review them or make changes. Before requesting a file, check that you don't already have it included in an earlier message`,
 		};
 	}
 
 	async runTool(
+		interaction: LLMConversationInteraction,
 		toolUse: LLMAnswerToolUse,
 		projectEditor: ProjectEditor,
-	): Promise<{ messageId: string; feedback: string }> {
-		const { toolUseId, toolInput } = toolUse;
+	): Promise<LLMToolRunResult> {
+		const { toolUseId: _toolUseId, toolInput } = toolUse;
 		const { fileNames } = toolInput as { fileNames: string[] };
 
 		try {
 			const filesAdded = await projectEditor.prepareFilesForConversation(fileNames);
 
 			const contentParts = [];
+			const fileNamesSuccess: string[] = [];
+			const fileNamesError: string[] = [];
 			let allFilesFailed = true;
 			for (const fileToAdd of filesAdded) {
 				if (fileToAdd.metadata.error) {
 					contentParts.push({
 						'type': 'text',
-						'text': `Error adding file ${fileToAdd.fileName}`,
-						//'text': `Error adding file ${fileToAdd.fileName}: ${fileToAdd.metadata.error}`,
+						'text': `Error adding file ${fileToAdd.fileName}: ${fileToAdd.metadata.error}`,
 					} as LLMMessageContentPartTextBlock);
+					fileNamesError.push(fileToAdd.fileName);
 				} else {
 					contentParts.push({
 						'type': 'text',
 						'text': `File added: ${fileToAdd.fileName}`,
 					} as LLMMessageContentPartTextBlock);
+					fileNamesSuccess.push(fileToAdd.fileName);
 					allFilesFailed = false;
 				}
 			}
 
 			// [TODO] we're creating a bit of a circle by calling back into the toolManager in the projectEditor
 			// Since we're not holding onto a copy of toolManager, it should be fine - dangerous territory though
-			const { messageId, feedback } = projectEditor.toolManager.finalizeToolUse(
+			const { messageId, toolResponse } = projectEditor.orchestratorController.toolManager.finalizeToolUse(
+				interaction,
 				toolUse,
 				contentParts,
 				allFilesFailed,
-				projectEditor,
+				//projectEditor,
 			);
 
-			const _conversationFiles = projectEditor.conversation?.addFilesForMessage(
+			projectEditor.orchestratorController.primaryInteraction.addFilesForMessage(
 				filesAdded,
 				messageId,
 				toolUse.toolUseId,
 			);
-			const filesSummary = filesAdded.map((file) =>
-				//`${file.fileName} (${file.metadata.error ? 'Error' : 'Success'})`
-				`${file.fileName} (${file.metadata.error ? 'Error' : 'Success'})`
-			).join(', ');
+			const bbaiResponses = [];
+			if (fileNamesSuccess.length > 0) {
+				bbaiResponses.push(`BBai has added these files to the conversation: ${fileNamesSuccess.join(', ')}`);
+			}
+			if (fileNamesError.length > 0) {
+				bbaiResponses.push(`BBai failed to add these files to the conversation: ${fileNamesError.join(', ')}`);
+			}
+
+			const bbaiResponse = bbaiResponses.join('\n\n');
 
 			// const storageLocation = this.determineStorageLocation(fullFilePath, content, source);
 			// if (storageLocation === 'system') {
@@ -85,7 +93,7 @@ export class LLMToolRequestFiles extends LLMTool {
 			// 	this.conversation.addFileForMessage(fileName, metadata, messageId, toolUse.toolUseId);
 			// }
 
-			return { messageId, feedback: `${feedback}\nBBai has added files to the conversation: ${filesSummary}` };
+			return { messageId, toolResponse, bbaiResponse };
 		} catch (error) {
 			logger.error(`Error adding files to conversation: ${error.message}`);
 

@@ -62,20 +62,36 @@ class AnthropicLLM extends LLM {
 		const system = await this.invoke(
 			LLMCallbackType.PREPARE_SYSTEM_PROMPT,
 			speakOptions?.system || interaction.baseSystem,
+			interaction.id,
 		);
 
 		const messages = this.asProviderMessageType(
-			await this.invoke(LLMCallbackType.PREPARE_MESSAGES, speakOptions?.messages || interaction.getMessages()),
+			await this.invoke(
+				LLMCallbackType.PREPARE_MESSAGES,
+				speakOptions?.messages || interaction.getMessages(),
+				interaction.id,
+			),
 		);
 
 		//logger.debug('llms-anthropic-prepareMessageParams-tools', interaction.allTools());
 		const tools = this.asProviderToolType(
-			await this.invoke(LLMCallbackType.PREPARE_TOOLS, speakOptions?.tools || interaction.allTools()),
+			await this.invoke(
+				LLMCallbackType.PREPARE_TOOLS,
+				speakOptions?.tools || interaction.allTools(),
+				interaction.id,
+			),
 		);
 
+		if (!speakOptions?.maxTokens && !interaction.maxTokens) {
+			logger.error('maxTokens missing from both speakOptions and interaction');
+		}
+		if (!speakOptions?.temperature && !interaction.temperature) {
+			logger.error('temperature missing from both speakOptions and interaction');
+		}
+
 		const model: string = speakOptions?.model || interaction.model || AnthropicModel.CLAUDE_3_5_SONNET;
-		const maxTokens: number = speakOptions?.maxTokens || interaction.maxTokens;
-		const temperature: number = speakOptions?.temperature || interaction.temperature;
+		const maxTokens: number = speakOptions?.maxTokens || interaction.maxTokens || 8192;
+		const temperature: number = speakOptions?.temperature || interaction.temperature || 0.2;
 
 		const messageParams: Anthropic.MessageCreateParams = {
 			messages,
@@ -87,6 +103,7 @@ class AnthropicLLM extends LLM {
 			stream: false,
 		};
 		//logger.debug('llms-anthropic-prepareMessageParams', messageParams);
+		//logger.dir(messageParams);
 
 		return messageParams;
 	}

@@ -1,8 +1,8 @@
 import { join } from '@std/path';
 import { ensureDir } from '@std/fs';
 
-import type { ConversationId } from 'api/types.ts';
-import { getBbaiDir } from 'shared/dataDir.ts';
+import type { ConversationId, ConversationMetrics, TokenUsage } from 'shared/types.ts';
+import { getBbaiDataDir } from 'shared/dataDir.ts';
 import { LogFormatter } from 'shared/logFormatter.ts';
 //import { logger } from 'shared/logger.ts';
 import {
@@ -12,16 +12,29 @@ import {
 	LLMMessageContentPartTextBlock,
 } from 'api/llms/llmMessage.ts';
 
+export type ConversationLoggerEntryType = 'user' | 'assistant' | 'tool_use' | 'tool_result' | 'auxiliary' | 'error'; //text_change
+
 export class ConversationLogger {
 	private logFile!: string;
 
-	constructor(private startDir: string, private conversationId: ConversationId) {}
+	constructor(
+		private startDir: string,
+		private conversationId: ConversationId,
+		private logEntryHandler: (
+			type: ConversationLoggerEntryType,
+			timestamp: string,
+			content: string,
+			conversationStats: ConversationMetrics,
+			tokenUsage: TokenUsage,
+		) => {},
+	) {}
 
-	async initialize() {
-		const bbaiDir = await getBbaiDir(this.startDir);
-		const logsDir = join(bbaiDir, 'cache', 'conversations', this.conversationId);
-		await ensureDir(logsDir);
-		this.logFile = join(logsDir, 'conversation.log');
+	async init(): Promise<ConversationLogger> {
+		const bbaiDataDir = await getBbaiDataDir(this.startDir);
+		const conversationLogsDir = join(bbaiDataDir, 'conversations', this.conversationId);
+		await ensureDir(conversationLogsDir);
+		this.logFile = join(conversationLogsDir, 'conversation.log');
+		return this;
 	}
 
 	private async appendToLog(content: string) {
@@ -32,46 +45,73 @@ export class ConversationLogger {
 		return new Date().toISOString();
 	}
 
-	private async logEntry(type: string, message: string) {
+	private async logEntry(
+		type: ConversationLoggerEntryType,
+		message: string,
+		conversationStats?: ConversationMetrics,
+		tokenUsage?: TokenUsage,
+	) {
 		const timestamp = this.getTimestamp();
-		const entry = LogFormatter.createRawEntryWithSeparator(type, timestamp, message);
+		if (!tokenUsage) tokenUsage = { inputTokens: 0, outputTokens: 0, totalTokens: 0 };
+		if (!conversationStats) conversationStats = { statementCount: 0, turnCount: 0, totalTurnCount: 0 };
+
+		//const entry = LogFormatter.createRawEntryWithSeparator(type, timestamp, message, tokenUsage);
+		const entry = LogFormatter.createRawEntryWithSeparator(type, timestamp, message, conversationStats, tokenUsage);
 		await this.appendToLog(entry);
+
+		await this.logEntryHandler(type, timestamp, message, conversationStats, tokenUsage);
 	}
 
-	async logUserMessage(message: string) {
-		await this.logEntry('User Message', message);
+	async logUserMessage(message: string, conversationStats?: ConversationMetrics) {
+		await this.logEntry('user', message, conversationStats);
 	}
 
-	async logAssistantMessage(message: string) {
-		await this.logEntry('Assistant Message', message);
+	async logAssistantMessage(
+		message: string,
+		conversationStats?: ConversationMetrics,
+		tokenUsage?: TokenUsage,
+	) {
+		await this.logEntry('assistant', message, conversationStats, tokenUsage);
 	}
 
 	async logAuxiliaryMessage(message: string) {
-		await this.logEntry('Auxiliary Message', message);
+		await this.logEntry('auxiliary', message);
 	}
 
-	async logToolUse(toolName: string, input: string) {
-		const message = `Tool: ${toolName}\nInput: ${input}`;
-		await this.logEntry('Tool Use', message);
+	async logToolUse(
+		toolName: string,
+		input: object,
+		conversationStats?: ConversationMetrics,
+		tokenUsage?: TokenUsage,
+	) {
+		const message = `Tool: ${toolName}\nInput: \n${JSON.stringify(input, null, 2)}`;
+		await this.logEntry('tool_use', message, conversationStats, tokenUsage);
 	}
 
-	async logToolResult(toolName: string, result: string | LLMMessageContentPart | LLMMessageContentParts) {
+	async logToolResult(
+		toolName: string,
+		result: string | LLMMessageContentPart | LLMMessageContentParts,
+		conversationStats?: ConversationMetrics,
+		tokenUsage?: TokenUsage,
+	) {
 		const message = `Tool: ${toolName}\nResult: ${
 			Array.isArray(result)
-				? 'text' in result[0] ? (result[0] as LLMMessageContentPartTextBlock).text : JSON.stringify(result[0])
+				? 'text' in result[0]
+					? (result[0] as LLMMessageContentPartTextBlock).text
+					: JSON.stringify(result[0], null, 2)
 				: typeof result !== 'string'
-				? 'text' in result ? (result as LLMMessageContentPartTextBlock).text : JSON.stringify(result)
+				? 'text' in result ? (result as LLMMessageContentPartTextBlock).text : JSON.stringify(result, null, 2)
 				: result
 		}`;
-		await this.logEntry('Tool Result', message);
+		await this.logEntry('tool_result', message, conversationStats, tokenUsage);
 	}
 
 	async logError(error: string) {
-		await this.logEntry('Error', error);
+		await this.logEntry('error', error);
 	}
 
-	async logDiffPatch(filePath: string, patch: string) {
-		const message = `Diff Patch for ${filePath}:\n${patch}`;
-		await this.logEntry('Diff Patch', message);
-	}
+	//async logTextChange(filePath: string, patch: string) {
+	//	const message = `Diff Patch for ${filePath}:\n${patch}`;
+	//	await this.logEntry('text_change', message);
+	//}
 }

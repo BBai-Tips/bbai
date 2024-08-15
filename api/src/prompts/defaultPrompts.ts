@@ -1,6 +1,7 @@
 import { stripIndents } from 'common-tags';
 
 import { loadConfig, readFileContent, resolveFilePath } from 'shared/dataDir.ts';
+import { logger } from 'shared/logger.ts';
 
 interface PromptMetadata {
 	name: string;
@@ -29,7 +30,7 @@ export const system: Prompt = {
 				const resolvedPath = await resolveFilePath(guidelinesPath);
 				guidelines = await readFileContent(resolvedPath) || '';
 			} catch (error) {
-				console.error(`Failed to load guidelines: ${error.message}`);
+				logger.error(`Failed to load guidelines: ${error.message}`);
 			}
 		}
 
@@ -50,6 +51,8 @@ export const system: Prompt = {
 		  In each conversational turn, you will begin by thinking about your response. Once you're done, you will write a user-facing response for "${myPersonsName}". It's important to place all user-facing conversational responses in <reply></reply> XML tags to make them easy to parse.
 	
 		  You have access to a local project and can work with files that have been added to the conversation. When responding to tool use requests for adding files, you should prefer to use the project information inside <project-details> tags, provided as a source for looking up file names. When a file is no longer relevant to the current conversation, you can request its removal using the provided tool.
+
+          When using tools, include multiple tool uses in one response where feasible to reduce the cost of repeated message turns. Ensure that all required parameters for each tool call are provided or can reasonably be inferred from context. If there are no relevant tools or there are missing values for required parameters, ask the user to supply these values; otherwise proceed with the tool calls. If multiple independent tool calls can be made, include them all in the same response.
 	
 		  Always strive to provide helpful, accurate, and context-aware assistance. You may engage with ${myPersonsName} on topics of their choice, but always aim to keep the conversation relevant to the local project and the task at hand.
 
