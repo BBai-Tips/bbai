@@ -1,7 +1,7 @@
-import { assertEquals, assertThrows } from 'std/testing/asserts.ts';
+import { assertEquals, assertThrows } from 'https://deno.land/std/testing/asserts.ts';
 import { RewriteFileTool } from '../../../../src/llms/tools/rewriteFileTool.ts';
-import { ensureFileSync, existsSync } from 'std/fs/mod.ts';
-import { resolve } from 'std/path/mod.ts';
+import { ensureFileSync, existsSync } from 'https://deno.land/std/fs/mod.ts';
+import { resolve } from 'https://deno.land/std/path/mod.ts';
 
 Deno.test({
   name: 'RewriteFileTool - rewrite existing file',
