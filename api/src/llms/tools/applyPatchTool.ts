@@ -1,10 +1,11 @@
 import LLMTool, { LLMToolInputSchema, LLMToolRunResult } from '../llmTool.ts';
+import LLMConversationInteraction from '../interactions/conversationInteraction.ts';
 import { LLMAnswerToolUse } from 'api/llms/llmMessage.ts';
 import ProjectEditor from '../../editor/projectEditor.ts';
+import ConversationPersistence from '../../storage/conversationPersistence.ts';
 import { isPathWithinProject } from '../../utils/fileHandling.utils.ts';
 import { createError, ErrorType } from '../../utils/error.utils.ts';
 import { FileHandlingErrorOptions } from '../../errors/error.ts';
-import { ConversationPersistence } from '../../utils/conversationPersistence.utils.ts';
 import { logger } from 'shared/logger.ts';
 import { dirname, join } from '@std/path';
 import { ensureDir } from '@std/fs';
@@ -36,6 +37,7 @@ export class LLMToolApplyPatch extends LLMTool {
 	}
 
 	async runTool(
+		interaction: LLMConversationInteraction,
 		toolUse: LLMAnswerToolUse,
 		projectEditor: ProjectEditor,
 	): Promise<LLMToolRunResult> {
@@ -104,17 +106,18 @@ export class LLMToolApplyPatch extends LLMTool {
 			}
 
 			// Log the applied patch
-			if (projectEditor.conversation) {
-				logger.info(`Saving conversation patch: ${projectEditor.conversation.id}`);
-				const persistence = new ConversationPersistence(projectEditor.conversation.id, projectEditor);
+			if (interaction) {
+				logger.info(`Saving conversation patch: ${interaction.id}`);
+				const persistence = new ConversationPersistence(interaction.id, projectEditor);
 				await persistence.logPatch(filePath, patch);
-				await projectEditor.stageAndCommitAfterPatching();
+				await projectEditor.orchestratorController.stageAndCommitAfterPatching(interaction);
 			}
-			const { messageId, toolResponse } = projectEditor.toolManager.finalizeToolUse(
+			const { messageId, toolResponse } = projectEditor.orchestratorController.toolManager.finalizeToolUse(
+				interaction,
 				toolUse,
 				`Patch applied to file: ${filePath}`,
 				false,
-				projectEditor,
+				//projectEditor,
 			);
 			const bbaiResponse = `BBai has applied patch successfully to file: ${filePath}`;
 			return { messageId, toolResponse, bbaiResponse };

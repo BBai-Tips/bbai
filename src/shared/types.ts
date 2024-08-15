@@ -23,8 +23,13 @@ export interface ConversationDetailedMetadata extends ConversationMetadata {
 	projectInfoTier?: number;
 	projectInfoContent?: string;
 
+	totalProviderRequests: number;
+
+	tokenUsageTurn: TokenUsage;
+	tokenUsageStatement: TokenUsage;
+	tokenUsageConversation: ConversationTokenUsage;
+
 	conversationStats: ConversationMetrics;
-	tokenUsage: ConversationTokenUsage;
 
 	tools?: Array<{ name: string; description: string }>;
 }
@@ -46,22 +51,27 @@ export interface ConversationMetrics {
 	statementCount: number;
 	turnCount: number;
 	totalTurnCount: number;
+	providerRequestCount?: number;
 }
 
 export interface ConversationStart {
 	conversationId: ConversationId;
 	conversationTitle: string;
-	statementCount: number;
+	timestamp: string;
+	tokenUsageStatement?: TokenUsage;
+	tokenUsageConversation: ConversationTokenUsage;
+	conversationStats: ConversationMetrics; // for resuming a conversation
 }
 
 export interface ConversationEntry {
-	type: ConversationLoggerEntryType;
-	timestamp: string;
 	conversationId: ConversationId;
 	conversationTitle: string;
+	type: ConversationLoggerEntryType;
+	timestamp: string;
 	content: string;
-	conversationStats: ConversationMetrics;
 	tokenUsageStatement: TokenUsage;
+	tokenUsageConversation: ConversationTokenUsage;
+	conversationStats: ConversationMetrics;
 }
 
 export interface ConversationResponse {
@@ -69,9 +79,9 @@ export interface ConversationResponse {
 	response: LLMProviderMessageResponse;
 	messageMeta: LLMProviderMessageMeta;
 	conversationTitle: string;
-	conversationStats: ConversationMetrics;
 	tokenUsageStatement: TokenUsage;
 	tokenUsageConversation: ConversationTokenUsage;
+	conversationStats: ConversationMetrics;
 }
 
 export interface VectorEmbedding {

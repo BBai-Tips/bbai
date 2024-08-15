@@ -1,4 +1,5 @@
 import LLMTool, { LLMToolInputSchema, LLMToolRunResult } from '../llmTool.ts';
+import LLMConversationInteraction from '../interactions/conversationInteraction.ts';
 import ProjectEditor from '../../editor/projectEditor.ts';
 import { LLMAnswerToolUse } from 'api/llms/llmMessage.ts';
 import { logger } from 'shared/logger.ts';
@@ -28,6 +29,7 @@ export class LLMToolVectorSearch extends LLMTool {
 	}
 
 	async runTool(
+		interaction: LLMConversationInteraction,
 		toolUse: LLMAnswerToolUse,
 		projectEditor: ProjectEditor,
 	): Promise<LLMToolRunResult> {
@@ -37,11 +39,12 @@ export class LLMToolVectorSearch extends LLMTool {
 		try {
 			const vectorSearchResults = await searchEmbeddings(query);
 
-			const { messageId, toolResponse } = projectEditor.toolManager.finalizeToolUse(
+			const { messageId, toolResponse } = projectEditor.orchestratorController.toolManager.finalizeToolUse(
+				interaction,
 				toolUse,
 				vectorSearchResults,
 				false,
-				projectEditor,
+				//projectEditor,
 			);
 
 			const bbaiResponse =

@@ -3,6 +3,7 @@ import Ajv from 'ajv';
 
 import ProjectEditor from '../editor/projectEditor.ts';
 import { LLMAnswerToolUse, LLMMessageContentPart, LLMMessageContentParts } from 'api/llms/llmMessage.ts';
+import LLMConversationInteraction from './interactions/conversationInteraction.ts';
 
 export type LLMToolInputSchema = JSONSchema4;
 export type LLMToolRunResultContent = string | LLMMessageContentPart | LLMMessageContentParts;
@@ -32,6 +33,7 @@ abstract class LLMTool {
 	}
 
 	abstract runTool(
+		interaction: LLMConversationInteraction,
 		toolUse: LLMAnswerToolUse,
 		projectEditor: ProjectEditor,
 	): Promise<LLMToolRunResult>;

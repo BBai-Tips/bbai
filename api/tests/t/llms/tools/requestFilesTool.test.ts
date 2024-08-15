@@ -1,9 +1,10 @@
-import { assertEquals, assertExists, assertRejects } from '../../deps.ts';
+import { assertEquals, assertExists, assertRejects } from '../../../deps.ts';
 import { join } from '@std/path';
+import { ensureDir } from '@std/fs';
 
-import { LLMToolRequestFiles } from '../../../src/llms/tools/requestFilesTool.ts';
-import ProjectEditor from '../../../src/editor/projectEditor.ts';
-import { LLMAnswerToolUse } from 'api/llms/llmMessage.ts';
+import { LLMToolRequestFiles } from '../../../../src/llms/tools/requestFilesTool.ts';
+import ProjectEditor from '../../../../src/editor/projectEditor.ts';
+import type { LLMAnswerToolUse } from 'api/llms/llmMessage.ts';
 import { GitUtils } from 'shared/git.ts';
 
 const projectEditor = await getProjectEditor(Deno.makeTempDirSync());
@@ -11,8 +12,9 @@ const testProjectRoot = projectEditor.projectRoot;
 console.log('Project editor root:', testProjectRoot);
 
 async function getProjectEditor(testProjectRoot: string): Promise<ProjectEditor> {
+	//await ensureDir(testProjectRoot);
 	await GitUtils.initGit(testProjectRoot);
-	return await new ProjectEditor('test-conversation-id', testProjectRoot).init();
+	return await new ProjectEditor(testProjectRoot).init();
 }
 
 function cleanupTestDirectory() {
@@ -39,23 +41,26 @@ Deno.test({
 			},
 		};
 
-		const result = await tool.runTool(toolUse, projectEditor);
+		const initialConversation = await projectEditor.initConversation('test-conversation-id');
+		const result = await tool.runTool(initialConversation, toolUse, projectEditor);
 
 		assertEquals(result.bbaiResponse.includes('BBai has added these files to the conversation'), true);
 
 		// Check if files are added to the conversation
-		const file1 = projectEditor.conversation?.getFile('file1.txt');
-		const file2 = projectEditor.conversation?.getFile('file2.txt');
+		const updatedConversation = await projectEditor.initConversation('test-conversation-id');
+		const updatedResult = await tool.runTool(initialConversation, toolUse, projectEditor);
+		const file1 = await updatedConversation.getFile('file1.txt');
+		const file2 = await updatedConversation.getFile('file2.txt');
 		assertExists(file1, 'file1.txt should exist in the conversation');
 		assertExists(file2, 'file2.txt should exist in the conversation');
 
 		// Check if listFiles returns the correct files
-		const fileList = projectEditor.conversation?.listFiles();
+		const fileList = await updatedConversation.listFiles();
 		assertEquals(fileList?.includes('file1.txt'), true, 'file1.txt should be in the file list');
 		assertEquals(fileList?.includes('file2.txt'), true, 'file2.txt should be in the file list');
 
 		// Check if getFiles returns the correct Map of FileMetadata objects
-		const files = projectEditor.conversation?.getFiles();
+		const files = await updatedConversation.getFiles();
 		assertEquals(files?.size, 2, 'getFiles should return a Map with 2 FileMetadata objects');
 		assertExists(files?.get('file1.txt'), 'FileMetadata for file1.txt should exist');
 		assertExists(files?.get('file2.txt'), 'FileMetadata for file2.txt should exist');
@@ -88,18 +93,19 @@ Deno.test({
 			},
 		};
 
-		const result = await tool.runTool(toolUse, projectEditor);
+		const conversation = await projectEditor.initConversation('test-conversation-id');
+		const result = await tool.runTool(conversation, toolUse, projectEditor);
 
 		assertEquals(result.bbaiResponse.includes('BBai failed to add these files to the conversation'), true);
 		//assertEquals(result.toolResponse.includes('non_existent.txt (File not found)'), true);
 		assertEquals(result.toolResponse.includes('non_existent.txt: No such file or directory'), true);
 
 		// Check that the non-existent file is not in the conversation
-		const nonExistentFile = projectEditor.conversation?.getFile('non_existent.txt');
+		const nonExistentFile = conversation.getFile('non_existent.txt');
 		assertEquals(nonExistentFile, undefined, 'non_existent.txt should not be in the conversation');
 
 		// Check that listFiles doesn't include the non-existent file
-		const fileList = projectEditor.conversation?.listFiles();
+		const fileList = conversation.listFiles();
 		assertEquals(fileList?.includes('non_existent.txt'), false, 'non_existent.txt should not be in the file list');
 	},
 	sanitizeResources: false,
@@ -119,17 +125,18 @@ Deno.test({
 				fileNames: ['../outside_project.txt'],
 			},
 		};
-		const result = await tool.runTool(toolUse, projectEditor);
+		const conversation = await projectEditor.initConversation('test-conversation-id');
+		const result = await tool.runTool(conversation, toolUse, projectEditor);
 
 		assertEquals(result.bbaiResponse.includes('BBai failed to add these files to the conversation'), true);
 		assertEquals(result.toolResponse.includes('../outside_project.txt: Access denied'), true);
 
 		// Check that the outside file is not in the conversation
-		const outsideFile = projectEditor.conversation?.getFile('../outside_project.txt');
+		const outsideFile = conversation.getFile('../outside_project.txt');
 		assertEquals(outsideFile, undefined, '../outside_project.txt should not be in the conversation');
 
 		// Check that listFiles doesn't include the outside file
-		const fileList = projectEditor.conversation?.listFiles();
+		const fileList = conversation.listFiles();
 		assertEquals(
 			fileList?.includes('../outside_project.txt'),
 			false,

@@ -2,9 +2,9 @@ import { join } from '@std/path';
 import { exists } from '@std/fs';
 import { parse as parseYaml } from '@std/yaml';
 import { stripIndents } from 'common-tags';
-import { loadConfig, readFileContent, resolveFilePath } from 'shared/dataDir.ts';
+import { getBbaiDir, loadConfig, readFileContent, resolveFilePath } from 'shared/dataDir.ts';
 import * as defaultPrompts from './defaultPrompts.ts';
-import ProjectEditor from '../editor/projectEditor.ts';
+import { logger } from 'shared/logger.ts';
 
 interface PromptMetadata {
 	name: string;
@@ -17,26 +17,23 @@ interface Prompt {
 	content: string;
 }
 
-export class PromptManager {
+class PromptManager {
 	private userPromptsDir: string;
 	private config: Record<string, any>;
-	//public projectEditor: ProjectEditor;
 
 	constructor() {
-		// [TODO] the projectEditor needs to be weak ref since it's causing a circular dependancy - projectEditor keeps a copy of us too.
-		//this.projectEditor = projectEditor;
 		this.userPromptsDir = '';
 		this.config = {};
 	}
 
-	async init(projectEditor: ProjectEditor): Promise<PromptManager> {
-		const bbaiDir = await projectEditor.getBbaiDir();
+	async init(projectRoot: string): Promise<PromptManager> {
+		const bbaiDir = await getBbaiDir(projectRoot);
 		this.userPromptsDir = join(bbaiDir, 'prompts');
 		this.config = await loadConfig();
 		return this;
 	}
 
-	private async loadGuidelines(): Promise<string | null> {
+	public async loadGuidelines(): Promise<string | null> {
 		const guidelinesPath = this.config.llmGuidelinesFile;
 		if (!guidelinesPath) {
 			return null;
@@ -91,7 +88,7 @@ export class PromptManager {
 					const func = new Function(...Object.keys(variables), `return ${expr};`);
 					return func(...Object.values(variables));
 				} catch (error) {
-					console.error(`Error evaluating expression: ${expr}`, error);
+					logger.error(`Error evaluating expression: ${expr}`, error);
 					return `\${${expr}}`;
 				}
 			},
@@ -109,3 +106,5 @@ export class PromptManager {
 		return true;
 	}
 }
+
+export default PromptManager;

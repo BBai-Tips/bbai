@@ -1,6 +1,7 @@
 import { logger } from 'shared/logger.ts';
 import LLMTool, { LLMToolFinalizeResult, LLMToolRunResultContent } from './llmTool.ts';
-import { LLMAnswerToolUse, LLMMessageContentPart, LLMMessageContentParts } from 'api/llms/llmMessage.ts';
+import { LLMAnswerToolUse, LLMMessageContentPart } from 'api/llms/llmMessage.ts';
+import LLMConversationInteraction from './interactions/conversationInteraction.ts';
 import ProjectEditor from '../editor/projectEditor.ts';
 import { LLMToolRequestFiles } from './tools/requestFilesTool.ts';
 import { LLMToolSearchProject } from './tools/searchProjectTool.ts';
@@ -46,6 +47,7 @@ class LLMToolManager {
 	}
 
 	async handleToolUse(
+		interaction: LLMConversationInteraction,
 		toolUse: LLMAnswerToolUse,
 		projectEditor: ProjectEditor,
 	): Promise<{ messageId: string; toolResponse: string; bbaiResponse: string; isError: boolean }> {
@@ -70,15 +72,16 @@ class LLMToolManager {
 			//logger.debug(`handleToolUse - calling runTool for ${toolUse.toolName}`);
 
 			// runTool will call finalizeToolUse, which handles addMessageForToolResult
-			const { messageId, toolResponse, bbaiResponse } = await tool.runTool(toolUse, projectEditor);
+			const { messageId, toolResponse, bbaiResponse } = await tool.runTool(interaction, toolUse, projectEditor);
 			return { messageId, toolResponse, bbaiResponse, isError: false };
 		} catch (error) {
 			logger.error(`Error executing tool ${toolUse.toolName}: ${error.message}`);
 			const { messageId, toolResponse } = this.finalizeToolUse(
+				interaction,
 				toolUse,
 				error.message,
 				true,
-				projectEditor,
+				//projectEditor,
 			);
 			return {
 				messageId,
@@ -90,14 +93,14 @@ class LLMToolManager {
 	}
 
 	finalizeToolUse(
+		interaction: LLMConversationInteraction,
 		toolUse: LLMAnswerToolUse,
 		toolRunResultContent: LLMToolRunResultContent,
 		isError: boolean,
-		projectEditor: ProjectEditor,
+		//projectEditor: ProjectEditor,
 	): LLMToolFinalizeResult {
 		//logger.debug(`finalizeToolUse - calling addMessageForToolResult for ${toolUse.toolName}`);
-		const messageId =
-			projectEditor.conversation?.addMessageForToolResult(toolUse.toolUseId, toolRunResultContent, isError) ||
+		const messageId = interaction.addMessageForToolResult(toolUse.toolUseId, toolRunResultContent, isError) ||
 			'';
 		const toolResponse = isError
 			? `Tool ${toolUse.toolName} failed to run:\n${this.getContentFromToolResult(toolRunResultContent)}`

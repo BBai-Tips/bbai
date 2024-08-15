@@ -1,9 +1,9 @@
-import { assert, assertEquals, assertRejects } from '../../deps.ts';
+import { assert, assertEquals, assertRejects } from '../../../deps.ts';
 import { join } from '@std/path';
 
-import { LLMToolSearchProject } from '../../../src/llms/tools/searchProjectTool.ts';
-import ProjectEditor from '../../../src/editor/projectEditor.ts';
-import { LLMAnswerToolUse } from 'api/llms/llmMessage.ts';
+import { LLMToolSearchProject } from '../../../../src/llms/tools/searchProjectTool.ts';
+import ProjectEditor from '../../../../src/editor/projectEditor.ts';
+import type { LLMAnswerToolUse } from 'api/llms/llmMessage.ts';
 import { GitUtils } from 'shared/git.ts';
 
 const projectEditor = await getProjectEditor(Deno.makeTempDirSync());
@@ -12,7 +12,7 @@ console.log('Project editor root:', testProjectRoot);
 
 async function getProjectEditor(testProjectRoot: string): Promise<ProjectEditor> {
 	await GitUtils.initGit(testProjectRoot);
-	return await new ProjectEditor('test-conversation-id', testProjectRoot).init();
+	return await new ProjectEditor(testProjectRoot).init();
 }
 
 /*
@@ -46,7 +46,8 @@ Deno.test({
 			},
 		};
 
-		const result = await tool.runTool(toolUse, projectEditor);
+		const conversation = await projectEditor.initConversation('test-conversation-id');
+		const result = await tool.runTool(conversation, toolUse, projectEditor);
 
 		assert(result.bbaiResponse.includes('BBai found 3 files matching the pattern'));
 		assert(result.toolResponse.includes('3 files match the pattern'));
@@ -73,7 +74,8 @@ Deno.test({
 			},
 		};
 
-		const result = await tool.runTool(toolUse, projectEditor);
+		const conversation = await projectEditor.initConversation('test-conversation-id');
+		const result = await tool.runTool(conversation, toolUse, projectEditor);
 
 		assertEquals(result.bbaiResponse.includes('BBai found 2 files matching the pattern'), true);
 		assertEquals(result.toolResponse.includes('2 files match the pattern'), true);
@@ -99,7 +101,8 @@ Deno.test({
 			},
 		};
 
-		const result = await tool.runTool(toolUse, projectEditor);
+		const conversation = await projectEditor.initConversation('test-conversation-id');
+		const result = await tool.runTool(conversation, toolUse, projectEditor);
 
 		assert(result.toolResponse.includes('Tool search_project executed successfully'));
 		assert(result.bbaiResponse.includes('BBai found 0 files matching the pattern'));
@@ -121,7 +124,8 @@ Deno.test({
 				pattern: '[', // Invalid regex pattern
 			},
 		};
-		const result = await tool.runTool(toolUse, projectEditor);
+		const conversation = await projectEditor.initConversation('test-conversation-id');
+		const result = await tool.runTool(conversation, toolUse, projectEditor);
 
 		assert(result.toolResponse.includes('Tool search_project failed to run:'));
 		assert(result.toolResponse.includes('Error: grep: brackets ([ ]) not balanced'));

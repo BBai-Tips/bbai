@@ -1,10 +1,10 @@
-import { assert, assertEquals, assertRejects, assertStringIncludes } from '../../deps.ts';
+import { assert, assertEquals, assertRejects, assertStringIncludes } from '../../../deps.ts';
 import { join } from '@std/path';
 import { stripIndents } from 'common-tags';
 
-import { LLMToolRunCommand } from '../../../src/llms/tools/runCommandTool.ts';
-import ProjectEditor from '../../../src/editor/projectEditor.ts';
-import { LLMAnswerToolUse } from 'api/llms/llmMessage.ts';
+import { LLMToolRunCommand } from '../../../../src/llms/tools/runCommandTool.ts';
+import ProjectEditor from '../../../../src/editor/projectEditor.ts';
+import type { LLMAnswerToolUse } from 'api/llms/llmMessage.ts';
 import { GitUtils } from 'shared/git.ts';
 
 const projectEditor = await getProjectEditor(Deno.makeTempDirSync());
@@ -13,7 +13,7 @@ console.log('Project editor root:', testProjectRoot);
 
 async function getProjectEditor(testProjectRoot: string): Promise<ProjectEditor> {
 	await GitUtils.initGit(testProjectRoot);
-	return await new ProjectEditor('test-conversation-id', testProjectRoot).init();
+	return await new ProjectEditor(testProjectRoot).init();
 }
 
 function createTestFiles() {
@@ -65,7 +65,8 @@ Deno.test({
 			},
 		};
 
-		const result = await tool.runTool(toolUse, projectEditor);
+		const conversation = await projectEditor.initConversation('test-conversation-id');
+		const result = await tool.runTool(conversation, toolUse, projectEditor);
 
 		assertStringIncludes(result.toolResponse, 'Command executed with exit code: 0');
 		assertStringIncludes(result.toolResponse, 'Output:');
@@ -88,7 +89,8 @@ Deno.test({
 			},
 		};
 
-		const result = await tool.runTool(toolUse, projectEditor);
+		const conversation = await projectEditor.initConversation('test-conversation-id');
+		const result = await tool.runTool(conversation, toolUse, projectEditor);
 
 		assertStringIncludes(result.toolResponse, 'Command executed with exit code: 0');
 		assertStringIncludes(result.toolResponse, 'Output:');
@@ -111,7 +113,8 @@ Deno.test({
 			},
 		};
 
-		const result = await tool.runTool(toolUse, projectEditor);
+		const conversation = await projectEditor.initConversation('test-conversation-id');
+		const result = await tool.runTool(conversation, toolUse, projectEditor);
 
 		assertStringIncludes(result.toolResponse, 'Command executed with exit code: 0');
 		assertStringIncludes(result.toolResponse, 'Output:');
@@ -134,7 +137,8 @@ Deno.test({
 				args: ['This command is not allowed'],
 			},
 		};
-		const result = await tool.runTool(toolUse, projectEditor);
+		const conversation = await projectEditor.initConversation('test-conversation-id');
+		const result = await tool.runTool(conversation, toolUse, projectEditor);
 
 		assertStringIncludes(result.toolResponse, 'Command not allowed: echo');
 	},

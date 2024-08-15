@@ -47,7 +47,7 @@ export type LLMMessageContentParts = Array<LLMMessageContentPart>;
 
 export interface LLMAnswerToolUse {
 	toolThinking?: string;
-	toolInput?: unknown;
+	toolInput: object;
 	toolUseId: string;
 	toolName: string;
 	toolValidation: { validated: boolean; results: string };

@@ -28,6 +28,24 @@ export const conversationStart = new Command()
 	.action(async (options) => {
 		let apiStartedByUs = false;
 
+		let terminalHandler: TerminalHandler | null = null;
+		let conversationId: ConversationId;
+
+		const handleInterrupt = async () => {
+			if (terminalHandler && terminalHandler.isStatementInProgress()) {
+				if (conversationId) {
+					console.log('\nCancelling current statement...');
+					await websocketManager.sendCancellationMessage(conversationId);
+				} else {
+					console.log("\nCan't cancel without conversation ID...");
+				}
+				terminalHandler?.cancelStatement('Waiting for Claude to finish speaking...');
+			} else {
+				console.log('\nCleaning up...');
+				await exit();
+			}
+		};
+
 		const cleanup = async () => {
 			// Ensure API is stopped when the process exits
 			if (apiStartedByUs) {
@@ -38,11 +56,13 @@ export const conversationStart = new Command()
 			cleanup();
 			Deno.exit(0);
 		};
-		Deno.addSignalListener('SIGINT', exit);
+		// Additional signal listeners will be added after terminalHandler is initialized
 		Deno.addSignalListener('SIGTERM', exit);
 
 		try {
 			// Check if API is running, start it if not
+			/*
+			// [TODO] too many ways of starting the API, this needs to be more robust
 			const apiRunning = await isApiRunning(projectRoot);
 			if (!apiRunning) {
 				console.log('API is not running. Starting it now...');
@@ -51,9 +71,10 @@ export const conversationStart = new Command()
 				apiStartedByUs = true;
 				console.log('API started successfully.');
 			}
+			 */
 
 			const startDir = Deno.cwd();
-			let conversationId: string = options.id || generateConversationId();
+			conversationId = options.id || generateConversationId();
 			let statement = options.statement?.trim();
 
 			const stdin = Deno.stdin;
@@ -90,7 +111,8 @@ export const conversationStart = new Command()
 
 				if (response.ok) {
 					const data = await response.json();
-					const terminalHandler = new TerminalHandler(bbaiDir);
+
+					terminalHandler = new TerminalHandler(bbaiDir);
 					terminalHandler.displayConversationComplete(data, options);
 				} else {
 					const errorBody = await response.text();
@@ -107,34 +129,63 @@ export const conversationStart = new Command()
 					logger.error(`Error body: ${errorBody}`);
 				}
 			} else {
-				const terminalHandler = new TerminalHandler(bbaiDir);
+				terminalHandler = new TerminalHandler(bbaiDir);
 
 				// we're running in a terminal
 				terminalHandler.initializeTerminal();
 
-				await websocketManager.setupWebsocket(conversationId);
-
 				// Spinner is now managed by terminalHandler
 				terminalHandler.startSpinner('Setting up...');
+
+				// Now that terminalHandler is initialized, we can add the signal listeners
+				Deno.addSignalListener('SIGINT', handleInterrupt);
+				Deno.addSignalListener('SIGTERM', exit);
+
+				await websocketManager.setupWebsocket(conversationId);
 
 				// Set up event listeners
 				let conversationStartDisplayed = false;
 				eventManager.on('cli:conversationReady', (data) => {
 					if (!conversationStartDisplayed) {
-						terminalHandler.displayConversationStart(data as ConversationStart, conversationId, true);
+						if (!terminalHandler) {
+							logger.error(
+								`Terminal handler not initialized for conversation ${conversationId} and event cli:conversationReady`,
+							);
+						}
+						terminalHandler?.displayConversationStart(data as ConversationStart, conversationId, true);
 						conversationStartDisplayed = true;
 					}
 				}, conversationId);
 
 				eventManager.on('cli:conversationEntry', (data) => {
-					terminalHandler.displayConversationEntry(data as ConversationEntry, conversationId, true);
+					if (!terminalHandler) {
+						logger.error(
+							`Terminal handler not initialized for conversation ${conversationId} and event cli:conversationEntry`,
+						);
+					}
+					terminalHandler?.displayConversationEntry(data as ConversationEntry, conversationId, true);
 				}, conversationId);
 
 				eventManager.on('cli:conversationAnswer', (data) => {
-					terminalHandler.displayConversationUpdate(data as ConversationResponse, conversationId, false);
+					if (!terminalHandler) {
+						logger.error(
+							`Terminal handler not initialized for conversation ${conversationId} and event cli:conversationAnswer`,
+						);
+					}
+					terminalHandler?.displayConversationUpdate(data as ConversationResponse, conversationId, false);
 				}, conversationId);
 
 				eventManager.on('cli:websocketReconnected', handleWebsocketReconnection);
+
+				eventManager.on('cli:conversationError', (data) => {
+					if (!terminalHandler) {
+						logger.error(
+							`Terminal handler not initialized for conversation ${conversationId} and event cli:conversationError`,
+						);
+						return;
+					}
+					//terminalHandler.displayError(data.error);
+				}, conversationId);
 
 				await websocketManager.waitForReady(conversationId!);
 
@@ -193,11 +244,11 @@ const processStatement = async (
 ): Promise<void> => {
 	await addToStatementHistory(bbaiDir, statement);
 	const task = 'converse';
-	terminalHandler.startSpinner('Claude is thinking...');
+	terminalHandler.startStatement('Claude is working...');
 	try {
 		websocketManager.ws?.send(JSON.stringify({ conversationId, startDir, task, statement }));
 		await websocketManager.waitForAnswer(conversationId);
 	} finally {
-		terminalHandler.stopSpinner('Claude is finished');
+		terminalHandler.stopStatement('Claude is finished');
 	}
 };

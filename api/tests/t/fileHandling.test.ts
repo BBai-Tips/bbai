@@ -1,7 +1,7 @@
-import { assertEquals, assertStringIncludes } from './deps.ts';
+import { assertEquals, assertStringIncludes } from '../deps.ts';
 import { join } from '@std/path';
 
-import { generateFileListing, searchFiles } from '../src/utils/fileHandling.utils.ts';
+import { generateFileListing, searchFiles } from '../../src/utils/fileHandling.utils.ts';
 import { GitUtils } from 'shared/git.ts';
 
 const testProjectRoot = Deno.makeTempDirSync();

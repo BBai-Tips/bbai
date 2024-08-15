@@ -13,10 +13,9 @@ class ProjectEditorManager {
 			throw new Error('ConversationId is required to create a new ProjectEditor');
 		}
 
-		const projectEditor = new ProjectEditor(conversationId, startDir);
-		await projectEditor.init();
-		// need to get the conversationId when creating the projectEditor, not when calling speakWith
-		this.projectEditors.set(projectEditor.conversation.id, projectEditor);
+		const projectEditor = await new ProjectEditor(startDir).init();
+		this.projectEditors.set(conversationId, projectEditor);
+		await projectEditor.initConversation(conversationId);
 		return projectEditor;
 	}
 
@@ -35,3 +34,5 @@ class ProjectEditorManager {
 }
 
 export default ProjectEditorManager;
+
+export const projectEditorManager: ProjectEditorManager = new ProjectEditorManager();

@@ -1,7 +1,7 @@
-import { assertEquals, assertObjectMatch, delay } from './deps.ts';
-import { app } from '../src/main.ts';
+import { assertEquals, assertObjectMatch, delay } from '../deps.ts';
+import { app } from '../../src/main.ts';
 import { superoak } from 'superoak';
-import ProjectEditor from '../src/editor/projectEditor.ts';
+import ProjectEditor from '../../src/editor/projectEditor.ts';
 //import type { ConversationId } from 'shared/types.ts';
 import { GitUtils } from 'shared/git.ts';
 
@@ -11,7 +11,7 @@ console.log('Project editor root:', testProjectRoot);
 
 async function getProjectEditor(testProjectRoot: string): Promise<ProjectEditor> {
 	await GitUtils.initGit(testProjectRoot);
-	return await new ProjectEditor('test-conversation-id', testProjectRoot).init();
+	return await new ProjectEditor(testProjectRoot).init();
 }
 
 Deno.test({

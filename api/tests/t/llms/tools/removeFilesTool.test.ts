@@ -1,9 +1,9 @@
-import { assertEquals } from '../../deps.ts';
+import { assertEquals } from '../../../deps.ts';
 import { join } from '@std/path';
 
-import { LLMToolRemoveFiles } from '../../../src/llms/tools/removeFilesTool.ts';
-import ProjectEditor from '../../../src/editor/projectEditor.ts';
-import { LLMAnswerToolUse } from 'api/llms/llmMessage.ts';
+import { LLMToolRemoveFiles } from '../../../../src/llms/tools/removeFilesTool.ts';
+import ProjectEditor from '../../../../src/editor/projectEditor.ts';
+import type { LLMAnswerToolUse } from 'api/llms/llmMessage.ts';
 import { GitUtils } from 'shared/git.ts';
 
 const projectEditor = await getProjectEditor(Deno.makeTempDirSync());
@@ -12,7 +12,7 @@ console.log('Project editor root:', testProjectRoot);
 
 async function getProjectEditor(testProjectRoot: string): Promise<ProjectEditor> {
 	await GitUtils.initGit(testProjectRoot);
-	return await new ProjectEditor('test-conversation-id', testProjectRoot).init();
+	return await new ProjectEditor(testProjectRoot).init();
 }
 
 function cleanupTestDirectory() {
@@ -30,11 +30,12 @@ Deno.test({
 		// Create test files and add them to the conversation
 		await Deno.writeTextFile(join(testProjectRoot, 'file1.txt'), 'Content of file1');
 		await Deno.writeTextFile(join(testProjectRoot, 'file2.txt'), 'Content of file2');
-		projectEditor.conversation?.addFileForMessage('file1.txt', {
+		const initialConversation = await projectEditor.initConversation('test-conversation-id');
+		await initialConversation.addFileForMessage('file1.txt', {
 			size: 'Content of file1'.length,
 			lastModified: new Date(),
 		}, messageId);
-		projectEditor.conversation?.addFileForMessage('file2.txt', {
+		await initialConversation.addFileForMessage('file2.txt', {
 			size: 'Content of file2'.length,
 			lastModified: new Date(),
 		}, messageId);
@@ -48,18 +49,20 @@ Deno.test({
 			},
 		};
 
-		const result = await tool.runTool(toolUse, projectEditor);
+		const result = await tool.runTool(initialConversation, toolUse, projectEditor);
 
 		assertEquals(result.bbaiResponse.includes('BBai has removed these files from the conversation'), true);
 
 		// Check if files are removed from the conversation
-		const file1 = projectEditor.conversation?.getFile('file1.txt');
-		const file2 = projectEditor.conversation?.getFile('file2.txt');
+		const conversation = await projectEditor.initConversation('test-conversation-id');
+		const file1 = await conversation.getFile('file1.txt');
+		const file2 = await conversation.getFile('file2.txt');
 		assertEquals(file1, undefined, 'file1.txt should not exist in the conversation');
 		assertEquals(file2, undefined, 'file2.txt should not exist in the conversation');
 
 		// Check if listFiles doesn't return the removed files
-		const fileList = projectEditor.conversation?.listFiles();
+		//const conversation = await projectEditor.initConversation('test-conversation-id');
+		const fileList = await conversation.listFiles();
 		assertEquals(fileList?.includes('file1.txt'), false, 'file1.txt should not be in the file list');
 		assertEquals(fileList?.includes('file2.txt'), false, 'file2.txt should not be in the file list');
 	},
@@ -81,13 +84,14 @@ Deno.test({
 			},
 		};
 
-		const result = await tool.runTool(toolUse, projectEditor);
+		const conversation = await projectEditor.initConversation('test-conversation-id');
+		const result = await tool.runTool(conversation, toolUse, projectEditor);
 
 		assertEquals(result.bbaiResponse.includes('BBai failed to remove these files from the conversation'), true);
 		assertEquals(result.toolResponse.includes('non_existent.txt: File not found in conversation'), true);
 
 		// Check that listFiles doesn't include the non-existent file
-		const fileList = projectEditor.conversation?.listFiles();
+		const fileList = conversation.listFiles();
 		assertEquals(fileList?.includes('non_existent.txt'), false, 'non_existent.txt should not be in the file list');
 	},
 	sanitizeResources: false,
@@ -102,7 +106,8 @@ Deno.test({
 		const messageId = '1111-2222';
 		// Create test file and add it to the conversation
 		await Deno.writeTextFile(join(testProjectRoot, 'existing_file.txt'), 'Content of existing file');
-		projectEditor.conversation?.addFileForMessage('existing_file.txt', {
+		const conversation = await projectEditor.initConversation('test-conversation-id');
+		conversation.addFileForMessage('existing_file.txt', {
 			size: 'Content of existing file'.length,
 			lastModified: new Date(),
 		}, messageId);
@@ -116,7 +121,8 @@ Deno.test({
 			},
 		};
 
-		const result = await tool.runTool(toolUse, projectEditor);
+		//const conversation = await projectEditor.initConversation('test-conversation-id');
+		const result = await tool.runTool(conversation, toolUse, projectEditor);
 
 		assertEquals(
 			result.bbaiResponse.includes('BBai has removed these files from the conversation: existing_file.txt'),
@@ -130,11 +136,11 @@ Deno.test({
 		);
 
 		// Check if existing file is removed from the conversation
-		const existingFile = projectEditor.conversation?.getFile('existing_file.txt');
+		const existingFile = conversation.getFile('existing_file.txt');
 		assertEquals(existingFile, undefined, 'existing_file.txt should not exist in the conversation');
 
 		// Check that listFiles doesn't include either file
-		const fileList = projectEditor.conversation?.listFiles();
+		const fileList = conversation.listFiles();
 		assertEquals(
 			fileList?.includes('existing_file.txt'),
 			false,

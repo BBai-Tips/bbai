@@ -1,4 +1,5 @@
 import LLMTool, { LLMToolInputSchema, LLMToolRunResult } from '../llmTool.ts';
+import LLMConversationInteraction from '../interactions/conversationInteraction.ts';
 import { LLMAnswerToolUse } from 'api/llms/llmMessage.ts';
 import ProjectEditor from '../../editor/projectEditor.ts';
 import { searchFiles } from '../../utils/fileHandling.utils.ts';
@@ -31,6 +32,7 @@ export class LLMToolSearchProject extends LLMTool {
 	}
 
 	async runTool(
+		interaction: LLMConversationInteraction,
 		toolUse: LLMAnswerToolUse,
 		projectEditor: ProjectEditor,
 	): Promise<LLMToolRunResult> {
@@ -46,11 +48,12 @@ export class LLMToolSearchProject extends LLMTool {
 				file_pattern ? ` with file pattern "${file_pattern}"` : ''
 			}${files.length > 0 ? `\n<files>\n${files.join('\n')}\n</files>` : ''}`;
 
-			const { messageId, toolResponse } = projectEditor.toolManager.finalizeToolUse(
+			const { messageId, toolResponse } = projectEditor.orchestratorController.toolManager.finalizeToolUse(
+				interaction,
 				toolUse,
 				resultMessage,
 				!!errorMessage,
-				projectEditor,
+				//projectEditor,
 			);
 
 			const bbaiResponse = `BBai found ${files.length} files matching the pattern "${pattern}"${

@@ -3,6 +3,7 @@ import { ConversationId } from 'shared/types.ts';
 import { apiClient } from './apiClient.ts';
 
 export class WebsocketManager {
+	private cancellationRequested: boolean = false;
 	public ws: WebSocket | null = null;
 	private MAX_RETRIES = 5;
 	private BASE_DELAY = 1000; // 1 second
@@ -55,6 +56,12 @@ export class WebsocketManager {
 						conversationId: msgData.data.conversationId,
 					} as EventPayloadMap['cli']['cli:conversationWaitForAnswer'],
 				);
+			} else if (msgData.type === 'conversationError') {
+				console.error(`WebsocketManager: Received conversation error:`, msgData.data);
+				eventManager.emit(
+					'cli:conversationError',
+					{ ...msgData.data } as EventPayloadMap['cli']['cli:conversationError'],
+				);
 			} else {
 				//console.info(`WebsocketManager: Ignoring ${msgData.type} event`, msgData);
 				console.error(`WebsocketManager: Received unknown message type: ${msgData.type}`);
@@ -63,7 +70,11 @@ export class WebsocketManager {
 
 		this.ws.onopen = () => {
 			//console.log('WebsocketManager: WebSocket connection opened');
-			this.ws!.send(JSON.stringify({ conversationId, startDir: Deno.cwd(), task: 'greeting', statement: '' }));
+			if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+				this.ws.send(JSON.stringify({ conversationId, startDir: Deno.cwd(), task: 'greeting', statement: '' }));
+			} else {
+				console.error('WebSocket is not open in onopen handler. ReadyState:', this.ws?.readyState);
+			}
 			/*
 			const message = JSON.stringify({ conversationId, startDir: Deno.cwd(), task: 'greeting', statement: '' });
 			console.log('WebsocketManager: Sending greeting message:', message);
@@ -72,7 +83,7 @@ export class WebsocketManager {
 		};
 
 		this.ws.onclose = async () => {
-			console.log('WebsocketManager: WebSocket connection closed. Attempting to reconnect...');
+			//console.log('WebsocketManager: WebSocket connection closed. Attempting to reconnect...');
 			await this.handleRetry(new Error('WebSocket connection closed'));
 			await this.setupWebsocket(conversationId);
 			eventManager.emit(
@@ -83,7 +94,7 @@ export class WebsocketManager {
 
 		this.ws.onerror = async (event) => {
 			const error = event instanceof ErrorEvent ? event.error : new Error('Unknown WebSocket error');
-			console.error('WebsocketManager: WebSocket error:', error);
+			//console.error('WebsocketManager: WebSocket error:', error);
 			await this.handleRetry(error);
 			await this.setupWebsocket(conversationId);
 			eventManager.emit(
@@ -103,6 +114,23 @@ export class WebsocketManager {
 
 	async waitForAnswer(conversationId: ConversationId): Promise<void> {
 		//console.log(`WebsocketManager: Waiting for answer event for conversation ${conversationId}`);
+		while (!this.cancellationRequested) {
+			try {
+				await Promise.race([
+					eventManager.once('cli:conversationWaitForAnswer' as EventName<'cli'>, conversationId) as Promise<
+						EventPayloadMap['cli']['cli:conversationWaitForAnswer']
+					>,
+					new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 1000)),
+				]);
+				this.cancellationRequested = false;
+				return;
+			} catch (error) {
+				if (error.message !== 'Timeout') throw error;
+			}
+		}
+		this.cancellationRequested = false;
+		throw new Error('Operation cancelled');
+		//console.log(`WebsocketManager: Waiting for answer event for conversation ${conversationId}`);
 		await eventManager.once('cli:conversationWaitForAnswer' as EventName<'cli'>, conversationId) as Promise<
 			EventPayloadMap['cli']['cli:conversationWaitForAnswer']
 		>;
@@ -116,10 +144,27 @@ export class WebsocketManager {
 			);
 			throw new Error(`Failed to connect after ${this.MAX_RETRIES} attempts: ${error.message}`);
 		}
+		if (this.retryCount >= 5) {
+			console.log('WebsocketManager: WebSocket connection closed. Attempting to reconnect...');
+			console.log(
+				`WebsocketManager: Still unable to connect after ${this.retryCount} attempts: ${error.message}`,
+			);
+		} else if (this.retryCount >= 3) {
+			console.log('WebsocketManager: WebSocket connection closed. Attempting to reconnect...');
+		}
 		this.retryCount++;
 		const delay = Math.min(this.BASE_DELAY * Math.pow(2, this.retryCount) + Math.random() * 1000, 30000);
-		console.log(`WebsocketManager: Connection attempt failed. Retrying in ${delay / 1000} seconds...`);
+		//console.log(`WebsocketManager: Connection attempt failed. Retrying in ${delay / 1000} seconds...`);
 		await new Promise((resolve) => setTimeout(resolve, delay));
+	}
+
+	async sendCancellationMessage(conversationId: ConversationId): Promise<void> {
+		if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+			this.cancellationRequested = true;
+			this.ws.send(JSON.stringify({ conversationId, task: 'cancel' }));
+		} else {
+			console.error('WebSocket is not open. Cannot send cancellation message.');
+		}
 	}
 }
 

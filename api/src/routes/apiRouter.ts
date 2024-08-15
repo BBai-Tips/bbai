@@ -6,7 +6,6 @@ import {
 	deleteConversation,
 	getConversation,
 	listConversations,
-	undoConversation,
 } from './api/conversation.handlers.ts';
 import { websocketConversation } from './api/websocket.handlers.ts';
 
@@ -24,8 +23,8 @@ apiRouter
 	.post('/v1/conversation/:id', continueConversation)
 	.delete('/v1/conversation/:id', deleteConversation)
 	//.post('/v1/conversation/:id/message', addMessage)
-	.post('/v1/conversation/:id/clear', clearConversation)
-	.post('/v1/conversation/:id/undo', undoConversation);
+	//.post('/v1/conversation/:id/undo', undoConversation)
+	.post('/v1/conversation/:id/clear', clearConversation);
 /*
 	// NOT IMPLEMENTED
 	// File management endpoints

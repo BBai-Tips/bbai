@@ -1,4 +1,5 @@
 import LLMTool, { LLMToolInputSchema, LLMToolRunResult } from '../llmTool.ts';
+import LLMConversationInteraction from '../interactions/conversationInteraction.ts';
 import { logger } from 'shared/logger.ts';
 import { LLMAnswerToolUse, LLMMessageContentPartTextBlock } from 'api/llms/llmMessage.ts';
 import ProjectEditor from '../../editor/projectEditor.ts';
@@ -29,6 +30,7 @@ export class LLMToolRemoveFiles extends LLMTool {
 	}
 
 	async runTool(
+		interaction: LLMConversationInteraction,
 		toolUse: LLMAnswerToolUse,
 		projectEditor: ProjectEditor,
 	): Promise<LLMToolRunResult> {
@@ -42,8 +44,8 @@ export class LLMToolRemoveFiles extends LLMTool {
 			let allFilesFailed = true;
 
 			for (const fileName of fileNames) {
-				if (projectEditor.conversation?.getFile(fileName)) {
-					projectEditor.conversation.removeFile(fileName);
+				if (interaction.getFile(fileName)) {
+					interaction.removeFile(fileName);
 					contentParts.push({
 						'type': 'text',
 						'text': `File removed: ${fileName}`,
@@ -59,11 +61,12 @@ export class LLMToolRemoveFiles extends LLMTool {
 				}
 			}
 
-			const { messageId, toolResponse } = projectEditor.toolManager.finalizeToolUse(
+			const { messageId, toolResponse } = projectEditor.orchestratorController.toolManager.finalizeToolUse(
+				interaction,
 				toolUse,
 				contentParts,
 				allFilesFailed,
-				projectEditor,
+				//projectEditor,
 			);
 
 			const bbaiResponses = [];

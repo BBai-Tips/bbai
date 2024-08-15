@@ -1,4 +1,5 @@
 import LLMTool, { LLMToolInputSchema, LLMToolRunResult } from '../llmTool.ts';
+import LLMConversationInteraction from '../interactions/conversationInteraction.ts';
 import { LLMAnswerToolUse } from 'api/llms/llmMessage.ts';
 import ProjectEditor from '../../editor/projectEditor.ts';
 import { createError, ErrorType } from '../../utils/error.utils.ts';
@@ -39,6 +40,7 @@ export class LLMToolRunCommand extends LLMTool {
 	}
 
 	async runTool(
+		interaction: LLMConversationInteraction,
 		toolUse: LLMAnswerToolUse,
 		projectEditor: ProjectEditor,
 	): Promise<LLMToolRunResult> {
@@ -50,11 +52,12 @@ export class LLMToolRunCommand extends LLMTool {
 
 		if (!LLMToolRunCommand.ALLOWED_COMMANDS.some((allowed) => command.startsWith(allowed))) {
 			const toolResponse = `Command not allowed: ${command}`;
-			const { messageId } = projectEditor.toolManager.finalizeToolUse(
+			const { messageId } = projectEditor.orchestratorController.toolManager.finalizeToolUse(
+				interaction,
 				toolUse,
 				toolResponse,
 				true,
-				projectEditor,
+				//projectEditor,
 			);
 
 			const bbaiResponse = `BBai won't run unapproved commands: ${command}`;
@@ -86,11 +89,12 @@ export class LLMToolRunCommand extends LLMTool {
 				// we'll remain cautious say it's an error
 				const isError = code !== 0 || errorOutput !== '';
 
-				const { messageId } = projectEditor.toolManager.finalizeToolUse(
+				const { messageId } = projectEditor.orchestratorController.toolManager.finalizeToolUse(
+					interaction,
 					toolUse,
 					toolResponse,
 					isError,
-					projectEditor,
+					//projectEditor,
 				);
 
 				const bbaiResponse = `BBai ran command: ${command}`;

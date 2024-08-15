@@ -9,6 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 
 
+## [0.0.8-alpha] - 2024-08-15
+
+### Changed
+
+- Foundations for Orchestrator/Agent structure
+- More tests
+- Console logging cleanup
+- Error handling
+
 ## [0.0.7-alpha] - 2024-08-05
 
 ### Changed

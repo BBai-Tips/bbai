@@ -1,16 +1,19 @@
 //import { consoleSize } from '@std/console';
+import { stripIndents } from 'common-tags';
 import { join } from '@std/path';
 import { BufReader } from '@std/io';
+import { colors } from 'cliffy/ansi/mod.ts';
 
 import { getBbaiDataDir } from 'shared/dataDir.ts';
 import { ConversationId, ConversationMetrics, TokenUsage } from 'shared/types.ts';
+import { config } from 'shared/configManager.ts';
 
-const ANSI_RESET = '\x1b[0m';
-const ANSI_RED = '\x1b[31m';
-const ANSI_GREEN = '\x1b[32m';
-const ANSI_CYAN = '\x1b[36m';
-const ANSI_YELLOW = '\x1b[33m';
-const ANSI_BLUE = '\x1b[34m';
+// Define theme colors.
+//const colorError = colors.bold.red;
+//const colorWarn = colors.bold.yellow;
+//const colorWnfo = colors.bold.blue;
+// // Use theme colors.
+//console.log(error("[ERROR]"), "Some error!");
 
 const USER_ICON = '👤';
 const ASSISTANT_ICON = '🤖';
@@ -18,6 +21,7 @@ const TOOL_ICON = '🔧';
 const AUXILIARY_ICON = '📎';
 const ERROR_ICON = '❌';
 const UNKNOWN_ICON = '❓';
+const CLOCK_ICON = '🕒'; // Clock emoji
 
 import { ConversationLoggerEntryType } from 'shared/conversationLogger.ts';
 
@@ -28,15 +32,14 @@ export class LogFormatter {
 
 	private static readonly iconColorMap: Record<
 		ConversationLoggerEntryType,
-		{ icon: string; color: string; label: string }
+		{ icon: string; color: (text: string) => string; label: string }
 	> = {
-		user: { icon: USER_ICON, color: ANSI_GREEN, label: 'User Message' },
-		assistant: { icon: ASSISTANT_ICON, color: ANSI_BLUE, label: 'Assistant Message' },
-		tool_use: { icon: TOOL_ICON, color: ANSI_YELLOW, label: 'Tool Use' },
-		tool_result: { icon: TOOL_ICON, color: ANSI_YELLOW, label: 'Tool Result' },
-		auxiliary: { icon: AUXILIARY_ICON, color: ANSI_CYAN, label: 'Auxiliary Message' },
-		error: { icon: ERROR_ICON, color: ANSI_RED, label: 'Error' },
-		//text_change: { icon: TOOL_ICON, color: ANSI_YELLOW, label: 'Text Change' },
+		user: { icon: USER_ICON, color: colors.green, label: config.myPersonsName || 'Person' },
+		assistant: { icon: ASSISTANT_ICON, color: colors.blue, label: config.myAssistantsName || 'Assistant' },
+		tool_use: { icon: TOOL_ICON, color: colors.yellow, label: 'Tool Use' },
+		tool_result: { icon: TOOL_ICON, color: colors.yellow, label: 'Tool Result' },
+		auxiliary: { icon: AUXILIARY_ICON, color: colors.cyan, label: 'Auxiliary Chat' },
+		error: { icon: ERROR_ICON, color: colors.red, label: 'Error' },
 	};
 
 	constructor(maxLineLength?: number) {
@@ -124,6 +127,15 @@ export class LogFormatter {
 		return new Date().toISOString();
 	}
 
+	private static isStatsAndUsageEmpty(stats: ConversationMetrics, usage: TokenUsage): boolean {
+		return (
+			!stats ||
+			(stats.statementCount === 0 && stats.turnCount === 0 && stats.totalTurnCount === 0) ||
+			!usage ||
+			(usage.inputTokens === 0 && usage.outputTokens === 0 && usage.totalTokens === 0)
+		);
+	}
+
 	formatLogEntry(
 		type: ConversationLoggerEntryType,
 		timestamp: string,
@@ -132,13 +144,38 @@ export class LogFormatter {
 		tokenUsage: TokenUsage,
 	): string {
 		const { icon, color, label } = LogFormatter.iconColorMap[type] ||
-			{ icon: UNKNOWN_ICON, color: ANSI_RESET, label: 'Unknown' };
+			{ icon: UNKNOWN_ICON, color: colors.reset, label: 'Unknown' };
+		//const label = type === 'user' || type === 'assistant' ? rawLabel : rawLabel + ' Message';
 
-		const header = `${color}╭─ ${icon}   ${label} [${timestamp}]${ANSI_RESET}`;
-		const footer = `${color}╰${'─'.repeat(this._maxLineLength - 1)}${ANSI_RESET}`;
-		const wrappedMessage = this.wrapText(message.trim(), `${color}│ `, ANSI_RESET);
+		let header = color(
+			`╭─ ${icon}  ${colors.bold(label)} 🕒  ${new Date(timestamp).toLocaleString()}`,
+		);
 
-		return `${header}\n${wrappedMessage}\n${footer}`;
+		if (!LogFormatter.isStatsAndUsageEmpty(conversationStats, tokenUsage)) {
+			const summaryInfo = [
+				colors.green(`📝  St:${conversationStats.statementCount}`),
+				colors.magenta(`🔄  Tn:${conversationStats.turnCount}`),
+				colors.blue(`🔢  TT:${conversationStats.totalTurnCount}`),
+				colors.red(`⌨️  In:${tokenUsage.inputTokens}`),
+				colors.yellow(`🗨️  Out:${tokenUsage.outputTokens}`),
+				colors.green(`Σ  Tot:${tokenUsage.totalTokens}`),
+			].join('  ');
+			header += ` ${summaryInfo}`;
+		}
+		const footer = color(`╰${'─'.repeat(this._maxLineLength - 1)}`);
+
+		let formattedMessage = message.trim();
+		if (type === 'tool_use') {
+			formattedMessage = this.prettifyJsonInMessage(formattedMessage);
+		}
+
+		//const wrappedMessage = this.wrapText(formattedMessage, color('│ '), '');
+		const wrappedMessage = this.wrapText(formattedMessage, color('  '), '');
+
+		return stripIndents`
+			${header}
+			${wrappedMessage}
+			${footer}`;
 	}
 
 	formatRawLogEntry(entry: string): string {
@@ -165,8 +202,21 @@ export class LogFormatter {
 		}
 	}
 
+	private prettifyJsonInMessage(message: string): string {
+		const jsonRegex = /\{[\s\S]*?\}/;
+		return message.replace(jsonRegex, (match) => {
+			try {
+				const parsed = JSON.parse(match);
+				return JSON.stringify(parsed, null, 2);
+			} catch (error) {
+				// If parsing fails, return the original match
+				return match;
+			}
+		});
+	}
+
 	formatSeparator(): string {
-		return `${ANSI_BLUE}${'─'.repeat(this._maxLineLength)}${ANSI_RESET}\n`;
+		return colors.blue(`${'─'.repeat(this._maxLineLength)}\n`);
 	}
 
 	static getEntrySeparator(): string {

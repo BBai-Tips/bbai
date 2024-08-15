@@ -80,11 +80,11 @@ export class ConversationLogger {
 
 	async logToolUse(
 		toolName: string,
-		input: string,
+		input: object,
 		conversationStats?: ConversationMetrics,
 		tokenUsage?: TokenUsage,
 	) {
-		const message = `Tool: ${toolName}\nInput: ${input}`;
+		const message = `Tool: ${toolName}\nInput: \n${JSON.stringify(input, null, 2)}`;
 		await this.logEntry('tool_use', message, conversationStats, tokenUsage);
 	}
 
@@ -96,9 +96,11 @@ export class ConversationLogger {
 	) {
 		const message = `Tool: ${toolName}\nResult: ${
 			Array.isArray(result)
-				? 'text' in result[0] ? (result[0] as LLMMessageContentPartTextBlock).text : JSON.stringify(result[0])
+				? 'text' in result[0]
+					? (result[0] as LLMMessageContentPartTextBlock).text
+					: JSON.stringify(result[0], null, 2)
 				: typeof result !== 'string'
-				? 'text' in result ? (result as LLMMessageContentPartTextBlock).text : JSON.stringify(result)
+				? 'text' in result ? (result as LLMMessageContentPartTextBlock).text : JSON.stringify(result, null, 2)
 				: result
 		}`;
 		await this.logEntry('tool_result', message, conversationStats, tokenUsage);

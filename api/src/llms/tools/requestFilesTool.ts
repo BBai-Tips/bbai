@@ -1,4 +1,5 @@
 import LLMTool, { LLMToolInputSchema, LLMToolRunResult } from '../llmTool.ts';
+import LLMConversationInteraction from '../interactions/conversationInteraction.ts';
 import { logger } from 'shared/logger.ts';
 import { LLMAnswerToolUse, LLMMessageContentPartTextBlock } from 'api/llms/llmMessage.ts';
 import ProjectEditor from '../../editor/projectEditor.ts';
@@ -29,6 +30,7 @@ export class LLMToolRequestFiles extends LLMTool {
 	}
 
 	async runTool(
+		interaction: LLMConversationInteraction,
 		toolUse: LLMAnswerToolUse,
 		projectEditor: ProjectEditor,
 	): Promise<LLMToolRunResult> {
@@ -61,14 +63,15 @@ export class LLMToolRequestFiles extends LLMTool {
 
 			// [TODO] we're creating a bit of a circle by calling back into the toolManager in the projectEditor
 			// Since we're not holding onto a copy of toolManager, it should be fine - dangerous territory though
-			const { messageId, toolResponse } = projectEditor.toolManager.finalizeToolUse(
+			const { messageId, toolResponse } = projectEditor.orchestratorController.toolManager.finalizeToolUse(
+				interaction,
 				toolUse,
 				contentParts,
 				allFilesFailed,
-				projectEditor,
+				//projectEditor,
 			);
 
-			projectEditor.conversation?.addFilesForMessage(
+			projectEditor.orchestratorController.primaryInteraction.addFilesForMessage(
 				filesAdded,
 				messageId,
 				toolUse.toolUseId,

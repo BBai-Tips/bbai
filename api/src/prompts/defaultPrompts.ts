@@ -1,6 +1,7 @@
 import { stripIndents } from 'common-tags';
 
 import { loadConfig, readFileContent, resolveFilePath } from 'shared/dataDir.ts';
+import { logger } from 'shared/logger.ts';
 
 interface PromptMetadata {
 	name: string;
@@ -29,7 +30,7 @@ export const system: Prompt = {
 				const resolvedPath = await resolveFilePath(guidelinesPath);
 				guidelines = await readFileContent(resolvedPath) || '';
 			} catch (error) {
-				console.error(`Failed to load guidelines: ${error.message}`);
+				logger.error(`Failed to load guidelines: ${error.message}`);
 			}
 		}
 

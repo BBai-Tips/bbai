@@ -1,10 +1,10 @@
-import { assertEquals, assertExists } from './deps.ts';
+import { assertEquals, assertExists } from '../deps.ts';
 import { join } from '@std/path';
 import { ensureDir } from '@std/fs';
 
-import LLMConversationInteraction from '../src/llms/interactions/conversationInteraction.ts';
-import ProjectEditor from '../src/editor/projectEditor.ts';
-import LLMMessage, { LLMMessageContentPart, LLMMessageContentPartTextBlock } from '../src/llms/llmMessage.ts';
+import LLMConversationInteraction from '../../src/llms/interactions/conversationInteraction.ts';
+import ProjectEditor from '../../src/editor/projectEditor.ts';
+import LLMMessage, { LLMMessageContentPart, LLMMessageContentPartTextBlock } from '../../src/llms/llmMessage.ts';
 import { GitUtils } from 'shared/git.ts';
 import { LLMCallbackType } from 'api/types.ts';
 
@@ -21,7 +21,7 @@ class MockLLM {
 async function setupTestEnvironment() {
 	const projectRoot = await Deno.makeTempDir();
 	await GitUtils.initGit(projectRoot);
-	const projectEditor = await new ProjectEditor('test-conversation-id', projectRoot).init();
+	const projectEditor = await new ProjectEditor(projectRoot).init();
 	const mockLLM = new MockLLM();
 	const conversation = new LLMConversationInteraction(mockLLM as any, 'test-conversation-id');
 

@@ -1,7 +1,7 @@
 import { join } from '@std/path';
 
 import type { LLMSpeakWithOptions, LLMSpeakWithResponse } from 'api/types.ts';
-import { ConversationId, ConversationMetrics, TokenUsage } from 'shared/types.ts';
+import { ConversationId, ConversationMetrics, ConversationTokenUsage, TokenUsage } from 'shared/types.ts';
 import LLMInteraction from './baseInteraction.ts';
 import LLM from '../providers/baseLLM.ts';
 import { LLMCallbackType } from 'api/types.ts';
@@ -9,7 +9,8 @@ import type { LLMMessageContentPart, LLMMessageContentPartTextBlock } from 'api/
 import LLMMessage from 'api/llms/llmMessage.ts';
 import LLMTool from '../llmTool.ts';
 import { logger } from 'shared/logger.ts';
-import { readFileContent } from 'shared/dataDir.ts';
+//import { readFileContent } from 'shared/dataDir.ts';
+import { ResourceManager } from '../resourceManager.ts';
 import { GitUtils } from 'shared/git.ts';
 
 export interface FileMetadata {
@@ -28,14 +29,22 @@ export interface ProjectInfo {
 }
 
 class LLMConversationInteraction extends LLMInteraction {
-	private _statementCount: number = 0;
 	private _files: Map<string, FileMetadata> = new Map();
+	private resourceManager: ResourceManager;
 	private systemPromptFiles: string[] = [];
-	public title: string = '';
 	private currentCommit: string | null = null;
 
 	constructor(llm: LLM, conversationId?: ConversationId) {
 		super(llm, conversationId);
+		this.resourceManager = new ResourceManager();
+	}
+
+	// these methods are really just convenience aliases for tokenUsageInteraction
+	public get tokenUsageConversation(): ConversationTokenUsage {
+		return this._tokenUsageInteraction;
+	}
+	public set tokenUsageConversation(tokenUsage: ConversationTokenUsage) {
+		this._tokenUsageInteraction = tokenUsage;
 	}
 
 	public async prepareSytemPrompt(system: string): Promise<string> {
@@ -88,11 +97,11 @@ class LLMConversationInteraction extends LLMInteraction {
 		const projectRoot = await this.llm.invoke(LLMCallbackType.PROJECT_ROOT);
 		const fullFilePath = join(projectRoot, filePath);
 		logger.info(`Reading contents of File ${fullFilePath}`);
-		const content = await readFileContent(fullFilePath);
-		if (content === null) {
-			throw new Error(`File not found: ${fullFilePath}`);
+		try {
+			return await this.resourceManager.loadResource({ type: 'file', location: fullFilePath });
+		} catch (error) {
+			throw new Error(`Failed to read file: ${fullFilePath}`);
 		}
-		return content;
 	}
 
 	protected appendProjectInfoToSystem(
@@ -327,35 +336,12 @@ class LLMConversationInteraction extends LLMInteraction {
 		this.systemPromptFiles = [];
 	}
 
-	public get statementCount(): number {
-		return this._statementCount;
-	}
-
-	public getTotalTurnCount(): number {
-		return this._turnCount;
-	}
-
-	public getInputTokensTotal(): number {
-		return this.totalTokenUsage.inputTokens;
-	}
-
-	public getOutputTokensTotal(): number {
-		return this.totalTokenUsage.outputTokens;
-	}
-
-	public getTotalTokensTotal(): number {
-		return this.totalTokenUsage.totalTokens;
-	}
-
-	public getTokenUsage(): TokenUsage {
-		return this.totalTokenUsage;
-	}
-
 	// converse is called for first turn in a statement; subsequent turns call speakWithLLM
 	public async converse(
 		prompt: string,
 		speakOptions?: LLMSpeakWithOptions,
 	): Promise<LLMSpeakWithResponse> {
+		// Statement count is now incremented at the beginning of the method
 		if (!speakOptions) {
 			speakOptions = {} as LLMSpeakWithOptions;
 		}
@@ -376,15 +362,15 @@ class LLMConversationInteraction extends LLMInteraction {
 
 		const response = await this.llm.speakWithRetry(this, speakOptions);
 
+		// Update totals once per turn
+		//this.updateTotals(response.messageResponse.usage, 1); // Assuming 1 provider request per converse call
+		this.updateTotals(response.messageResponse.usage); // Assuming 1 provider request per converse call
+
 		const contentPart: LLMMessageContentPart = response.messageResponse
 			.answerContent[0] as LLMMessageContentPartTextBlock;
 
 		const msg = contentPart.text;
-		const conversationStats: ConversationMetrics = {
-			statementCount: this._statementCount,
-			turnCount: this._turnCount,
-			totalTurnCount: 0, //this.totalTurnCount,
-		};
+		const conversationStats: ConversationMetrics = this.getAllStats();
 		const tokenUsage: TokenUsage = response.messageResponse.usage;
 
 		this.conversationLogger.logAssistantMessage(msg, conversationStats, tokenUsage);

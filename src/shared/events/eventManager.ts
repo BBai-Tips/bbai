@@ -7,6 +7,7 @@ import {
 	ConversationResponse,
 	ConversationStart,
 } from 'shared/types.ts';
+import { logger } from 'shared/logger.ts';
 
 export type EventMap = {
 	projectEditor: {
@@ -14,6 +15,7 @@ export type EventMap = {
 		conversationReady: ConversationStart;
 		conversationEntry: ConversationEntry;
 		conversationAnswer: ConversationResponse;
+		conversationCancelled: { conversationId: ConversationId; message: string };
 		conversationError: {
 			conversationId: ConversationId;
 			conversationTitle: string;
@@ -34,6 +36,16 @@ export type EventMap = {
 		conversationEntry: ConversationEntry;
 		conversationAnswer: ConversationResponse;
 		websocketReconnected: { conversationId: ConversationId };
+		conversationError: {
+			conversationId: ConversationId;
+			error: string;
+			code?:
+				| 'INVALID_CONVERSATION_ID'
+				| 'EMPTY_PROMPT'
+				| 'LARGE_PROMPT'
+				| 'INVALID_START_DIR'
+				| 'CONVERSATION_IN_USE';
+		};
 	};
 	logs: Record<string, unknown>;
 	files: Record<string, unknown>;
@@ -90,7 +102,7 @@ class EventManager extends EventTarget {
 		const listenerWeakMap = this.listenerMap.get(listenerKey)!;
 
 		const wrappedListener = ((e: TypedEvent<EventPayload<T, E>>) => {
-			//console.log(
+			//logger.log(
 			//	`EventManager-onListener: Handling event ${event} for conversation ${conversationId}`,
 			//	e.detail.conversationId,
 			//);
@@ -101,7 +113,7 @@ class EventManager extends EventTarget {
 			) {
 				const result = callback(e.detail);
 				if (result instanceof Promise) {
-					result.catch((error) => console.error(`Error in event handler for ${event}:`, error));
+					result.catch((error) => logger.error(`Error in event handler for ${event}:`, error));
 				}
 			}
 		}) as EventListener;
@@ -146,8 +158,8 @@ class EventManager extends EventTarget {
 		event: E,
 		payload: EventPayloadMap[T][E],
 	): boolean {
-		//console.log(`EventManager: Emitting event ${event}`, payload);
-		//console.log(`EventManager: Number of listeners for ${event}:`, this.listenerCount(event));
+		//logger.log(`EventManager: Emitting event ${event}`, payload);
+		//logger.log(`EventManager: Number of listeners for ${event}:`, this.listenerCount(event));
 		return this.dispatchEvent(new TypedEvent(payload, event));
 	}
 

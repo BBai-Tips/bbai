@@ -11,16 +11,16 @@ import {
 	ConversationTokenUsage,
 	TokenUsage,
 } from 'shared/types.ts';
-
+import { LLMMessageContentPartToolUseBlock } from 'api/llms/llmMessage.ts';
 import { logger } from 'shared/logger.ts';
 import { config } from 'shared/configManager.ts';
-import { createError, ErrorType } from './error.utils.ts';
+import { createError, ErrorType } from '../utils/error.utils.ts';
 import { FileHandlingErrorOptions } from '../errors/error.ts';
 import ProjectEditor from '../editor/projectEditor.ts';
 import { ProjectInfo } from '../llms/interactions/conversationInteraction.ts';
 import { stripIndents } from 'common-tags';
 
-export class ConversationPersistence {
+class ConversationPersistence {
 	private conversationDir!: string;
 	private metadataPath!: string;
 	private messagesPath!: string;
@@ -58,20 +58,19 @@ export class ConversationPersistence {
 
 	static async listConversations(options: {
 		page: number;
-		pageSize: number;
+		limit: number;
 		startDate?: Date;
 		endDate?: Date;
 		llmProviderName?: string;
 		startDir: string;
-	}): Promise<ConversationMetadata[]> {
+	}): Promise<{ conversations: ConversationMetadata[]; totalCount: number }> {
 		const projectRoot = await getProjectRoot(options.startDir);
 		const bbaiDataDir = join(projectRoot, '.bbai', 'data');
-		const conversationsDir = join(bbaiDataDir, 'conversations');
 		const conversationsMetadataPath = join(bbaiDataDir, 'conversations.json');
 
 		if (!await exists(conversationsMetadataPath)) {
 			await Deno.writeTextFile(conversationsMetadataPath, JSON.stringify([]));
-			return [];
+			return { conversations: [], totalCount: 0 };
 		}
 
 		const content = await Deno.readTextFile(conversationsMetadataPath);
@@ -88,18 +87,19 @@ export class ConversationPersistence {
 			conversations = conversations.filter((conv) => conv.llmProviderName === options.llmProviderName);
 		}
 
-		// Apply pagination
-		const startIndex = (options.page - 1) * options.pageSize;
-		conversations = conversations.slice(startIndex, startIndex + options.pageSize);
+		// Get total count before pagination
+		const totalCount = conversations.length;
 
-		return conversations;
+		// Apply pagination
+		const startIndex = (options.page - 1) * options.limit;
+		conversations = conversations.slice(startIndex, startIndex + options.limit);
+
+		return { conversations, totalCount };
 	}
 
 	async saveConversation(conversation: LLMConversationInteraction): Promise<void> {
 		try {
 			await this.ensureInitialized();
-
-			logger.info(`Preparing to save metadata at project level for conversation: ${conversation.id}`);
 
 			const metadata: ConversationMetadata = {
 				id: conversation.id,
@@ -109,10 +109,7 @@ export class ConversationPersistence {
 				createdAt: new Date().toISOString(),
 				updatedAt: new Date().toISOString(),
 			};
-
 			await this.updateConversationsMetadata(metadata);
-
-			logger.info(`Saved metadata to project level for conversation: ${conversation.id}`);
 
 			const detailedMetadata: ConversationDetailedMetadata = {
 				...metadata,
@@ -121,15 +118,15 @@ export class ConversationPersistence {
 				maxTokens: conversation.maxTokens,
 
 				conversationStats: {
-					statementCount: conversation.statementCount,
 					turnCount: conversation.turnCount,
-					totalTurnCount: conversation.getTotalTurnCount(),
+					totalTurnCount: conversation.totalTurnCount,
+					statementCount: conversation.statementCount,
 				},
-				tokenUsage: {
-					inputTokensTotal: conversation.getInputTokensTotal(),
-					outputTokensTotal: conversation.getOutputTokensTotal(),
-					totalTokensTotal: conversation.getTotalTokensTotal(),
-				},
+				tokenUsageTurn: conversation.tokenUsageTurn,
+				tokenUsageStatement: conversation.tokenUsageStatement,
+				tokenUsageConversation: conversation.tokenUsageConversation,
+
+				totalProviderRequests: conversation.totalProviderRequests,
 
 				tools: conversation.getAllTools().map((tool) => ({ name: tool.name, description: tool.description })),
 
@@ -138,22 +135,11 @@ export class ConversationPersistence {
 				projectInfoTier: this.projectEditor.projectInfo.tier ?? undefined,
 				projectInfoContent: this.projectEditor.projectInfo.content,
 			};
-
-			logger.info(`Preparing to save metadata for conversation: ${conversation.id}`);
-
-			await Deno.writeTextFile(
-				join(this.conversationDir, 'metadata.json'),
-				JSON.stringify(detailedMetadata, null, 2),
-			);
-			logger.info(`Read metadata for conversation: ${conversation.id}`);
-
 			// projectInfoContent is only included for 'localdev' environment
 			if (config.api?.environment === 'localdev') {
-				(metadata as any).projectInfoContent = this.projectEditor.projectInfo.content;
+				detailedMetadata.projectInfoContent = this.projectEditor.projectInfo.content;
 			}
-
-			await Deno.writeTextFile(this.metadataPath, JSON.stringify(metadata, null, 2));
-			logger.info(`Saved metadata for conversation: ${conversation.id}`);
+			await this.saveMetadata(detailedMetadata);
 
 			// Save messages
 			const statementCount = conversation.statementCount || 0; // Assuming this property exists
@@ -200,8 +186,7 @@ export class ConversationPersistence {
 				return null;
 			}
 
-			const metadataContent = await Deno.readTextFile(this.metadataPath);
-			const metadata: ConversationDetailedMetadata = JSON.parse(metadataContent);
+			const metadata: ConversationDetailedMetadata = await this.getMetadata();
 			const conversation = new LLMConversationInteraction(llm, this.conversationId);
 			await conversation.init();
 
@@ -211,11 +196,18 @@ export class ConversationPersistence {
 			conversation.model = metadata.model;
 			conversation.maxTokens = metadata.maxTokens;
 			conversation.temperature = metadata.temperature;
-			conversation.updateTotals({
-				inputTokens: metadata.tokenUsage.inputTokensTotal,
-				outputTokens: metadata.tokenUsage.outputTokensTotal,
-				totalTokens: metadata.tokenUsage.totalTokensTotal,
-			}, metadata.conversationStats.turnCount);
+
+			conversation.totalProviderRequests = metadata.totalProviderRequests;
+
+			conversation.tokenUsageTurn = metadata.tokenUsageTurn || this.defaultTokenUsage();
+			conversation.tokenUsageStatement = metadata.tokenUsageStatement || this.defaultTokenUsage();
+			conversation.tokenUsageConversation = metadata.tokenUsageConversation ||
+				this.defaultConversationTokenUsage();
+
+			conversation.turnCount = metadata.conversationStats.turnCount;
+			conversation.totalTurnCount = metadata.conversationStats.totalTurnCount;
+			conversation.statementCount = metadata.conversationStats.statementCount;
+
 			//conversation.addTools((metadata.tools || []).map(tool => ({ ...tool, input_schema: {}, validateInput: () => true, runTool: async () => ({ result: '' }) })));
 
 			if (await exists(this.messagesPath)) {
@@ -230,6 +222,24 @@ export class ConversationPersistence {
 						logger.error(`Error parsing message: ${error.message}`);
 						// Continue to the next message if there's an error
 					}
+				}
+
+				// Check if the last message has a 'tool_use' content part
+				const lastMessage = conversation.getLastMessage();
+				if (
+					lastMessage && lastMessage.role === 'assistant' &&
+					lastMessage.content.some((part: any) => part.type === 'tool_use')
+				) {
+					const toolUsePart = lastMessage.content.filter((part: any) =>
+						part.type === 'tool_use'
+					)[0] as LLMMessageContentPartToolUseBlock;
+					// Add a new message with a 'tool_result' content part
+					conversation.addMessageForToolResult(
+						toolUsePart.id,
+						'Tool use was interrupted, results could not be generated. You may try again now.',
+						true,
+					);
+					logger.warn('Added generated tool_result message due to interrupted tool use');
 				}
 			}
 
@@ -283,9 +293,7 @@ export class ConversationPersistence {
 			JSON.stringify(conversations, null, 2),
 		);
 
-		logger.info(
-			`Updated conversations metadata for conversation: ${conversation.id}`,
-		);
+		logger.info(`Saved metadata to project level for conversation: ${conversation.id}`);
 	}
 
 	async getConversationIdByTitle(title: string): Promise<string | null> {
@@ -322,16 +330,67 @@ export class ConversationPersistence {
 		const existingMetadata = await this.getMetadata();
 		const updatedMetadata = { ...existingMetadata, ...metadata };
 		await Deno.writeTextFile(this.metadataPath, JSON.stringify(updatedMetadata, null, 2));
-		logger.info(`Metadata saved for conversation: ${this.conversationId}`);
+		logger.info(`Saved metadata for conversation: ${this.conversationId}`);
 	}
 
-	async getMetadata(): Promise<any> {
+	async getMetadata(): Promise<ConversationDetailedMetadata> {
 		await this.ensureInitialized();
 		if (await exists(this.metadataPath)) {
 			const metadataContent = await Deno.readTextFile(this.metadataPath);
 			return JSON.parse(metadataContent);
 		}
-		return {};
+		return this.defaultMetadata();
+	}
+
+	defaultConversationStats(): ConversationMetrics {
+		return {
+			statementCount: 0,
+			turnCount: 0,
+			totalTurnCount: 0,
+		};
+	}
+	defaultTokenUsage(): TokenUsage {
+		return {
+			inputTokens: 0,
+			outputTokens: 0,
+			totalTokens: 0,
+		};
+	}
+	defaultConversationTokenUsage(): ConversationTokenUsage {
+		return {
+			inputTokensTotal: 0,
+			outputTokensTotal: 0,
+			totalTokensTotal: 0,
+		};
+	}
+
+	defaultMetadata(): ConversationDetailedMetadata {
+		return {
+			id: '',
+			title: '',
+			llmProviderName: '',
+			model: '',
+			createdAt: '',
+			updatedAt: '',
+
+			system: '',
+			temperature: 0,
+			maxTokens: 4096,
+
+			projectInfoType: '',
+			projectInfoTier: 0,
+			projectInfoContent: '',
+
+			totalProviderRequests: 0,
+
+			tokenUsageTurn: this.defaultTokenUsage(),
+			tokenUsageStatement: this.defaultTokenUsage(),
+			tokenUsageConversation: this.defaultConversationTokenUsage(),
+
+			conversationStats: this.defaultConversationStats(),
+
+			tools: [],
+		};
 	}
 
 	async saveSystemPrompt(systemPrompt: string): Promise<void> {
@@ -353,8 +412,6 @@ export class ConversationPersistence {
 		await Deno.writeTextFile(projectInfoPath, content);
 		logger.info(`Project info saved for conversation: ${this.conversationId}`);
 	}
-
-	// Remove the saveConversationMessage method as it's no longer needed
 
 	private handleSaveError(error: unknown, filePath: string): never {
 		if (error instanceof Deno.errors.PermissionDenied) {
@@ -426,3 +483,5 @@ export class ConversationPersistence {
 		}
 	}
 }
+
+export default ConversationPersistence;

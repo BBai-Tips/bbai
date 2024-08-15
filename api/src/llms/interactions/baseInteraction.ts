@@ -1,7 +1,7 @@
-import type { LLMSpeakWithOptions, LLMSpeakWithResponse, LLMTokenUsage } from '../../types.ts';
+import type { LLMSpeakWithOptions, LLMSpeakWithResponse } from '../../types.ts';
 import LLM from '../providers/baseLLM.ts';
 import { LLMCallbackType } from 'api/types.ts';
-import { ConversationId, ConversationMetrics, TokenUsage } from 'shared/types.ts';
+import { ConversationId, ConversationMetrics, ConversationTokenUsage, TokenUsage } from 'shared/types.ts';
 import type {
 	LLMMessageContentPart,
 	LLMMessageContentPartImageBlock,
@@ -13,12 +13,32 @@ import type {
 import LLMMessage from 'api/llms/llmMessage.ts';
 import LLMTool, { LLMToolRunResultContent } from '../llmTool.ts';
 import { ConversationLogger, ConversationLoggerEntryType } from 'shared/conversationLogger.ts';
-import { crypto } from '@std/crypto';
 import { logger } from 'shared/logger.ts';
+import { generateConversationId } from 'shared/conversationManagement.ts';
 
 class LLMInteraction {
 	public id: string;
+	public title: string = '';
+	public createdAt: Date = new Date();
+	public updatedAt: Date = new Date();
+	private _totalProviderRequests: number = 0;
+	// count of turns for most recent statement
 	protected _turnCount: number = 0;
+	// count of turns for all statement
+	protected _totalTurnCount: number = 0;
+	// count of statements
+	protected _statementCount: number = 0;
+	// token usage for most recent statement
+	protected _tokenUsageTurn: TokenUsage = { totalTokens: 0, inputTokens: 0, outputTokens: 0 };
+	// token usage for most recent statement
+	protected _tokenUsageStatement: TokenUsage = { totalTokens: 0, inputTokens: 0, outputTokens: 0 };
+	// token usage for for all statements
+	protected _tokenUsageInteraction: ConversationTokenUsage = {
+		totalTokensTotal: 0,
+		inputTokensTotal: 0,
+		outputTokensTotal: 0,
+	};
+
 	protected llm: LLM;
 	protected messages: LLMMessage[] = [];
 	protected tools: Map<string, LLMTool> = new Map();
@@ -29,12 +49,10 @@ class LLMInteraction {
 
 	protected _maxTokens: number = 8192;
 	protected _temperature: number = 0.2;
-	protected _totalTokenUsage: LLMTokenUsage = { totalTokens: 0, inputTokens: 0, outputTokens: 0 };
-	protected _totalProviderRequests: number = 0;
 	protected _currentPrompt: string = '';
 
 	constructor(llm: LLM, conversationId?: ConversationId) {
-		this.id = conversationId ?? LLMInteraction.generateShortId();
+		this.id = conversationId ?? generateConversationId();
 		this.llm = llm;
 	}
 
@@ -65,6 +83,104 @@ class LLMInteraction {
 		return this;
 	}
 
+	public get conversationStats(): ConversationMetrics {
+		return {
+			statementCount: this._statementCount,
+			turnCount: this._turnCount,
+			totalTurnCount: this._totalTurnCount,
+		};
+	}
+	public set conversationStats(stats: ConversationMetrics) {
+		this._statementCount = stats.statementCount;
+		this._turnCount = stats.turnCount;
+		this._totalTurnCount = stats.totalTurnCount;
+	}
+
+	public get totalProviderRequests(): number {
+		return this._totalProviderRequests;
+	}
+	public set totalProviderRequests(count: number) {
+		this._totalProviderRequests = count;
+	}
+
+	// count of turns for most recent statement
+	public get turnCount(): number {
+		return this._turnCount;
+	}
+	public set turnCount(count: number) {
+		this._turnCount = count;
+	}
+	// count of turns for all statement
+	public get totalTurnCount(): number {
+		return this._totalTurnCount;
+	}
+	public set totalTurnCount(count: number) {
+		this._totalTurnCount = count;
+	}
+	// count of statements
+	public get statementCount(): number {
+		return this._statementCount;
+	}
+	public set statementCount(count: number) {
+		this._statementCount = count;
+	}
+
+	public get tokenUsageTurn(): TokenUsage {
+		return this._tokenUsageTurn;
+	}
+	public set tokenUsageTurn(tokenUsage: TokenUsage) {
+		this._tokenUsageTurn = tokenUsage;
+	}
+
+	public get tokenUsageStatement(): TokenUsage {
+		return this._tokenUsageStatement;
+	}
+	public set tokenUsageStatement(tokenUsage: TokenUsage) {
+		this._tokenUsageStatement = tokenUsage;
+	}
+
+	public get inputTokensTotal(): number {
+		return this._tokenUsageInteraction.inputTokensTotal;
+	}
+
+	public outputTokensTotal(): number {
+		return this._tokenUsageInteraction.outputTokensTotal;
+	}
+
+	public get totalTokensTotal(): number {
+		return this._tokenUsageInteraction.totalTokensTotal;
+	}
+
+	public get tokenUsageInteraction(): ConversationTokenUsage {
+		return this._tokenUsageInteraction;
+	}
+	public set tokenUsageInteraction(tokenUsage: ConversationTokenUsage) {
+		this._tokenUsageInteraction = tokenUsage;
+	}
+
+	//public updateTotals(tokenUsage: TokenUsage, providerRequests: number): void {
+	public updateTotals(tokenUsage: TokenUsage): void {
+		this._tokenUsageInteraction.totalTokensTotal += tokenUsage.totalTokens;
+		this._tokenUsageInteraction.inputTokensTotal += tokenUsage.inputTokens;
+		this._tokenUsageInteraction.outputTokensTotal += tokenUsage.outputTokens;
+		//this._totalProviderRequests += providerRequests;
+		this._tokenUsageStatement = tokenUsage;
+		this._turnCount++;
+		this._totalTurnCount++;
+	}
+
+	public getAllStats(): ConversationMetrics {
+		return {
+			//totalProviderRequests: this._totalProviderRequests,
+			turnCount: this._turnCount,
+			totalTurnCount: this._totalTurnCount,
+			statementCount: this._statementCount,
+			// 			tokenUsageTurn: this._tokenUsageTurn,
+			// 			tokenUsageStatement: this._tokenUsageStatement,
+			// 			tokenUsageInteraction: this._tokenUsageInteraction
+		};
+	}
+
 	public prepareSytemPrompt(_system: string): Promise<string> {
 		throw new Error("Method 'prepareSytemPrompt' must be implemented.");
 	}
@@ -73,11 +189,6 @@ class LLMInteraction {
 	}
 	public prepareTools(_tools: LLMTool[]): Promise<LLMTool[]> {
 		throw new Error("Method 'prepareTools' must be implemented.");
-	}
-
-	protected static generateShortId(): string {
-		const uuid = crypto.randomUUID();
-		return uuid.replace(/-/g, '').substring(0, 8);
 	}
 
 	public addMessageForUserRole(content: LLMMessageContentPart | LLMMessageContentParts): string {
@@ -290,25 +401,6 @@ class LLMInteraction {
 		this._temperature = value;
 	}
 
-	get turnCount(): number {
-		return this._turnCount;
-	}
-
-	get totalTokenUsage(): LLMTokenUsage {
-		return this._totalTokenUsage;
-	}
-
-	get totalProviderRequests(): number {
-		return this._totalProviderRequests;
-	}
-
-	updateTotals(tokenUsage: LLMTokenUsage, providerRequests: number): void {
-		this._totalTokenUsage.totalTokens += tokenUsage.totalTokens;
-		this._totalTokenUsage.inputTokens += tokenUsage.inputTokens;
-		this._totalTokenUsage.outputTokens += tokenUsage.outputTokens;
-		this._totalProviderRequests += providerRequests;
-	}
-
 	addTool(tool: LLMTool): void {
 		this.tools.set(tool.name, tool);
 		//this.conversationLogger.logToolResult('add_tool', `Tool added: ${tool.name}`);
@@ -348,25 +440,24 @@ class LLMInteraction {
 			speakOptions = {} as LLMSpeakWithOptions;
 		}
 
-		this._turnCount++;
 		//logger.debug(`speakWithLLM - calling addMessageForUserRole for turn ${this._turnCount}` );
 		this.addMessageForUserRole({ type: 'text', text: prompt });
 		//this.conversationLogger.logUserMessage(prompt);
 
 		const response = await this.llm.speakWithRetry(this, speakOptions);
 
+		/*
 		const contentPart: LLMMessageContentPart = response.messageResponse
 			.answerContent[0] as LLMMessageContentPartTextBlock;
-
 		const msg = contentPart.text;
 		const conversationStats: ConversationMetrics = {
-			statementCount: 0, //this.statementCount,
-			turnCount: 0, //this.turnCount,
-			totalTurnCount: 0, //this.totalTurnCount,
+			statementCount: this.statementCount,
+			turnCount: this.turnCount,
+			totalTurnCount: this.totalTurnCount,
 		};
 		const tokenUsage: TokenUsage = response.messageResponse.usage;
-
-		//this.conversationLogger.logAssistantMessage(msg, conversationStats, tokenUsage);
+		this.conversationLogger.logAssistantMessage(msg, conversationStats, tokenUsage);
+		 */
 
 		return response;
 	}

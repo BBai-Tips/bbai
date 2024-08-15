@@ -1,22 +1,16 @@
 import { Context, RouterContext } from '@oak/oak';
 import { logger } from 'shared/logger.ts';
-import ProjectEditorManager from '../../editor/projectEditorManager.ts';
-import { ConversationPersistence } from '../../utils/conversationPersistence.utils.ts';
-//import { speakWithEmitter } from "../emitters.ts";
-import {
-	ConversationId,
-	ConversationMetadata,
-	ConversationResponse,
-	ConversationTokenUsage,
-	TokenUsage,
-} from 'shared/types.ts';
+import { projectEditorManager } from '../../editor/projectEditorManager.ts';
+import { ConversationId, ConversationMetadata, ConversationResponse } from 'shared/types.ts';
+//import { generateConversationId } from 'shared/conversationManagement.ts';
+import ConversationPersistence from '../../storage/conversationPersistence.ts';
 
 /**
  * @openapi
  * /api/v1/conversation:
  *   post:
  *     summary: Start a new conversation
- *     description: Initiates a new conversation with the AI assistant
+ *     description: Initiates a new conversation with the AI assistant using the OrchestratorController
  *     requestBody:
  *       required: true
  *       content:
@@ -41,7 +35,10 @@ import {
  *       500:
  *         description: Internal server error
  */
+/*
 export const startConversation = async (ctx: Context) => {
+	let projectEditor;
+	let orchestratorController;
 	logger.debug('startConversation called');
 
 	try {
@@ -59,20 +56,22 @@ export const startConversation = async (ctx: Context) => {
 			ctx.response.body = { error: 'Missing startDir' };
 			return;
 		}
-		const editorManager: ProjectEditorManager = new ProjectEditorManager();
-		const conversationId: ConversationId | undefined = undefined;
+		const conversationId: ConversationId = generateConversationId();
 
-		if (editorManager.isConversationActive(conversationId)) {
+		if (projectEditorManager.isConversationActive(conversationId)) {
 			ctx.response.status = 400;
 			ctx.response.body = { error: 'Conversation is already in use' };
 			return;
 		}
 
 		logger.debug(`Creating ProjectEditor for dir: ${startDir}`);
-		const projectEditor = await editorManager.getOrCreateEditor(conversationId, startDir);
-		await projectEditor.init();
+		projectEditor = await projectEditorManager.getOrCreateEditor(conversationId, startDir);
+		orchestratorController = projectEditor.orchestratorController;
+		if (!orchestratorController) {
+			throw new Error('Failed to initialize OrchestratorController');
+		}
 
-		const response = await projectEditor.handleStatement(statement);
+		const response = await projectEditor.handleStatement(statement, conversationId);
 
 		ctx.response.body = response;
 	} catch (error) {
@@ -89,13 +88,14 @@ export const startConversation = async (ctx: Context) => {
 		};
 	}
 };
+ */
 
 /**
  * @openapi
  * /api/v1/conversation/{id}:
  *   post:
  *     summary: Continue an existing conversation
- *     description: Continues an existing conversation with the AI assistant
+ *     description: Continues an existing conversation with the AI assistant using the OrchestratorController
  *     parameters:
  *       - in: path
  *         name: id
@@ -157,19 +157,16 @@ export const continueConversation = async (
 		}
 
 		logger.debug(`Creating ProjectEditorManger`);
-		const editorManager: ProjectEditorManager = new ProjectEditorManager();
-
-		if (editorManager.isConversationActive(conversationId)) {
+		if (projectEditorManager.isConversationActive(conversationId)) {
 			response.status = 400;
 			response.body = { error: 'Conversation is already in use' };
 			return;
 		}
 
 		logger.debug(`Creating ProjectEditor for dir: ${startDir}`);
-		const projectEditor = await editorManager.getOrCreateEditor(conversationId, startDir);
-		await projectEditor.init();
+		const projectEditor = await projectEditorManager.getOrCreateEditor(conversationId, startDir);
 
-		const result: ConversationResponse = await projectEditor.handleStatement(statement);
+		const result: ConversationResponse = await projectEditor.handleStatement(statement, conversationId);
 
 		logger.debug('Response received from handleStatement');
 		response.status = 200;
@@ -194,7 +191,7 @@ export const continueConversation = async (
  * /api/v1/conversation/{id}:
  *   get:
  *     summary: Get conversation details
- *     description: Retrieves details of a specific conversation
+ *     description: Retrieves details of a specific conversation using the OrchestratorController
  *     parameters:
  *       - in: path
  *         name: id
@@ -213,40 +210,43 @@ export const continueConversation = async (
 export const getConversation = async (
 	{ params, request, response }: RouterContext<'/v1/conversation/:id', { id: string }>,
 ) => {
+	let projectEditor;
+	let orchestratorController;
 	try {
-		const _conversationId = params.id;
-		const _startDir = request.url.searchParams.get('startDir') || '';
+		const conversationId = params.id as ConversationId;
+		const startDir = request.url.searchParams.get('startDir') || '';
 
-		/*
-		logger.debug(`Creating ProjectEditorManger`);
-		const editorManager: ProjectEditorManager = new ProjectEditorManager();
+		logger.debug(`Creating projectEditorManager`);
 
 		logger.debug(`Creating ProjectEditor for dir: ${startDir}`);
-		const projectEditor = await editorManager.getOrCreateEditor(conversationId, startDir);
-		await projectEditor.init();
+		projectEditor = await projectEditorManager.getOrCreateEditor(conversationId, startDir);
 
-		const persistence = new ConversationPersistence(conversationId, projectEditor);
-		await persistence.init();
-		logger.debug(`ConversationPersistence initialized for ${conversationId}`);
+		orchestratorController = projectEditor.orchestratorController;
+		if (!orchestratorController) {
+			throw new Error('Failed to initialize OrchestratorController');
+		}
 
-		const conversation = await persistence.loadConversation(llmProvider);
-		 */
+		// orchestratorController already defined
+		const interaction = orchestratorController.interactionManager.getInteraction(conversationId);
+
+		if (!interaction) {
+			response.status = 404;
+			response.body = { error: 'Conversation not found' };
+			return;
+		}
 
 		response.status = 200;
-		response.body = { error: 'Not implemented' };
-		/*
 		response.body = {
-			id: conversation.id,
-			llmProviderName: conversation.llmProviderName,
-			system: conversation.baseSystem,
-			model: conversation.model,
-			maxTokens: conversation.maxTokens,
-			temperature: conversation.temperature,
-			turnCount: conversation.turnCount,
-			totalTokenUsage: conversation.totalTokenUsage,
-			messages: conversation.getMessages(),
+			id: interaction.id,
+			llmProviderName: interaction.llmProviderName,
+			system: interaction.baseSystem,
+			model: interaction.model,
+			maxTokens: interaction.maxTokens,
+			temperature: interaction.temperature,
+			turnCount: orchestratorController.turnCount,
+			totalTokenUsage: orchestratorController.totalTokensTotal,
+			messages: interaction.getMessages(),
 		};
-		 */
 	} catch (error) {
 		logger.error(`Error in getConversation: ${error.message}`);
 		response.status = 404;
@@ -276,10 +276,28 @@ export const getConversation = async (
  *         description: Internal server error
  */
 export const deleteConversation = async (
-	{ params, response }: { params: { id: string }; response: Context['response'] },
+	{ params, request, response }: RouterContext<'/v1/conversation/:id', { id: string }>,
+	//	{ params, response }: { params: { id: string }; response: Context['response'] },
 ) => {
-	// Delete conversation
-	response.body = { message: `Conversation ${params.id} deleted` };
+	try {
+		const { id: conversationId } = params;
+		const startDir = request.url.searchParams.get('startDir') || '';
+		const projectEditor = await projectEditorManager.getOrCreateEditor(conversationId as ConversationId, startDir);
+
+		// orchestratorController already defined
+		if (!projectEditor.orchestratorController) {
+			throw new Error('Failed to initialize OrchestratorController');
+		}
+
+		projectEditor.orchestratorController.interactionManager.removeInteraction(conversationId as ConversationId);
+
+		response.status = 200;
+		response.body = { message: `Conversation ${conversationId} deleted` };
+	} catch (error) {
+		logger.error(`Error in deleteConversation: ${error.message}`);
+		response.status = 500;
+		response.body = { error: 'Failed to delete conversation' };
+	}
 };
 
 /**
@@ -330,8 +348,8 @@ export const listConversations = async (
 	const startDir = request.url.searchParams.get('startDir');
 	try {
 		const params = request.url.searchParams;
-		const page = params.get('page') || '1';
-		const pageSize = params.get('pageSize') || '10';
+		const page = parseInt(params.get('page') || '1');
+		const limit = parseInt(params.get('limit') || '10');
 		const startDate = params.get('startDate');
 		const endDate = params.get('endDate');
 		const llmProviderName = params.get('llmProviderName');
@@ -342,9 +360,9 @@ export const listConversations = async (
 			return;
 		}
 
-		const conversations: ConversationMetadata[] = await ConversationPersistence.listConversations({
-			page: parseInt(page),
-			pageSize: parseInt(pageSize),
+		const { conversations, totalCount } = await ConversationPersistence.listConversations({
+			page: page,
+			limit: limit,
 			startDate: startDate ? new Date(startDate) : undefined,
 			endDate: endDate ? new Date(endDate) : undefined,
 			llmProviderName: llmProviderName || undefined,
@@ -362,10 +380,10 @@ export const listConversations = async (
 				model: conv.model,
 			})),
 			pagination: {
-				page: parseInt(page),
-				pageSize: parseInt(pageSize),
-				totalPages: Math.ceil(conversations.length / parseInt(pageSize)),
-				totalItems: conversations.length,
+				page: page,
+				pageSize: limit,
+				totalPages: Math.ceil(totalCount / limit),
+				totalItems: totalCount,
 			},
 		};
 	} catch (error) {
@@ -375,25 +393,78 @@ export const listConversations = async (
 	}
 };
 
+/*
 export const addMessage = async (
 	{ params, response }: { params: { id: string }; response: Context['response'] },
 ) => {
 	// Add a message to the conversation
 	response.body = { message: `Message added to conversation ${params.id}` };
 };
+ */
 
 export const clearConversation = async (
-	{ params, response }: { params: { id: string }; response: Context['response'] },
+	{ params, request, response }: RouterContext<'/v1/conversation/:id/clear', { id: string }>,
 ) => {
-	// Clear conversation history
-	response.body = { message: `Conversation ${params.id} cleared` };
+	try {
+		const { id: conversationId } = params;
+		const startDir = request.url.searchParams.get('startDir') || '';
+		const projectEditor = await projectEditorManager.getOrCreateEditor(conversationId as ConversationId, startDir);
+
+		// orchestratorController already defined
+		if (!projectEditor.orchestratorController) {
+			throw new Error('Failed to initialize OrchestratorController');
+		}
+
+		const interaction = projectEditor.orchestratorController.interactionManager.getInteraction(
+			conversationId as ConversationId,
+		);
+		if (!interaction) {
+			response.status = 404;
+			response.body = { error: 'Conversation not found' };
+			return;
+		}
+
+		interaction.clearMessages();
+
+		response.status = 200;
+		response.body = { message: `Conversation ${conversationId} cleared` };
+	} catch (error) {
+		logger.error(`Error in clearConversation: ${error.message}`);
+		response.status = 500;
+		response.body = { error: 'Failed to clear conversation' };
+	}
 };
 
+/*
 export const undoConversation = async (
-	{ params, response }: { params: { id: string }; response: Context['response'] },
+	{ params, request, response }: RouterContext<'/v1/conversation/:id/undo', { id: string }>,
 ) => {
-	// Undo last change in conversation
-	response.body = { message: `Last change in conversation ${params.id} undone` };
+	try {
+		const { id: conversationId } = params;
+		const startDir = request.url.searchParams.get('startDir') || '';
+		const projectEditor = await projectEditorManager.getOrCreateEditor(conversationId as ConversationId, startDir);
+
+		// orchestratorController already defined
+		if (!projectEditor.orchestratorController) {
+			throw new Error('Failed to initialize OrchestratorController');
+		}
+
+		const interaction = projectEditor.orchestratorController.interactionManager.getInteraction(conversationId as ConversationId);
+		if (!interaction) {
+			response.status = 404;
+			response.body = { error: 'Conversation not found' };
+			return;
+		}
+
+		await interaction.revertLastPatch();
+
+		response.status = 200;
+		response.body = { message: `Last change in conversation ${conversationId} undone` };
+	} catch (error) {
+		logger.error(`Error in undoConversation: ${error.message}`);
+		response.status = 500;
+		response.body = { error: 'Failed to undo last change in conversation' };
+	}
 };
 
 export const addFile = async (
@@ -405,12 +476,13 @@ export const addFile = async (
 ) => {
 	try {
 		const { id: conversationId } = params;
+		const startDir = request.url.searchParams.get('startDir') || '';
 		const body = await request.body;
 		const form: FormData = await body.formData();
 		const fileObj: File = form.get('file') as File;
 		const filePath = fileObj.name;
 		const fileSize = fileObj.size;
-		const fileData = await fileObj.stream;
+		const fileData = await fileObj.arrayBuffer();
 
 		if (!filePath) {
 			response.status = 400;
@@ -418,8 +490,19 @@ export const addFile = async (
 			return;
 		}
 
-		// TODO: Implement file addition logic
-		// For now, we'll just log the file addition
+		const projectEditor = await projectEditorManager.getOrCreateEditor(conversationId as ConversationId, startDir);
+
+		// orchestratorController already defined
+		const interaction = orchestratorController.getInteraction(conversationId as ConversationId);
+
+		if (!interaction) {
+			response.status = 404;
+			response.body = { error: 'Conversation not found' };
+			return;
+		}
+
+		await interaction.addFile(filePath, new Uint8Array(fileData));
+
 		logger.info(`File ${filePath} added to conversation ${conversationId}`);
 
 		response.status = 200;
@@ -436,6 +519,7 @@ export const removeFile = async (
 ) => {
 	try {
 		const { id: conversationId, fileId } = params;
+		const startDir = request.url.searchParams.get('startDir') || '';
 
 		if (!fileId) {
 			response.status = 400;
@@ -443,8 +527,19 @@ export const removeFile = async (
 			return;
 		}
 
-		// TODO: Implement file removal logic
-		// For now, we'll just log the file removal
+		const projectEditor = await projectEditorManager.getOrCreateEditor(conversationId as ConversationId, startDir);
+
+		// orchestratorController already defined
+		const interaction = orchestratorController.getInteraction(conversationId as ConversationId);
+
+		if (!interaction) {
+			response.status = 404;
+			response.body = { error: 'Conversation not found' };
+			return;
+		}
+
+		await interaction.removeFile(fileId);
+
 		logger.info(`File ${fileId} removed from conversation ${conversationId}`);
 
 		response.status = 200;
@@ -461,16 +556,27 @@ export const listFiles = async (
 ) => {
 	try {
 		const { id: conversationId } = params;
+		const startDir = request.url.searchParams.get('startDir') || '';
 
-		// TODO: Implement file listing logic
-		// For now, we'll return a mock list of files
-		const mockFiles = ['file1.txt', 'file2.js', 'file3.py'];
+		const projectEditor = await projectEditorManager.getOrCreateEditor(conversationId as ConversationId, startDir);
+
+		// orchestratorController already defined
+		const interaction = orchestratorController.getInteraction(conversationId as ConversationId);
+
+		if (!interaction) {
+			response.status = 404;
+			response.body = { error: 'Conversation not found' };
+			return;
+		}
+
+		const files = interaction.listFiles();
 
 		response.status = 200;
-		response.body = { conversationId, files: mockFiles };
+		response.body = { conversationId, files };
 	} catch (error) {
 		logger.error(`Error in listFiles: ${error.message}`);
 		response.status = 500;
 		response.body = { error: 'Failed to list files in conversation' };
 	}
 };
+ */
