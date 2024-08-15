@@ -67,8 +67,26 @@ export class ConversationLogger {
 			totalTokensTotal: 0,
 		},
 	) {
+		console.log(`Entering logEntry method for type: ${type}`);
 		const timestamp = this.getTimestamp();
 
+		console.log('Calling logEntryHandler...');
+		try {
+			await this.logEntryHandler(
+				type,
+				timestamp,
+				message,
+				conversationStats,
+				tokenUsageTurn,
+				tokenUsageStatement,
+				tokenUsageConversation,
+			);
+			console.log('logEntryHandler called successfully');
+		} catch (error) {
+			console.error('Error in logEntryHandler:', error);
+		}
+
+		console.log('Creating raw entry...');
 		const entry = LogFormatter.createRawEntryWithSeparator(
 			type,
 			timestamp,
@@ -78,17 +96,17 @@ export class ConversationLogger {
 			tokenUsageStatement,
 			tokenUsageConversation,
 		);
-		await this.appendToLog(entry);
+		console.log('Raw entry created');
 
-		await this.logEntryHandler(
-			type,
-			timestamp,
-			message,
-			conversationStats,
-			tokenUsageTurn,
-			tokenUsageStatement,
-			tokenUsageConversation,
-		);
+		console.log('Appending to log...');
+		try {
+			await this.appendToLog(entry);
+			console.log('Successfully appended to log');
+		} catch (error) {
+			console.error('Error appending to log:', error);
+		}
+
+		console.log(`Exiting logEntry method for type: ${type}`);
 	}
 
 	async logUserMessage(message: string, conversationStats?: ConversationMetrics) {
