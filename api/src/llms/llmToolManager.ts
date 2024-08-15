@@ -8,6 +8,7 @@ import { LLMToolSearchProject } from './tools/searchProjectTool.ts';
 import { LLMToolRunCommand } from './tools/runCommandTool.ts';
 //import { LLMToolApplyPatch } from './tools/applyPatchTool.ts';
 import { LLMToolSearchAndReplace } from './tools/searchAndReplaceTool.ts';
+import { RewriteFileTool } from './tools/rewriteFileTool.ts';
 //import { LLMToolVectorSearch } from './tools/vectorSearchTool.ts';
 import { createError, ErrorType } from '../utils/error.utils.ts';
 import { LLMValidationErrorOptions } from '../errors/error.ts';
@@ -30,6 +31,7 @@ class LLMToolManager {
 		this.registerTool(new LLMToolSearchProject());
 		this.registerTool(new LLMToolSearchAndReplace());
 		this.registerTool(new LLMToolRunCommand());
+		this.registerTool(new RewriteFileTool());
 		//this.registerTool(new LLMToolApplyPatch()); // Claude isn't good enough yet writing diff patches
 		//this.registerTool(new LLMToolVectorSearch());
 	}
