@@ -1,6 +1,6 @@
 import { LLMTool } from '../llmTool.ts';
 import { isPathWithinProject } from '../../utils/fileHandling.utils.ts';
-import { ensureFileSync, writeTextFileSync } from 'std/fs/mod.ts';
+import { ensureFileSync, writeTextFileSync } from 'https://deno.land/std/fs/mod.ts';
 
 export class RewriteFileTool extends LLMTool {
   name = 'rewrite_file';
