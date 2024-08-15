@@ -127,10 +127,18 @@ export class ConversationLogger {
 		tokenUsageStatement?: TokenUsage,
 		tokenUsageConversation?: ConversationTokenUsage,
 	) {
-		const formatter = LLMToolManager.getToolFormatter(toolName);
-		const message = formatter
-			? formatter.formatToolUse(toolName, input)
-			: `Tool: ${toolName}\nInput: \n${JSON.stringify(input, null, 2)}`;
+		let message: string;
+		try {
+			const formatter = LLMToolManager.getToolFormatter(toolName);
+			if (formatter) {
+				message = formatter.formatToolUse(toolName, input);
+			} else {
+				message = `Tool: ${toolName}\nInput: \n${JSON.stringify(input, null, 2)}`;
+			}
+		} catch (error) {
+			console.error(`Error formatting tool use for ${toolName}:`, error);
+			message = `Tool: ${toolName}\nInput: [Error formatting input]`;
+		}
 		await this.logEntry(
 			'tool_use',
 			message,
@@ -149,10 +157,18 @@ export class ConversationLogger {
 		//tokenUsageStatement?: TokenUsage,
 		//tokenUsageConversation?: ConversationTokenUsage,
 	) {
-		const formatter = LLMToolManager.getToolFormatter(toolName);
-		const message = formatter
-			? formatter.formatToolResult(toolName, result)
-			: `Tool: ${toolName}\nResult: ${this.formatDefaultToolResult(result)}`;
+		let message: string;
+		try {
+			const formatter = LLMToolManager.getToolFormatter(toolName);
+			if (formatter) {
+				message = formatter.formatToolResult(toolName, result);
+			} else {
+				message = `Tool: ${toolName}\nResult: ${this.formatDefaultToolResult(result)}`;
+			}
+		} catch (error) {
+			console.error(`Error formatting tool result for ${toolName}:`, error);
+			message = `Tool: ${toolName}\nResult: [Error formatting result]`;
+		}
 		await this.logEntry('tool_result', message);
 	}
 	}
@@ -167,6 +183,7 @@ export class ConversationLogger {
 	//}
 
 	private formatDefaultToolResult(result: string | LLMMessageContentPart | LLMMessageContentParts): string {
+		try {
 		if (Array.isArray(result)) {
 			return 'text' in result[0]
 				? (result[0] as LLMMessageContentPartTextBlock).text
@@ -175,6 +192,10 @@ export class ConversationLogger {
 			return 'text' in result ? (result as LLMMessageContentPartTextBlock).text : JSON.stringify(result, null, 2);
 		} else {
 			return result;
+		}
+		} catch (error) {
+			console.error('Error in formatDefaultToolResult:', error);
+			return '[Error formatting result]';
 		}
 	}
 }
