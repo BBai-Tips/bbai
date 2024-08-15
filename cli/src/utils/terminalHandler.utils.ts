@@ -74,9 +74,9 @@ export class TerminalHandler {
 				//	preserveAspectRatio: true,
 				//}) + '  ' +
 				ansi.cursorTo(6, 2) +
-				colors.bold.blue.underline('BBai') + colors.bold.blue(' - Be Better with code and docs') +
+				colors.bold.blue.underline('BBai') + colors.bold.blue(' - Be Better with code and docs') 
 				//colors.bold.blue(ansi.link('BBai', 'https://bbai.tips')) +
-				'\n',
+				//+ '\n',
 		);
 	}
 
@@ -203,48 +203,29 @@ export class TerminalHandler {
 		}
 
 		const { conversationTitle } = data;
-		const statementCount = data.conversationStats?.statementCount || 1; // Ensure statementCount is defined
-
-		const shortTitle = conversationTitle ? conversationTitle : '<pending>';
+		const statementCount = data.conversationStats?.statementCount || 1;
+		const shortTitle = conversationTitle ? conversationTitle.substring(0, 30) : '<pending>';
 
 		const { columns } = Deno.consoleSize();
-		const maxWidth = Math.min(columns - 2, 120); // Max width of 120 or console width - 2
+		const isNarrow = columns < 80;
 
-		// Calculate the required width based on the content
-		const contentWidth = Math.max(
-			unicodeWidth(stripAnsiCode(` ${symbols.sparkles} Conversation Started ${symbols.sparkles}`)),
-			unicodeWidth(stripAnsiCode(` ID: ${conversationId}`)),
-			unicodeWidth(stripAnsiCode(` Title: ${shortTitle}`)),
-			unicodeWidth(stripAnsiCode(` Statement: ${statementCount}`)),
-		);
-
-		const borderWidth = Math.min(contentWidth + 4, maxWidth); // Add 4 for left and right padding
-		const horizontalBorder = '─'.repeat(borderWidth - 3);
-
-		const padContent = (content: string) => {
-			const paddingWidth = borderWidth - unicodeWidth(stripAnsiCode(content)) - 3; // -3 for '│ ' and '│'
-			return content + ' '.repeat(Math.max(0, paddingWidth));
+		const formatLine = (label: string, value: string, color: (s: string) => string) => {
+			const separator = isNarrow ? ':' : ' | ';
+			return color(`${label}${separator}${value}`);
 		};
 
-		console.log(palette.secondary(`╭${horizontalBorder}╮`));
-		console.log(
-			palette.secondary('│') +
-				palette.primary(padContent(` ${symbols.sparkles} Conversation Started ${symbols.sparkles}`)) +
-				palette.secondary('│'),
-		);
-		console.log(palette.secondary(`├${horizontalBorder}┤`));
-		console.log(
-			palette.secondary('│') + palette.accent(padContent(` ID: ${conversationId}`)) + palette.secondary('│'),
-		);
-		console.log(
-			palette.secondary('│') + palette.info(padContent(` Title: ${shortTitle}`)) + palette.secondary('│'),
-		);
-		console.log(
-			palette.secondary('│') +
-				palette.success(padContent(` Statement: ${statementCount}`)) +
-				palette.secondary('│'),
-		);
-		console.log(palette.secondary(`╰${horizontalBorder}╯`));
+		const lines = [
+			formatLine('ID', conversationId.substring(0, 8), palette.accent),
+			formatLine('Title', shortTitle, palette.info),
+			formatLine('Statement', statementCount.toString(), palette.success),
+		];
+
+		const output = isNarrow
+			? lines.join('\n')
+			: lines.join(' ');
+
+		console.log(palette.primary(`${symbols.sparkles} Conversation Started ${symbols.sparkles}`));
+		console.log(output);
 		console.log('');
 
 		if (expectingMoreInput && this.spinner) {
