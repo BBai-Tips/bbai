@@ -124,6 +124,7 @@ export interface FileHandlingErrorOptions extends ErrorOptions {
 		| 'patch'
 		| 'search-project'
 		| 'search-replace'
+		| 'rewrite-file'
 		| 'request-files'
 		| 'remove-files';
 }

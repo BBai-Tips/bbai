@@ -1,7 +1,7 @@
 import { join } from '@std/path';
 import { ensureDir } from '@std/fs';
 
-import type { ConversationId, ConversationMetrics, TokenUsage, ConversationTokenUsage } from 'shared/types.ts';
+import { ConversationId, ConversationMetrics, ConversationTokenUsage, TokenUsage } from 'shared/types.ts';
 import { getBbaiDataDir } from 'shared/dataDir.ts';
 import { LogFormatter } from 'shared/logFormatter.ts';
 //import { logger } from 'shared/logger.ts';
@@ -50,18 +50,25 @@ export class ConversationLogger {
 	private async logEntry(
 		type: ConversationLoggerEntryType,
 		message: string,
-		conversationStats: ConversationMetrics,
-		tokenUsageTurn: TokenUsage,
-		tokenUsageStatement: TokenUsage,
+		conversationStats: ConversationMetrics = { statementCount: 0, turnCount: 0, totalTurnCount: 0 },
+		tokenUsageTurn: TokenUsage = {
+			inputTokens: 0,
+			outputTokens: 0,
+			totalTokens: 0,
+		},
+		tokenUsageStatement: TokenUsage = {
+			inputTokens: 0,
+			outputTokens: 0,
+			totalTokens: 0,
+		},
+		tokenUsageConversation: ConversationTokenUsage = {
+			inputTokensTotal: 0,
+			outputTokensTotal: 0,
+			totalTokensTotal: 0,
+		},
 	) {
 		const timestamp = this.getTimestamp();
-		const tokenUsageConversation: ConversationTokenUsage = {
-			inputTokensTotal: tokenUsageTurn.inputTokens + tokenUsageStatement.inputTokens,
-			outputTokensTotal: tokenUsageTurn.outputTokens + tokenUsageStatement.outputTokens,
-			totalTokensTotal: tokenUsageTurn.totalTokens + tokenUsageStatement.totalTokens
-		};
 
-		//const entry = LogFormatter.createRawEntryWithSeparator(type, timestamp, message, tokenUsageTurn);
 		const entry = LogFormatter.createRawEntryWithSeparator(
 			type,
 			timestamp,
@@ -85,7 +92,7 @@ export class ConversationLogger {
 	}
 
 	async logUserMessage(message: string, conversationStats?: ConversationMetrics) {
-		await this.logEntry('user', message, conversationStats, { inputTokens: 0, outputTokens: 0, totalTokens: 0 }, { inputTokens: 0, outputTokens: 0, totalTokens: 0 });
+		await this.logEntry('user', message, conversationStats);
 	}
 
 	async logAssistantMessage(
@@ -106,7 +113,10 @@ export class ConversationLogger {
 	}
 
 	async logAuxiliaryMessage(message: string) {
-		await this.logEntry('auxiliary', message, { statementCount: 0, turnCount: 0, totalTurnCount: 0 }, { inputTokens: 0, outputTokens: 0, totalTokens: 0 }, { inputTokens: 0, outputTokens: 0, totalTokens: 0 });
+		await this.logEntry(
+			'auxiliary',
+			message,
+		);
 	}
 
 	async logToolUse(
@@ -157,7 +167,7 @@ export class ConversationLogger {
 	}
 
 	async logError(error: string) {
-		await this.logEntry('error', error, { statementCount: 0, turnCount: 0, totalTurnCount: 0 }, { inputTokens: 0, outputTokens: 0, totalTokens: 0 }, { inputTokens: 0, outputTokens: 0, totalTokens: 0 });
+		await this.logEntry('error', error);
 	}
 
 	//async logTextChange(filePath: string, patch: string) {

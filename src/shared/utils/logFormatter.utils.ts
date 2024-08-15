@@ -5,7 +5,7 @@ import { BufReader } from '@std/io';
 import { colors } from 'cliffy/ansi/mod.ts';
 
 import { getBbaiDataDir } from 'shared/dataDir.ts';
-import { ConversationId, ConversationMetrics, TokenUsage } from 'shared/types.ts';
+import { ConversationId, ConversationMetrics, ConversationTokenUsage, TokenUsage } from 'shared/types.ts';
 import { config } from 'shared/configManager.ts';
 
 // Define theme colors.
@@ -104,6 +104,8 @@ export class LogFormatter {
 		message: string,
 		conversationStats: ConversationMetrics,
 		tokenUsage: TokenUsage,
+		tokenUsageStatement?: TokenUsage,
+		tokenUsageConversation?: ConversationTokenUsage,
 	): string {
 		// [TODO] add token usage to header line
 		const { label } = LogFormatter.iconColorMap[type] || { label: 'Unknown' };
@@ -116,8 +118,18 @@ export class LogFormatter {
 		message: string,
 		conversationStats: ConversationMetrics,
 		tokenUsage: TokenUsage,
+		tokenUsageStatement?: TokenUsage,
+		tokenUsageConversation?: ConversationTokenUsage,
 	): string {
-		let rawEntry = LogFormatter.createRawEntry(type, timestamp, message, conversationStats, tokenUsage);
+		let rawEntry = LogFormatter.createRawEntry(
+			type,
+			timestamp,
+			message,
+			conversationStats,
+			tokenUsage,
+			tokenUsageStatement,
+			tokenUsageConversation,
+		);
 		// Ensure entry ends with a single newline and the separator
 		rawEntry = rawEntry.trimEnd() + '\n' + LogFormatter.getEntrySeparator() + '\n';
 		return rawEntry;
@@ -297,12 +309,22 @@ export async function writeLogEntry(
 	message: string,
 	conversationStats: ConversationMetrics,
 	tokenUsage: TokenUsage,
+	tokenUsageStatement?: TokenUsage,
+	tokenUsageConversation?: ConversationTokenUsage,
 ): Promise<void> {
 	const bbaiDataDir = await getBbaiDataDir(Deno.cwd());
 	const logFile = join(bbaiDataDir, 'conversations', conversationId, 'conversation.log');
 
 	const timestamp = new Date().toISOString();
-	const entry = LogFormatter.createRawEntryWithSeparator(type, timestamp, message, conversationStats, tokenUsage);
+	const entry = LogFormatter.createRawEntryWithSeparator(
+		type,
+		timestamp,
+		message,
+		conversationStats,
+		tokenUsage,
+		tokenUsageStatement,
+		tokenUsageConversation,
+	);
 
 	try {
 		// Append the entry to the log file

@@ -69,6 +69,7 @@ export interface ConversationEntry {
 	type: ConversationLoggerEntryType;
 	timestamp: string;
 	content: string;
+	tokenUsageTurn: TokenUsage;
 	tokenUsageStatement: TokenUsage;
 	tokenUsageConversation: ConversationTokenUsage;
 	conversationStats: ConversationMetrics;

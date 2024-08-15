@@ -46,7 +46,7 @@ class OrchestratorController {
 	public llmProvider: LLM;
 	public eventManager!: EventManager;
 	private projectEditorRef!: WeakRef<ProjectEditor>;
-	private _providerRequestCount: number = 0;
+	//private _providerRequestCount: number = 0;
 	// counts across all interactions
 	// count of turns for most recent statement in most recent interaction
 	private _turnCount: number = 0;
@@ -267,13 +267,10 @@ class OrchestratorController {
 			const persistence = await new ConversationPersistence(interaction.id, this.projectEditor).init();
 
 			// Include the latest stats and usage in the saved conversation
-			const conversationData = {
-				...interaction,
-				stats: this.interactionStats.get(interaction.id),
-				tokenUsage: this._tokenUsageTotals,
-			} as unknown as LLMConversationInteraction;
+			//interaction.conversationStats = this.interactionStats.get(interaction.id),
+			//interaction.tokenUsageInteraction = this.interactionTokenUsage.get(interaction.id),
 
-			await persistence.saveConversation(conversationData);
+			await persistence.saveConversation(interaction);
 
 			// Save system prompt and project info if running in local development
 			if (config.api?.environment === 'localdev') {
@@ -362,7 +359,9 @@ class OrchestratorController {
 				timestamp: string,
 				content: string,
 				conversationStats: ConversationMetrics,
-				tokenUsage: TokenUsage,
+				tokenUsageTurn: TokenUsage,
+				tokenUsageStatement: TokenUsage,
+				tokenUsageConversation: ConversationTokenUsage,
 			): Promise<void> => {
 				const conversationEntry: ConversationEntry = {
 					type,
@@ -371,8 +370,9 @@ class OrchestratorController {
 					conversationTitle: this.primaryInteraction.title,
 					content,
 					conversationStats,
-					tokenUsageConversation: this.tokenUsageTotals,
-					tokenUsageStatement: tokenUsage,
+					tokenUsageTurn: tokenUsageTurn,
+					tokenUsageStatement: tokenUsageStatement,
+					tokenUsageConversation: tokenUsageConversation,
 				};
 				this.eventManager.emit(
 					'projectEditor:conversationEntry',
@@ -427,7 +427,9 @@ class OrchestratorController {
 			toolUse.toolName,
 			toolUse.toolInput,
 			interaction.conversationStats,
+			interaction.tokenUsageTurn,
 			interaction.tokenUsageStatement,
+			interaction.tokenUsageInteraction,
 		);
 		const { messageId: _messageId, toolResponse, bbaiResponse, isError } = await this.toolManager.handleToolUse(
 			interaction,
@@ -440,8 +442,8 @@ class OrchestratorController {
 		interaction.conversationLogger?.logToolResult(
 			toolUse.toolName,
 			`BBai was ${isError ? 'unsuccessful' : 'successful'} with tool run: \n${bbaiResponse}`,
-			interaction.conversationStats,
-			interaction.tokenUsageStatement,
+			//interaction.conversationStats,
+			//interaction.tokenUsageStatement, // token usage is recorded with the tool use
 		);
 
 		return toolResponse;

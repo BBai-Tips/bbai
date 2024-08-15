@@ -373,7 +373,7 @@ class LLMConversationInteraction extends LLMInteraction {
 		const conversationStats: ConversationMetrics = this.getAllStats();
 		const tokenUsage: TokenUsage = response.messageResponse.usage;
 
-		this.conversationLogger.logAssistantMessage(msg, conversationStats, tokenUsage);
+		this.conversationLogger.logAssistantMessage(msg, conversationStats, tokenUsage, this._tokenUsageStatement, this._tokenUsageInteraction);
 		this._statementCount++;
 
 		return response;

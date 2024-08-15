@@ -64,7 +64,9 @@ class LLMInteraction {
 				timestamp: string,
 				content: string,
 				conversationStats: ConversationMetrics,
-				tokenUsage: TokenUsage,
+				tokenUsageTurn: TokenUsage,
+				tokenUsageStatement: TokenUsage,
+				tokenUsageConversation: ConversationTokenUsage,
 			) => {
 				await this.llm.invoke(
 					LLMCallbackType.LOG_ENTRY_HANDLER,
@@ -72,7 +74,9 @@ class LLMInteraction {
 					timestamp,
 					content,
 					conversationStats,
-					tokenUsage,
+					tokenUsageTurn,
+					tokenUsageStatement,
+					tokenUsageConversation,
 				);
 			};
 			this.conversationLogger = await new ConversationLogger(projectRoot, this.id, logEntryHandler).init();
@@ -139,6 +143,14 @@ class LLMInteraction {
 		this._tokenUsageStatement = tokenUsage;
 	}
 
+	public get tokenUsageInteraction(): ConversationTokenUsage {
+		return this._tokenUsageInteraction;
+	}
+	public set tokenUsageInteraction(tokenUsage: ConversationTokenUsage) {
+		this._tokenUsageInteraction = tokenUsage;
+	}
+
+
 	public get inputTokensTotal(): number {
 		return this._tokenUsageInteraction.inputTokensTotal;
 	}
@@ -149,13 +161,6 @@ class LLMInteraction {
 
 	public get totalTokensTotal(): number {
 		return this._tokenUsageInteraction.totalTokensTotal;
-	}
-
-	public get tokenUsageInteraction(): ConversationTokenUsage {
-		return this._tokenUsageInteraction;
-	}
-	public set tokenUsageInteraction(tokenUsage: ConversationTokenUsage) {
-		this._tokenUsageInteraction = tokenUsage;
 	}
 
 	//public updateTotals(tokenUsage: TokenUsage, providerRequests: number): void {

@@ -129,7 +129,7 @@ export class WebsocketManager {
 			}
 		}
 		this.cancellationRequested = false;
-		throw new Error('Operation cancelled');
+		//throw new Error('Operation cancelled');
 		//console.log(`WebsocketManager: Waiting for answer event for conversation ${conversationId}`);
 		await eventManager.once('cli:conversationWaitForAnswer' as EventName<'cli'>, conversationId) as Promise<
 			EventPayloadMap['cli']['cli:conversationWaitForAnswer']
