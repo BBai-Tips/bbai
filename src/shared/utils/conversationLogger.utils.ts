@@ -127,8 +127,10 @@ export class ConversationLogger {
 		tokenUsageStatement?: TokenUsage,
 		tokenUsageConversation?: ConversationTokenUsage,
 	) {
-		//const message = `Tool: ${toolName}\nInput: \n${JSON.stringify(input, null, 2)}`;
-		const message = `Tool: ${toolName}\nInput: \n${JSON.stringify(input)}`;
+		const formatter = LLMToolManager.getToolFormatter(toolName);
+		const message = formatter
+			? formatter.formatToolUse(toolName, input)
+			: `Tool: ${toolName}\nInput: \n${JSON.stringify(input, null, 2)}`;
 		await this.logEntry(
 			'tool_use',
 			message,
@@ -147,23 +149,12 @@ export class ConversationLogger {
 		//tokenUsageStatement?: TokenUsage,
 		//tokenUsageConversation?: ConversationTokenUsage,
 	) {
-		const message = `Tool: ${toolName}\nResult: ${
-			Array.isArray(result)
-				? 'text' in result[0]
-					? (result[0] as LLMMessageContentPartTextBlock).text
-					: JSON.stringify(result[0], null, 2)
-				: typeof result !== 'string'
-				? 'text' in result ? (result as LLMMessageContentPartTextBlock).text : JSON.stringify(result, null, 2)
-				: result
-		}`;
-		await this.logEntry(
-			'tool_result',
-			message,
-			//conversationStats,
-			//tokenUsageTurn,
-			//tokenUsageStatement,
-			//tokenUsageConversation,
-		);
+		const formatter = LLMToolManager.getToolFormatter(toolName);
+		const message = formatter
+			? formatter.formatToolResult(toolName, result)
+			: `Tool: ${toolName}\nResult: ${this.formatDefaultToolResult(result)}`;
+		await this.logEntry('tool_result', message);
+	}
 	}
 
 	async logError(error: string) {
@@ -174,4 +165,16 @@ export class ConversationLogger {
 	//	const message = `Diff Patch for ${filePath}:\n${patch}`;
 	//	await this.logEntry('text_change', message);
 	//}
+
+	private formatDefaultToolResult(result: string | LLMMessageContentPart | LLMMessageContentParts): string {
+		if (Array.isArray(result)) {
+			return 'text' in result[0]
+				? (result[0] as LLMMessageContentPartTextBlock).text
+				: JSON.stringify(result[0], null, 2);
+		} else if (typeof result !== 'string') {
+			return 'text' in result ? (result as LLMMessageContentPartTextBlock).text : JSON.stringify(result, null, 2);
+		} else {
+			return result;
+		}
+	}
 }
