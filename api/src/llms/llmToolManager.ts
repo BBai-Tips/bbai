@@ -1,13 +1,14 @@
 import { logger } from 'shared/logger.ts';
-import LLMTool, { LLMToolFinalizeResult, LLMToolRunResultContent } from './llmTool.ts';
+import LLMTool, { LLMToolFinalizeResult, LLMToolRunResultContent, ToolFormatter } from './llmTool.ts';
 import { LLMAnswerToolUse, LLMMessageContentPart } from 'api/llms/llmMessage.ts';
 import LLMConversationInteraction from './interactions/conversationInteraction.ts';
 import ProjectEditor from '../editor/projectEditor.ts';
 import { LLMToolRequestFiles } from './tools/requestFilesTool.ts';
 import { LLMToolSearchProject } from './tools/searchProjectTool.ts';
 import { LLMToolRunCommand } from './tools/runCommandTool.ts';
-//import { LLMToolApplyPatch } from './tools/applyPatchTool.ts';
+import { LLMToolApplyPatch } from './tools/applyPatchTool.ts';
 import { LLMToolSearchAndReplace } from './tools/searchAndReplaceTool.ts';
+import { LLMToolRewriteFile } from './tools/rewriteFileTool.ts';
 //import { LLMToolVectorSearch } from './tools/vectorSearchTool.ts';
 import { createError, ErrorType } from '../utils/error.utils.ts';
 import { LLMValidationErrorOptions } from '../errors/error.ts';
@@ -15,23 +16,63 @@ import { LLMValidationErrorOptions } from '../errors/error.ts';
 export type LLMToolManagerToolSetType = 'coding' | 'research' | 'creative';
 
 class LLMToolManager {
+	static toolFormatters: Map<string, ToolFormatter> = new Map();
 	private tools: Map<string, LLMTool> = new Map();
 	public toolSet: LLMToolManagerToolSetType = 'coding';
+	//private static instance: LLMToolManager;
 
 	constructor(toolSet?: LLMToolManagerToolSetType) {
 		if (toolSet) {
 			this.toolSet = toolSet;
 		}
 		this.registerDefaultTools();
+		//this.loadTools();
 	}
+	//static getInstance(): LLMToolManager {
+	//	if (!LLMToolManager.instance) {
+	//		LLMToolManager.instance = new LLMToolManager();
+	//	}
+	//	return LLMToolManager.instance;
+	//}
 
 	private registerDefaultTools(): void {
 		this.registerTool(new LLMToolRequestFiles());
 		this.registerTool(new LLMToolSearchProject());
+		this.registerTool(new LLMToolRewriteFile());
 		this.registerTool(new LLMToolSearchAndReplace());
+		this.registerTool(new LLMToolApplyPatch()); // Claude isn't good enough yet writing diff patches
 		this.registerTool(new LLMToolRunCommand());
-		//this.registerTool(new LLMToolApplyPatch()); // Claude isn't good enough yet writing diff patches
 		//this.registerTool(new LLMToolVectorSearch());
+	}
+	/*
+	private async loadTools() {
+		const toolsDir = new URL('./tools', import.meta.url);
+		for await (const entry of Deno.readDir(toolsDir)) {
+			if (entry.isFile && entry.name.endsWith('Tool.ts')) {
+				try {
+					const module = await import(`./tools/${entry.name}`);
+					const ToolClass = Object.values(module)[0] as typeof LLMTool;
+					const tool = new ToolClass();
+					this.registerTool(tool);
+
+					// Check if there's a formatter for this tool
+					if ('formatter' in ToolClass) {
+						this.registerToolFormatter(tool.name, (ToolClass as any).formatter);
+					}
+				} catch (error) {
+					logger.error(`Error loading tool ${entry.name}:`, error);
+				}
+			}
+		}
+	}
+	 */
+
+	static registerToolFormatter(toolName: string, formatter: ToolFormatter): void {
+		LLMToolManager.toolFormatters.set(toolName, formatter);
+	}
+
+	static getToolFormatter(toolName: string): ToolFormatter | undefined {
+		return LLMToolManager.toolFormatters.get(toolName);
 	}
 
 	registerTool(tool: LLMTool): void {

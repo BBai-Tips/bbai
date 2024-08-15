@@ -1,6 +1,7 @@
 import { join } from '@std/path';
 
 import { FILE_LISTING_TIERS, generateFileListing, isPathWithinProject } from '../utils/fileHandling.utils.ts';
+import { GitUtils } from 'shared/git.ts';
 import LLMConversationInteraction, { FileMetadata, ProjectInfo } from '../llms/interactions/conversationInteraction.ts';
 import OrchestratorController from '../controllers/orchestratorController.ts';
 import { logger } from 'shared/logger.ts';
@@ -155,10 +156,12 @@ class ProjectEditor {
 
 				const fullFilePath = join(this.projectRoot, fileName);
 				const content = await Deno.readTextFile(fullFilePath);
+				const lastCommit = await GitUtils.getLastCommitForFile(this.projectRoot, fileName) || '';
 				const metadata: Omit<FileMetadata, 'path' | 'inSystemPrompt'> = {
 					size: new TextEncoder().encode(content).length,
 					lastModified: new Date(),
 					error: null,
+					lastCommit: lastCommit,
 				};
 				filesAdded.push({ fileName, metadata });
 
@@ -174,6 +177,7 @@ class ProjectEditor {
 						size: 0,
 						lastModified: new Date(),
 						error: errorMessage,
+						lastCommit: '',
 					},
 				});
 			}

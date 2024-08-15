@@ -1,10 +1,10 @@
 import { join } from '@std/path';
 import { ensureDir } from '@std/fs';
 
-import type { ConversationId, ConversationMetrics, TokenUsage } from 'shared/types.ts';
+import { ConversationId, ConversationMetrics, ConversationTokenUsage, TokenUsage } from 'shared/types.ts';
 import { getBbaiDataDir } from 'shared/dataDir.ts';
 import { LogFormatter } from 'shared/logFormatter.ts';
-//import { logger } from 'shared/logger.ts';
+import { logger } from 'shared/logger.ts';
 import {
 	LLMMessageContentPart,
 	LLMMessageContentPartImageBlock,
@@ -25,7 +25,9 @@ export class ConversationLogger {
 			timestamp: string,
 			content: string,
 			conversationStats: ConversationMetrics,
-			tokenUsage: TokenUsage,
+			tokenUsageTurn: TokenUsage,
+			tokenUsageStatement: TokenUsage,
+			tokenUsageConversation: ConversationTokenUsage,
 		) => {},
 	) {}
 
@@ -48,18 +50,54 @@ export class ConversationLogger {
 	private async logEntry(
 		type: ConversationLoggerEntryType,
 		message: string,
-		conversationStats?: ConversationMetrics,
-		tokenUsage?: TokenUsage,
+		conversationStats: ConversationMetrics = { statementCount: 0, turnCount: 0, totalTurnCount: 0 },
+		tokenUsageTurn: TokenUsage = {
+			inputTokens: 0,
+			outputTokens: 0,
+			totalTokens: 0,
+		},
+		tokenUsageStatement: TokenUsage = {
+			inputTokens: 0,
+			outputTokens: 0,
+			totalTokens: 0,
+		},
+		tokenUsageConversation: ConversationTokenUsage = {
+			inputTokensTotal: 0,
+			outputTokensTotal: 0,
+			totalTokensTotal: 0,
+		},
 	) {
 		const timestamp = this.getTimestamp();
-		if (!tokenUsage) tokenUsage = { inputTokens: 0, outputTokens: 0, totalTokens: 0 };
-		if (!conversationStats) conversationStats = { statementCount: 0, turnCount: 0, totalTurnCount: 0 };
 
-		//const entry = LogFormatter.createRawEntryWithSeparator(type, timestamp, message, tokenUsage);
-		const entry = LogFormatter.createRawEntryWithSeparator(type, timestamp, message, conversationStats, tokenUsage);
-		await this.appendToLog(entry);
+		try {
+			await this.logEntryHandler(
+				type,
+				timestamp,
+				message,
+				conversationStats,
+				tokenUsageTurn,
+				tokenUsageStatement,
+				tokenUsageConversation,
+			);
+		} catch (error) {
+			console.error('Error in logEntryHandler:', error);
+		}
 
-		await this.logEntryHandler(type, timestamp, message, conversationStats, tokenUsage);
+		const entry = LogFormatter.createRawEntryWithSeparator(
+			type,
+			timestamp,
+			message,
+			conversationStats,
+			tokenUsageTurn,
+			tokenUsageStatement,
+			tokenUsageConversation,
+		);
+
+		try {
+			await this.appendToLog(entry);
+		} catch (error) {
+			console.error('Error appending to log:', error);
+		}
 	}
 
 	async logUserMessage(message: string, conversationStats?: ConversationMetrics) {
@@ -69,41 +107,77 @@ export class ConversationLogger {
 	async logAssistantMessage(
 		message: string,
 		conversationStats?: ConversationMetrics,
-		tokenUsage?: TokenUsage,
+		tokenUsageTurn?: TokenUsage,
+		tokenUsageStatement?: TokenUsage,
+		tokenUsageConversation?: ConversationTokenUsage,
 	) {
-		await this.logEntry('assistant', message, conversationStats, tokenUsage);
+		await this.logEntry(
+			'assistant',
+			message,
+			conversationStats,
+			tokenUsageTurn,
+			tokenUsageStatement,
+			tokenUsageConversation,
+		);
 	}
 
 	async logAuxiliaryMessage(message: string) {
-		await this.logEntry('auxiliary', message);
+		await this.logEntry(
+			'auxiliary',
+			message,
+		);
 	}
 
 	async logToolUse(
 		toolName: string,
-		input: object,
+		toolInput: object,
 		conversationStats?: ConversationMetrics,
-		tokenUsage?: TokenUsage,
+		tokenUsageTurn?: TokenUsage,
+		tokenUsageStatement?: TokenUsage,
+		tokenUsageConversation?: ConversationTokenUsage,
 	) {
-		const message = `Tool: ${toolName}\nInput: \n${JSON.stringify(input, null, 2)}`;
-		await this.logEntry('tool_use', message, conversationStats, tokenUsage);
+		let message: string;
+		try {
+			message = `Tool: ${toolName}\nInput: \n${JSON.stringify(toolInput, null, 2)}`;
+		} catch (error) {
+			console.error(`Error formatting tool use for ${toolName}:`, error);
+			message = `Tool: ${toolName}\nInput: [Error formatting input]`;
+		}
+		try {
+			await this.logEntry(
+				'tool_use',
+				message,
+				conversationStats,
+				tokenUsageTurn,
+				tokenUsageStatement,
+				tokenUsageConversation,
+			);
+		} catch (error) {
+			console.error('Error in logEntry:', error);
+		}
 	}
 
 	async logToolResult(
 		toolName: string,
 		result: string | LLMMessageContentPart | LLMMessageContentParts,
-		conversationStats?: ConversationMetrics,
-		tokenUsage?: TokenUsage,
+		//conversationStats?: ConversationMetrics,
+		//tokenUsageTurn?: TokenUsage,
+		//tokenUsageStatement?: TokenUsage,
+		//tokenUsageConversation?: ConversationTokenUsage,
 	) {
-		const message = `Tool: ${toolName}\nResult: ${
-			Array.isArray(result)
-				? 'text' in result[0]
-					? (result[0] as LLMMessageContentPartTextBlock).text
-					: JSON.stringify(result[0], null, 2)
-				: typeof result !== 'string'
-				? 'text' in result ? (result as LLMMessageContentPartTextBlock).text : JSON.stringify(result, null, 2)
-				: result
-		}`;
-		await this.logEntry('tool_result', message, conversationStats, tokenUsage);
+		let message: string;
+		try {
+			//const formatter = LLMToolManager.getToolFormatter(toolName);
+			//if (formatter) {
+			//	message = formatter.formatToolResult(toolName, result);
+			//} else {
+			message = `Tool: ${toolName}\nResult: ${this.formatDefaultToolResult(result)}`;
+			//}
+		} catch (error) {
+			console.error(`Error formatting tool result for ${toolName}:`, error);
+			message = `Tool: ${toolName}\nResult: [Error formatting result]`;
+		}
+		await this.logEntry('tool_result', message);
 	}
 
 	async logError(error: string) {
@@ -114,4 +188,23 @@ export class ConversationLogger {
 	//	const message = `Diff Patch for ${filePath}:\n${patch}`;
 	//	await this.logEntry('text_change', message);
 	//}
+
+	private formatDefaultToolResult(result: string | LLMMessageContentPart | LLMMessageContentParts): string {
+		try {
+			if (Array.isArray(result)) {
+				return 'text' in result[0]
+					? (result[0] as LLMMessageContentPartTextBlock).text
+					: JSON.stringify(result[0], null, 2);
+			} else if (typeof result !== 'string') {
+				return 'text' in result
+					? (result as LLMMessageContentPartTextBlock).text
+					: JSON.stringify(result, null, 2);
+			} else {
+				return result;
+			}
+		} catch (error) {
+			console.error('Error in formatDefaultToolResult:', error);
+			return '[Error formatting result]';
+		}
+	}
 }

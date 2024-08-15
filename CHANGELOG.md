@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 
 
+## [0.0.8a-alpha] - 2024-08-15
+
+### Changed
+
+- Hot fix for missing conversation log entries
+
+
 ## [0.0.8-alpha] - 2024-08-15
 
 ### Changed

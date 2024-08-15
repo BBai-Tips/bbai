@@ -1,9 +1,9 @@
 import { JSONSchema4 } from 'json-schema';
 import Ajv from 'ajv';
 
-import ProjectEditor from '../editor/projectEditor.ts';
 import { LLMAnswerToolUse, LLMMessageContentPart, LLMMessageContentParts } from 'api/llms/llmMessage.ts';
 import LLMConversationInteraction from './interactions/conversationInteraction.ts';
+import ProjectEditor from '../editor/projectEditor.ts';
 
 export type LLMToolInputSchema = JSONSchema4;
 export type LLMToolRunResultContent = string | LLMMessageContentPart | LLMMessageContentParts;
@@ -16,6 +16,11 @@ export interface LLMToolRunResult {
 	messageId: string;
 	toolResponse: string;
 	bbaiResponse: string;
+}
+
+export interface ToolFormatter {
+	formatToolUse(toolName: string, input: object): string;
+	formatToolResult(toolName: string, result: LLMToolRunResultContent): string;
 }
 
 abstract class LLMTool {
@@ -31,7 +36,6 @@ abstract class LLMTool {
 		const validate = ajv.compile(this.input_schema);
 		return validate(input) as boolean;
 	}
-
 	abstract runTool(
 		interaction: LLMConversationInteraction,
 		toolUse: LLMAnswerToolUse,
