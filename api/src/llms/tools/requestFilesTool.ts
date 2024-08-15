@@ -5,6 +5,23 @@ import { LLMAnswerToolUse, LLMMessageContentPartTextBlock } from 'api/llms/llmMe
 import ProjectEditor from '../../editor/projectEditor.ts';
 import { createError, ErrorType } from '../../utils/error.utils.ts';
 
+class RequestFilesToolFormatter implements ToolFormatter {
+  formatToolUse(toolName: string, input: object): string {
+    const { fileNames } = input as { fileNames: string[] };
+    return `Tool: ${toolName}\nRequested files: ${fileNames.join(', ')}`;
+  }
+
+  formatToolResult(toolName: string, result: string | LLMMessageContentPart | LLMMessageContentParts): string {
+    if (typeof result === 'string') {
+      return `Tool: ${toolName}\nResult: ${result}`;
+    } else if (Array.isArray(result)) {
+      return `Tool: ${toolName}\nResult: ${result.map(part => 'text' in part ? part.text : JSON.stringify(part)).join('\n')}`;
+    } else {
+      return `Tool: ${toolName}\nResult: ${'text' in result ? result.text : JSON.stringify(result)}`;
+    }
+  }
+}
+
 export class LLMToolRequestFiles extends LLMTool {
 	constructor() {
 		super(
