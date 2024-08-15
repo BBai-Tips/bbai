@@ -1,7 +1,7 @@
 import { join } from '@std/path';
 import { ensureDir } from '@std/fs';
 
-import type { ConversationId, ConversationMetrics, TokenUsage } from 'shared/types.ts';
+import type { ConversationId, ConversationMetrics, TokenUsage, ConversationTokenUsage } from 'shared/types.ts';
 import { getBbaiDataDir } from 'shared/dataDir.ts';
 import { LogFormatter } from 'shared/logFormatter.ts';
 //import { logger } from 'shared/logger.ts';
@@ -25,7 +25,9 @@ export class ConversationLogger {
 			timestamp: string,
 			content: string,
 			conversationStats: ConversationMetrics,
-			tokenUsage: TokenUsage,
+			tokenUsageTurn: TokenUsage,
+			tokenUsageStatement: TokenUsage,
+			tokenUsageConversation: ConversationTokenUsage,
 		) => {},
 	) {}
 
@@ -49,17 +51,39 @@ export class ConversationLogger {
 		type: ConversationLoggerEntryType,
 		message: string,
 		conversationStats?: ConversationMetrics,
-		tokenUsage?: TokenUsage,
+		tokenUsageTurn?: TokenUsage,
+		tokenUsageStatement?: TokenUsage,
+		tokenUsageConversation?: ConversationTokenUsage,
 	) {
 		const timestamp = this.getTimestamp();
-		if (!tokenUsage) tokenUsage = { inputTokens: 0, outputTokens: 0, totalTokens: 0 };
+		if (!tokenUsageTurn) tokenUsageTurn = { inputTokens: 0, outputTokens: 0, totalTokens: 0 };
+		if (!tokenUsageStatement) tokenUsageStatement = { inputTokens: 0, outputTokens: 0, totalTokens: 0 };
+		if (!tokenUsageConversation) {
+			tokenUsageConversation = { inputTokensTotal: 0, outputTokensTotal: 0, totalTokensTotal: 0 };
+		}
 		if (!conversationStats) conversationStats = { statementCount: 0, turnCount: 0, totalTurnCount: 0 };
 
-		//const entry = LogFormatter.createRawEntryWithSeparator(type, timestamp, message, tokenUsage);
-		const entry = LogFormatter.createRawEntryWithSeparator(type, timestamp, message, conversationStats, tokenUsage);
+		//const entry = LogFormatter.createRawEntryWithSeparator(type, timestamp, message, tokenUsageTurn);
+		const entry = LogFormatter.createRawEntryWithSeparator(
+			type,
+			timestamp,
+			message,
+			conversationStats,
+			tokenUsageTurn,
+			tokenUsageStatement,
+			tokenUsageConversation,
+		);
 		await this.appendToLog(entry);
 
-		await this.logEntryHandler(type, timestamp, message, conversationStats, tokenUsage);
+		await this.logEntryHandler(
+			type,
+			timestamp,
+			message,
+			conversationStats,
+			tokenUsageTurn,
+			tokenUsageStatement,
+			tokenUsageConversation,
+		);
 	}
 
 	async logUserMessage(message: string, conversationStats?: ConversationMetrics) {
@@ -69,9 +93,18 @@ export class ConversationLogger {
 	async logAssistantMessage(
 		message: string,
 		conversationStats?: ConversationMetrics,
-		tokenUsage?: TokenUsage,
+		tokenUsageTurn?: TokenUsage,
+		tokenUsageStatement?: TokenUsage,
+		tokenUsageConversation?: ConversationTokenUsage,
 	) {
-		await this.logEntry('assistant', message, conversationStats, tokenUsage);
+		await this.logEntry(
+			'assistant',
+			message,
+			conversationStats,
+			tokenUsageTurn,
+			tokenUsageStatement,
+			tokenUsageConversation,
+		);
 	}
 
 	async logAuxiliaryMessage(message: string) {
@@ -82,17 +115,29 @@ export class ConversationLogger {
 		toolName: string,
 		input: object,
 		conversationStats?: ConversationMetrics,
-		tokenUsage?: TokenUsage,
+		tokenUsageTurn?: TokenUsage,
+		tokenUsageStatement?: TokenUsage,
+		tokenUsageConversation?: ConversationTokenUsage,
 	) {
-		const message = `Tool: ${toolName}\nInput: \n${JSON.stringify(input, null, 2)}`;
-		await this.logEntry('tool_use', message, conversationStats, tokenUsage);
+		//const message = `Tool: ${toolName}\nInput: \n${JSON.stringify(input, null, 2)}`;
+		const message = `Tool: ${toolName}\nInput: \n${JSON.stringify(input)}`;
+		await this.logEntry(
+			'tool_use',
+			message,
+			conversationStats,
+			tokenUsageTurn,
+			tokenUsageStatement,
+			tokenUsageConversation,
+		);
 	}
 
 	async logToolResult(
 		toolName: string,
 		result: string | LLMMessageContentPart | LLMMessageContentParts,
-		conversationStats?: ConversationMetrics,
-		tokenUsage?: TokenUsage,
+		//conversationStats?: ConversationMetrics,
+		//tokenUsageTurn?: TokenUsage,
+		//tokenUsageStatement?: TokenUsage,
+		//tokenUsageConversation?: ConversationTokenUsage,
 	) {
 		const message = `Tool: ${toolName}\nResult: ${
 			Array.isArray(result)
@@ -103,7 +148,14 @@ export class ConversationLogger {
 				? 'text' in result ? (result as LLMMessageContentPartTextBlock).text : JSON.stringify(result, null, 2)
 				: result
 		}`;
-		await this.logEntry('tool_result', message, conversationStats, tokenUsage);
+		await this.logEntry(
+			'tool_result',
+			message,
+			//conversationStats,
+			//tokenUsageTurn,
+			//tokenUsageStatement,
+			//tokenUsageConversation,
+		);
 	}
 
 	async logError(error: string) {
