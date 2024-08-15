@@ -1,42 +1,31 @@
-import { JSONSchema4 } from 'json-schema';
-import Ajv from 'ajv';
-
-import ProjectEditor from '../editor/projectEditor.ts';
-import { LLMAnswerToolUse, LLMMessageContentPart, LLMMessageContentParts } from 'api/llms/llmMessage.ts';
+import { LLMAnswerToolUse, LLMMessageContentPart, LLMMessageContentParts } from './llmMessage.ts';
 import LLMConversationInteraction from './interactions/conversationInteraction.ts';
+import ProjectEditor from '../editor/projectEditor.ts';
 
-export type LLMToolInputSchema = JSONSchema4;
 export type LLMToolRunResultContent = string | LLMMessageContentPart | LLMMessageContentParts;
 
 export interface LLMToolFinalizeResult {
-	messageId: string;
-	toolResponse: string;
+  messageId: string;
+  toolResponse: string;
 }
-export interface LLMToolRunResult {
-	messageId: string;
-	toolResponse: string;
-	bbaiResponse: string;
+
+export interface ToolFormatter {
+  formatToolUse(toolName: string, input: object): string;
+  formatToolResult(toolName: string, result: LLMToolRunResultContent): string;
 }
 
 abstract class LLMTool {
-	constructor(
-		public name: string,
-		public description: string,
-	) {}
+  abstract name: string;
+  abstract description: string;
+  abstract parameters: Record<string, unknown>;
 
-	abstract get input_schema(): LLMToolInputSchema;
+  abstract validateInput(input: unknown): boolean;
 
-	validateInput(input: unknown): boolean {
-		const ajv = new Ajv();
-		const validate = ajv.compile(this.input_schema);
-		return validate(input) as boolean;
-	}
-
-	abstract runTool(
-		interaction: LLMConversationInteraction,
-		toolUse: LLMAnswerToolUse,
-		projectEditor: ProjectEditor,
-	): Promise<LLMToolRunResult>;
+  abstract runTool(
+    interaction: LLMConversationInteraction,
+    toolUse: LLMAnswerToolUse,
+    projectEditor: ProjectEditor,
+  ): Promise<{ messageId: string; toolResponse: string; bbaiResponse: string }>;
 }
 
 export default LLMTool;
