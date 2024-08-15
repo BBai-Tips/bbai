@@ -1,4 +1,5 @@
 import LLMInteraction from '../llms/interactions/baseInteraction.ts';
+import { TokenUsage } from 'shared/types.ts';
 
 import LLMTool from '../llms/llmTool.ts';
 export type { LLMToolInputSchema } from '../llms/llmTool.ts';
@@ -6,8 +7,6 @@ export type { LLMToolInputSchema } from '../llms/llmTool.ts';
 import LLMMessage from '../llms/llmMessage.ts';
 import type { LLMAnswerToolUse, LLMMessageContentParts } from '../llms/llmMessage.ts';
 export type { LLMMessageContentPart, LLMMessageContentParts } from '../llms/llmMessage.ts';
-
-export type ConversationId = string;
 
 export enum AnthropicModel {
 	CLAUDE_3_HAIKU = 'claude-3-haiku-20240307',
@@ -97,11 +96,14 @@ export const LLMProviderModels = Object.fromEntries(
 );
  */
 
+export type LLMTokenUsage = TokenUsage;
+/*
 export interface LLMTokenUsage {
 	inputTokens: number;
 	outputTokens: number;
 	totalTokens: number;
 }
+ */
 export interface LLMRateLimit {
 	requestsRemaining: number;
 	requestsLimit: number;
@@ -188,6 +190,36 @@ export interface LLMSpeakWithOptions {
 	validateResponseCallback?: LLMValidateResponseCallback;
 }
 
+export interface Task {
+	title: string;
+	instructions: string;
+	resources: Resource[];
+	capabilities: string[];
+	requirements: string | InputSchema;
+}
+
+export interface Resource {
+	type: 'url' | 'file' | 'memory' | 'api' | 'database' | 'vector_search';
+	location: string;
+}
+
+export type InputSchema = Record<string, unknown>;
+
+export type ErrorStrategy = 'fail_fast' | 'continue_on_error' | 'retry';
+
+export interface ErrorHandlingConfig {
+	strategy: ErrorStrategy;
+	maxRetries?: number;
+	continueOnErrorThreshold?: number;
+}
+
+export interface DelegateTasksInput {
+	tasks: Task[];
+	sync: boolean;
+	errorConfig: ErrorHandlingConfig;
+	parentInteractionId: string;
+}
+
 export interface LLMSpeakWithResponse {
 	messageResponse: LLMProviderMessageResponse;
 	messageMeta: LLMProviderMessageMeta;
@@ -197,6 +229,7 @@ export enum LLMCallbackType {
 	PROJECT_ROOT = 'PROJECT_ROOT',
 	PROJECT_INFO = 'PROJECT_INFO',
 	PROJECT_FILE_CONTENT = 'PROJECT_FILE_CONTENT',
+	LOG_ENTRY_HANDLER = 'LOG_ENTRY_HANDLER',
 	PREPARE_SYSTEM_PROMPT = 'PREPARE_SYSTEM_PROMPT',
 	PREPARE_MESSAGES = 'PREPARE_MESSAGES',
 	PREPARE_TOOLS = 'PREPARE_TOOLS',

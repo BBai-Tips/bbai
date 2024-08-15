@@ -25,15 +25,11 @@ export const init = new Command()
 			const gitRoot = await GitUtils.findGitRoot(startDir);
 			if (!gitRoot) {
 				// Initialize git repository
-				const command = new Deno.Command('git', {
-					args: ['init'],
-					cwd: startDir,
-				});
-				const { success, stdout, stderr } = await command.output();
-				if (success) {
+				try {
+					await GitUtils.initGit(startDir);
 					logger.info('Initialized git repository');
-				} else {
-					logger.error(`Failed to initialize git repository: ${new TextDecoder().decode(stderr)}`);
+				} catch (error) {
+					logger.error(`Failed to initialize git repository: ${error.message}`);
 				}
 			} else {
 				logger.info('Git repository already initialized');

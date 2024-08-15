@@ -5,29 +5,26 @@ import {
 	continueConversation,
 	deleteConversation,
 	getConversation,
-	startConversation,
-	undoConversation,
+	listConversations,
 } from './api/conversation.handlers.ts';
-//import { addFile, listFiles, removeFile } from './api/file.handlers.ts';
-//import { getTokenUsage } from './api/token.handlers.ts';
-//import { runCliCommand } from './api/cli.handlers.ts';
-//import { loadExternalContent } from './api/external.handlers.ts';
-//import { getLogs } from './api/log.handlers.ts';
-//import { persistConversation, resumeConversation } from './api/persistence.handlers.ts';
+import { websocketConversation } from './api/websocket.handlers.ts';
 
 const apiRouter = new Router();
+
 apiRouter
 	.get('/v1/status', (ctx: Context) => {
 		ctx.response.body = { status: 'OK', message: 'API is running' };
 	})
 	// Conversation endpoints
-	.post('/v1/conversation', startConversation)
+	.get('/v1/ws/conversation/:id', websocketConversation)
+	//.post('/v1/conversation', startConversation)
+	.get('/v1/conversation', listConversations)
 	.get('/v1/conversation/:id', getConversation)
 	.post('/v1/conversation/:id', continueConversation)
 	.delete('/v1/conversation/:id', deleteConversation)
 	//.post('/v1/conversation/:id/message', addMessage)
-	.post('/v1/conversation/:id/clear', clearConversation)
-	.post('/v1/conversation/:id/undo', undoConversation);
+	//.post('/v1/conversation/:id/undo', undoConversation)
+	.post('/v1/conversation/:id/clear', clearConversation);
 /*
 	// NOT IMPLEMENTED
 	// File management endpoints

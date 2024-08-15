@@ -1,18 +1,16 @@
 import { join } from '@std/path';
 
-import type { ConversationId, LLMSpeakWithOptions, LLMSpeakWithResponse } from '../../types.ts';
+import type { LLMSpeakWithOptions, LLMSpeakWithResponse } from 'api/types.ts';
+import { ConversationId, ConversationMetrics, ConversationTokenUsage, TokenUsage } from 'shared/types.ts';
 import LLMInteraction from './baseInteraction.ts';
 import LLM from '../providers/baseLLM.ts';
-import { LLMCallbackType } from '../../types.ts';
-import type {
-	LLMMessageContentPart,
-	LLMMessageContentPartTextBlock,
-	LLMMessageContentPartToolResultBlock,
-} from '../llmMessage.ts';
-import LLMMessage from '../llmMessage.ts';
+import { LLMCallbackType } from 'api/types.ts';
+import type { LLMMessageContentPart, LLMMessageContentPartTextBlock } from 'api/llms/llmMessage.ts';
+import LLMMessage from 'api/llms/llmMessage.ts';
 import LLMTool from '../llmTool.ts';
 import { logger } from 'shared/logger.ts';
-import { readFileContent } from 'shared/dataDir.ts';
+//import { readFileContent } from 'shared/dataDir.ts';
+import { ResourceManager } from '../resourceManager.ts';
 import { GitUtils } from 'shared/git.ts';
 
 export interface FileMetadata {
@@ -31,14 +29,22 @@ export interface ProjectInfo {
 }
 
 class LLMConversationInteraction extends LLMInteraction {
-	private _statementCount: number = 0;
 	private _files: Map<string, FileMetadata> = new Map();
+	private resourceManager: ResourceManager;
 	private systemPromptFiles: string[] = [];
-	public title: string = '';
 	private currentCommit: string | null = null;
 
 	constructor(llm: LLM, conversationId?: ConversationId) {
 		super(llm, conversationId);
+		this.resourceManager = new ResourceManager();
+	}
+
+	// these methods are really just convenience aliases for tokenUsageInteraction
+	public get tokenUsageConversation(): ConversationTokenUsage {
+		return this._tokenUsageInteraction;
+	}
+	public set tokenUsageConversation(tokenUsage: ConversationTokenUsage) {
+		this._tokenUsageInteraction = tokenUsage;
 	}
 
 	public async prepareSytemPrompt(system: string): Promise<string> {
@@ -91,11 +97,11 @@ class LLMConversationInteraction extends LLMInteraction {
 		const projectRoot = await this.llm.invoke(LLMCallbackType.PROJECT_ROOT);
 		const fullFilePath = join(projectRoot, filePath);
 		logger.info(`Reading contents of File ${fullFilePath}`);
-		const content = await readFileContent(fullFilePath);
-		if (content === null) {
-			throw new Error(`File not found: ${fullFilePath}`);
+		try {
+			return await this.resourceManager.loadResource({ type: 'file', location: fullFilePath });
+		} catch (error) {
+			throw new Error(`Failed to read file: ${fullFilePath}`);
 		}
-		return content;
 	}
 
 	protected appendProjectInfoToSystem(
@@ -121,57 +127,55 @@ class LLMConversationInteraction extends LLMInteraction {
 		return system;
 	}
 
-	protected async hydrateMessages(messages: LLMMessage[]): Promise<LLMMessage[]> {
+	async hydrateMessages(messages: LLMMessage[]): Promise<LLMMessage[]> {
 		const hydratedFiles = new Map<string, number>();
 
 		const processContentPart = async <T extends LLMMessageContentPart>(
 			contentPart: T,
 			messageId: string,
+			turnIndex: number,
 		): Promise<T> => {
 			if (contentPart.type === 'text' && contentPart.text.startsWith('File added:')) {
 				const filePath = contentPart.text.split(': ')[1].trim();
-				const currentTurn = messages.length - messages.findIndex((m) => m.id === messageId);
-				const lastHydratedTurn = hydratedFiles.get(filePath) || 0;
 
-				if (currentTurn > lastHydratedTurn) {
-					logger.info(
-						`Hydrating message for file: ${filePath} - Current Turn: ${currentTurn}, Last Hydrated Turn: ${lastHydratedTurn}`,
-					);
+				if (!hydratedFiles.has(filePath)) {
+					logger.info(`Hydrating message for file: ${filePath} - Turn: ${turnIndex}`);
 					const fileXml = await this.createFileXmlString(filePath);
 					if (fileXml) {
-						hydratedFiles.set(filePath, currentTurn);
+						hydratedFiles.set(filePath, turnIndex);
 						return { ...contentPart, text: fileXml } as T;
 					}
 				} else {
+					const lastHydratedTurn = hydratedFiles.get(filePath)!;
 					logger.info(
-						`Skipping hydration for file: ${filePath} - Current Turn: ${currentTurn}, Last Hydrated Turn: ${lastHydratedTurn}`,
+						`Skipping hydration for file: ${filePath} - Current Turn: ${turnIndex}, Last Hydrated Turn: ${lastHydratedTurn}`,
 					);
 					return {
 						...contentPart,
 						text: `Note: File ${filePath} content is up-to-date as of turn ${lastHydratedTurn}.`,
 					} as T;
 				}
-				//} else {
-				//	logger.debug(`Skipping content part: ${contentPart.type}`);
 			}
 			if (contentPart.type === 'tool_result' && Array.isArray(contentPart.content)) {
 				const updatedContent = await Promise.all(
-					contentPart.content.map((part) => processContentPart(part, messageId)),
+					contentPart.content.map((part) => processContentPart(part, messageId, turnIndex)),
 				);
 				return { ...contentPart, content: updatedContent } as T;
 			}
 			return contentPart;
 		};
 
-		const processMessage = async (message: LLMMessage): Promise<LLMMessage> => {
+		const processMessage = async (message: LLMMessage, index: number): Promise<LLMMessage> => {
 			if (!message || typeof message !== 'object') {
 				logger.error(`Invalid message encountered: ${JSON.stringify(message)}`);
 				return message;
 			}
 			if (message.role === 'user') {
-				const updatedContent = await Promise.all(
-					message.content.map((part) => processContentPart(part, message.id || '')),
-				);
+				const updatedContent = [];
+				for (const part of message.content) {
+					const processedPart = await processContentPart(part, message.id || '', index);
+					updatedContent.push(processedPart);
+				}
 				const updatedMessage = new LLMMessage(
 					message.role,
 					updatedContent,
@@ -185,7 +189,11 @@ class LLMConversationInteraction extends LLMInteraction {
 		};
 
 		const reversedMessages = [...messages].reverse();
-		const processedMessages = await Promise.all(reversedMessages.map(processMessage));
+		const processedMessages = [];
+		for (let i = 0; i < reversedMessages.length; i++) {
+			const processedMessage = await processMessage(reversedMessages[i], i);
+			processedMessages.push(processedMessage);
+		}
 		return processedMessages.reverse();
 	}
 
@@ -328,15 +336,12 @@ class LLMConversationInteraction extends LLMInteraction {
 		this.systemPromptFiles = [];
 	}
 
-	public get statementCount(): number {
-		return this._statementCount;
-	}
-
 	// converse is called for first turn in a statement; subsequent turns call speakWithLLM
 	public async converse(
 		prompt: string,
 		speakOptions?: LLMSpeakWithOptions,
 	): Promise<LLMSpeakWithResponse> {
+		// Statement count is now incremented at the beginning of the method
 		if (!speakOptions) {
 			speakOptions = {} as LLMSpeakWithOptions;
 		}
@@ -357,11 +362,18 @@ class LLMConversationInteraction extends LLMInteraction {
 
 		const response = await this.llm.speakWithRetry(this, speakOptions);
 
+		// Update totals once per turn
+		//this.updateTotals(response.messageResponse.usage, 1); // Assuming 1 provider request per converse call
+		this.updateTotals(response.messageResponse.usage); // Assuming 1 provider request per converse call
+
 		const contentPart: LLMMessageContentPart = response.messageResponse
 			.answerContent[0] as LLMMessageContentPartTextBlock;
-		const msg = contentPart.text;
 
-		this.conversationLogger.logAssistantMessage(msg);
+		const msg = contentPart.text;
+		const conversationStats: ConversationMetrics = this.getAllStats();
+		const tokenUsage: TokenUsage = response.messageResponse.usage;
+
+		this.conversationLogger.logAssistantMessage(msg, conversationStats, tokenUsage);
 		this._statementCount++;
 
 		return response;

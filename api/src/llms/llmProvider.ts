@@ -4,7 +4,7 @@ import LLM from './providers/baseLLM.ts';
 import AnthropicLLM from './providers/anthropicLLM.ts';
 //import OpenAILLM from './providers/openAILLM.ts';
 
-export class LLMFactory {
+class LLMFactory {
 	static getProvider(
 		interactionCallbacks: LLMCallbacks,
 		llmProviderName: LLMProviderEnum = LLMProviderEnum.ANTHROPIC,
@@ -19,3 +19,5 @@ export class LLMFactory {
 		}
 	}
 }
+
+export default LLMFactory;

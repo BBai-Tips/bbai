@@ -1,6 +1,6 @@
 import { Application } from '@oak/oak';
 import oak_logger from 'oak_logger';
-import { parse } from '@std/flags';
+import { parseArgs } from '@std/cli';
 //import { oakCors } from "cors";
 
 import { config, redactedConfig } from 'shared/configManager.ts';
@@ -11,7 +11,7 @@ import { BbAiState } from './types.ts';
 const { environment, apiPort } = config.api || {};
 
 // Parse command line arguments
-const args = parse(Deno.args, {
+const args = parseArgs(Deno.args, {
 	string: ['log-file', 'port'],
 	boolean: ['help', 'version'],
 	alias: { h: 'help', V: 'version', v: 'version', p: 'port', l: 'log-file' },

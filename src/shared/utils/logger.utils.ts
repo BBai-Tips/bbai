@@ -19,6 +19,11 @@ const getLogLevel = async (): Promise<LogLevel> => {
 const currentLogLevel = await getLogLevel();
 
 export const logger = {
+	dir: (arg: unknown) => {
+		if (logLevels.indexOf('debug') >= logLevels.indexOf(currentLogLevel)) {
+			console.dir(arg, { depth: null });
+		}
+	},
 	debug: (message: string, ...args: unknown[]) => {
 		if (logLevels.indexOf('debug') >= logLevels.indexOf(currentLogLevel)) {
 			// [FIXME] how do I enable debug logging via `console`

@@ -3,15 +3,18 @@ import { logger } from 'shared/logger.ts';
 
 class ApiClient {
 	private baseUrl: string;
+	private wsUrl: string;
 
-	private constructor(baseUrl: string) {
+	private constructor(baseUrl: string, wsUrl: string) {
 		this.baseUrl = baseUrl;
+		this.wsUrl = wsUrl;
 	}
 
 	static async create(): Promise<ApiClient> {
 		const apiPort = config.api?.apiPort || 3000;
 		const baseUrl = `http://localhost:${apiPort}`;
-		return new ApiClient(baseUrl);
+		const wsUrl = `ws://localhost:${apiPort}`;
+		return new ApiClient(baseUrl, wsUrl);
 	}
 
 	async get(endpoint: string) {
@@ -47,12 +50,24 @@ class ApiClient {
 	}
 
 	/*
-	async sendPrompt(prompt: string, conversationId?: string): Promise<any> {
+	async sendPrompt(prompt: string, conversationId?: ConversationId): Promise<any> {
 		const endpoint = conversationId ? `/api/v1/prompt/${conversationId}` : '/api/v1/prompt';
 		const response = await this.post(endpoint, { prompt });
 		return await response.json();
 	}
 	 */
+
+	async connectWebSocket(endpoint: string): Promise<WebSocket> {
+		const ws = new WebSocket(`${this.wsUrl}${endpoint}`);
+		// we don't want to wait for the connection to be open
+		//await new Promise((resolve) => {
+		//	ws.onopen = resolve;
+		//});
+		return ws;
+	}
+	//private sendWsMessage(ws: WebSocket, type: string, data: any) {
+	//	ws.send(JSON.stringify({ type, data }));
+	//}
 }
 
 export const apiClient = await ApiClient.create();
