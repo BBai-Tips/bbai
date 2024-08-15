@@ -93,7 +93,7 @@ Deno.test({
 	sanitizeOps: false,
 });
 
-/* 
+/*
 Deno.test({
 	name: 'Rewrite File Tool - throw error for file outside project',
 	async fn() {

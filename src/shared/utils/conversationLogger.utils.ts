@@ -67,10 +67,8 @@ export class ConversationLogger {
 			totalTokensTotal: 0,
 		},
 	) {
-		console.log(`Entering logEntry method for type: ${type}`);
 		const timestamp = this.getTimestamp();
 
-		console.log('Calling logEntryHandler...');
 		try {
 			await this.logEntryHandler(
 				type,
@@ -81,12 +79,10 @@ export class ConversationLogger {
 				tokenUsageStatement,
 				tokenUsageConversation,
 			);
-			console.log('logEntryHandler called successfully');
 		} catch (error) {
 			console.error('Error in logEntryHandler:', error);
 		}
 
-		console.log('Creating raw entry...');
 		const entry = LogFormatter.createRawEntryWithSeparator(
 			type,
 			timestamp,
@@ -96,17 +92,12 @@ export class ConversationLogger {
 			tokenUsageStatement,
 			tokenUsageConversation,
 		);
-		console.log('Raw entry created');
 
-		console.log('Appending to log...');
 		try {
 			await this.appendToLog(entry);
-			console.log('Successfully appended to log');
 		} catch (error) {
 			console.error('Error appending to log:', error);
 		}
-
-		console.log(`Exiting logEntry method for type: ${type}`);
 	}
 
 	async logUserMessage(message: string, conversationStats?: ConversationMetrics) {
@@ -145,17 +136,13 @@ export class ConversationLogger {
 		tokenUsageStatement?: TokenUsage,
 		tokenUsageConversation?: ConversationTokenUsage,
 	) {
-		console.log(`Entering logToolUse for: ${toolName}`);
 		let message: string;
 		try {
-			console.log('Attempting to format tool input...');
 			message = `Tool: ${toolName}\nInput: \n${JSON.stringify(toolInput, null, 2)}`;
-			console.log('Formatted message:', message);
 		} catch (error) {
 			console.error(`Error formatting tool use for ${toolName}:`, error);
 			message = `Tool: ${toolName}\nInput: [Error formatting input]`;
 		}
-		console.log('Calling logEntry...');
 		try {
 			await this.logEntry(
 				'tool_use',
@@ -165,11 +152,9 @@ export class ConversationLogger {
 				tokenUsageStatement,
 				tokenUsageConversation,
 			);
-			console.log('logEntry completed successfully');
 		} catch (error) {
 			console.error('Error in logEntry:', error);
 		}
-		console.log(`Exiting logToolUse for: ${toolName}`);
 	}
 
 	async logToolResult(

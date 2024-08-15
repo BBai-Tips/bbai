@@ -177,9 +177,9 @@ export class LogFormatter {
 		const footer = color(`╰${'─'.repeat(this._maxLineLength - 1)}`);
 
 		let formattedMessage = message.trim();
-		if (type === 'tool_use') {
-			formattedMessage = this.prettifyJsonInMessage(formattedMessage);
-		}
+		//if (type === 'tool_use') {
+		//	formattedMessage = this.prettifyJsonInMessage(formattedMessage);
+		//}
 
 		//const wrappedMessage = this.wrapText(formattedMessage, color('│ '), '');
 		const wrappedMessage = this.wrapText(formattedMessage, color('  '), '');

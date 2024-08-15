@@ -150,7 +150,6 @@ class LLMInteraction {
 		this._tokenUsageInteraction = tokenUsage;
 	}
 
-
 	public get inputTokensTotal(): number {
 		return this._tokenUsageInteraction.inputTokensTotal;
 	}
@@ -273,7 +272,7 @@ class LLMInteraction {
 		} else {
 			this.conversationLogger?.logToolResult(toolUseId, toolRunResultContent);
 		}
- */
+		 */
 
 		const lastMessage = this.getLastMessage();
 		if (lastMessage && lastMessage.role === 'user') {

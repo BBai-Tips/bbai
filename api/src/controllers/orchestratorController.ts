@@ -268,7 +268,7 @@ class OrchestratorController {
 
 			// Include the latest stats and usage in the saved conversation
 			//interaction.conversationStats = this.interactionStats.get(interaction.id),
-			//interaction.tokenUsageInteraction = this.interactionTokenUsage.get(interaction.id),
+			//interaction.tokenUsageConversation = this.interactionTokenUsage.get(interaction.id),
 
 			await persistence.saveConversation(interaction);
 
@@ -423,13 +423,14 @@ class OrchestratorController {
 		toolUse: LLMAnswerToolUse,
 		_response: unknown,
 	): Promise<string> {
-		interaction.conversationLogger?.logToolUse(
+		logger.error(`Handling tool use for: ${toolUse.toolName}`);
+		await interaction.conversationLogger.logToolUse(
 			toolUse.toolName,
 			toolUse.toolInput,
-			interaction.conversationStats,
-			interaction.tokenUsageTurn,
-			interaction.tokenUsageStatement,
-			interaction.tokenUsageInteraction,
+			//interaction.conversationStats,
+			//interaction.tokenUsageTurn,
+			//interaction.tokenUsageStatement,
+			//interaction.tokenUsageConversation,
 		);
 		const { messageId: _messageId, toolResponse, bbaiResponse, isError } = await this.toolManager.handleToolUse(
 			interaction,
@@ -437,9 +438,9 @@ class OrchestratorController {
 			this.projectEditor,
 		);
 		if (isError) {
-			interaction.conversationLogger?.logError(`Tool Result (${toolUse.toolName}): ${toolResponse}`);
+			interaction.conversationLogger.logError(`Tool Result (${toolUse.toolName}): ${toolResponse}`);
 		}
-		interaction.conversationLogger?.logToolResult(
+		await interaction.conversationLogger.logToolResult(
 			toolUse.toolName,
 			`BBai was ${isError ? 'unsuccessful' : 'successful'} with tool run: \n${bbaiResponse}`,
 			//interaction.conversationStats,

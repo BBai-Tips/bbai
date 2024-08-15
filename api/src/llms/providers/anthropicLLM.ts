@@ -4,10 +4,7 @@ import type { ClientOptions } from 'anthropic';
 import { AnthropicModel, LLMCallbackType, LLMProvider } from 'api/types.ts';
 import LLM from './baseLLM.ts';
 import LLMInteraction from '../interactions/baseInteraction.ts';
-import LLMMessage, {
-	LLMMessageContentParts,
-	LLMMessageContentPartTextBlock,
-} from 'api/llms/llmMessage.ts';
+import LLMMessage, { LLMMessageContentParts, LLMMessageContentPartTextBlock } from 'api/llms/llmMessage.ts';
 import LLMTool from '../llmTool.ts';
 import { createError } from '../../utils/error.utils.ts';
 import { ErrorType, LLMErrorOptions } from '../../errors/error.ts';

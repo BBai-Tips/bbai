@@ -169,11 +169,16 @@ class WebSocketHandler {
 	}
 
 	// Method to send messages back to the client
-	private sendMessage = debounce((ws: WebSocket, type: string, data: any) => {
+	private sendMessage = (ws: WebSocket, type: string, data: any) => {
 		//logger.debug(`Sending WebSocket message: type=${type}, data=${JSON.stringify(data)}`);
 		//logger.debug('WebSocketHandler-sendMessage called');
 		ws.send(JSON.stringify({ type, data }));
-	}, 50); // 50ms debounce
+	};
+	// 	private sendMessage = debounce((ws: WebSocket, type: string, data: any) => {
+	// 		//logger.debug(`Sending WebSocket message: type=${type}, data=${JSON.stringify(data)}`);
+	// 		//logger.debug('WebSocketHandler-sendMessage called');
+	// 		ws.send(JSON.stringify({ type, data }));
+	// 	}, 50); // 50ms debounce
 }
 
 export default WebSocketHandler;

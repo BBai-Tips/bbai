@@ -74,9 +74,9 @@ export class TerminalHandler {
 				//	preserveAspectRatio: true,
 				//}) + '  ' +
 				ansi.cursorTo(6, 2) +
-				colors.bold.blue.underline('BBai') + colors.bold.blue(' - Be Better with code and docs') 
-				//colors.bold.blue(ansi.link('BBai', 'https://bbai.tips')) +
-				//+ '\n',
+				colors.bold.blue.underline('BBai') + colors.bold.blue(' - Be Better with code and docs'),
+			//colors.bold.blue(ansi.link('BBai', 'https://bbai.tips')) +
+			//+ '\n',
 		);
 	}
 
@@ -220,9 +220,7 @@ export class TerminalHandler {
 			formatLine('Statement', statementCount.toString(), palette.success),
 		];
 
-		const output = isNarrow
-			? lines.join('\n')
-			: lines.join('  ');
+		const output = isNarrow ? lines.join('\n') : lines.join('  ');
 
 		console.log(palette.primary(`${leftPadding}${symbols.sparkles} Conversation Started ${symbols.sparkles}`));
 		console.log(output);
