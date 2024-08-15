@@ -208,10 +208,10 @@ export class TerminalHandler {
 
 		const { columns } = Deno.consoleSize();
 		const isNarrow = columns < 80;
+		const leftPadding = '  ';
 
 		const formatLine = (label: string, value: string, color: (s: string) => string) => {
-			const separator = isNarrow ? ':' : ' | ';
-			return color(`${label}${separator}${value}`);
+			return color(`${leftPadding}${label}: ${value}`);
 		};
 
 		const lines = [
@@ -222,9 +222,9 @@ export class TerminalHandler {
 
 		const output = isNarrow
 			? lines.join('\n')
-			: lines.join(' ');
+			: lines.join('  ');
 
-		console.log(palette.primary(`${symbols.sparkles} Conversation Started ${symbols.sparkles}`));
+		console.log(palette.primary(`${leftPadding}${symbols.sparkles} Conversation Started ${symbols.sparkles}`));
 		console.log(output);
 		console.log('');
 
