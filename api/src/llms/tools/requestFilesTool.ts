@@ -23,6 +23,12 @@ class RequestFilesToolFormatter implements ToolFormatter {
 }
 
 export class LLMToolRequestFiles extends LLMTool {
+  private static formatter = new RequestFilesToolFormatter();
+
+  private registerFormatter() {
+    LLMToolManager.registerToolFormatter(this.name, LLMToolRequestFiles.formatter);
+  }
+
 	constructor() {
 		super(
 			'request_files',
