@@ -1,5 +1,5 @@
 import { logger } from 'shared/logger.ts';
-import LLMTool, { LLMToolFinalizeResult, LLMToolRunResultContent } from './llmTool.ts';
+import LLMTool, { LLMToolFinalizeResult, LLMToolRunResultContent, ToolFormatter } from './llmTool.ts';
 import { LLMAnswerToolUse, LLMMessageContentPart } from 'api/llms/llmMessage.ts';
 import LLMConversationInteraction from './interactions/conversationInteraction.ts';
 import ProjectEditor from '../editor/projectEditor.ts';
@@ -16,6 +16,16 @@ import { LLMValidationErrorOptions } from '../errors/error.ts';
 export type LLMToolManagerToolSetType = 'coding' | 'research' | 'creative';
 
 class LLMToolManager {
+  static toolFormatters: Map<string, ToolFormatter> = new Map();
+
+  static registerToolFormatter(toolName: string, formatter: ToolFormatter): void {
+    LLMToolManager.toolFormatters.set(toolName, formatter);
+  }
+
+  static getToolFormatter(toolName: string): ToolFormatter | undefined {
+    return LLMToolManager.toolFormatters.get(toolName);
+  }
+
 	private tools: Map<string, LLMTool> = new Map();
 	public toolSet: LLMToolManagerToolSetType = 'coding';
 
