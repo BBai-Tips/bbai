@@ -108,7 +108,7 @@ Deno.test('OrchestratorController - manageAgentTasks with error handling', async
 		execute: async () => {
 			throw new Error('Task execution failed');
 		},
-	};
+    };
 
 	await orchestrator.initializePrimaryInteraction('primary-id' as ConversationId);
 
@@ -186,5 +186,5 @@ Deno.test('OrchestratorController - manageAgentTasks with uninitialized primary 
 		Error,
 		'Primary interaction not initialized or not found',
 	);
-});
+  });
  */

@@ -3,6 +3,22 @@
 ## Overview
 This document outlines the testing strategy, progress, and guidelines for the BBai project. It serves as a reference for current and future testing efforts, ensuring comprehensive coverage and consistent quality across the project.
 
+## Testing New Tools
+
+When creating tests for a new tool:
+
+1. Create a new test file in the `api/tests/t/llms/tools` directory, named `toolName.test.ts`.
+2. Import necessary testing utilities from Deno's standard testing library.
+3. Create mock objects for `LLMConversationInteraction`, `LLMAnswerToolUse`, and `ProjectEditor` as needed.
+4. Write tests covering:
+   - Basic functionality
+   - Edge cases
+   - Error scenarios
+   - Input validation
+5. Test all public methods of the tool, including `toolUseInputFormatter` and `toolRunResultFormatter`.
+6. Follow the patterns established in existing tool tests for consistency.
+7. Ensure proper cleanup after each test, especially for file system operations.
+
 ## General Testing Principles
 1. Each tool should have its own test file.
 2. Tests should cover basic functionality, edge cases, and error scenarios.
@@ -13,7 +29,7 @@ This document outlines the testing strategy, progress, and guidelines for the BB
 ## Current Test Coverage
 
 ### SearchAndReplace Tool
-File: `api/tests/llms/tools/searchAndReplaceTool.test.ts`
+File: `api/tests/t/llms/tools/searchAndReplaceTool.test.ts`
 
 Completed tests:
 1. Basic functionality (modifying existing files)
@@ -29,7 +45,7 @@ Potential additional tests:
 3. Error handling for invalid operations
 
 ### RequestFiles Tool
-File: `api/tests/llms/tools/requestFilesTool.test.ts`
+File: `api/tests/t/llms/tools/requestFilesTool.test.ts`
 
 Completed tests:
 1. Requesting existing files
@@ -45,7 +61,7 @@ Potential additional tests:
 ## Pending Tests
 
 ### SearchProject Tool
-File: `api/tests/llms/tools/searchProjectTool.test.ts`
+File: `api/tests/t/llms/tools/searchProjectTool.test.ts`
 
 Completed tests:
 1. Basic search functionality

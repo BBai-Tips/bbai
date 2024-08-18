@@ -142,7 +142,7 @@ export class LogFormatter {
 	private static isStatsAndUsageEmpty(stats: ConversationMetrics, usage: TokenUsage): boolean {
 		return (
 			!stats ||
-			(stats.statementCount === 0 && stats.turnCount === 0 && stats.totalTurnCount === 0) ||
+			(stats.statementCount === 0 && stats.statementTurnCount === 0 && stats.conversationTurnCount === 0) ||
 			!usage ||
 			(usage.inputTokens === 0 && usage.outputTokens === 0 && usage.totalTokens === 0)
 		);
@@ -166,8 +166,8 @@ export class LogFormatter {
 		if (!LogFormatter.isStatsAndUsageEmpty(conversationStats, tokenUsage)) {
 			const summaryInfo = [
 				colors.green(`📝  St:${conversationStats.statementCount}`),
-				colors.magenta(`🔄  Tn:${conversationStats.turnCount}`),
-				colors.blue(`🔢  TT:${conversationStats.totalTurnCount}`),
+				colors.magenta(`🔄  Tn:${conversationStats.statementTurnCount}`),
+				colors.blue(`🔢  TT:${conversationStats.conversationTurnCount}`),
 				colors.red(`⌨️  In:${tokenUsage.inputTokens}`),
 				colors.yellow(`🗨️  Out:${tokenUsage.outputTokens}`),
 				colors.green(`Σ  Tot:${tokenUsage.totalTokens}`),
@@ -177,9 +177,6 @@ export class LogFormatter {
 		const footer = color(`╰${'─'.repeat(this._maxLineLength - 1)}`);
 
 		let formattedMessage = message.trim();
-		//if (type === 'tool_use') {
-		//	formattedMessage = this.prettifyJsonInMessage(formattedMessage);
-		//}
 
 		//const wrappedMessage = this.wrapText(formattedMessage, color('│ '), '');
 		const wrappedMessage = this.wrapText(formattedMessage, color('  '), '');
@@ -195,7 +192,11 @@ export class LogFormatter {
 		if (typeof header !== 'undefined' && typeof messageLines !== 'undefined') {
 			const [typeString, timestamp] = header.replace('## ', '').split(' [');
 			// need to parse out the conversationStats and tokenUsage
-			const conversationStats: ConversationMetrics = { statementCount: 0, turnCount: 0, totalTurnCount: 0 };
+			const conversationStats: ConversationMetrics = {
+				statementCount: 0,
+				statementTurnCount: 0,
+				conversationTurnCount: 0,
+			};
 			const tokenUsage: TokenUsage = { inputTokens: 0, outputTokens: 0, totalTokens: 0 };
 			if (typeof typeString !== 'undefined' && typeof timestamp !== 'undefined') {
 				const type = typeString as ConversationLoggerEntryType;
@@ -212,19 +213,6 @@ export class LogFormatter {
 		} else {
 			return messageLines.join('\n');
 		}
-	}
-
-	private prettifyJsonInMessage(message: string): string {
-		const jsonRegex = /\{[\s\S]*?\}/;
-		return message.replace(jsonRegex, (match) => {
-			try {
-				const parsed = JSON.parse(match);
-				return JSON.stringify(parsed, null, 2);
-			} catch (error) {
-				// If parsing fails, return the original match
-				return match;
-			}
-		});
 	}
 
 	formatSeparator(): string {

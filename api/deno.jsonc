@@ -1,6 +1,6 @@
 {
 	"name": "bbai-api",
-	"version": "0.0.8a-alpha",
+	"version": "0.0.9-alpha",
 	"exports": "./src/main.ts",
 	"tasks": {
 		"start": "deno run --allow-read --allow-write --allow-run --allow-net --allow-env src/main.ts",

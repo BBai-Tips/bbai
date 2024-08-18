@@ -15,11 +15,11 @@ import ProjectEditor from '../../editor/projectEditor.ts';
 import { createError, ErrorType } from '../../utils/error.utils.ts';
 import { getContentFromToolResult } from '../../utils/llms.utils.ts';
 
-export class LLMToolRequestFiles extends LLMTool {
+export class LLMToolForgetFiles extends LLMTool {
 	constructor() {
 		super(
-			'request_files',
-			'Request files to be added to the chat',
+			'forget_files',
+			'Forget specified files from the chat',
 		);
 	}
 
@@ -30,12 +30,12 @@ export class LLMToolRequestFiles extends LLMTool {
 				fileNames: {
 					type: 'array',
 					items: { type: 'string' },
-					description: 'Array of file names to be added to the chat',
+					description: 'Array of file names to be removed from the chat',
 				},
 			},
 			required: ['fileNames'],
 			description:
-				`Request files for the chat when you need to review them or make changes. Before requesting a file, check that you don't already have it included in an earlier message`,
+				'Remove files from the chat when you no longer need them, to save on token cost and reduce the context you have to read.',
 		};
 	}
 
@@ -47,12 +47,12 @@ export class LLMToolRequestFiles extends LLMTool {
 		let formattedInput = '';
 		if (format === 'console') {
 			formattedInput = stripIndents`
-				${colors.bold('Requested files:')}
-				${fileNames.map((file) => colors.cyan(`- ${file}`)).join('\n')}`;
+				${colors.bold('Files to forget:')}
+				${fileNames.map((file) => colors.red(`- ${file}`)).join('\n')}`;
 		} else if (format === 'browser') {
 			formattedInput = stripIndents`
-				<h3>Requested files:</h3><ul>${
-				fileNames.map((file) => `<li style="color: #4169E1;">${file}</li>`).join('')
+				<h3>Files to forget:</h3><ul>${
+				fileNames.map((file) => `<li style="color: #FF0000;">${file}</li>`).join('')
 			}</ul>`;
 		}
 		if (format === 'console') {
@@ -83,27 +83,26 @@ export class LLMToolRequestFiles extends LLMTool {
 		const { fileNames } = toolInput as { fileNames: string[] };
 
 		try {
-			const filesAdded = await projectEditor.prepareFilesForConversation(fileNames);
-
 			const toolResultContentParts = [];
 			const filesSuccess: Array<{ name: string }> = [];
 			const filesError: Array<{ name: string; error: string }> = [];
 			let allFilesFailed = true;
 
-			for (const fileToAdd of filesAdded) {
-				if (fileToAdd.metadata.error) {
+			for (const fileName of fileNames) {
+				if (interaction.getFile(fileName)) {
+					interaction.removeFile(fileName);
 					toolResultContentParts.push({
 						'type': 'text',
-						'text': `Error adding file ${fileToAdd.fileName}: ${fileToAdd.metadata.error}`,
+						'text': `File removed: ${fileName}`,
 					} as LLMMessageContentPartTextBlock);
-					filesError.push({ name: fileToAdd.fileName, error: fileToAdd.metadata.error });
+					filesSuccess.push({ name: fileName });
+					allFilesFailed = false;
 				} else {
 					toolResultContentParts.push({
 						'type': 'text',
-						'text': `File added: ${fileToAdd.fileName}`,
+						'text': `Error removing file ${fileName}: File is not in the conversation history`,
 					} as LLMMessageContentPartTextBlock);
-					filesSuccess.push({ name: fileToAdd.fileName });
-					allFilesFailed = false;
+					filesError.push({ name: fileName, error: 'File is not in the conversation history' });
 				}
 			}
 
@@ -111,55 +110,37 @@ export class LLMToolRequestFiles extends LLMTool {
 			const toolResponses = [];
 			if (filesSuccess.length > 0) {
 				bbaiResponses.push(
-					`BBai has added these files to the conversation: ${filesSuccess.map((f) => f.name).join(', ')}`,
+					`BBai has removed these files from the conversation: ${filesSuccess.map((f) => f.name).join(', ')}`,
 				);
 				toolResponses.push(
-					`Added files to the conversation:\n${filesSuccess.map((f) => `- ${f.name}`).join('\n')}`,
+					`Removed files from the conversation:\n${filesSuccess.map((f) => `- ${f.name}`).join('\n')}`,
 				);
 			}
 			if (filesError.length > 0) {
 				bbaiResponses.push(
-					`BBai failed to add these files to the conversation:\n${
+					`BBai failed to remove these files from the conversation:\n${
 						filesError.map((f) => `- ${f.name}: ${f.error}`).join('\n')
 					}`,
 				);
 				toolResponses.push(
-					`Failed to add files to the conversation:\n${
+					`Failed to remove files from the conversation:\n${
 						filesError.map((f) => `- ${f.name}: ${f.error}`).join('\n')
 					}`,
 				);
 			}
 
 			const toolResults = toolResultContentParts;
-			const toolResponse = (allFilesFailed ? 'No files added\n' : '') + toolResponses.join('\n\n');
+			const toolResponse = (allFilesFailed ? 'No files removed\n' : '') + toolResponses.join('\n\n');
 			const bbaiResponse = bbaiResponses.join('\n\n');
 
-			// const storageLocation = this.determineStorageLocation(fullFilePath, content, source);
-			// if (storageLocation === 'system') {
-			// 	this.conversation.addFileForSystemPrompt(fileName, metadata, messageId, toolUse.toolUseId);
-			// } else {
-			// 	this.conversation.addFileForMessage(fileName, metadata, messageId, toolUse.toolUseId);
-			// }
-
-			return {
-				toolResults,
-				toolResponse,
-				bbaiResponse,
-				finalize: (messageId) => {
-					interaction.addFilesForMessage(
-						filesAdded,
-						messageId,
-						toolUse.toolUseId,
-					);
-				},
-			};
+			return { toolResults, toolResponse, bbaiResponse };
 		} catch (error) {
-			logger.error(`Error adding files to conversation: ${error.message}`);
+			logger.error(`Error removing files from conversation: ${error.message}`);
 
-			throw createError(ErrorType.FileHandling, `Error adding files to conversation: ${error.message}`, {
-				name: 'request-files',
+			throw createError(ErrorType.FileHandling, `Error removing files from conversation: ${error.message}`, {
+				name: 'forget-files',
 				filePath: projectEditor.projectRoot,
-				operation: 'request-files',
+				operation: 'forget-files',
 			});
 		}
 	}

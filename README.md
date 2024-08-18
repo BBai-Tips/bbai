@@ -24,7 +24,11 @@ In a world where AI assistants are becoming commonplace, BBai stands out by offe
 
 ### Key Features
 
+- **Web Page Fetching**: The `LLMToolFetchWebPage` allows BBai to retrieve content from web pages, providing additional context and information for the LLM to reference during conversations.
+- **Web Page Screenshot**: The `LLMToolFetchWebScreenshot` enables BBai to capture screenshots of web pages, allowing the LLM to analyze visual content when needed.
+
 - **Universal Text Support**: From code to prose, BBai handles it all.
+- **Web Page Fetching**: The `FetchWebPageTool` allows BBai to retrieve content from web pages, providing additional context and information for the LLM to reference during conversations.
 - **Project-Wide Understanding**: Uses `ctags` for initial project comprehension, with plans for advanced techniques like RAG and embeddings in the future.
 - **Intelligent Tools**: Employs LLM tools for clear, purpose-driven interactions.
 - **First-Class Project Discussions**: Makes conversations about your project as important as the changes themselves.

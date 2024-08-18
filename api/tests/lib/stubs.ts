@@ -1,8 +1,27 @@
 import { stub } from '../deps.ts';
 import ProjectEditor from '../../src/editor/projectEditor.ts';
 import OrchestratorController from '../../src/controllers/orchestratorController.ts';
-import LLMConversationInteraction from '../../src/llms/interactions/conversationInteraction.ts';
-import { ConversationId, ConversationResponse } from 'shared/types.ts';
+//import LLMConversationInteraction from '../../src/llms/interactions/conversationInteraction.ts';
+//import type { LLMSpeakWithResponse } from '../../src/types.ts';
+//import { ConversationId, ConversationResponse } from 'shared/types.ts';
+
+/*
+ *  To use these new stub factories in your tests, you would do something like this:
+ *
+ *  ```typescript
+ *  const stubMaker = makeOrchestratorControllerStub(orchestratorController);
+ *
+ *  // Stub only the methods you need for a particular test
+ *  stubMaker.generateConversationTitleStub(() => Promise.resolve('Test Title'));
+ *  stubMaker.stageAndCommitAfterPatchingStub(() => Promise.resolve());
+ *
+ *  // You can provide different implementations in different tests
+ *  stubMaker.revertLastPatchStub(() => {
+ *    // Custom implementation for this specific test
+ *    return Promise.resolve();
+ *  });
+ *  ```
+ */
 
 export function makeProjectEditorStub(projectEditor: ProjectEditor) {
 	const initStub = stub(projectEditor, 'init', async () => projectEditor);
@@ -20,7 +39,7 @@ export function makeProjectEditorStub(projectEditor: ProjectEditor) {
 		response: { answerContent: [{ type: 'text', text: 'Test response' }] },
 		messageMeta: {},
 		conversationTitle: 'Test Conversation',
-		conversationStats: { statementCount: 1, turnCount: 1, totalTurnCount: 1 },
+		conversationStats: { statementCount: 1, statementTurnCount: 1, conversationTurnCount: 1 },
 		tokenUsageStatement: { inputTokens: 10, outputTokens: 20, totalTokens: 30 },
 		tokenUsageConversation: { inputTokensTotal: 10, outputTokensTotal: 20, totalTokensTotal: 30 },
 	}));
@@ -35,6 +54,17 @@ export function makeProjectEditorStub(projectEditor: ProjectEditor) {
 }
 
 export function makeOrchestratorControllerStub(orchestratorController: OrchestratorController) {
+	const createStub = <T extends keyof OrchestratorController>(methodName: T) => {
+		return (implementation?: OrchestratorController[T]) => {
+			return stub(orchestratorController, methodName, implementation as never);
+		};
+	};
+	const generateConversationTitleStub = createStub('generateConversationTitle');
+	const stageAndCommitAfterPatchingStub = createStub('stageAndCommitAfterPatching');
+	const revertLastPatchStub = createStub('revertLastPatch');
+	const logPatchAndCommitStub = createStub('logPatchAndCommit');
+	const saveInitialConversationWithResponseStub = createStub('saveInitialConversationWithResponse');
+	const saveConversationAfterStatementStub = createStub('saveConversationAfterStatement');
 	/*
 	const initStub = stub(orchestratorController, 'init', async () => {});
 	const handleStatementStub = stub(orchestratorController, 'handleStatement', async (
@@ -45,7 +75,7 @@ export function makeOrchestratorControllerStub(orchestratorController: Orchestra
 		response: { answerContent: [{ type: 'text', text: 'Test response' }] },
 		messageMeta: {},
 		conversationTitle: 'Test Conversation',
-		conversationStats: { statementCount: 1, turnCount: 1, totalTurnCount: 1 },
+		conversationStats: { statementCount: 1, statementTurnCount: 1, conversationTurnCount: 1 },
 		tokenUsageStatement: { inputTokens: 10, outputTokens: 20, totalTokens: 30 },
 		tokenUsageConversation: { inputTokensTotal: 10, outputTokensTotal: 20, totalTokensTotal: 30 },
 	}));
@@ -53,8 +83,8 @@ export function makeOrchestratorControllerStub(orchestratorController: Orchestra
 		id: 'test-id',
 		title: 'Test Conversation',
 		statementCount: 1,
-		turnCount: 1,
-		totalTurnCount: 1,
+		statementTurnCount: 1,
+		conversationTurnCount: 1,
 	}));
 	const getInteractionStub = stub(orchestratorController, 'getInteraction', () => ({
 		id: 'test-id',
@@ -64,7 +94,7 @@ export function makeOrchestratorControllerStub(orchestratorController: Orchestra
 		model: 'test-model',
 		maxTokens: 1000,
 		temperature: 0.7,
-		turnCount: 1,
+		statementTurnCount: 1,
 		getTotalTokensTotal: () => 100,
 		getMessages: () => [],
 		addFile: async () => {},
@@ -90,6 +120,12 @@ export function makeOrchestratorControllerStub(orchestratorController: Orchestra
 
 	return {
 		orchestratorController,
+		generateConversationTitleStub,
+		stageAndCommitAfterPatchingStub,
+		revertLastPatchStub,
+		logPatchAndCommitStub,
+		saveInitialConversationWithResponseStub,
+		saveConversationAfterStatementStub,
 		//initStub,
 		//handleStatementStub,
 		//initializePrimaryInteractionStub,

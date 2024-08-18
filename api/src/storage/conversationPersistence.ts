@@ -118,8 +118,8 @@ class ConversationPersistence {
 				maxTokens: conversation.maxTokens,
 
 				conversationStats: {
-					turnCount: conversation.turnCount,
-					totalTurnCount: conversation.totalTurnCount,
+					statementTurnCount: conversation.statementTurnCount,
+					conversationTurnCount: conversation.conversationTurnCount,
 					statementCount: conversation.statementCount,
 				},
 				tokenUsageTurn: conversation.tokenUsageTurn,
@@ -148,7 +148,7 @@ class ConversationPersistence {
 				if (m && typeof m === 'object') {
 					return JSON.stringify({
 						statementCount,
-						turnCount: conversation.turnCount,
+						statementTurnCount: conversation.statementTurnCount,
 						role: m.role,
 						content: m.content,
 						id: m.id,
@@ -204,8 +204,8 @@ class ConversationPersistence {
 			conversation.tokenUsageConversation = metadata.tokenUsageConversation ||
 				this.defaultConversationTokenUsage();
 
-			conversation.turnCount = metadata.conversationStats.turnCount;
-			conversation.totalTurnCount = metadata.conversationStats.totalTurnCount;
+			conversation.statementTurnCount = metadata.conversationStats.statementTurnCount;
+			conversation.conversationTurnCount = metadata.conversationStats.conversationTurnCount;
 			conversation.statementCount = metadata.conversationStats.statementCount;
 
 			//conversation.addTools((metadata.tools || []).map(tool => ({ ...tool, input_schema: {}, validateInput: () => true, runTool: async () => ({ result: '' }) })));
@@ -345,8 +345,8 @@ class ConversationPersistence {
 	defaultConversationStats(): ConversationMetrics {
 		return {
 			statementCount: 0,
-			turnCount: 0,
-			totalTurnCount: 0,
+			statementTurnCount: 0,
+			conversationTurnCount: 0,
 		};
 	}
 	defaultTokenUsage(): TokenUsage {

@@ -1,6 +1,6 @@
 {
 	"name": "bbai",
-	"version": "0.0.8a-alpha",
+	"version": "0.0.9-alpha",
 	"exports": "./cli/src/main.ts",
 	"tasks": {
 		"tool:check-types": "deno check --all $DENO_ARGS",

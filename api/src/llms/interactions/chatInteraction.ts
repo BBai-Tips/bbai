@@ -33,8 +33,8 @@ class LLMChatInteraction extends LLMInteraction {
 			} as LLMSpeakWithOptions;
 		}
 
-		this._turnCount++;
-		//logger.debug(`chat - calling addMessageForUserRole for turn ${this._turnCount}` );
+		this._statementTurnCount++;
+		//logger.debug(`chat - calling addMessageForUserRole for turn ${this._statementTurnCount}` );
 		this.addMessageForUserRole({ type: 'text', text: prompt });
 		this.conversationLogger.logAuxiliaryMessage(prompt);
 

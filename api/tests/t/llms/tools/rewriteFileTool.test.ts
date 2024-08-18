@@ -1,4 +1,4 @@
-import { assert, assertEquals, assertThrows } from '../../../deps.ts';
+import { assert, assertEquals, assertStringIncludes, assertThrows } from '../../../deps.ts';
 import { join } from '@std/path';
 import { existsSync } from '@std/fs';
 
@@ -7,6 +7,7 @@ import { LLMToolRewriteFile } from '../../../../src/llms/tools/rewriteFileTool.t
 import ProjectEditor from '../../../../src/editor/projectEditor.ts';
 import { LLMAnswerToolUse } from 'api/llms/llmMessage.ts';
 import { GitUtils } from 'shared/git.ts';
+import { makeOrchestratorControllerStub } from '../../../lib/stubs.ts';
 
 const projectEditor = await getProjectEditor(Deno.makeTempDirSync());
 const testProjectRoot = projectEditor.projectRoot;
@@ -30,32 +31,40 @@ async function createTestInteraction(conversationId: string): Promise<LLMConvers
 }
 const interaction = await createTestInteraction('test-conversation');
 
+const orchestratorControllerStubMaker = makeOrchestratorControllerStub(projectEditor.orchestratorController);
+
 Deno.test({
 	name: 'Rewrite File Tool - rewrite existing file',
 	async fn() {
 		const tool = new LLMToolRewriteFile();
+		const logPatchAndCommitStub = orchestratorControllerStubMaker.logPatchAndCommitStub(() => Promise.resolve());
+		try {
+			// Create a test file
+			const testFile = 'test.txt';
+			const testFilePath = getTestFilePath(testFile);
+			await Deno.writeTextFile(testFilePath, 'Original content');
 
-		// Create a test file
-		const testFile = 'test.txt';
-		const testFilePath = getTestFilePath(testFile);
-		await Deno.writeTextFile(testFilePath, 'Original content');
+			const toolUse: LLMAnswerToolUse = {
+				toolValidation: { validated: true, results: '' },
+				toolUseId: 'test-id',
+				toolName: 'rewrite_file',
+				toolInput: {
+					filePath: testFile,
+					content: 'New content',
+				},
+			};
 
-		const toolUse: LLMAnswerToolUse = {
-			toolValidation: { validated: true, results: '' },
-			toolUseId: 'test-id',
-			toolName: 'rewrite_file',
-			toolInput: {
-				filePath: testFile,
-				content: 'New content',
-			},
-		};
+			const result = await tool.runTool(interaction, toolUse, projectEditor);
 
-		const result = await tool.runTool(interaction, toolUse, projectEditor);
+			assertStringIncludes(result.bbaiResponse, `BBai rewrote file: test.txt`);
+			assertStringIncludes(result.toolResponse, `Rewrote existing file`);
+			assertStringIncludes(result.toolResults as string, `File ${testFile} rewritten with new contents`);
 
-		assert(result.toolResponse.includes(`Contents written successfully to file: ${testFile}`));
-
-		const newContent = await Deno.readTextFile(testFilePath);
-		assertEquals(newContent, 'New content');
+			const newContent = await Deno.readTextFile(testFilePath);
+			assertEquals(newContent, 'New content');
+		} finally {
+			logPatchAndCommitStub.restore();
+		}
 	},
 	sanitizeResources: false,
 	sanitizeOps: false,
@@ -65,29 +74,35 @@ Deno.test({
 	name: 'Rewrite File Tool - create new file',
 	async fn() {
 		const tool = new LLMToolRewriteFile();
+		const logPatchAndCommitStub = orchestratorControllerStubMaker.logPatchAndCommitStub(() => Promise.resolve());
+		try {
+			// Create a test file
+			const testFile = 'new-test.txt';
+			const testFilePath = getTestFilePath(testFile);
 
-		// Create a test file
-		const testFile = 'new-test.txt';
-		const testFilePath = getTestFilePath(testFile);
+			const toolUse: LLMAnswerToolUse = {
+				toolValidation: { validated: true, results: '' },
+				toolUseId: 'test-id',
+				toolName: 'rewrite_file',
+				toolInput: {
+					filePath: testFile,
+					content: 'New file content',
+				},
+			};
 
-		const toolUse: LLMAnswerToolUse = {
-			toolValidation: { validated: true, results: '' },
-			toolUseId: 'test-id',
-			toolName: 'rewrite_file',
-			toolInput: {
-				filePath: testFile,
-				content: 'New file content',
-			},
-		};
+			const result = await tool.runTool(interaction, toolUse, projectEditor);
 
-		const result = await tool.runTool(interaction, toolUse, projectEditor);
+			assertStringIncludes(result.bbaiResponse, `BBai created file: new-test.txt`);
+			assertStringIncludes(result.toolResponse, `Created a new file`);
+			assertStringIncludes(result.toolResults as string, `File ${testFile} created with new contents`);
 
-		assert(result.toolResponse.includes(`File created and contents written successfully to file: ${testFile}`));
+			assert(await Deno.stat(testFilePath));
 
-		assert(await Deno.stat(testFilePath));
-
-		const newContent = await Deno.readTextFile(testFilePath);
-		assertEquals(newContent, 'New file content');
+			const newContent = await Deno.readTextFile(testFilePath);
+			assertEquals(newContent, 'New file content');
+		} finally {
+			logPatchAndCommitStub.restore();
+		}
 	},
 	sanitizeResources: false,
 	sanitizeOps: false,
@@ -99,25 +114,30 @@ Deno.test({
 	async fn() {
 		const tool = new LLMToolRewriteFile();
 
-		// Create a test file
-		const testFile = '/tmp/outside_project.txt';
-		//const testFilePath = '/tmp/outside_project.txt';
+		const logPatchAndCommitStub = orchestratorControllerStubMaker.logPatchAndCommitStub(() => Promise.resolve());
+		try {
+			// Create a test file
+			const testFile = '/tmp/outside_project.txt';
+			//const testFilePath = '/tmp/outside_project.txt';
 
-		const toolUse: LLMAnswerToolUse = {
-			toolValidation: { validated: true, results: '' },
-			toolUseId: 'test-id',
-			toolName: 'rewrite_file',
-			toolInput: {
-				filePath: testFile,
-				content: 'New content',
-			},
-		};
+			const toolUse: LLMAnswerToolUse = {
+				toolValidation: { validated: true, results: '' },
+				toolUseId: 'test-id',
+				toolName: 'rewrite_file',
+				toolInput: {
+					filePath: testFile,
+					content: 'New content',
+				},
+			};
 
-		assertThrows(
-			async () => await tool.runTool(interaction, toolUse, projectEditor),
-			Error,
-			`Access denied: ${testFile} is outside the project directory`,
-		);
+			assertThrows(
+				async () => await tool.runTool(interaction, toolUse, projectEditor),
+				Error,
+				`Access denied: ${testFile} is outside the project directory`,
+			);
+		} finally {
+			logPatchAndCommitStub.restore();
+		}
 	},
 	sanitizeResources: false,
 	sanitizeOps: false,

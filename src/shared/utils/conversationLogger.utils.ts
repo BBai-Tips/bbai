@@ -11,6 +11,12 @@ import {
 	LLMMessageContentParts,
 	LLMMessageContentPartTextBlock,
 } from 'api/llms/llmMessage.ts';
+import LLMTool, {
+	LLMToolInputSchema,
+	LLMToolRunResultContent,
+	LLMToolRunResultFormatter,
+	LLMToolUseInputFormatter,
+} from 'api/llms/llmTool.ts';
 
 export type ConversationLoggerEntryType = 'user' | 'assistant' | 'tool_use' | 'tool_result' | 'auxiliary' | 'error'; //text_change
 
@@ -50,7 +56,7 @@ export class ConversationLogger {
 	private async logEntry(
 		type: ConversationLoggerEntryType,
 		message: string,
-		conversationStats: ConversationMetrics = { statementCount: 0, turnCount: 0, totalTurnCount: 0 },
+		conversationStats: ConversationMetrics = { statementCount: 0, statementTurnCount: 0, conversationTurnCount: 0 },
 		tokenUsageTurn: TokenUsage = {
 			inputTokens: 0,
 			outputTokens: 0,
@@ -80,7 +86,7 @@ export class ConversationLogger {
 				tokenUsageConversation,
 			);
 		} catch (error) {
-			console.error('Error in logEntryHandler:', error);
+			logger.error('Error in logEntryHandler:', error);
 		}
 
 		const entry = LogFormatter.createRawEntryWithSeparator(
@@ -96,7 +102,7 @@ export class ConversationLogger {
 		try {
 			await this.appendToLog(entry);
 		} catch (error) {
-			console.error('Error appending to log:', error);
+			logger.error('Error appending to log:', error);
 		}
 	}
 
@@ -130,7 +136,8 @@ export class ConversationLogger {
 
 	async logToolUse(
 		toolName: string,
-		toolInput: object,
+		toolInput: LLMToolInputSchema,
+		toolInputFormatter: LLMToolUseInputFormatter,
 		conversationStats?: ConversationMetrics,
 		tokenUsageTurn?: TokenUsage,
 		tokenUsageStatement?: TokenUsage,
@@ -138,10 +145,10 @@ export class ConversationLogger {
 	) {
 		let message: string;
 		try {
-			message = `Tool: ${toolName}\nInput: \n${JSON.stringify(toolInput, null, 2)}`;
+			message = `Tool: ${toolName}\n\n${toolInputFormatter(toolInput, 'console')}`;
 		} catch (error) {
-			console.error(`Error formatting tool use for ${toolName}:`, error);
-			message = `Tool: ${toolName}\nInput: [Error formatting input]`;
+			logger.error(`Error formatting tool use for ${toolName}:`, error);
+			message = `Tool: ${toolName}\nInput:\n**Error formatting input**\n${JSON.stringify(error)}`;
 		}
 		try {
 			await this.logEntry(
@@ -153,31 +160,27 @@ export class ConversationLogger {
 				tokenUsageConversation,
 			);
 		} catch (error) {
-			console.error('Error in logEntry:', error);
+			logger.error('Error in logEntry for logToolUse:', error);
 		}
 	}
 
 	async logToolResult(
 		toolName: string,
-		result: string | LLMMessageContentPart | LLMMessageContentParts,
-		//conversationStats?: ConversationMetrics,
-		//tokenUsageTurn?: TokenUsage,
-		//tokenUsageStatement?: TokenUsage,
-		//tokenUsageConversation?: ConversationTokenUsage,
+		toolResult: LLMToolRunResultContent,
+		toolRunResultFormatter: LLMToolRunResultFormatter,
 	) {
 		let message: string;
 		try {
-			//const formatter = LLMToolManager.getToolFormatter(toolName);
-			//if (formatter) {
-			//	message = formatter.formatToolResult(toolName, result);
-			//} else {
-			message = `Tool: ${toolName}\nResult: ${this.formatDefaultToolResult(result)}`;
-			//}
+			message = `Tool: ${toolName}\nResult:\n${toolRunResultFormatter(toolResult, 'console')}`;
 		} catch (error) {
-			console.error(`Error formatting tool result for ${toolName}:`, error);
-			message = `Tool: ${toolName}\nResult: [Error formatting result]`;
+			logger.error(`Error formatting tool result for ${toolName}:`, error);
+			message = `Tool: ${toolName}\nResult:\n**Error formatting result**\n${JSON.stringify(error)}`;
 		}
-		await this.logEntry('tool_result', message);
+		try {
+			await this.logEntry('tool_result', message);
+		} catch (error) {
+			logger.error('Error in logEntry for logToolResult:', error);
+		}
 	}
 
 	async logError(error: string) {
@@ -188,23 +191,4 @@ export class ConversationLogger {
 	//	const message = `Diff Patch for ${filePath}:\n${patch}`;
 	//	await this.logEntry('text_change', message);
 	//}
-
-	private formatDefaultToolResult(result: string | LLMMessageContentPart | LLMMessageContentParts): string {
-		try {
-			if (Array.isArray(result)) {
-				return 'text' in result[0]
-					? (result[0] as LLMMessageContentPartTextBlock).text
-					: JSON.stringify(result[0], null, 2);
-			} else if (typeof result !== 'string') {
-				return 'text' in result
-					? (result as LLMMessageContentPartTextBlock).text
-					: JSON.stringify(result, null, 2);
-			} else {
-				return result;
-			}
-		} catch (error) {
-			console.error('Error in formatDefaultToolResult:', error);
-			return '[Error formatting result]';
-		}
-	}
 }
