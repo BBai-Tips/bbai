@@ -4,7 +4,7 @@
 
 ## Installation
 
-For detailed installation instructions, please refer to the [INSTALL.md](INSTALL.md) file.
+For detailed installation instructions, please refer to the [INSTALL.md](../INSTALL.md) file.
 
 ## Usage
 

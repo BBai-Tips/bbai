@@ -12,7 +12,7 @@ Before installing BBai, ensure you have the following:
 
 1. [Deno](https://deno.com/) (latest stable version)
 2. [Git](https://git-scm.com/) (latest stable version)
-3. [ctags](https://github.com/universal-ctags/ctags) (optional but recommended)
+3. [ctags](https://github.com/universal-ctags/ctags) (optional)
 4. An Anthropic API key
 
 These dependencies can be easily installed using package managers like Homebrew on macOS.
@@ -97,21 +97,21 @@ As BBai is still in alpha, please take necessary precautions when using it with 
 For more information or if you need assistance, please refer to the following resources:
 
 - [BBai GitHub Repository](https://github.com/BBai-Tips/bbai)
-- [CLI Documentation](CLI.md)
-- [API Documentation](API.md)
-- [Contributing Guidelines](CONTRIBUTING.md)
-- [Code of Conduct](CODE_OF_CONDUCT.md)
-- [Security Policy](SECURITY.md)
-- [File Handling Guidelines](FILE_HANDLING.md)
+- [CLI Documentation](docs/CLI.md)
+- [API Documentation](docs/API.md)
+- [Contributing Guidelines](docs/CONTRIBUTING.md)
+- [Code of Conduct](docs/CODE_OF_CONDUCT.md)
+- [Security Policy](docs/SECURITY.md)
+- [File Handling Guidelines](docs/FILE_HANDLING.md)
 - [Project Conventions](CONVENTIONS.md)
 
 ### Using BBai
 
 After installation, we recommend familiarizing yourself with BBai's features:
 
-1. **CLI Usage**: The [CLI Documentation](CLI.md) provides a comprehensive guide on using BBai from the command line. It covers all available commands, their options, and usage examples.
+1. **CLI Usage**: The [CLI Documentation](docs/CLI.md) provides a comprehensive guide on using BBai from the command line. It covers all available commands, their options, and usage examples.
 
-2. **API Integration**: If you're interested in integrating BBai into your own tools or workflows, check out the [API Documentation](API.md). It details all available endpoints, request/response formats, and authentication requirements.
+2. **API Integration**: If you're interested in integrating BBai into your own tools or workflows, check out the [API Documentation](docs/API.md). It details all available endpoints, request/response formats, and authentication requirements.
 
 These resources will help you get started with BBai and make the most of its capabilities.
 

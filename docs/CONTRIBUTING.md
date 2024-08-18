@@ -20,7 +20,7 @@ BBai has a strict code of being kind to everyone - listening without judgement a
 
 1. Fork the repository on GitHub.
 2. Clone your fork locally.
-3. Set up the development environment as described in the [INSTALL.md](INSTALL.md) file.
+3. Set up the development environment as described in the [INSTALL.md](../INSTALL.md) file.
 4. Create a new branch for your contribution.
 
 ## How Can I Contribute?
@@ -102,12 +102,12 @@ If you have any questions or need further clarification, please don't hesitate t
 
 For more information about the project, please refer to the following documents:
 
-- [README.md](README.md): Overview of the project
-- [INSTALL.md](INSTALL.md): Detailed installation instructions
+- [README.md](../README.md): Overview of the project
+- [INSTALL.md](../INSTALL.md): Detailed installation instructions
 - [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md): Our community standards
 - [SECURITY.md](SECURITY.md): Security policy and reporting vulnerabilities
 - [API.md](API.md): API documentation
 - [FILE_HANDLING.md](FILE_HANDLING.md): Guidelines for handling files in BBai
-- [CONVENTIONS.md](CONVENTIONS.md): Project conventions and best practices
+- [CONVENTIONS.md](../CONVENTIONS.md): Project conventions and best practices
 
 Thank you for your contribution to BBai!
