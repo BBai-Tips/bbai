@@ -6,8 +6,8 @@ import OrchestratorController from '../controllers/orchestratorController.ts';
 import { logger } from 'shared/logger.ts';
 //import { config } from 'shared/configManager.ts';
 //import {LLMSpeakWithResponse} from 'api/types.ts';
-import { ConversationId, ConversationResponse } from 'shared/types.ts';
 //import  { LLMAnswerToolUse } from 'api/llms/llmMessage.ts';
+import { ConversationId, ConversationResponse } from 'shared/types.ts';
 import { LLMToolManagerToolSetType } from '../llms/llmToolManager.ts';
 import {
 	getBbaiDataDir,
@@ -155,10 +155,13 @@ class ProjectEditor {
 
 				const fullFilePath = join(this.projectRoot, fileName);
 				const content = await Deno.readTextFile(fullFilePath);
+				// [TODO] getting the last commit fails in tests - need to mock/stub static method `GitUtils.getLastCommitForFile` (not sure how??)
+				//const lastCommit = await GitUtils.getLastCommitForFile(this.projectRoot, fileName) || '';
 				const metadata: Omit<FileMetadata, 'path' | 'inSystemPrompt'> = {
 					size: new TextEncoder().encode(content).length,
 					lastModified: new Date(),
 					error: null,
+					//lastCommit: lastCommit,
 				};
 				filesAdded.push({ fileName, metadata });
 
@@ -174,6 +177,7 @@ class ProjectEditor {
 						size: 0,
 						lastModified: new Date(),
 						error: errorMessage,
+						//lastCommit: '',
 					},
 				});
 			}

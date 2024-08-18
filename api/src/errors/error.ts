@@ -9,6 +9,7 @@ export enum ErrorType {
 	LLM = 'LLMError',
 	LLMRateLimit = 'RateLimitError',
 	LLMValidation = 'ValidationError',
+	ToolHandling = 'ToolHandlingError',
 	FileHandling = 'FileHandlingError',
 	VectorSearch = 'VectorSearchError',
 }
@@ -17,6 +18,7 @@ export const ErrorTypes = [
 	ErrorType.LLM,
 	ErrorType.LLMRateLimit,
 	ErrorType.LLMValidation,
+	ErrorType.ToolHandling,
 	ErrorType.FileHandling,
 	ErrorType.VectorSearch,
 ];
@@ -121,11 +123,15 @@ export interface FileHandlingErrorOptions extends ErrorOptions {
 		| 'read'
 		| 'write'
 		| 'delete'
+		| 'move'
 		| 'patch'
 		| 'search-project'
+		| 'apply-patch'
 		| 'search-replace'
+		| 'rewrite-file'
+		// these are not really filehandling (filesystem) - they only affect files in the conversation
 		| 'request-files'
-		| 'remove-files';
+		| 'forget-files';
 }
 
 export class FileHandlingError extends Error {

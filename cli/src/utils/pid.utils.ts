@@ -16,6 +16,7 @@ export async function removePid(startDir: string): Promise<void> {
 }
 
 export async function isApiRunning(startDir: string): Promise<boolean> {
+	//console.log(`Checking if API is running for: ${startDir}`);
 	const pid = await getPid(startDir);
 	if (pid === null) return false;
 

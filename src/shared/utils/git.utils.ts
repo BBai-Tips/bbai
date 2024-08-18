@@ -67,4 +67,18 @@ export class GitUtils {
 			throw new Error(`Failed to get current commit: ${error.message}`);
 		}
 	}
+
+	static async getLastCommitForFile(repoPath: string, filePath: string): Promise<string | null> {
+		const git: SimpleGit = this.getGit(repoPath);
+
+		try {
+			const result = await git.log({ file: filePath, maxCount: 1 });
+			if (result.latest) {
+				return result.latest.hash;
+			}
+			return null;
+		} catch (error) {
+			throw new Error(`Failed to get last commit for file ${filePath}: ${error.message}`);
+		}
+	}
 }

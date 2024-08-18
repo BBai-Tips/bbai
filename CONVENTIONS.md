@@ -147,7 +147,7 @@ Key API Endpoints:
 - Use Swagger/OpenAPI comments for API endpoints
 - Create documentation site at https://bbai.tips
 - Refer to TESTING.md for comprehensive testing guidelines and current test coverage
-- Each tool should have its own test file in the `api/tests/llms/tools` directory
+- Each tool should have its own test file in the `api/tests/t/llms/tools` directory
 - Tests should cover basic functionality, edge cases, and error scenarios
 - Use `Deno.test()` for creating test cases, with `sanitizeResources` and `sanitizeOps` set to `false`
 - Use a temporary directory for file-based tests to ensure a clean state for each test

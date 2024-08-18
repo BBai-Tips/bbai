@@ -8,11 +8,12 @@ export class WebsocketManager {
 	private MAX_RETRIES = 5;
 	private BASE_DELAY = 1000; // 1 second
 	private retryCount = 0;
+	private currentConversationId?: ConversationId;
 
 	async setupWebsocket(conversationId?: ConversationId): Promise<void> {
+		this.currentConversationId = conversationId;
 		const connectWebSocket = async (): Promise<WebSocket> => {
 			try {
-				//console.log('WebsocketManager: Attempting to connect to WebSocket');
 				return await apiClient.connectWebSocket(`/api/v1/ws/conversation/${conversationId}`);
 			} catch (error) {
 				await this.handleRetry(error);
@@ -22,12 +23,52 @@ export class WebsocketManager {
 
 		this.ws = await connectWebSocket();
 		this.retryCount = 0; // Reset retry count on successful connection
-		//console.log('WebsocketManager: WebSocket connection established');
 
-		this.ws.onmessage = (event) => {
-			const msgData = JSON.parse(event.data);
-			if (msgData.type === 'conversationReady') {
-				//console.info('WebsocketManager: Emitting cli:conversationReady event', msgData);
+		// Set up event listeners and wait for them to be ready
+		await this.setupEventListeners();
+
+		// Send greeting after listeners are set up
+		this.sendGreeting();
+	}
+
+	private removeEventListeners(): void {
+		if (this.ws) {
+			this.ws.onmessage = null;
+			this.ws.onclose = null;
+			this.ws.onerror = null;
+			this.ws.onopen = null;
+		}
+	}
+
+	private async setupEventListeners(): Promise<void> {
+		if (!this.ws) {
+			throw new Error('WebSocket is not initialized');
+		}
+
+		// Remove any existing listeners
+		this.removeEventListeners();
+
+		return new Promise<void>((resolve) => {
+			this.ws!.onmessage = this.handleMessage.bind(this);
+			this.ws!.onclose = this.handleClose.bind(this);
+			this.ws!.onerror = this.handleError.bind(this);
+			this.ws!.onopen = (event: Event) => {
+				this.handleOpen(event);
+				resolve();
+			};
+		});
+	}
+
+	private handleOpen(_event: Event): void {
+		//console.log('WebSocket connection opened');
+		// Greeting is now sent after listener setup in setupWebsocket
+	}
+
+	private handleMessage(event: MessageEvent): void {
+		const msgData = JSON.parse(event.data);
+		//console.log(`WebSocket handling message for type: ${msgData.type}`);
+		switch (msgData.type) {
+			case 'conversationReady':
 				eventManager.emit(
 					'cli:conversationReady',
 					{ ...msgData.data } as EventPayloadMap['cli']['cli:conversationReady'],
@@ -38,14 +79,14 @@ export class WebsocketManager {
 						conversationId: msgData.data.conversationId,
 					} as EventPayloadMap['cli']['cli:conversationWaitForReady'],
 				);
-			} else if (msgData.type === 'conversationEntry') {
-				//console.info('WebsocketManager: Emitting cli:conversationAnswer event', msgData);
+				break;
+			case 'conversationEntry':
 				eventManager.emit(
 					'cli:conversationEntry',
 					{ ...msgData.data, expectingMoreInput: true } as EventPayloadMap['cli']['cli:conversationEntry'],
 				);
-			} else if (msgData.type === 'conversationAnswer') {
-				//console.info('WebsocketManager: Emitting cli:conversationAnswer event', msgData);
+				break;
+			case 'conversationAnswer':
 				eventManager.emit(
 					'cli:conversationAnswer',
 					{ ...msgData.data, expectingMoreInput: false } as EventPayloadMap['cli']['cli:conversationAnswer'],
@@ -56,52 +97,53 @@ export class WebsocketManager {
 						conversationId: msgData.data.conversationId,
 					} as EventPayloadMap['cli']['cli:conversationWaitForAnswer'],
 				);
-			} else if (msgData.type === 'conversationError') {
+				break;
+			case 'conversationError':
 				console.error(`WebsocketManager: Received conversation error:`, msgData.data);
 				eventManager.emit(
 					'cli:conversationError',
 					{ ...msgData.data } as EventPayloadMap['cli']['cli:conversationError'],
 				);
-			} else {
-				//console.info(`WebsocketManager: Ignoring ${msgData.type} event`, msgData);
+				break;
+			default:
 				console.error(`WebsocketManager: Received unknown message type: ${msgData.type}`);
-			}
-		};
+		}
+	}
 
-		this.ws.onopen = () => {
-			//console.log('WebsocketManager: WebSocket connection opened');
-			if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-				this.ws.send(JSON.stringify({ conversationId, startDir: Deno.cwd(), task: 'greeting', statement: '' }));
-			} else {
-				console.error('WebSocket is not open in onopen handler. ReadyState:', this.ws?.readyState);
-			}
-			/*
-			const message = JSON.stringify({ conversationId, startDir: Deno.cwd(), task: 'greeting', statement: '' });
-			console.log('WebsocketManager: Sending greeting message:', message);
-			this.ws!.send(message);
-			 */
-		};
+	private async handleClose(): Promise<void> {
+		this.removeEventListeners();
+		await this.handleRetry(new Error('WebSocket connection closed'));
+		await this.setupWebsocket(this.currentConversationId);
+		eventManager.emit(
+			'cli:websocketReconnected',
+			{ conversationId: this.currentConversationId } as EventPayloadMap['cli']['cli:websocketReconnected'],
+		);
+	}
 
-		this.ws.onclose = async () => {
-			//console.log('WebsocketManager: WebSocket connection closed. Attempting to reconnect...');
-			await this.handleRetry(new Error('WebSocket connection closed'));
-			await this.setupWebsocket(conversationId);
-			eventManager.emit(
-				'cli:websocketReconnected',
-				{ conversationId } as EventPayloadMap['cli']['cli:websocketReconnected'],
+	private async handleError(event: Event): Promise<void> {
+		this.removeEventListeners();
+		const error = event instanceof ErrorEvent ? event.error : new Error('Unknown WebSocket error');
+		await this.handleRetry(error);
+		await this.setupWebsocket(this.currentConversationId);
+		eventManager.emit(
+			'cli:websocketReconnected',
+			{ conversationId: this.currentConversationId } as EventPayloadMap['cli']['cli:websocketReconnected'],
+		);
+	}
+
+	private sendGreeting(): void {
+		if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+			this.ws.send(
+				JSON.stringify({
+					conversationId: this.currentConversationId,
+					startDir: Deno.cwd(),
+					task: 'greeting',
+					statement: '',
+				}),
 			);
-		};
-
-		this.ws.onerror = async (event) => {
-			const error = event instanceof ErrorEvent ? event.error : new Error('Unknown WebSocket error');
-			//console.error('WebsocketManager: WebSocket error:', error);
-			await this.handleRetry(error);
-			await this.setupWebsocket(conversationId);
-			eventManager.emit(
-				'cli:websocketReconnected',
-				{ conversationId } as EventPayloadMap['cli']['cli:websocketReconnected'],
-			);
-		};
+		} else {
+			console.error('WebSocket is not open when trying to send greeting. ReadyState:', this.ws?.readyState);
+		}
 	}
 
 	async waitForReady(conversationId: ConversationId): Promise<void> {
@@ -129,7 +171,7 @@ export class WebsocketManager {
 			}
 		}
 		this.cancellationRequested = false;
-		throw new Error('Operation cancelled');
+		//throw new Error('Operation cancelled');
 		//console.log(`WebsocketManager: Waiting for answer event for conversation ${conversationId}`);
 		await eventManager.once('cli:conversationWaitForAnswer' as EventName<'cli'>, conversationId) as Promise<
 			EventPayloadMap['cli']['cli:conversationWaitForAnswer']
@@ -163,7 +205,7 @@ export class WebsocketManager {
 			this.cancellationRequested = true;
 			this.ws.send(JSON.stringify({ conversationId, task: 'cancel' }));
 		} else {
-			console.error('WebSocket is not open. Cannot send cancellation message.');
+			console.error('WebsocketManager: WebSocket is not open. Cannot send cancellation message.');
 		}
 	}
 }

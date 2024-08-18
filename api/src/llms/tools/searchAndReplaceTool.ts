@@ -1,14 +1,21 @@
-import LLMTool, { LLMToolInputSchema, LLMToolRunResult } from '../llmTool.ts';
+import LLMTool, {
+	LLMToolFormatterDestination,
+	LLMToolInputSchema,
+	LLMToolRunResult,
+	LLMToolRunResultContent,
+} from 'api/llms/llmTool.ts';
+import { colors } from 'cliffy/ansi/mod.ts';
+import { html, safeHtml, stripIndent, stripIndents } from 'common-tags';
 import LLMConversationInteraction from '../interactions/conversationInteraction.ts';
-import { LLMAnswerToolUse } from 'api/llms/llmMessage.ts';
+import { LLMAnswerToolUse, LLMMessageContentPart, LLMMessageContentParts } from 'api/llms/llmMessage.ts';
 import ProjectEditor from '../../editor/projectEditor.ts';
 import { createError, ErrorType } from '../../utils/error.utils.ts';
 import { FileHandlingErrorOptions } from '../../errors/error.ts';
 import { isPathWithinProject } from '../../utils/fileHandling.utils.ts';
-import ConversationPersistence from '../../storage/conversationPersistence.ts';
 import { logger } from 'shared/logger.ts';
 import { dirname, join } from '@std/path';
 import { ensureDir } from '@std/fs';
+import { getContentFromToolResult } from '../../utils/llms.utils.ts';
 
 export class LLMToolSearchAndReplace extends LLMTool {
 	private static readonly MIN_SEARCH_LENGTH = 1;
@@ -68,11 +75,102 @@ export class LLMToolSearchAndReplace extends LLMTool {
 		};
 	}
 
+	toolUseInputFormatter(toolInput: LLMToolInputSchema, format: LLMToolFormatterDestination = 'console'): string {
+		const { filePath, operations, createIfMissing = true } = toolInput;
+
+		let formattedInput = '';
+
+		if (format === 'console') {
+			formattedInput = stripIndents`
+				File: ${colors.bold(filePath)} (${
+				colors.bold(createIfMissing ? 'Create if missing' : "Don't create new file")
+			})
+				
+				${colors.bold('Operations:\n')}
+			`;
+			operations.forEach(
+				(
+					op: { search: string; replace: string; replaceAll: boolean; caseSensitive: boolean },
+					index: number,
+				) => {
+					formattedInput += `
+${colors.bold(`Operation ${index + 1}:`)} (${colors.bold(op.replaceAll ? 'Replace all' : 'Replace first')})  (${
+						colors.bold(op.caseSensitive ? 'Case sensitive' : 'Case insensitive')
+					})
+${colors.yellow.bold('Search:')}
+${op.search}
+
+${colors.green.bold('Replace:')}
+${op.replace}
+
+`;
+				},
+			);
+		} else if (format === 'browser') {
+			formattedInput = stripIndents`
+					<p><strong>File:</strong> ${filePath}  <strong>(${
+				createIfMissing ? 'Create if missing' : "Don't create new file"
+			})</strong></p>
+					<h3>Operations:</h3>
+				`;
+			operations.forEach(
+				(
+					op: { search: string; replace: string; replaceAll: boolean; caseSensitive: boolean },
+					index: number,
+				) => {
+					formattedInput += safeHtml`
+						<div>
+						<h4>Operation ${index + 1}: <strong>(${
+						op.replaceAll ? 'Replace all' : 'Replace first'
+					})</strong> <strong>(${op.caseSensitive ? 'Case sensitive' : 'Case insensitive'})</strong></h4>
+						<p><strong>Search:</strong></p>
+						<pre style="color: #DAA520;">${op.search}</pre>
+						<p><strong>Replace:</strong></p>
+						<pre style="color: #228B22;">${op.replace}</pre>
+						<p><strong>Replace all:</strong> ${op.replaceAll ?? false}</p>
+						<p><strong>Case sensitive:</strong> ${op.caseSensitive ?? true}</p>
+						</div>
+					`;
+				},
+			);
+		}
+
+		return formattedInput;
+	}
+
+	toolRunResultFormatter(
+		toolResult: LLMToolRunResultContent,
+		format: LLMToolFormatterDestination = 'console',
+	): string {
+		const results: LLMMessageContentParts = Array.isArray(toolResult)
+			? toolResult
+			: [toolResult as LLMMessageContentPart];
+		let formattedResult = '';
+
+		results.forEach((result: LLMMessageContentPart) => {
+			if (result.type === 'text') {
+				if (format === 'console') {
+					formattedResult += `${colors.bold(result.text)}\n`;
+				} else if (format === 'browser') {
+					formattedResult += `<p><strong>${result.text}</strong></p>`;
+				} else {
+					formattedResult += `${result.text}\n`;
+				}
+			} else {
+				formattedResult += `Unknown type: ${result.type}\n`;
+			}
+		});
+
+		return formattedResult.trim();
+	}
+
 	async runTool(
 		interaction: LLMConversationInteraction,
 		toolUse: LLMAnswerToolUse,
 		projectEditor: ProjectEditor,
 	): Promise<LLMToolRunResult> {
+		let allOperationsFailed = true;
+		let allOperationsSucceeded = true;
 		const { toolUseId: _toolUseId, toolInput } = toolUse;
 		const { filePath, operations, createIfMissing = true } = toolInput as {
 			filePath: string;
@@ -109,26 +207,24 @@ export class LLMToolSearchAndReplace extends LLMTool {
 				}
 			}
 
-			let changesMade = false;
-			let allOperationsSkipped = true;
-			const toolWarnings = [];
-			for (const operation of operations) {
+			const operationResults = [];
+			let successfulOperations = [];
+			for (const [index, operation] of operations.entries()) {
 				const { search, replace, replaceAll = false, caseSensitive = true } = operation;
+				let operationWarnings = [];
+				let operationSuccess = false;
 
 				// Validate search string
 				if (!isNewFile && search.length < LLMToolSearchAndReplace.MIN_SEARCH_LENGTH) {
-					const warningMessage =
-						`Warning: Search string is too short (minimum ${LLMToolSearchAndReplace.MIN_SEARCH_LENGTH} character(s)) for existing file. Operation skipped.`;
-					logger.warn(warningMessage);
-					toolWarnings.push(warningMessage);
+					operationWarnings.push(
+						`Search string is too short (minimum ${LLMToolSearchAndReplace.MIN_SEARCH_LENGTH} character(s)) for existing file.`,
+					);
 					continue;
 				}
 
 				// Validate that search and replace strings are different
 				if (search === replace) {
-					const warningMessage = `Warning: Search and replace strings are identical. Operation skipped.`;
-					logger.warn(warningMessage);
-					toolWarnings.push(warningMessage);
+					operationWarnings.push('Search and replace strings are identical.');
 					continue;
 				}
 
@@ -145,43 +241,77 @@ export class LLMToolSearchAndReplace extends LLMTool {
 
 				// Check if the content actually changed
 				if (content !== originalContent) {
-					changesMade = true;
-					allOperationsSkipped = false;
+					operationSuccess = true;
+					allOperationsFailed = false;
+					successfulOperations.push(operation);
+				} else {
+					operationWarnings.push(
+						'No changes were made. The search string was not found in the file content.',
+					);
+					allOperationsSucceeded = false;
+				}
+
+				if (operationWarnings.length > 0) {
+					operationResults.push({
+						operationIndex: index,
+						status: 'warning',
+						message: `Operation ${index + 1} warnings: ${operationWarnings.join(' ')}`,
+					});
+					allOperationsSucceeded = false;
+				} else if (operationSuccess) {
+					operationResults.push({
+						operationIndex: index,
+						status: 'success',
+						message: `Operation ${index + 1} completed successfully`,
+					});
+				} else {
+					operationResults.push({
+						operationIndex: index,
+						status: 'warning',
+						message: `Operation ${index + 1} failed: No changes were made`,
+					});
+					allOperationsSucceeded = false;
 				}
 			}
-			let toolWarning = '';
-			if (toolWarnings.length > 0) {
-				toolWarning = `Tool Use Warnings: \n${toolWarnings.join('\n')}\n`;
-			}
 
-			if (changesMade || isNewFile) {
+			if (successfulOperations.length > 0 || isNewFile) {
 				await Deno.writeTextFile(fullFilePath, content);
-				projectEditor.patchedFiles.add(filePath);
-				projectEditor.patchContents.set(filePath, JSON.stringify(operations));
 
-				// Log the applied changes
-				if (interaction) {
-					logger.info(`Saving conversation search and replace: ${interaction.id}`);
-					const persistence = new ConversationPersistence(interaction.id, projectEditor);
-					await persistence.logPatch(filePath, JSON.stringify(operations));
-					await projectEditor.orchestratorController.stageAndCommitAfterPatching(interaction);
-				}
-				const { messageId, toolResponse } = projectEditor.orchestratorController.toolManager.finalizeToolUse(
+				logger.info(`Saving conversation search and replace operations: ${interaction.id}`);
+				await projectEditor.orchestratorController.logPatchAndCommit(
 					interaction,
-					toolUse,
-					isNewFile
-						? `File created and search and replace operations applied successfully to file: ${filePath}`
-						: `Search and replace operations applied successfully to file: ${filePath}`,
-					false,
-					//projectEditor,
+					filePath,
+					JSON.stringify(successfulOperations),
 				);
 
-				const bbaiResponse = `BBai applied search and replace operations: ${toolWarning}`;
-				return { messageId, toolResponse, bbaiResponse };
+				const toolResultContentParts: LLMMessageContentParts = operationResults.map((result: any) => ({
+					type: 'text',
+					text: `${result.status === 'success' ? '✅  ' : '⚠️  '} Operation ${
+						result.operationIndex + 1
+					}: ${result.message}`,
+				}));
+
+				const operationStatus = allOperationsSucceeded
+					? 'All operations succeeded'
+					: (allOperationsFailed ? 'All operations failed' : 'Partial operations succeeded');
+				toolResultContentParts.unshift({
+					type: 'text',
+					text: `${
+						isNewFile ? 'File created and s' : 'S'
+					}earch and replace operations applied to file: ${filePath}. ${operationStatus}.`,
+				});
+
+				const toolResults = toolResultContentParts;
+				const toolResponse = operationStatus;
+				const bbaiResponse = `BBai applied search and replace operations.\n${
+					getContentFromToolResult(toolResultContentParts)
+				}`;
+
+				return { toolResults, toolResponse, bbaiResponse };
 			} else {
-				const noChangesMessage = allOperationsSkipped
-					? `${toolWarning}No changes were made to the file: ${filePath}. All operations were skipped due to identical source and destination strings.`
-					: `${toolWarning}No changes were made to the file: ${filePath}. The search strings were not found in the file content.`;
+				const noChangesMessage = `No changes were made to the file: ${filePath}. Results: ${
+					JSON.stringify(operationResults)
+				}`;
 				logger.info(noChangesMessage);
 
 				throw createError(ErrorType.FileHandling, noChangesMessage, {
@@ -189,6 +319,12 @@ export class LLMToolSearchAndReplace extends LLMTool {
 					filePath: filePath,
 					operation: 'search-replace',
 				} as FileHandlingErrorOptions);
+
+				//const toolResultContentParts: LLMMessageContentParts = [{
+				//	type: 'text',
+				//	text: noChangesMessage,
+				//}];
+				//return { toolResults: toolResultContentParts, toolResponse: noChangesMessage, bbaiResponse: noChangesMessage };
 			}
 		} catch (error) {
 			if (error.name === 'search-and-replace') {

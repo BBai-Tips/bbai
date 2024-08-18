@@ -1,11 +1,10 @@
-import LLMTool, { LLMToolInputSchema, LLMToolRunResult } from '../llmTool.ts';
+import LLMTool, { LLMToolInputSchema, LLMToolRunResult } from 'api/llms/llmTool.ts';
 import LLMConversationInteraction from '../interactions/conversationInteraction.ts';
 import { LLMAnswerToolUse } from 'api/llms/llmMessage.ts';
 import ProjectEditor from '../../editor/projectEditor.ts';
 import { createError, ErrorType } from '../../utils/error.utils.ts';
 import { FileHandlingErrorOptions } from '../../errors/error.ts';
 import { isPathWithinProject } from '../../utils/fileHandling.utils.ts';
-import ConversationPersistence from '../../storage/conversationPersistence.ts';
 import { logger } from 'shared/logger.ts';
 import { dirname, join } from '@std/path';
 import { ensureDir } from '@std/fs';
@@ -343,7 +342,7 @@ export class LLMToolSearchAndReplaceCode extends LLMTool {
 		// Replace all whitespace sequences with a flexible whitespace matcher
 		const flexibleSearch = search.replace(/\s+/g, '\\s*');
 		console.log('tokenizeSearchString - Flexible search:', JSON.stringify(flexibleSearch));
-		return flexibleSearch;
+		//return flexibleSearch;
 		console.log('tokenizeSearchString - Input:', JSON.stringify(search));
 		console.log('tokenizeSearchString - Input (char codes):', search.split('').map((c) => c.charCodeAt(0)));
 		console.log('tokenizeSearchString - Input:', JSON.stringify({ search, language }));
@@ -534,9 +533,9 @@ export class LLMToolSearchAndReplaceCode extends LLMTool {
 				const { search, replace, replaceAll = false, language } = operation;
 
 				// Validate search string
-				if (!isNewFile && search.length < LLMToolSearchAndReplace.MIN_SEARCH_LENGTH) {
+				if (!isNewFile && search.length < LLMToolSearchAndReplaceCode.MIN_SEARCH_LENGTH) {
 					const warningMessage =
-						`Warning: Search string is too short (minimum ${LLMToolSearchAndReplace.MIN_SEARCH_LENGTH} character(s)) for existing file. Operation skipped.`;
+						`Warning: Search string is too short (minimum ${LLMToolSearchAndReplaceCode.MIN_SEARCH_LENGTH} character(s)) for existing file. Operation skipped.`;
 					logger.warn(warningMessage);
 					toolWarnings.push(warningMessage);
 					continue;
@@ -595,28 +594,21 @@ export class LLMToolSearchAndReplaceCode extends LLMTool {
 
 			if (changesMade || isNewFile) {
 				await Deno.writeTextFile(fullFilePath, content);
-				projectEditor.patchedFiles.add(filePath);
-				projectEditor.patchContents.set(filePath, JSON.stringify(operations));
+				logger.info(`Saving conversation search and replace: ${interaction.id}`);
 
-				// Log the applied changes
-				if (interaction) {
-					logger.info(`Saving conversation search and replace: ${interaction.id}`);
-					const persistence = new ConversationPersistence(interaction.id, projectEditor);
-					await persistence.logPatch(filePath, JSON.stringify(operations));
-					await projectEditor.orchestratorController.stageAndCommitAfterPatching(interaction);
-				}
-				const { messageId, toolResponse } = projectEditor.orchestratorController.toolManager.finalizeToolUse(
+				await projectEditor.orchestratorController.logPatchAndCommit(
 					interaction,
-					toolUse,
-					isNewFile
-						? `File created and search and replace operations applied successfully to file: ${filePath}`
-						: `Search and replace operations applied successfully to file: ${filePath}`,
-					false,
-					//projectEditor,
+					filePath,
+					JSON.stringify(operations),
 				);
 
+				const toolResults = toolWarning;
 				const bbaiResponse = `BBai applied search and replace operations: ${toolWarning}`;
-				return { messageId, toolResponse, bbaiResponse };
+				const toolResponse = isNewFile
+					? `File created and search and replace operations applied successfully to file: ${filePath}`
+					: `Search and replace operations applied successfully to file: ${filePath}`;
+
+				return { toolResults, toolResponse, bbaiResponse };
 			} else {
 				const noChangesMessage = allOperationsSkipped
 					? `${toolWarning}No changes were made to the file: ${filePath}. All operations were skipped due to identical source and destination strings.`

@@ -11,7 +11,7 @@ import type {
 	LLMMessageProviderResponse,
 } from '../llmMessage.ts';
 import LLMMessage from 'api/llms/llmMessage.ts';
-import LLMTool, { LLMToolRunResultContent } from '../llmTool.ts';
+import LLMTool, { LLMToolRunResultContent } from 'api/llms/llmTool.ts';
 import { ConversationLogger, ConversationLoggerEntryType } from 'shared/conversationLogger.ts';
 import { logger } from 'shared/logger.ts';
 import { generateConversationId } from 'shared/conversationManagement.ts';
@@ -23,9 +23,9 @@ class LLMInteraction {
 	public updatedAt: Date = new Date();
 	private _totalProviderRequests: number = 0;
 	// count of turns for most recent statement
-	protected _turnCount: number = 0;
+	protected _statementTurnCount: number = 0;
 	// count of turns for all statement
-	protected _totalTurnCount: number = 0;
+	protected _conversationTurnCount: number = 0;
 	// count of statements
 	protected _statementCount: number = 0;
 	// token usage for most recent statement
@@ -64,7 +64,9 @@ class LLMInteraction {
 				timestamp: string,
 				content: string,
 				conversationStats: ConversationMetrics,
-				tokenUsage: TokenUsage,
+				tokenUsageTurn: TokenUsage,
+				tokenUsageStatement: TokenUsage,
+				tokenUsageConversation: ConversationTokenUsage,
 			) => {
 				await this.llm.invoke(
 					LLMCallbackType.LOG_ENTRY_HANDLER,
@@ -72,7 +74,9 @@ class LLMInteraction {
 					timestamp,
 					content,
 					conversationStats,
-					tokenUsage,
+					tokenUsageTurn,
+					tokenUsageStatement,
+					tokenUsageConversation,
 				);
 			};
 			this.conversationLogger = await new ConversationLogger(projectRoot, this.id, logEntryHandler).init();
@@ -86,14 +90,14 @@ class LLMInteraction {
 	public get conversationStats(): ConversationMetrics {
 		return {
 			statementCount: this._statementCount,
-			turnCount: this._turnCount,
-			totalTurnCount: this._totalTurnCount,
+			statementTurnCount: this._statementTurnCount,
+			conversationTurnCount: this._conversationTurnCount,
 		};
 	}
 	public set conversationStats(stats: ConversationMetrics) {
 		this._statementCount = stats.statementCount;
-		this._turnCount = stats.turnCount;
-		this._totalTurnCount = stats.totalTurnCount;
+		this._statementTurnCount = stats.statementTurnCount;
+		this._conversationTurnCount = stats.conversationTurnCount;
 	}
 
 	public get totalProviderRequests(): number {
@@ -104,18 +108,18 @@ class LLMInteraction {
 	}
 
 	// count of turns for most recent statement
-	public get turnCount(): number {
-		return this._turnCount;
+	public get statementTurnCount(): number {
+		return this._statementTurnCount;
 	}
-	public set turnCount(count: number) {
-		this._turnCount = count;
+	public set statementTurnCount(count: number) {
+		this._statementTurnCount = count;
 	}
 	// count of turns for all statement
-	public get totalTurnCount(): number {
-		return this._totalTurnCount;
+	public get conversationTurnCount(): number {
+		return this._conversationTurnCount;
 	}
-	public set totalTurnCount(count: number) {
-		this._totalTurnCount = count;
+	public set conversationTurnCount(count: number) {
+		this._conversationTurnCount = count;
 	}
 	// count of statements
 	public get statementCount(): number {
@@ -139,6 +143,13 @@ class LLMInteraction {
 		this._tokenUsageStatement = tokenUsage;
 	}
 
+	public get tokenUsageInteraction(): ConversationTokenUsage {
+		return this._tokenUsageInteraction;
+	}
+	public set tokenUsageInteraction(tokenUsage: ConversationTokenUsage) {
+		this._tokenUsageInteraction = tokenUsage;
+	}
+
 	public get inputTokensTotal(): number {
 		return this._tokenUsageInteraction.inputTokensTotal;
 	}
@@ -151,13 +162,6 @@ class LLMInteraction {
 		return this._tokenUsageInteraction.totalTokensTotal;
 	}
 
-	public get tokenUsageInteraction(): ConversationTokenUsage {
-		return this._tokenUsageInteraction;
-	}
-	public set tokenUsageInteraction(tokenUsage: ConversationTokenUsage) {
-		this._tokenUsageInteraction = tokenUsage;
-	}
-
 	//public updateTotals(tokenUsage: TokenUsage, providerRequests: number): void {
 	public updateTotals(tokenUsage: TokenUsage): void {
 		this._tokenUsageInteraction.totalTokensTotal += tokenUsage.totalTokens;
@@ -165,15 +169,15 @@ class LLMInteraction {
 		this._tokenUsageInteraction.outputTokensTotal += tokenUsage.outputTokens;
 		//this._totalProviderRequests += providerRequests;
 		this._tokenUsageStatement = tokenUsage;
-		this._turnCount++;
-		this._totalTurnCount++;
+		this._statementTurnCount++;
+		this._conversationTurnCount++;
 	}
 
 	public getAllStats(): ConversationMetrics {
 		return {
 			//totalProviderRequests: this._totalProviderRequests,
-			turnCount: this._turnCount,
-			totalTurnCount: this._totalTurnCount,
+			statementTurnCount: this._statementTurnCount,
+			conversationTurnCount: this._conversationTurnCount,
 			statementCount: this._statementCount,
 			// 			tokenUsageTurn: this._tokenUsageTurn,
 			// 			tokenUsageStatement: this._tokenUsageStatement,
@@ -261,14 +265,6 @@ class LLMInteraction {
 			],
 			is_error: isError,
 		} as LLMMessageContentPartToolResultBlock;
-
-		/*
-		if (isError) {
-			this.conversationLogger?.logError(`Tool Result (${toolUseId}): ${JSON.stringify(toolRunResultContent)}`);
-		} else {
-			this.conversationLogger?.logToolResult(toolUseId, toolRunResultContent);
-		}
- */
 
 		const lastMessage = this.getLastMessage();
 		if (lastMessage && lastMessage.role === 'user') {
@@ -403,7 +399,6 @@ class LLMInteraction {
 
 	addTool(tool: LLMTool): void {
 		this.tools.set(tool.name, tool);
-		//this.conversationLogger.logToolResult('add_tool', `Tool added: ${tool.name}`);
 	}
 
 	addTools(tools: LLMTool[]): void {
@@ -429,7 +424,6 @@ class LLMInteraction {
 
 	clearTools(): void {
 		this.tools.clear();
-		//this.conversationLogger.logToolResult('clear_tools', 'All tools cleared');
 	}
 
 	async speakWithLLM(
@@ -440,7 +434,7 @@ class LLMInteraction {
 			speakOptions = {} as LLMSpeakWithOptions;
 		}
 
-		//logger.debug(`speakWithLLM - calling addMessageForUserRole for turn ${this._turnCount}` );
+		//logger.debug(`speakWithLLM - calling addMessageForUserRole for turn ${this._statementTurnCount}` );
 		this.addMessageForUserRole({ type: 'text', text: prompt });
 		//this.conversationLogger.logUserMessage(prompt);
 
@@ -452,8 +446,8 @@ class LLMInteraction {
 		const msg = contentPart.text;
 		const conversationStats: ConversationMetrics = {
 			statementCount: this.statementCount,
-			turnCount: this.turnCount,
-			totalTurnCount: this.totalTurnCount,
+			statementTurnCount: this.statementTurnCount,
+			conversationTurnCount: this.conversationTurnCount,
 		};
 		const tokenUsage: TokenUsage = response.messageResponse.usage;
 		this.conversationLogger.logAssistantMessage(msg, conversationStats, tokenUsage);

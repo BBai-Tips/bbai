@@ -133,42 +133,45 @@ export const continueConversation = async (
 ) => {
 	logger.debug('continueConversation called');
 
+	const { id: conversationId } = params;
 	try {
-		const { id: conversationId } = params;
 		const body = await request.body.json();
 		const { statement, startDir } = body;
 
 		logger.info(
-			`Continuing conversation. ConversationId: ${conversationId}, Prompt: "${statement?.substring(0, 50)}..."`,
+			`continueConversation for conversationId: ${conversationId}, Prompt: "${statement?.substring(0, 50)}..."`,
 		);
 
 		if (!statement) {
-			logger.warn('Missing statement');
+			logger.warn(`HandlerContinueConversation: Missing statement for conversationId: ${conversationId}`);
 			response.status = 400;
 			response.body = { error: 'Missing statement' };
 			return;
 		}
 
 		if (!startDir) {
-			logger.warn('Missing startDir');
+			logger.warn(`HandlerContinueConversation: Missing startDir for conversationId: ${conversationId}`);
 			response.status = 400;
 			response.body = { error: 'Missing startDir' };
 			return;
 		}
 
-		logger.debug(`Creating ProjectEditorManger`);
 		if (projectEditorManager.isConversationActive(conversationId)) {
 			response.status = 400;
 			response.body = { error: 'Conversation is already in use' };
 			return;
 		}
 
-		logger.debug(`Creating ProjectEditor for dir: ${startDir}`);
+		logger.debug(
+			`HandlerContinueConversation: Creating ProjectEditor for conversationId: ${conversationId} using startDir: ${startDir}`,
+		);
 		const projectEditor = await projectEditorManager.getOrCreateEditor(conversationId, startDir);
 
 		const result: ConversationResponse = await projectEditor.handleStatement(statement, conversationId);
 
-		logger.debug('Response received from handleStatement');
+		logger.debug(
+			`HandlerContinueConversation: Response received from handleStatement for conversationId: ${conversationId}`,
+		);
 		response.status = 200;
 		response.body = {
 			conversationId: result.conversationId,
@@ -180,7 +183,7 @@ export const continueConversation = async (
 			tokenUsageConversation: result.tokenUsageConversation,
 		};
 	} catch (error) {
-		logger.error(`Error in continueConversation: ${error.message}`, error);
+		logger.error(`Error in continueConversation for conversationId: ${conversationId}: ${error.message}`, error);
 		response.status = 500;
 		response.body = { error: 'Failed to generate response', details: error.message };
 	}
@@ -243,7 +246,7 @@ export const getConversation = async (
 			model: interaction.model,
 			maxTokens: interaction.maxTokens,
 			temperature: interaction.temperature,
-			turnCount: orchestratorController.turnCount,
+			statementTurnCount: orchestratorController.statementTurnCount,
 			totalTokenUsage: orchestratorController.totalTokensTotal,
 			messages: interaction.getMessages(),
 		};

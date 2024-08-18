@@ -61,17 +61,14 @@ export const conversationStart = new Command()
 
 		try {
 			// Check if API is running, start it if not
-			/*
-			// [TODO] too many ways of starting the API, this needs to be more robust
-			const apiRunning = await isApiRunning(projectRoot);
-			if (!apiRunning) {
-				console.log('API is not running. Starting it now...');
-				await startApiServer(projectRoot);
-				//await new Promise((resolve) => setTimeout(resolve, 1000));
-				apiStartedByUs = true;
-				console.log('API started successfully.');
-			}
-			 */
+
+			//const apiRunning = await isApiRunning(projectRoot);
+			//if (!apiRunning) {
+			//	console.log('API is not running. Starting it now...');
+			//	await startApiServer(projectRoot);
+			//	apiStartedByUs = true;
+			//	console.log('API started successfully.');
+			//}
 
 			const startDir = Deno.cwd();
 			conversationId = options.id || generateConversationId();
@@ -172,7 +169,7 @@ export const conversationStart = new Command()
 							`Terminal handler not initialized for conversation ${conversationId} and event cli:conversationAnswer`,
 						);
 					}
-					terminalHandler?.displayConversationUpdate(data as ConversationResponse, conversationId, false);
+					terminalHandler?.displayConversationAnswer(data as ConversationResponse, conversationId, false);
 				}, conversationId);
 
 				eventManager.on('cli:websocketReconnected', handleWebsocketReconnection);
@@ -184,7 +181,7 @@ export const conversationStart = new Command()
 						);
 						return;
 					}
-					//terminalHandler.displayError(data.error);
+					terminalHandler.displayError(data);
 				}, conversationId);
 
 				await websocketManager.waitForReady(conversationId!);

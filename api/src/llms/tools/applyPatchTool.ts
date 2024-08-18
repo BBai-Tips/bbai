@@ -1,8 +1,21 @@
-import LLMTool, { LLMToolInputSchema, LLMToolRunResult } from '../llmTool.ts';
+import LLMTool, {
+	LLMToolFormatterDestination,
+	LLMToolInputSchema,
+	LLMToolRunResult,
+	LLMToolRunResultContent,
+	LLMToolRunResultFormatter,
+	LLMToolUseInputFormatter,
+} from 'api/llms/llmTool.ts';
+import { colors } from 'cliffy/ansi/colors.ts';
+import { stripIndents } from 'common-tags';
 import LLMConversationInteraction from '../interactions/conversationInteraction.ts';
-import { LLMAnswerToolUse } from 'api/llms/llmMessage.ts';
+import {
+	LLMAnswerToolUse,
+	LLMMessageContentPart,
+	LLMMessageContentParts,
+	LLMMessageContentPartTextBlock,
+} from 'api/llms/llmMessage.ts';
 import ProjectEditor from '../../editor/projectEditor.ts';
-import ConversationPersistence from '../../storage/conversationPersistence.ts';
 import { isPathWithinProject } from '../../utils/fileHandling.utils.ts';
 import { createError, ErrorType } from '../../utils/error.utils.ts';
 import { FileHandlingErrorOptions } from '../../errors/error.ts';
@@ -15,7 +28,7 @@ export class LLMToolApplyPatch extends LLMTool {
 	constructor() {
 		super(
 			'apply_patch',
-			'Apply a well-formed patch to a file',
+			'Apply a well-formed patch to one or more files',
 		);
 	}
 
@@ -25,64 +38,117 @@ export class LLMToolApplyPatch extends LLMTool {
 			properties: {
 				filePath: {
 					type: 'string',
-					description: 'The path of the file to be patched',
+					description: 'The path of the file to be patched. Optional for multi-file patches.',
 				},
 				patch: {
 					type: 'string',
 					description: 'The carefully written and well-formed patch to be applied in unified diff format',
 				},
 			},
-			required: ['filePath', 'patch'],
+			required: ['patch'],
 		};
 	}
+
+	toolUseInputFormatter: LLMToolUseInputFormatter = (
+		toolInput: LLMToolInputSchema,
+		format: LLMToolFormatterDestination = 'console',
+	): string => {
+		const { filePath, patch } = toolInput as { filePath?: string; patch: string };
+		if (format === 'console') {
+			return stripIndents`
+				${
+				filePath ? `${colors.bold('File to patch:')} ${colors.cyan(filePath)}` : colors.bold('Multi-file patch')
+			}
+				
+				${colors.bold('Patch:')}\n${colors.yellow(patch)}
+			`;
+		} else if (format === 'browser') {
+			return `
+				${
+				filePath
+					? `<p><strong>File to patch:</strong> <span style="color: #4169E1;">${filePath}</span></p>`
+					: '<p><strong>Multi-file patch</strong></p>'
+			}
+				<p><strong>Patch:</strong></p>
+				<pre style="background-color: #FFFACD; padding: 10px;">${patch}</pre>
+			`;
+		}
+		return JSON.stringify(toolInput, null, 2);
+	};
+
+	toolRunResultFormatter: LLMToolRunResultFormatter = (
+		toolResult: LLMToolRunResultContent,
+		format: LLMToolFormatterDestination = 'console',
+	): string => {
+		const results: LLMMessageContentParts = Array.isArray(toolResult)
+			? toolResult
+			: [toolResult as LLMMessageContentPart];
+		let formattedResult = '';
+
+		results.forEach((result: LLMMessageContentPart) => {
+			if (result.type === 'text') {
+				if (format === 'console') {
+					formattedResult += `${colors.bold(result.text)}\n`;
+				} else if (format === 'browser') {
+					formattedResult += `<p><strong>${result.text}</strong></p>`;
+				} else {
+					formattedResult += `${result.text}\n`;
+				}
+			} else {
+				formattedResult += `Unknown type: ${result.type}\n`;
+			}
+		});
+
+		return formattedResult.trim();
+	};
 
 	async runTool(
 		interaction: LLMConversationInteraction,
 		toolUse: LLMAnswerToolUse,
 		projectEditor: ProjectEditor,
 	): Promise<LLMToolRunResult> {
-		const { toolUseId: _toolUseId, toolInput } = toolUse;
+		const { toolInput } = toolUse;
+		const { filePath, patch } = toolInput as { filePath?: string; patch: string };
 
-		const { filePath, patch } = toolInput as { filePath: string; patch: string };
-
-		if (!await isPathWithinProject(projectEditor.projectRoot, filePath)) {
-			throw createError(ErrorType.FileHandling, `Access denied: ${filePath} is outside the project directory`, {
-				name: 'apply-patch',
-				filePath,
-				operation: 'patch',
-			} as FileHandlingErrorOptions);
-		}
-
-		const fullFilePath = join(projectEditor.projectRoot, filePath);
-		logger.info(`Handling patch for file: ${fullFilePath}\nWith patch:\n${patch}`);
+		const parsedPatch = diff.parsePatch(patch);
+		const modifiedFiles: string[] = [];
+		const newFiles: string[] = [];
 
 		try {
-			const parsedPatch = diff.parsePatch(patch);
-
 			for (const patchPart of parsedPatch) {
+				const currentFilePath = patchPart.newFileName || filePath;
+				if (!currentFilePath) {
+					throw new Error('File path is undefined');
+				}
+				logger.info(`Checking location of file: ${currentFilePath}`);
+
+				if (!await isPathWithinProject(projectEditor.projectRoot, currentFilePath)) {
+					throw createError(
+						ErrorType.FileHandling,
+						`Access denied: ${currentFilePath} is outside the project directory`,
+						{
+							name: 'apply-patch',
+							filePath: currentFilePath,
+							operation: 'apply-patch',
+						} as FileHandlingErrorOptions,
+					);
+				}
+
+				const fullFilePath = join(projectEditor.projectRoot, currentFilePath);
+
 				if (patchPart.oldFileName === '/dev/null') {
 					// This is a new file
-					const newFilePath = patchPart.newFileName
-						? join(projectEditor.projectRoot, patchPart.newFileName)
-						: undefined;
-					if (!newFilePath) {
-						throw new Error('New file path is undefined');
-					}
-
-					projectEditor.patchedFiles.add(newFilePath);
-					projectEditor.patchContents.set(newFilePath, patch);
-
+					newFiles.push(currentFilePath);
 					const newFileContent = patchPart.hunks.map((h) =>
 						h.lines.filter((l) => l[0] === '+').map((l) => l.slice(1)).join('\n')
 					).join('\n');
 
-					await ensureDir(dirname(newFilePath));
-					await Deno.writeTextFile(newFilePath, newFileContent);
-					logger.info(`Created new file: ${patchPart.newFileName}`);
+					await ensureDir(dirname(fullFilePath));
+					await Deno.writeTextFile(fullFilePath, newFileContent);
+					logger.info(`Created new file: ${currentFilePath}`);
 				} else {
-					projectEditor.patchedFiles.add(filePath);
-					projectEditor.patchContents.set(filePath, patch);
-					// Existing file, apply patch as before
+					// Existing file, apply patch
+					modifiedFiles.push(currentFilePath);
 					const currentContent = await Deno.readTextFile(fullFilePath);
 
 					const patchedContent = diff.applyPatch(currentContent, patchPart, {
@@ -91,52 +157,73 @@ export class LLMToolApplyPatch extends LLMTool {
 
 					if (patchedContent === false) {
 						const errorMessage =
-							'Failed to apply patch. The patch does not match the current file content. ' +
+							`Failed to apply patch to ${currentFilePath}. The patch does not match the current file content. ` +
 							'Consider using the `search_and_replace` tool for more precise modifications.';
 						throw createError(ErrorType.FileHandling, errorMessage, {
 							name: 'apply-patch',
-							filePath,
+							filePath: currentFilePath,
 							operation: 'patch',
 						} as FileHandlingErrorOptions);
 					}
 
 					await Deno.writeTextFile(fullFilePath, patchedContent);
-					logger.info(`Patch applied to existing file: ${filePath}`);
+					logger.info(`Patch applied to existing file: ${currentFilePath}`);
 				}
+
+				projectEditor.patchedFiles.add(currentFilePath);
+				projectEditor.patchContents.set(currentFilePath, patch);
 			}
 
-			// Log the applied patch
-			if (interaction) {
-				logger.info(`Saving conversation patch: ${interaction.id}`);
-				const persistence = new ConversationPersistence(interaction.id, projectEditor);
-				await persistence.logPatch(filePath, patch);
-				await projectEditor.orchestratorController.stageAndCommitAfterPatching(interaction);
+			// Log patch and commit for all modified files
+			for (const file of [...modifiedFiles, ...newFiles]) {
+				await projectEditor.orchestratorController.logPatchAndCommit(
+					interaction,
+					file,
+					patch,
+				);
 			}
-			const { messageId, toolResponse } = projectEditor.orchestratorController.toolManager.finalizeToolUse(
-				interaction,
-				toolUse,
-				`Patch applied to file: ${filePath}`,
-				false,
-				//projectEditor,
-			);
-			const bbaiResponse = `BBai has applied patch successfully to file: ${filePath}`;
-			return { messageId, toolResponse, bbaiResponse };
+
+			const toolResultContentParts: LLMMessageContentParts = [
+				{
+					type: 'text',
+					text: `✅ Patch applied successfully to ${modifiedFiles.length + newFiles.length} file(s)`,
+				},
+				...modifiedFiles.map((
+					file,
+				) => ({ type: 'text', text: `📝 Modified: ${file}` } as LLMMessageContentPartTextBlock)),
+				...newFiles.map((
+					file,
+				) => ({ type: 'text', text: `📄 Created: ${file}` } as LLMMessageContentPartTextBlock)),
+			];
+
+			const toolResults = toolResultContentParts;
+			const toolResponse = `Applied patch successfully to ${modifiedFiles.length + newFiles.length} file(s)`;
+			const bbaiResponse = `BBai has applied patch successfully to ${
+				modifiedFiles.length + newFiles.length
+			} file(s)`;
+
+			return { toolResults, toolResponse, bbaiResponse };
 		} catch (error) {
 			let errorMessage: string;
 			if (error instanceof Deno.errors.NotFound) {
-				errorMessage = `File not found: ${filePath}`;
+				errorMessage = `File not found: ${error.message}`;
 			} else if (error instanceof Deno.errors.PermissionDenied) {
-				errorMessage = `Permission denied for file: ${filePath}`;
+				errorMessage = `Permission denied: ${error.message}`;
 			} else {
-				errorMessage = `Failed to apply patch to ${filePath}: ${error.message}`;
+				errorMessage = `Failed to apply patch: ${error.message}`;
 			}
 			logger.error(errorMessage);
 
-			throw createError(ErrorType.FileHandling, errorMessage, {
-				name: 'apply-patch',
-				filePath: filePath,
-				operation: 'patch',
-			} as FileHandlingErrorOptions);
+			const toolResultContentParts: LLMMessageContentParts = [
+				{
+					type: 'text',
+					text: `⚠️  ${errorMessage}`,
+				},
+			];
+
+			const bbaiResponse = `BBai failed to apply patch. Error: ${errorMessage}`;
+			const toolResponse = `Failed to apply patch. Error: ${errorMessage}`;
+			return { toolResults: toolResultContentParts, toolResponse, bbaiResponse };
 		}
 	}
 }

@@ -2,135 +2,180 @@ import { Context, RouterContext } from '@oak/oak';
 
 import { projectEditorManager } from '../../editor/projectEditorManager.ts';
 import { logger } from 'shared/logger.ts';
-import { debounce } from '../../utils/general.utils.ts';
 import { ConversationId } from 'shared/types.ts';
 import EventManager, { EventMap, EventName } from 'shared/eventManager.ts';
 
 class WebSocketHandler {
+	private listeners: Map<ConversationId, Array<{ event: EventName<keyof EventMap>; callback: (data: any) => void }>> =
+		new Map();
+	private activeConnections: Map<ConversationId, WebSocket> = new Map();
+
 	constructor(private eventManager: EventManager) {
 	}
 
 	handleConnection(ws: WebSocket, conversationId: ConversationId) {
-		ws.onopen = () => {
-			logger.info('WebSocket connection opened');
-		};
-
-		ws.onmessage = async (event) => {
-			try {
-				const message = JSON.parse(event.data);
-				await this.handleMessage(conversationId, message);
-			} catch (error) {
-				logger.error('Error handling message:', error);
-				ws.send(JSON.stringify({ error: 'Invalid message format' }));
+		try {
+			// Check if there's an existing connection for this conversation ID
+			const existingConnection = this.activeConnections.get(conversationId);
+			if (existingConnection) {
+				logger.warn(`Closing existing connection for conversationId: ${conversationId}`);
+				existingConnection.close(1000, 'New connection established');
+				this.removeConnection(existingConnection, conversationId);
 			}
-		};
 
-		ws.onclose = () => {
-			logger.info('WebSocket connection closed');
+			// Set the new connection
+			this.activeConnections.set(conversationId, ws);
+			ws.onopen = () => {
+				logger.info(`WebSocketHandler: WebSocket connection opened for conversationId: ${conversationId}`);
+			};
+
+			ws.onmessage = async (event) => {
+				try {
+					const message = JSON.parse(event.data);
+					await this.handleMessage(conversationId, message);
+				} catch (error) {
+					logger.error(
+						`WebSocketHandler: Error handling message for conversationId: ${conversationId}:`,
+						error,
+					);
+					ws.send(JSON.stringify({ error: 'Invalid message format' }));
+				}
+			};
+
+			ws.onclose = () => {
+				logger.info(`WebSocketHandler: WebSocket connection closed for conversationId: ${conversationId}`);
+				this.removeConnection(ws, conversationId);
+			};
+
+			ws.onerror = (event: Event | ErrorEvent) => {
+				const errorMessage = event instanceof ErrorEvent ? event.message : 'Unknown WebSocket error';
+				logger.error(`WebSocketHandler: WebSocket error for conversationId: ${conversationId}:`, errorMessage);
+			};
+
+			this.setupEventListeners(ws, conversationId);
+		} catch (error) {
+			logger.error(`Error in handleConnection for conversationId ${conversationId}:`, error);
+			ws.close(1011, 'Internal Server Error');
 			this.removeConnection(ws, conversationId);
-		};
-
-		ws.onerror = (event: Event | ErrorEvent) => {
-			const errorMessage = event instanceof ErrorEvent ? event.message : 'Unknown WebSocket error';
-			logger.error('WebSocket error:', errorMessage);
-		};
-
-		this.setupEventListeners(ws, conversationId);
+		}
 	}
 
 	private async handleMessage(conversationId: ConversationId, message: any) {
-		const { task, statement, startDir } = message;
-		//this.connections.set(ws, conversationId);
-		//logger.info('WebSocketHandler: handleMessage', message);
-		logger.info(`WebSocketHandler: handleMessage for conversationId ${conversationId}, task: ${task}`);
+		try {
+			const { task, statement, startDir } = message;
+			//this.connections.set(ws, conversationId);
+			//logger.info('WebSocketHandler: handleMessage', message);
+			logger.info(`WebSocketHandler: handleMessage for conversationId ${conversationId}, task: ${task}`);
 
-		const projectEditor = await projectEditorManager.getOrCreateEditor(conversationId, startDir);
+			const projectEditor = await projectEditorManager.getOrCreateEditor(conversationId, startDir);
 
-		if (!projectEditor && task !== 'greeting' && task !== 'cancel') {
-			this.eventManager.emit('projectEditor:conversationError', {
-				conversationId,
-				error: 'No active conversation',
-				code: 'NO_ACTIVE_CONVERSATION',
-			});
-			return;
-		}
-
-		if (task === 'greeting') {
-			if (!startDir) {
-				logger.error('Start directory is required for greeting');
+			if (!projectEditor && task !== 'greeting' && task !== 'cancel') {
 				this.eventManager.emit('projectEditor:conversationError', {
 					conversationId,
-					error: 'Start directory is required for greeting',
-					code: 'START_DIR_REQUIRED',
+					error: 'No active conversation',
+					code: 'NO_ACTIVE_CONVERSATION',
 				});
-
 				return;
 			}
 
-			try {
-				//logger.info('WebSocketHandler: Emitting projectEditor:conversationReady event');
-				this.eventManager.emit('projectEditor:conversationReady', {
-					conversationId: conversationId,
-					conversationTitle: projectEditor.orchestratorController.primaryInteraction.title,
-					conversationStats: {
-						statementCount: projectEditor.orchestratorController.statementCount,
-					},
-				});
-			} catch (error) {
-				logger.error('Error creating project editor:', error);
-				this.eventManager.emit('projectEditor:conversationError', {
-					conversationId,
-					error: 'Failed to create project editor',
-					code: 'PROJECT_EDITOR_CREATION_FAILED',
-				});
-			}
-			return;
-		} else if (task === 'converse') {
-			try {
-				await projectEditor?.handleStatement(statement, conversationId);
+			if (task === 'greeting') {
+				if (!startDir) {
+					logger.error(
+						`WebSocketHandler: Start directory is required for greeting for conversationId: ${conversationId}`,
+					);
+					this.eventManager.emit('projectEditor:conversationError', {
+						conversationId,
+						error: 'Start directory is required for greeting',
+						code: 'START_DIR_REQUIRED',
+					});
 
-				//const result = await projectEditor?.handleStatement(statement, conversationId);
-				//logger.debug(`handleStatement result: ${JSON.stringify(result)}`);
-			} catch (error) {
-				logger.error('Error handling statement:', error);
+					return;
+				}
+
+				try {
+					//logger.info('WebSocketHandler: Emitting projectEditor:conversationReady event');
+					this.eventManager.emit('projectEditor:conversationReady', {
+						conversationId: conversationId,
+						conversationTitle: projectEditor.orchestratorController.primaryInteraction.title,
+						conversationStats: {
+							statementCount: projectEditor.orchestratorController.statementCount,
+						},
+					});
+				} catch (error) {
+					logger.error(
+						`WebSocketHandler: Error creating project editor for conversationId: ${conversationId}:`,
+						error,
+					);
+					this.eventManager.emit('projectEditor:conversationError', {
+						conversationId,
+						error: 'Failed to create project editor',
+						code: 'PROJECT_EDITOR_CREATION_FAILED',
+					});
+				}
+				return;
+			} else if (task === 'converse') {
+				try {
+					await projectEditor?.handleStatement(statement, conversationId);
+
+					//const result = await projectEditor?.handleStatement(statement, conversationId);
+					//logger.debug(`handleStatement result: ${JSON.stringify(result)}`);
+				} catch (error) {
+					logger.error(
+						`WebSocketHandler: Error handling statement for conversationId: ${conversationId}:`,
+						error,
+					);
+					this.eventManager.emit('projectEditor:conversationError', {
+						conversationId,
+						error: 'Error handling statement',
+						code: 'STATEMENT_ERROR',
+					});
+				}
+			} else if (task === 'cancel') {
+				logger.error(`WebSocketHandler: Cancelling statement for conversationId: ${conversationId}`);
+				try {
+					await projectEditor?.orchestratorController.cancelCurrentOperation(conversationId);
+					this.eventManager.emit('projectEditor:conversationCancelled', {
+						conversationId,
+						message: 'Operation cancelled',
+					});
+				} catch (error) {
+					logger.error(
+						`WebSocketHandler: Error cancelling operation for conversationId: ${conversationId}:`,
+						error,
+					);
+					this.eventManager.emit('projectEditor:conversationError', {
+						conversationId,
+						error: 'Error cancelling operation',
+						code: 'CANCELLATION_ERROR',
+					});
+				}
+			} else {
+				logger.error(
+					`WebSocketHandler: Error handling statement for conversationId: ${conversationId}, unknown task: ${task}`,
+				);
 				this.eventManager.emit('projectEditor:conversationError', {
 					conversationId,
-					error: 'Error handling statement',
+					error: `Error handling statement, unknown task: ${task}`,
 					code: 'STATEMENT_ERROR',
 				});
 			}
-		} else if (task === 'cancel') {
-			logger.error('Cancelling statement for conversation: ', conversationId);
-			try {
-				await projectEditor?.orchestratorController.cancelCurrentOperation(conversationId);
-				this.eventManager.emit('projectEditor:conversationCancelled', {
-					conversationId,
-					message: 'Operation cancelled',
-				});
-			} catch (error) {
-				logger.error('Error cancelling operation:', error);
-				this.eventManager.emit('projectEditor:conversationError', {
-					conversationId,
-					error: 'Error cancelling operation',
-					code: 'CANCELLATION_ERROR',
-				});
-			}
-		} else {
-			logger.error(`Error handling statement, unknown task: ${task}`);
+		} catch (error) {
+			logger.error(`Unhandled error in handleMessage for conversationId ${conversationId}:`, error);
 			this.eventManager.emit('projectEditor:conversationError', {
 				conversationId,
-				error: `Error handling statement, unknown task: ${task}`,
-				code: 'STATEMENT_ERROR',
+				error: 'Internal Server Error',
+				code: 'INTERNAL_ERROR',
 			});
+			const ws = this.activeConnections.get(conversationId);
+			if (ws) {
+				this.removeConnection(ws, conversationId);
+			}
 		}
 	}
 
 	private setupEventListeners(ws: WebSocket, conversationId: ConversationId) {
-		//const conversationId = this.connections.get(ws);
-		if (!conversationId) {
-			logger.error('No conversationId found for WebSocket connection');
-			throw new Error('No conversationId found for WebSocket connection');
-		}
+		// Remove any existing listeners for this conversation ID
+		this.removeEventListeners(conversationId);
 
 		const listeners: Array<{ event: EventName<keyof EventMap>; callback: (data: any) => void }> = [
 			{
@@ -153,27 +198,40 @@ class WebSocketHandler {
 
 		listeners.forEach((listener) => this.eventManager.on(listener.event, listener.callback, conversationId));
 
-		// Store listeners to remove them when the connection closes
-		ws.addEventListener('close', () => {
-			listeners.forEach((listener) => this.eventManager.off(listener.event, listener.callback, conversationId));
-			this.removeConnection(ws, conversationId);
-		});
+		// Store listeners for this conversation ID
+		this.listeners.set(conversationId, listeners);
+
+		// Remove listeners when the connection closes
+		ws.addEventListener('close', () => this.removeEventListeners(conversationId));
 	}
 
-	private removeConnection(_ws: WebSocket, conversationId: ConversationId) {
-		//const conversationId: ConversationId | undefined = this.connections.get(ws);
-		if (conversationId) {
-			projectEditorManager.releaseEditor(conversationId);
+	private removeEventListeners(conversationId: ConversationId) {
+		const listeners = this.listeners.get(conversationId);
+		if (listeners) {
+			listeners.forEach((listener) => {
+				this.eventManager.off(listener.event, listener.callback, conversationId);
+				logger.debug(
+					`WebSocketHandler: Removed listener for event ${listener.event} for conversationId ${conversationId}`,
+				);
+			});
+			this.listeners.delete(conversationId);
 		}
-		//this.connections.delete(ws);
+	}
+
+	private removeConnection(ws: WebSocket, conversationId: ConversationId) {
+		this.activeConnections.delete(conversationId);
+		projectEditorManager.releaseEditor(conversationId);
+		ws.close();
+		// removeEventListeners is called by the 'close' event listener
+		// so we don't need to call it explicitly here
 	}
 
 	// Method to send messages back to the client
-	private sendMessage = debounce((ws: WebSocket, type: string, data: any) => {
-		//logger.debug(`Sending WebSocket message: type=${type}, data=${JSON.stringify(data)}`);
-		//logger.debug('WebSocketHandler-sendMessage called');
+	private sendMessage = (ws: WebSocket, type: string, data: any) => {
+		//logger.debug(`WebSocketHandler: Sending message for conversationId: ${conversationId}: type=${type}, data=${JSON.stringify(data)}`);
+		logger.info(`WebSocketHandler: Sending message of type: ${type}`);
 		ws.send(JSON.stringify({ type, data }));
-	}, 50); // 50ms debounce
+	};
 }
 
 export default WebSocketHandler;
@@ -184,7 +242,7 @@ const wsHandler = new WebSocketHandler(eventManager);
 
 // This is the function that gets mounted to the endpoint in apiRouter
 export const websocketConversation = async (ctx: Context) => {
-	logger.debug('websocketConversation called');
+	logger.debug('WebSocketHandler: websocketConversation called from router');
 
 	try {
 		const { id } = (ctx as RouterContext<'/conversation/:id', { id: string }>).params;
@@ -198,7 +256,7 @@ export const websocketConversation = async (ctx: Context) => {
 		ctx.response.status = 200;
 		//ctx.response.body = { status: 'CONNECTED' };
 	} catch (error) {
-		logger.error(`Error in websocketConversation: ${error.message}`, error);
+		logger.error(`WebSocketHandler: Error in websocketConversation: ${error.message}`, error);
 		ctx.response.status = 500;
 		ctx.response.body = { error: 'Failed to generate response', details: error.message };
 	}

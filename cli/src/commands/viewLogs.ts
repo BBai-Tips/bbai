@@ -2,6 +2,7 @@ import { Command } from 'cliffy/command/mod.ts';
 import { logger } from 'shared/logger.ts';
 import { config } from 'shared/configManager.ts';
 import { getBbaiDir } from 'shared/dataDir.ts';
+import { getLogFilePath, viewLastLines, watchLogs } from 'shared/logViewer.ts';
 import { join } from '@std/path';
 //import { ensureDir } from '@std/fs';
 import { displayFormattedLogs } from 'shared/logFormatter.ts';
@@ -19,11 +20,8 @@ export const viewLogs = new Command()
 			return;
 		}
 
-		const bbaiDir = await getBbaiDir(Deno.cwd());
-		const logFile = !options.api && options.id
-			? join('data', 'conversations', options.id, 'conversation.log')
-			: config.logFile ?? 'api.log';
-		const logFilePath = join(bbaiDir, logFile);
+		const logFilePath = await getLogFilePath(Deno.cwd(), !!options.api, options.id);
+		console.log(`Viewing logs from: ${logFilePath}`);
 
 		try {
 			const fileInfo = await Deno.stat(logFilePath);
@@ -32,42 +30,26 @@ export const viewLogs = new Command()
 				return;
 			}
 
-			if (!options.api && options.id) {
-				// Use the new LogFormatter for conversation logs
-				await displayFormattedLogs(
-					options.id,
-					(formattedEntry) => {
-						console.log(formattedEntry);
-					},
-					options.follow,
-				);
-				return;
-			} else {
-				// For API logs, use the existing tail command
-				if (options.follow) {
-					const command = new Deno.Command('tail', {
-						args: ['-f', logFilePath],
-						stdout: 'piped',
-						stderr: 'piped',
-					});
-					const process = command.spawn();
-					for await (const chunk of process.stdout) {
-						await Deno.stdout.write(chunk);
-					}
+			if (options.follow) {
+				if (!options.api && options.id) {
+					// Use the LogFormatter for conversation logs
+					await displayFormattedLogs(
+						options.id,
+						(formattedEntry) => {
+							console.log(formattedEntry);
+						},
+						true,
+					);
 				} else {
-					const command = new Deno.Command('tail', {
-						args: ['-n', options.lines.toString(), logFilePath],
-						stdout: 'piped',
-						stderr: 'piped',
+					// Use watchLogs for API logs
+					await watchLogs(logFilePath, (content: string) => {
+						console.log(content);
 					});
-					const { stdout, stderr } = await command.output();
-
-					if (stderr.length > 0) {
-						console.error(JSON.stringify({ error: new TextDecoder().decode(stderr) }));
-					} else {
-						console.log(new TextDecoder().decode(stdout));
-					}
 				}
+			} else {
+				// View last lines for both API and conversation logs
+				const lastLines = await viewLastLines(logFilePath, options.lines);
+				console.log(lastLines);
 			}
 		} catch (error) {
 			console.error(JSON.stringify({ error: `Error reading log file: ${error.message}` }));

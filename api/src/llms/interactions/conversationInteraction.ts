@@ -7,7 +7,7 @@ import LLM from '../providers/baseLLM.ts';
 import { LLMCallbackType } from 'api/types.ts';
 import type { LLMMessageContentPart, LLMMessageContentPartTextBlock } from 'api/llms/llmMessage.ts';
 import LLMMessage from 'api/llms/llmMessage.ts';
-import LLMTool from '../llmTool.ts';
+import LLMTool from 'api/llms/llmTool.ts';
 import { logger } from 'shared/logger.ts';
 //import { readFileContent } from 'shared/dataDir.ts';
 import { ResourceManager } from '../resourceManager.ts';
@@ -20,6 +20,7 @@ export interface FileMetadata {
 	inSystemPrompt: boolean;
 	messageId?: string;
 	toolUseId?: string;
+	lastCommit?: string;
 	error?: string | null;
 }
 export interface ProjectInfo {
@@ -258,7 +259,6 @@ class LLMConversationInteraction extends LLMInteraction {
 		};
 		this._files.set(filePath, fileMetadata);
 		this.systemPromptFiles.push(filePath);
-		//this.conversationLogger?.logToolResult('add_system_file', `File added to system prompt: ${filePath}`);
 	}
 
 	removeFile(filePath: string): boolean {
@@ -270,7 +270,6 @@ class LLMConversationInteraction extends LLMInteraction {
 			if (fileMetadata.inSystemPrompt) {
 				this.systemPromptFiles = this.systemPromptFiles.filter((path) => path !== filePath);
 			}
-			//this.conversationLogger?.logToolResult('remove_file', `File removed: ${filePath}`);
 			return this._files.delete(filePath);
 		}
 		return false;
@@ -287,33 +286,6 @@ class LLMConversationInteraction extends LLMInteraction {
 	listFiles(): string[] {
 		return Array.from(this._files.keys());
 	}
-
-	/*
-	private logConversation(): void {
-		// TODO: Implement this method when LLMConversationInteractionProject is available
-		this.llm.invoke(LLMCallbackType.PROJECT_INFO).then(
-			(projectInfo) =>
-				this.conversationLogger?.logToolResult(
-					'log_conversation',
-					JSON.stringify({
-						id: this.id,
-						llmProviderName: this.llm.llmProviderName,
-						statementCount: this._statementCount,
-						turnCount: this._turnCount,
-						messages: this.messages,
-						projectInfo: projectInfo,
-						tools: this.tools,
-						tokenUsage: this.totalTokenUsage,
-						system: this._baseSystem,
-						model: this.model,
-						maxTokens: this._maxTokens,
-						temperature: this._temperature,
-						timestamp: new Date(),
-					}),
-				),
-		);
-	}
-	 */
 
 	// Getters and setters
 	get conversationId(): ConversationId {
@@ -355,8 +327,8 @@ class LLMConversationInteraction extends LLMInteraction {
 			}
 			 */
 		}
-		this._turnCount++;
-		//logger.debug(`converse - calling addMessageForUserRole for turn ${this._turnCount}` );
+		this._statementTurnCount++;
+		//logger.debug(`converse - calling addMessageForUserRole for turn ${this._statementTurnCount}` );
 		this.addMessageForUserRole({ type: 'text', text: prompt });
 		this.conversationLogger?.logUserMessage(prompt);
 
@@ -373,7 +345,13 @@ class LLMConversationInteraction extends LLMInteraction {
 		const conversationStats: ConversationMetrics = this.getAllStats();
 		const tokenUsage: TokenUsage = response.messageResponse.usage;
 
-		this.conversationLogger.logAssistantMessage(msg, conversationStats, tokenUsage);
+		this.conversationLogger.logAssistantMessage(
+			msg,
+			conversationStats,
+			tokenUsage,
+			this._tokenUsageStatement,
+			this._tokenUsageInteraction,
+		);
 		this._statementCount++;
 
 		return response;

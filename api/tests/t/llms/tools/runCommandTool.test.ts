@@ -1,6 +1,7 @@
 import { assert, assertEquals, assertRejects, assertStringIncludes } from '../../../deps.ts';
 import { join } from '@std/path';
 import { stripIndents } from 'common-tags';
+import { stripAnsiCode } from '@std/fmt/colors';
 
 import { LLMToolRunCommand } from '../../../../src/llms/tools/runCommandTool.ts';
 import ProjectEditor from '../../../../src/editor/projectEditor.ts';
@@ -68,8 +69,13 @@ Deno.test({
 		const conversation = await projectEditor.initConversation('test-conversation-id');
 		const result = await tool.runTool(conversation, toolUse, projectEditor);
 
-		assertStringIncludes(result.toolResponse, 'Command executed with exit code: 0');
-		assertStringIncludes(result.toolResponse, 'Output:');
+		assertStringIncludes(result.bbaiResponse, 'BBai ran command: deno task tool:check-types');
+		assertStringIncludes(result.toolResponse, 'Command ran with errors');
+		assertStringIncludes(stripAnsiCode(result.toolResults as string), 'Command executed with exit code: 0');
+		assertStringIncludes(
+			stripAnsiCode(result.toolResults as string),
+			'Error output:\nTask tool:check-types deno check test.ts',
+		);
 	},
 	sanitizeResources: false,
 	sanitizeOps: false,
@@ -92,8 +98,17 @@ Deno.test({
 		const conversation = await projectEditor.initConversation('test-conversation-id');
 		const result = await tool.runTool(conversation, toolUse, projectEditor);
 
-		assertStringIncludes(result.toolResponse, 'Command executed with exit code: 0');
-		assertStringIncludes(result.toolResponse, 'Output:');
+		assertStringIncludes(result.bbaiResponse, 'BBai ran command: deno task tool:test');
+		assertStringIncludes(result.toolResponse, 'Command ran with errors');
+		assertStringIncludes(stripAnsiCode(result.toolResults as string), 'Command executed with exit code: 0');
+		assertStringIncludes(
+			stripAnsiCode(result.toolResults as string),
+			'Output:\nrunning 1 test from ./test_file.ts\nexample test ... ok',
+		);
+		assertStringIncludes(
+			stripAnsiCode(result.toolResults as string),
+			'Error output:\nTask tool:test deno test test_file.ts',
+		);
 	},
 	sanitizeResources: false,
 	sanitizeOps: false,
@@ -116,8 +131,17 @@ Deno.test({
 		const conversation = await projectEditor.initConversation('test-conversation-id');
 		const result = await tool.runTool(conversation, toolUse, projectEditor);
 
-		assertStringIncludes(result.toolResponse, 'Command executed with exit code: 0');
-		assertStringIncludes(result.toolResponse, 'Output:');
+		assertStringIncludes(result.bbaiResponse, 'BBai ran command: deno task tool:format');
+		assertStringIncludes(result.toolResponse, 'Command ran with errors');
+		assertStringIncludes(stripAnsiCode(result.toolResults as string), 'Command executed with exit code: 0');
+		assertStringIncludes(
+			stripAnsiCode(result.toolResults as string),
+			'Output:\n\n',
+		);
+		assertStringIncludes(
+			stripAnsiCode(result.toolResults as string),
+			'Error output:\nTask tool:format deno fmt test.ts',
+		);
 	},
 	sanitizeResources: false,
 	sanitizeOps: false,
@@ -140,7 +164,9 @@ Deno.test({
 		const conversation = await projectEditor.initConversation('test-conversation-id');
 		const result = await tool.runTool(conversation, toolUse, projectEditor);
 
+		assertStringIncludes(result.bbaiResponse, "BBai won't run unapproved commands: echo");
 		assertStringIncludes(result.toolResponse, 'Command not allowed: echo');
+		assertStringIncludes(stripAnsiCode(result.toolResults as string), 'Command not allowed: echo');
 	},
 	sanitizeResources: false,
 	sanitizeOps: false,

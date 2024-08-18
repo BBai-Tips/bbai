@@ -102,8 +102,8 @@ class EventManager extends EventTarget {
 		const listenerWeakMap = this.listenerMap.get(listenerKey)!;
 
 		const wrappedListener = ((e: TypedEvent<EventPayload<T, E>>) => {
-			//logger.log(
-			//	`EventManager-onListener: Handling event ${event} for conversation ${conversationId}`,
+			//logger.info(
+			//	`EventManager: Handling event ${event} for conversation ${conversationId}`,
 			//	e.detail.conversationId,
 			//);
 			if (
@@ -113,7 +113,7 @@ class EventManager extends EventTarget {
 			) {
 				const result = callback(e.detail);
 				if (result instanceof Promise) {
-					result.catch((error) => logger.error(`Error in event handler for ${event}:`, error));
+					result.catch((error) => logger.error(`EventManager: Error in event handler for ${event}:`, error));
 				}
 			}
 		}) as EventListener;
@@ -128,6 +128,10 @@ class EventManager extends EventTarget {
 		callback: (payload: EventPayload<T, E>) => void | Promise<void>,
 		conversationId?: ConversationId,
 	): void {
+		//logger.info(
+		//	`EventManager: Attempting to remove listener for event: ${event}, conversationId: ${conversationId}`,
+		//);
+
 		const listenerKey = this.getListenerKey(event, conversationId);
 		const listenerWeakMap = this.listenerMap.get(listenerKey);
 		if (listenerWeakMap) {
@@ -158,8 +162,8 @@ class EventManager extends EventTarget {
 		event: E,
 		payload: EventPayloadMap[T][E],
 	): boolean {
-		//logger.log(`EventManager: Emitting event ${event}`, payload);
-		//logger.log(`EventManager: Number of listeners for ${event}:`, this.listenerCount(event));
+		//logger.info(`EventManager: Emitting event ${event}`, payload);
+		//logger.info(`EventManager: Number of listeners for ${event}:`, this.listenerCount(event));
 		return this.dispatchEvent(new TypedEvent(payload, event));
 	}
 

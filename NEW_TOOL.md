@@ -16,7 +16,7 @@ This document serves as a guide for creating new tools in the BBai project. It i
 
 6. **Integration with LLMToolManager**: Ensure the tool is properly integrated with the LLMToolManager.
 
-7. **Testing**: Create comprehensive tests for the new tool in the `api/tests/llms/tools` directory.
+7. **Testing**: Create comprehensive tests for the new tool in the `api/tests/t/llms/tools` directory. It is critical to read the TESTING.md file before writing tests to ensure consistency and proper test coverage.
 
 8. **Documentation**: Add necessary documentation for the tool.
 
@@ -33,7 +33,7 @@ When creating a new tool, gather the following information:
    - Parameter 2: [Name, type, description]
    - ...
 
-4. Expected Feedback: [Describe what the tool should return upon successful execution]
+4. Expected Output: [Describe what the tool should return upon successful execution]
 
 5. Required Actions: [List the main actions the tool needs to perform]
 
@@ -45,38 +45,78 @@ When creating a new tool, gather the following information:
 
 ## Tool Implementation Guidelines
 
+When implementing a new tool, it's crucial to maintain consistency with existing tools in the project. This consistency ensures easier maintenance, better readability, and a more cohesive codebase. Pay close attention to the structure, naming conventions, and types used in other tools.
+
+When implementing a new tool, it's crucial to maintain consistency with existing tools in the project. Pay close attention to the structure, naming conventions, and types used in other tools. For example:
+
+- Use proper class methods instead of attributes for functions like `toolUseInputFormatter` and `toolRunResultFormatter`.
+- Apply appropriate types such as `LLMToolUseInputFormatter` and `LLMToolRunResultFormatter` to these methods.
+- Follow the existing pattern for the `input_schema` getter and other class methods.
+
+Refer to existing tools in the `api/src/llms/tools` directory as examples when creating a new tool.
+
 ### Structure
-Each tool should be a class that extends the `LLMTool` base class. Refer to existing tools for the basic structure.
+Each tool should be a class that extends the `LLMTool` base class. The class should implement the following methods:
+
+- `constructor`: Initialize the tool with a name and description.
+- `get input_schema()`: Define the input schema for the tool.
+- `toolUseInputFormatter`: Format the tool input for display.
+- `toolRunResultFormatter`: Format the tool result for display.
+- `runTool`: Implement the main functionality of the tool.
 
 ### Naming Conventions
-Follow the naming conventions used in existing tools. Generally, use camelCase for variables and methods, and PascalCase for class names.
+Follow the naming conventions used in existing tools. Use PascalCase for class names (e.g., `LLMToolNewFeature`) and camelCase for method and variable names.
 
 ### Input Validation
-Use the input schema to validate incoming data. Throw appropriate errors for invalid inputs.
+Use the input schema to validate incoming data. The `validateInput` method in the base `LLMTool` class will automatically use this schema for validation.
 
 ### Error Handling
-Implement try-catch blocks where necessary. Use the `createError` function to generate consistent error objects.
+Implement try-catch blocks where necessary. Use the `createError` function to generate consistent error objects. Handle both expected and unexpected errors gracefully.
 
 ### Integration with LLMToolManager
-Ensure the tool is registered with the LLMToolManager. This typically involves adding the tool to the `registerDefaultTools` method in the LLMToolManager class. Without this step, the tool will not be available for use in the BBai system.
+Ensure the tool is registered with the LLMToolManager. This involves adding the tool to the `registerDefaultTools` method in the LLMToolManager class:
 
-Example:
 ```typescript
 private registerDefaultTools(): void {
     // ... other tool registrations
-    this.registerTool(new YourNewTool());
+    this.registerTool(new LLMToolNewFeature());
 }
 ```
 
-Remember that after adding a new tool or modifying the tool registration, the API server needs to be restarted for the changes to take effect.
-Ensure the tool is registered with the LLMToolManager. This typically involves adding the tool to the `tools` array in the LLMToolManager constructor.
+### Tool Result Handling
+The `runTool` method should return an object of type `LLMToolRunResult`, which includes:
+
+- `toolResults`: The main output of the tool (can be a string, LLMMessageContentPart, or LLMMessageContentParts).
+- `toolResponse`: A string response for the tool execution.
+- `bbaiResponse`: A user-friendly response describing the tool's action.
+- `finalize` (optional): A function to perform any final actions after the tool use is recorded.
 
 ### Testing
-Create a corresponding test file in `api/tests/llms/tools`. Include tests for:
+
+When creating tests for your new tool:
+
+- Place test files in the `api/tests/t/llms/tools` directory.
+- Follow the naming convention: `toolName.test.ts`.
+- Ensure comprehensive test coverage, including edge cases and error scenarios.
+- Refer to TESTING.md for detailed guidelines on writing and organizing tests.
+- Study existing tool tests as examples to maintain consistency in testing approach.
+
+It is crucial to read and follow the guidelines in TESTING.md before writing any tests. This ensures consistency across the project and helps maintain high-quality test coverage.
+
+When creating tests for your new tool:
+
+- Place test files in the `api/tests/t/llms/tools` directory.
+- Follow the naming convention: `toolName.test.ts`.
+- Ensure comprehensive test coverage, including edge cases and error scenarios.
+- Refer to TESTING.md for detailed guidelines on writing and organizing tests.
+- Study existing tool tests as examples to maintain consistency in testing approach.
+Create a corresponding test file in `api/tests/t/llms/tools`. Include tests for:
 - Basic functionality
 - Edge cases
 - Error scenarios
 - Input validation
+
+Use Deno's testing framework and follow the patterns established in existing tool tests.
 
 ### Documentation
 Include JSDoc comments for the class and its methods. Update any relevant project documentation to include information about the new tool.
@@ -84,23 +124,24 @@ Include JSDoc comments for the class and its methods. Update any relevant projec
 ## Example Tool Types
 
 ### File Manipulation Tool
-Tools that interact with the file system. Example: SearchAndReplace tool.
+Tools that interact with the file system. Examples: SearchAndReplace, ApplyPatch tools.
 
 ### Data Retrieval Tool
-Tools that fetch data from external sources. Example: The upcoming "add data" tool using `fetch` or deno-puppeteer.
+Tools that fetch data from external sources or the local project. Example: SearchProject tool.
 
 ### System Command Tool
-Tools that execute system commands. Example: The upcoming "run command" tool.
+Tools that execute system commands. Example: RunCommand tool.
 
 ## Considerations for Specific Tool Types
 
 ### File Manipulation Tools
 - Always use `isPathWithinProject` to ensure file operations are restricted to the project directory.
 - Use `ProjectEditor` methods for file operations when possible.
+- Handle file creation, modification, and deletion scenarios.
 
 ### Data Retrieval Tools
-- Implement proper error handling for network requests.
-- Consider rate limiting and caching mechanisms.
+- Implement proper error handling for data access operations.
+- Consider performance implications for large datasets or frequent queries.
 
 ### System Command Tools
 - Use `Deno.run` or equivalent to execute system commands.
@@ -111,7 +152,8 @@ Tools that execute system commands. Example: The upcoming "run command" tool.
 - Tools must be registered in the LLMToolManager before they can be used.
 - After adding or modifying tools, always restart the API server to ensure the changes are applied.
 - Be cautious when implementing tools that interact with the file system or execute commands, as they can have significant impacts on the user's environment.
+- Consider the impact of the tool on the overall conversation flow and user experience.
 
 ## Conclusion
 
-Creating a new tool involves careful planning, implementation, and testing. By following this guide and maintaining consistency with existing tools, you can ensure that new tools integrate seamlessly into the BBai project and provide reliable functionality.
+Creating a new tool involves careful planning, implementation, and testing. By following this guide and maintaining consistency with existing tools, you can ensure that new tools integrate seamlessly into the BBai project and provide reliable functionality. Remember to consider both the technical implementation and the user experience when designing and implementing new tools.

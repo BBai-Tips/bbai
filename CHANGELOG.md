@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Added mock stubs to bypass calls to LLM during unit tests
+- Added web page fetch tool
+- Added web screenshot fetch tool
+- Reworked tool results, tool response, bbai response for better conversation logging
+- Refactored finalize callback for tool runs
+- Cleaned up dangling event listeners 
+
+
+## [0.0.8a-alpha] - 2024-08-15
+
+### Changed
+
+- Hot fix for missing conversation log entries
 
 
 ## [0.0.8-alpha] - 2024-08-15
@@ -17,6 +30,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - More tests
 - Console logging cleanup
 - Error handling
+
 
 ## [0.0.7-alpha] - 2024-08-05
 

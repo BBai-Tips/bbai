@@ -1,16 +1,22 @@
 import { join } from '@std/path';
 import { ensureDir } from '@std/fs';
 
-import type { ConversationId, ConversationMetrics, TokenUsage } from 'shared/types.ts';
+import { ConversationId, ConversationMetrics, ConversationTokenUsage, TokenUsage } from 'shared/types.ts';
 import { getBbaiDataDir } from 'shared/dataDir.ts';
 import { LogFormatter } from 'shared/logFormatter.ts';
-//import { logger } from 'shared/logger.ts';
+import { logger } from 'shared/logger.ts';
 import {
 	LLMMessageContentPart,
 	LLMMessageContentPartImageBlock,
 	LLMMessageContentParts,
 	LLMMessageContentPartTextBlock,
 } from 'api/llms/llmMessage.ts';
+import LLMTool, {
+	LLMToolInputSchema,
+	LLMToolRunResultContent,
+	LLMToolRunResultFormatter,
+	LLMToolUseInputFormatter,
+} from 'api/llms/llmTool.ts';
 
 export type ConversationLoggerEntryType = 'user' | 'assistant' | 'tool_use' | 'tool_result' | 'auxiliary' | 'error'; //text_change
 
@@ -25,7 +31,9 @@ export class ConversationLogger {
 			timestamp: string,
 			content: string,
 			conversationStats: ConversationMetrics,
-			tokenUsage: TokenUsage,
+			tokenUsageTurn: TokenUsage,
+			tokenUsageStatement: TokenUsage,
+			tokenUsageConversation: ConversationTokenUsage,
 		) => {},
 	) {}
 
@@ -48,18 +56,54 @@ export class ConversationLogger {
 	private async logEntry(
 		type: ConversationLoggerEntryType,
 		message: string,
-		conversationStats?: ConversationMetrics,
-		tokenUsage?: TokenUsage,
+		conversationStats: ConversationMetrics = { statementCount: 0, statementTurnCount: 0, conversationTurnCount: 0 },
+		tokenUsageTurn: TokenUsage = {
+			inputTokens: 0,
+			outputTokens: 0,
+			totalTokens: 0,
+		},
+		tokenUsageStatement: TokenUsage = {
+			inputTokens: 0,
+			outputTokens: 0,
+			totalTokens: 0,
+		},
+		tokenUsageConversation: ConversationTokenUsage = {
+			inputTokensTotal: 0,
+			outputTokensTotal: 0,
+			totalTokensTotal: 0,
+		},
 	) {
 		const timestamp = this.getTimestamp();
-		if (!tokenUsage) tokenUsage = { inputTokens: 0, outputTokens: 0, totalTokens: 0 };
-		if (!conversationStats) conversationStats = { statementCount: 0, turnCount: 0, totalTurnCount: 0 };
 
-		//const entry = LogFormatter.createRawEntryWithSeparator(type, timestamp, message, tokenUsage);
-		const entry = LogFormatter.createRawEntryWithSeparator(type, timestamp, message, conversationStats, tokenUsage);
-		await this.appendToLog(entry);
+		try {
+			await this.logEntryHandler(
+				type,
+				timestamp,
+				message,
+				conversationStats,
+				tokenUsageTurn,
+				tokenUsageStatement,
+				tokenUsageConversation,
+			);
+		} catch (error) {
+			logger.error('Error in logEntryHandler:', error);
+		}
 
-		await this.logEntryHandler(type, timestamp, message, conversationStats, tokenUsage);
+		const entry = LogFormatter.createRawEntryWithSeparator(
+			type,
+			timestamp,
+			message,
+			conversationStats,
+			tokenUsageTurn,
+			tokenUsageStatement,
+			tokenUsageConversation,
+		);
+
+		try {
+			await this.appendToLog(entry);
+		} catch (error) {
+			logger.error('Error appending to log:', error);
+		}
 	}
 
 	async logUserMessage(message: string, conversationStats?: ConversationMetrics) {
@@ -69,41 +113,74 @@ export class ConversationLogger {
 	async logAssistantMessage(
 		message: string,
 		conversationStats?: ConversationMetrics,
-		tokenUsage?: TokenUsage,
+		tokenUsageTurn?: TokenUsage,
+		tokenUsageStatement?: TokenUsage,
+		tokenUsageConversation?: ConversationTokenUsage,
 	) {
-		await this.logEntry('assistant', message, conversationStats, tokenUsage);
+		await this.logEntry(
+			'assistant',
+			message,
+			conversationStats,
+			tokenUsageTurn,
+			tokenUsageStatement,
+			tokenUsageConversation,
+		);
 	}
 
 	async logAuxiliaryMessage(message: string) {
-		await this.logEntry('auxiliary', message);
+		await this.logEntry(
+			'auxiliary',
+			message,
+		);
 	}
 
 	async logToolUse(
 		toolName: string,
-		input: object,
+		toolInput: LLMToolInputSchema,
+		toolInputFormatter: LLMToolUseInputFormatter,
 		conversationStats?: ConversationMetrics,
-		tokenUsage?: TokenUsage,
+		tokenUsageTurn?: TokenUsage,
+		tokenUsageStatement?: TokenUsage,
+		tokenUsageConversation?: ConversationTokenUsage,
 	) {
-		const message = `Tool: ${toolName}\nInput: \n${JSON.stringify(input, null, 2)}`;
-		await this.logEntry('tool_use', message, conversationStats, tokenUsage);
+		let message: string;
+		try {
+			message = `Tool: ${toolName}\n\n${toolInputFormatter(toolInput, 'console')}`;
+		} catch (error) {
+			logger.error(`Error formatting tool use for ${toolName}:`, error);
+			message = `Tool: ${toolName}\nInput:\n**Error formatting input**\n${JSON.stringify(error)}`;
+		}
+		try {
+			await this.logEntry(
+				'tool_use',
+				message,
+				conversationStats,
+				tokenUsageTurn,
+				tokenUsageStatement,
+				tokenUsageConversation,
+			);
+		} catch (error) {
+			logger.error('Error in logEntry for logToolUse:', error);
+		}
 	}
 
 	async logToolResult(
 		toolName: string,
-		result: string | LLMMessageContentPart | LLMMessageContentParts,
-		conversationStats?: ConversationMetrics,
-		tokenUsage?: TokenUsage,
+		toolResult: LLMToolRunResultContent,
+		toolRunResultFormatter: LLMToolRunResultFormatter,
 	) {
-		const message = `Tool: ${toolName}\nResult: ${
-			Array.isArray(result)
-				? 'text' in result[0]
-					? (result[0] as LLMMessageContentPartTextBlock).text
-					: JSON.stringify(result[0], null, 2)
-				: typeof result !== 'string'
-				? 'text' in result ? (result as LLMMessageContentPartTextBlock).text : JSON.stringify(result, null, 2)
-				: result
-		}`;
-		await this.logEntry('tool_result', message, conversationStats, tokenUsage);
+		let message: string;
+		try {
+			message = `Tool: ${toolName}\nResult:\n${toolRunResultFormatter(toolResult, 'console')}`;
+		} catch (error) {
+			logger.error(`Error formatting tool result for ${toolName}:`, error);
+			message = `Tool: ${toolName}\nResult:\n**Error formatting result**\n${JSON.stringify(error)}`;
+		}
+		try {
+			await this.logEntry('tool_result', message);
+		} catch (error) {
+			logger.error('Error in logEntry for logToolResult:', error);
+		}
 	}
 
 	async logError(error: string) {
