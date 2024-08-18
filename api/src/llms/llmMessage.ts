@@ -3,7 +3,8 @@ import {
 	LLMProviderMessageResponseRole,
 	LLMProviderMessageResponseType,
 	LLMTokenUsage,
-} from '../types.ts';
+} from 'api/types.ts';
+import { LLMToolInputSchema } from 'api/llms/llmTool.ts';
 
 export interface LLMMessageContentPartTextBlock {
 	type: 'text';
@@ -47,7 +48,7 @@ export type LLMMessageContentParts = Array<LLMMessageContentPart>;
 
 export interface LLMAnswerToolUse {
 	toolThinking?: string;
-	toolInput: object;
+	toolInput: LLMToolInputSchema;
 	toolUseId: string;
 	toolName: string;
 	toolValidation: { validated: boolean; results: string };

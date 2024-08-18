@@ -5,7 +5,7 @@ import { AnthropicModel, LLMCallbackType, LLMProvider } from 'api/types.ts';
 import LLM from './baseLLM.ts';
 import LLMInteraction from '../interactions/baseInteraction.ts';
 import LLMMessage, { LLMMessageContentParts, LLMMessageContentPartTextBlock } from 'api/llms/llmMessage.ts';
-import LLMTool from '../llmTool.ts';
+import LLMTool from 'api/llms/llmTool.ts';
 import { createError } from '../../utils/error.utils.ts';
 import { ErrorType, LLMErrorOptions } from '../../errors/error.ts';
 import { logger } from 'shared/logger.ts';
@@ -116,14 +116,15 @@ class AnthropicLLM extends LLM {
 		try {
 			//logger.info('llms-anthropic-speakWith-messageParams', messageParams);
 
-			//const { data: anthropicMessageStream, response: anthropicResponse } = await this.anthropic.beta.promptCaching.messages.create(
-			const { data: anthropicMessageStream, response: anthropicResponse } = await this.anthropic.messages.create(
-				messageParams as Anthropic.MessageCreateParams,
-				{
-					headers: { 'anthropic-beta': 'max-tokens-3-5-sonnet-2024-07-15' },
-					//headers: { 'anthropic-beta': ['max-tokens-3-5-sonnet-2024-07-15', 'prompt-caching-2024-07-31'] },
-				},
-			).withResponse();
+			//const { data: anthropicMessageStream, response: anthropicResponse } = await this.anthropic.messages.create(
+			const { data: anthropicMessageStream, response: anthropicResponse } = await this.anthropic.beta
+				.promptCaching.messages.create(
+					messageParams as Anthropic.MessageCreateParams,
+					{
+						headers: { 'anthropic-beta': 'max-tokens-3-5-sonnet-2024-07-15' },
+						//headers: { 'anthropic-beta': ['max-tokens-3-5-sonnet-2024-07-15', 'prompt-caching-2024-07-31'] },
+					},
+				).withResponse();
 
 			const anthropicMessage = anthropicMessageStream as Anthropic.Message;
 			//logger.info('llms-anthropic-anthropicMessage', anthropicMessage);

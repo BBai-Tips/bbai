@@ -1,4 +1,4 @@
-import { assert, assertEquals, assertRejects } from '../../../deps.ts';
+import { assert, assertEquals, assertRejects, assertStringIncludes } from '../../../deps.ts';
 import { join } from '@std/path';
 
 import { LLMToolSearchProject } from '../../../../src/llms/tools/searchProjectTool.ts';
@@ -49,11 +49,12 @@ Deno.test({
 		const conversation = await projectEditor.initConversation('test-conversation-id');
 		const result = await tool.runTool(conversation, toolUse, projectEditor);
 
-		assert(result.bbaiResponse.includes('BBai found 3 files matching the pattern'));
-		assert(result.toolResponse.includes('3 files match the pattern'));
-		assert(result.toolResponse.includes('file1.txt'));
-		assert(result.toolResponse.includes('file2.js'));
-		assert(result.toolResponse.includes('subdir/file3.txt'));
+		assertStringIncludes(result.bbaiResponse, 'BBai found 3 files matching the pattern "Hello"');
+		assertStringIncludes(result.toolResponse, 'Found 3 files matching the pattern "Hello"');
+		assertStringIncludes(
+			result.toolResults as string,
+			'3 files match the pattern "Hello"\n<files>\n./file1.txt\n./file2.js\n./subdir/file3.txt\n</files>',
+		);
 	},
 	sanitizeResources: false,
 	sanitizeOps: false,
@@ -77,11 +78,18 @@ Deno.test({
 		const conversation = await projectEditor.initConversation('test-conversation-id');
 		const result = await tool.runTool(conversation, toolUse, projectEditor);
 
-		assertEquals(result.bbaiResponse.includes('BBai found 2 files matching the pattern'), true);
-		assertEquals(result.toolResponse.includes('2 files match the pattern'), true);
-		assertEquals(result.toolResponse.includes('file1.txt'), true);
-		assertEquals(result.toolResponse.includes('subdir/file3.txt'), true);
-		assertEquals(result.toolResponse.includes('file2.js'), false);
+		assertStringIncludes(
+			result.bbaiResponse,
+			'BBai found 2 files matching the pattern "Hello" with file pattern "*.txt"',
+		);
+		assertStringIncludes(
+			result.toolResponse,
+			'Found 2 files matching the pattern "Hello" with file pattern "*.txt"',
+		);
+		assertStringIncludes(
+			result.toolResults as string,
+			'2 files match the pattern "Hello" with file pattern "*.txt"\n<files>\n./file1.txt\n./subdir/file3.txt\n</files>',
+		);
 	},
 	sanitizeResources: false,
 	sanitizeOps: false,
@@ -104,8 +112,9 @@ Deno.test({
 		const conversation = await projectEditor.initConversation('test-conversation-id');
 		const result = await tool.runTool(conversation, toolUse, projectEditor);
 
-		assert(result.toolResponse.includes('Tool search_project executed successfully'));
-		assert(result.bbaiResponse.includes('BBai found 0 files matching the pattern'));
+		assertStringIncludes(result.bbaiResponse, 'BBai found 0 files matching the pattern "NonexistentPattern"');
+		assertStringIncludes(result.toolResponse, 'Found 0 files matching the pattern "NonexistentPattern"');
+		assertStringIncludes(result.toolResults as string, '0 files match the pattern "NonexistentPattern"');
 	},
 	sanitizeResources: false,
 	sanitizeOps: false,
@@ -127,9 +136,9 @@ Deno.test({
 		const conversation = await projectEditor.initConversation('test-conversation-id');
 		const result = await tool.runTool(conversation, toolUse, projectEditor);
 
-		assert(result.toolResponse.includes('Tool search_project failed to run:'));
-		assert(result.toolResponse.includes('Error: grep: brackets ([ ]) not balanced'));
-		assert(result.bbaiResponse.includes('BBai found 0 files matching the pattern'));
+		assertStringIncludes(result.bbaiResponse, 'BBai found 0 files matching the pattern "["');
+		assertStringIncludes(result.toolResponse, 'Found 0 files matching the pattern "["');
+		assertStringIncludes(result.toolResults as string, '0 files match the pattern "["');
 	},
 	sanitizeResources: false,
 	sanitizeOps: false,

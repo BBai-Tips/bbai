@@ -4,8 +4,8 @@ import { ansi, colors, tty } from 'cliffy/ansi/mod.ts';
 //import { handleInput, handleKeyboardControls, handleMouseControls, Tui } from 'https://deno.land/x/tui@2.1.11/mod.ts';
 //import { TextBox } from 'https://deno.land/x/tui@2.1.11/src/components/mod.ts';
 
-import { unicodeWidth } from '@std/cli';
-import { stripAnsiCode } from '@std/fmt/colors';
+//import { unicodeWidth } from '@std/cli';
+//import { stripAnsiCode } from '@std/fmt/colors';
 import Kia from 'kia-spinner';
 import { SPINNERS } from './terminalSpinners.ts';
 import { LogFormatter } from 'shared/logFormatter.ts';
@@ -233,7 +233,7 @@ export class TerminalHandler {
 
 	public displayConversationEntry(
 		data: ConversationEntry,
-		conversationId?: ConversationId,
+		_conversationId?: ConversationId,
 		expectingMoreInput: boolean = false,
 	): void {
 		if (this.spinner) this.hideSpinner();
@@ -244,8 +244,8 @@ export class TerminalHandler {
 			timestamp,
 			conversationStats = {
 				statementCount: 1,
-				turnCount: 1,
-				totalTurnCount: 1,
+				statementTurnCount: 1,
+				conversationTurnCount: 1,
 			},
 			tokenUsageStatement = {
 				inputTokens: 0,
@@ -253,7 +253,7 @@ export class TerminalHandler {
 				totalTokens: 0,
 			},
 		} = data;
-		conversationId = data.conversationId;
+		//conversationId = data.conversationId;
 
 		if (!content) {
 			console.log('Entry has no content', data);
@@ -274,12 +274,12 @@ export class TerminalHandler {
 		}
 	}
 
-	public displayConversationUpdate(
+	public displayConversationAnswer(
 		data: ConversationResponse,
 		conversationId?: ConversationId,
 		expectingMoreInput: boolean = false,
 	): void {
-		//logger.debug(`displayConversationUpdate called with data: ${JSON.stringify(data)}`);
+		//logger.debug(`displayConversationAnswer called with data: ${JSON.stringify(data)}`);
 		this.hideSpinner();
 		conversationId = data.conversationId;
 
@@ -290,7 +290,7 @@ export class TerminalHandler {
 
 		const {
 			conversationTitle,
-			conversationStats = { statementCount: 1, turnCount: 1, totalTurnCount: 1 },
+			conversationStats = { statementCount: 1, statementTurnCount: 1, conversationTurnCount: 1 },
 			tokenUsageStatement = {
 				inputTokens: data.response.usage.inputTokens,
 				outputTokens: data.response.usage.outputTokens,
@@ -320,8 +320,14 @@ export class TerminalHandler {
 			colors.cyan(isNarrow ? 'C' : 'Conv'),
 			colors.yellow(isNarrow ? `${idShort}` : `ID:${idShort}`),
 			colors.green(isNarrow ? `S${conversationStats.statementCount}` : `St:${conversationStats.statementCount}`),
-			colors.magenta(isNarrow ? `T${conversationStats.turnCount}` : `Tn:${conversationStats.turnCount}`),
-			colors.blue(isNarrow ? `TT${conversationStats.totalTurnCount}` : `TT:${conversationStats.totalTurnCount}`),
+			colors.magenta(
+				isNarrow ? `T${conversationStats.statementTurnCount}` : `Tn:${conversationStats.statementTurnCount}`,
+			),
+			colors.blue(
+				isNarrow
+					? `TT${conversationStats.conversationTurnCount}`
+					: `TT:${conversationStats.conversationTurnCount}`,
+			),
 			colors.red(isNarrow ? `↓${tokenUsageStatement.inputTokens}` : `In:${tokenUsageStatement.inputTokens}`),
 			colors.yellow(
 				isNarrow ? `↑${tokenUsageStatement.outputTokens}` : `Out:${tokenUsageStatement.outputTokens}`,
@@ -390,13 +396,13 @@ export class TerminalHandler {
 			);
 			console.log(
 				palette.secondary('│') +
-					palette.warning(` ${symbols.radioOn} Turns: ${conversationStats.turnCount}`.padEnd(55)) +
+					palette.warning(` ${symbols.radioOn} Turns: ${conversationStats.statementTurnCount}`.padEnd(55)) +
 					palette.secondary('│'),
 			);
 			console.log(
 				palette.secondary('│') +
 					palette.info(
-						` ${symbols.clockwiseRightAndLeftSemicircleArrows} Total Turns: ${conversationStats.totalTurnCount}`
+						` ${symbols.clockwiseRightAndLeftSemicircleArrows} Total Turns: ${conversationStats.conversationTurnCount}`
 							.padEnd(53),
 					) + palette.secondary('│'),
 			);
@@ -425,6 +431,55 @@ export class TerminalHandler {
 			console.log(palette.secondary('╰─────────────────────────────────────────────────────╯'));
 			console.log('');
 		}
+	}
+
+	public displayError(data: unknown): void {
+		let errorMessage: string;
+
+		if (typeof data === 'object' && data !== null && 'error' in data && typeof data.error === 'string') {
+			errorMessage = data.error;
+		} else if (typeof data === 'string') {
+			errorMessage = data;
+		} else {
+			console.error('Received invalid error data:', data);
+			errorMessage = 'An unknown error occurred';
+		}
+		this.hideSpinner();
+		console.log(palette.error('╭─────────────────────────────────────────────────────╮'));
+		console.log(
+			palette.error('│') +
+				palette.error(` ${symbols.speechBalloon} Error ${symbols.speechBalloon}`.padEnd(55)) +
+				palette.error('│'),
+		);
+		console.log(palette.error('├─────────────────────────────────────────────────────┤'));
+
+		// Split the error message into lines that fit within the box
+		const maxLineLength = 53; // 55 - 2 for padding
+		const errorLines = [];
+		let currentLine = '';
+		const words = errorMessage.split(' ');
+		for (const word of words) {
+			if ((currentLine + word).length > maxLineLength) {
+				errorLines.push(currentLine.trim());
+				currentLine = '';
+			}
+			currentLine += word + ' ';
+		}
+		if (currentLine.trim()) {
+			errorLines.push(currentLine.trim());
+		}
+
+		// Display each line of the error message
+		for (const line of errorLines) {
+			console.log(
+				palette.error('│') +
+					palette.error(` ${line.padEnd(53)}`) +
+					palette.error('│'),
+			);
+		}
+
+		console.log(palette.error('╰─────────────────────────────────────────────────────╯'));
+		console.log('');
 	}
 
 	private highlightOutput(text: string): string {

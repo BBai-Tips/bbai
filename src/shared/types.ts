@@ -49,8 +49,8 @@ export interface ConversationTokenUsage {
 
 export interface ConversationMetrics {
 	statementCount: number;
-	turnCount: number;
-	totalTurnCount: number;
+	statementTurnCount: number;
+	conversationTurnCount: number;
 	providerRequestCount?: number;
 }
 
@@ -83,6 +83,8 @@ export interface ConversationResponse {
 	tokenUsageStatement: TokenUsage;
 	tokenUsageConversation: ConversationTokenUsage;
 	conversationStats: ConversationMetrics;
+	answer: string;
+	assistantThinking: string;
 }
 
 export interface VectorEmbedding {

@@ -5,11 +5,21 @@ import { getBbaiDir, getProjectRoot } from 'shared/dataDir.ts';
 import { join } from '@std/path';
 import { isCompiledBinary } from '../utils/environment.utils.ts';
 import { apiClient } from '../utils/apiClient.ts';
+import { watchLogs } from 'shared/logViewer.ts';
 
-export async function startApiServer(startDir: string, cliLogLevel?: string, cliLogFile?: string): Promise<void> {
+export async function startApiServer(
+	startDir: string,
+	cliLogLevel?: string,
+	cliLogFile?: string,
+	follow?: boolean,
+): Promise<{ pid: number; logFilePath: string }> {
 	if (await isApiRunning(startDir)) {
 		logger.info('bbai API server is already running.');
-		return;
+		const pid = await getPid(startDir);
+		const bbaiDir = await getBbaiDir(startDir);
+		const logFile = cliLogFile || config.logFile || 'api.log';
+		const logFilePath = join(bbaiDir, logFile);
+		return { pid: pid || 0, logFilePath };
 	}
 
 	const bbaiDir = await getBbaiDir(startDir);
@@ -18,7 +28,7 @@ export async function startApiServer(startDir: string, cliLogLevel?: string, cli
 	const logFilePath = join(bbaiDir, logFile);
 	const logLevel = cliLogLevel || config.logLevel || 'info';
 
-	logger.info(`Starting bbai API server...`);
+	logger.info(`Starting bbai API server, logging to ${logFilePath}`);
 
 	let command: Deno.Command;
 
@@ -68,12 +78,12 @@ export async function startApiServer(startDir: string, cliLogLevel?: string, cli
 	const pid = process.pid;
 	await savePid(startDir, pid);
 
-	logger.info(`bbai API server started with PID: ${pid}`);
-	logger.info(`Logs at level ${logLevel} are being written to: ${logFilePath}`);
-	logger.info("Use 'bbai stop' to stop the server.");
+	if (!follow) {
+		// Unref the child process to allow the parent to exit
+		process.unref();
+	}
 
-	// Unref the child process to allow the parent to exit
-	process.unref();
+	return { pid, logFilePath };
 }
 
 export async function stopApiServer(startDir: string): Promise<void> {
@@ -102,6 +112,33 @@ export async function stopApiServer(startDir: string): Promise<void> {
 export async function restartApiServer(startDir: string, cliLogLevel?: string, cliLogFile?: string): Promise<void> {
 	await stopApiServer(startDir);
 	await startApiServer(startDir, cliLogLevel, cliLogFile);
+}
+
+export async function followApiLogs(logFilePath: string, startDir: string): Promise<void> {
+	try {
+		// Set up SIGINT (Ctrl+C) handler
+		const ac = new AbortController();
+		const signal = ac.signal;
+
+		Deno.addSignalListener('SIGINT', async () => {
+			console.log('\nReceived SIGINT. Stopping API server...');
+			await stopApiServer(startDir);
+			ac.abort();
+			Deno.exit(0);
+		});
+
+		await watchLogs(logFilePath, (content: string) => {
+			console.log(content);
+		});
+	} catch (error) {
+		if (error instanceof Deno.errors.Interrupted) {
+			console.log('Log following interrupted.');
+		} else {
+			console.error(`Error following logs: ${error.message}`);
+		}
+	} finally {
+		Deno.removeSignalListener('SIGINT', () => {});
+	}
 }
 
 export async function getApiStatus(startDir: string): Promise<{

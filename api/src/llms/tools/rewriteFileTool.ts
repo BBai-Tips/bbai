@@ -1,7 +1,15 @@
-import LLMTool, { LLMToolInputSchema, LLMToolRunResult } from '../llmTool.ts';
+import LLMTool, {
+	LLMToolFormatterDestination,
+	LLMToolInputSchema,
+	LLMToolRunResult,
+	LLMToolRunResultContent,
+	LLMToolRunResultFormatter,
+	LLMToolUseInputFormatter,
+} from 'api/llms/llmTool.ts';
+import { colors } from 'cliffy/ansi/colors.ts';
+import { stripIndents } from 'common-tags';
 import LLMConversationInteraction from '../interactions/conversationInteraction.ts';
 import ProjectEditor from '../../editor/projectEditor.ts';
-import ConversationPersistence from '../../storage/conversationPersistence.ts';
 import { isPathWithinProject } from '../../utils/fileHandling.utils.ts';
 import { createError, ErrorType } from '../../utils/error.utils.ts';
 import { FileHandlingErrorOptions } from '../../errors/error.ts';
@@ -9,6 +17,7 @@ import { LLMAnswerToolUse } from 'api/llms/llmMessage.ts';
 import { logger } from 'shared/logger.ts';
 import { ensureDir } from '@std/fs';
 import { dirname, join } from '@std/path';
+import { getContentFromToolResult } from '../../utils/llms.utils.ts';
 
 export class LLMToolRewriteFile extends LLMTool {
 	constructor() {
@@ -33,6 +42,44 @@ export class LLMToolRewriteFile extends LLMTool {
 			required: ['filePath', 'content'],
 		};
 	}
+
+	toolUseInputFormatter: LLMToolUseInputFormatter = (
+		toolInput: LLMToolInputSchema,
+		format: LLMToolFormatterDestination = 'console',
+	): string => {
+		const { filePath, content, createIfMissing = true } = toolInput as {
+			filePath: string;
+			content: string;
+			createIfMissing?: boolean;
+		};
+		const contentPreview = content.length > 100 ? content.slice(0, 100) + '...' : content;
+		if (format === 'console') {
+			return stripIndents`
+				${colors.bold('File path:')} ${colors.cyan(filePath)}
+				${colors.bold('Create if missing:')} ${colors.yellow(createIfMissing.toString())}
+				${colors.bold('Content preview:')}
+				${colors.green(contentPreview)}`;
+		} else if (format === 'browser') {
+			return stripIndents`
+				<p><strong>File path:</strong> <span style="color: #4169E1;">${filePath}</span></p>
+				<p><strong>Create if missing:</strong> <span style="color: #DAA520;">${createIfMissing}</span></p>
+				<p><strong>Content preview:</strong></p>
+				<pre style="background-color: #F0FFF0; padding: 10px;">${contentPreview}</pre>`;
+		}
+		return JSON.stringify(toolInput, null, 2);
+	};
+
+	toolRunResultFormatter: LLMToolRunResultFormatter = (
+		toolResult: LLMToolRunResultContent,
+		format: LLMToolFormatterDestination = 'console',
+	): string => {
+		if (format === 'console') {
+			return colors.bold(getContentFromToolResult(toolResult));
+		} else if (format === 'browser') {
+			return `<p><strong>${getContentFromToolResult(toolResult)}</strong></p>`;
+		}
+		return getContentFromToolResult(toolResult);
+	};
 
 	async runTool(
 		interaction: LLMConversationInteraction,
@@ -85,29 +132,19 @@ export class LLMToolRewriteFile extends LLMTool {
 			}
 
 			await Deno.writeTextFile(fullFilePath, content);
-			projectEditor.patchedFiles.add(filePath);
-			projectEditor.patchContents.set(filePath, JSON.stringify(content));
 
-			// Log the applied changes
-			if (interaction) {
-				logger.info(`Saving conversation rewrite file: ${interaction.id}`);
-				const persistence = new ConversationPersistence(interaction.id, projectEditor);
-				await persistence.logPatch(filePath, JSON.stringify(content));
-				await projectEditor.orchestratorController.stageAndCommitAfterPatching(interaction);
-			}
-
-			const { messageId, toolResponse } = projectEditor.orchestratorController.toolManager.finalizeToolUse(
+			logger.info(`Saving conversation rewrite file: ${interaction.id}`);
+			await projectEditor.orchestratorController.logPatchAndCommit(
 				interaction,
-				toolUse,
-				isNewFile
-					? `File created and contents written successfully to file: ${filePath}`
-					: `Contents written successfully to file: ${filePath}`,
-				false,
-				//projectEditor,
+				filePath,
+				content,
 			);
 
-			const bbaiResponse = `BBai applied file contents to: ${filePath}`;
-			return { messageId, toolResponse, bbaiResponse };
+			const toolResults = `File ${filePath} ${isNewFile ? 'created' : 'rewritten'} with new contents.`;
+			const toolResponse = isNewFile ? 'Created a new file' : 'Rewrote existing file';
+			const bbaiResponse = `BBai ${isNewFile ? 'created' : 'rewrote'} file: ${filePath}`;
+
+			return { toolResults, toolResponse, bbaiResponse };
 		} catch (error) {
 			if (error.name === 'rewrite-file') {
 				throw error;

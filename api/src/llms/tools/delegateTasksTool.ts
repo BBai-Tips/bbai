@@ -1,4 +1,4 @@
-import LLMTool, { LLMToolInputSchema, LLMToolRunResult } from '../llmTool.ts';
+import LLMTool, { LLMToolInputSchema, LLMToolRunResult } from 'api/llms/llmTool.ts';
 import LLMConversationInteraction from '../interactions/conversationInteraction.ts';
 import { logger } from 'shared/logger.ts';
 import { LLMAnswerToolUse } from 'api/llms/llmMessage.ts';
@@ -118,7 +118,7 @@ export class DelegateTasksTool extends LLMTool {
 		const { fileNames } = toolInput as { fileNames: string[] };
 
 		try {
-			return { messageId: '', toolResponse: '', bbaiResponse: '' };
+			return { toolResults: [], toolResponse: '', bbaiResponse: '' };
 		} catch (error) {
 			logger.error(`Error adding files to conversation: ${error.message}`);
 
