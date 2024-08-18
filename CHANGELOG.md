@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+
+
+## [0.0.9-alpha] - 2024-08-18
+
+### Changed
+
 - Added mock stubs to bypass calls to LLM during unit tests
 - Added web page fetch tool
 - Added web screenshot fetch tool
