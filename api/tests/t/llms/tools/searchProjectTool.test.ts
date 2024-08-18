@@ -51,10 +51,19 @@ Deno.test({
 
 		assertStringIncludes(result.bbaiResponse, 'BBai found 3 files matching the pattern "Hello"');
 		assertStringIncludes(result.toolResponse, 'Found 3 files matching the pattern "Hello"');
-		assertStringIncludes(
-			result.toolResults as string,
-			'3 files match the pattern "Hello"\n<files>\n./file1.txt\n./file2.js\n./subdir/file3.txt\n</files>',
-		);
+		const toolResults = result.toolResults as string;
+		assertStringIncludes(toolResults, '3 files match the pattern "Hello"');
+		assertStringIncludes(toolResults, '<files>');
+		assertStringIncludes(toolResults, '</files>');
+		
+		const expectedFiles = ['./file1.txt', './file2.js', './subdir/file3.txt'];
+		const fileContent = toolResults.split('<files>')[1].split('</files>')[0].trim();
+		const foundFiles = fileContent.split('\n');
+		
+		expectedFiles.forEach(file => {
+			assert(foundFiles.includes(file), `File ${file} not found in the result`);
+		});
+		assert(foundFiles.length === expectedFiles.length, 'Number of found files does not match expected');
 	},
 	sanitizeResources: false,
 	sanitizeOps: false,
@@ -86,10 +95,19 @@ Deno.test({
 			result.toolResponse,
 			'Found 2 files matching the pattern "Hello" with file pattern "*.txt"',
 		);
-		assertStringIncludes(
-			result.toolResults as string,
-			'2 files match the pattern "Hello" with file pattern "*.txt"\n<files>\n./file1.txt\n./subdir/file3.txt\n</files>',
-		);
+		const toolResults = result.toolResults as string;
+		assertStringIncludes(toolResults, '2 files match the pattern "Hello" with file pattern "*.txt"');
+		assertStringIncludes(toolResults, '<files>');
+		assertStringIncludes(toolResults, '</files>');
+		
+		const expectedFiles = ['./file1.txt', './subdir/file3.txt'];
+		const fileContent = toolResults.split('<files>')[1].split('</files>')[0].trim();
+		const foundFiles = fileContent.split('\n');
+		
+		expectedFiles.forEach(file => {
+			assert(foundFiles.includes(file), `File ${file} not found in the result`);
+		});
+		assert(foundFiles.length === expectedFiles.length, 'Number of found files does not match expected');
 	},
 	sanitizeResources: false,
 	sanitizeOps: false,
