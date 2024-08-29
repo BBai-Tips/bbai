@@ -89,6 +89,11 @@ function isMatch(path: string, pattern: string): boolean {
 		pattern = pattern.split('*').join('**');
 	}
 
+	// Handle bare filename (no path, no wildcards)
+	if (!pattern.includes('/') && !pattern.includes('*')) {
+		pattern = `**/${pattern}`;
+	}
+
 	const regex = globToRegExp(pattern, { extended: true, globstar: true });
 	return regex.test(path) || regex.test(join(path, ''));
 }
@@ -163,17 +168,23 @@ export async function updateFile(projectRoot: string, filePath: string, _content
 	logger.info(`File ${filePath} updated in the project`);
 }
 
-export async function searchFiles(
+export async function searchFilesContent(
 	projectRoot: string,
-	pattern: string,
-	filePattern?: string,
+	contentPattern: string,
+	options?: {
+		file_pattern?: string;
+		date_after?: string;
+		date_before?: string;
+		size_min?: number;
+		size_max?: number;
+	},
 ): Promise<{ files: string[]; errorMessage: string | null }> {
 	try {
 		const excludeOptions = await getExcludeOptions(projectRoot);
-		const grepCommand = ['-r', '-l', '-E', `${pattern}`];
+		const grepCommand = ['-r', '-l', '-E', `${contentPattern}`];
 
-		if (filePattern) {
-			grepCommand.push('--include', filePattern);
+		if (options?.file_pattern) {
+			grepCommand.push('--include', options.file_pattern);
 		}
 
 		// Add exclude options
@@ -196,13 +207,114 @@ export async function searchFiles(
 		const rawError = new TextDecoder().decode(stderr).trim();
 
 		if (code === 0 || code === 1) { // grep returns 1 if no matches found, which is not an error for us
-			const files = rawOutput.split('\n').filter(Boolean);
+			let files = rawOutput.split('\n').filter(Boolean);
+
+			// Apply additional metadata filters
+			if (options) {
+				files = await filterFilesByMetadata(projectRoot, files, options);
+			}
+
 			return { files, errorMessage: null };
 		} else {
 			return { files: [], errorMessage: rawError };
 		}
 	} catch (error) {
-		logger.error(`Error in searchFiles: ${error.message}`);
+		logger.error(`Error in searchFilesContent: ${error.message}`);
+		return { files: [], errorMessage: error.message };
+	}
+}
+
+async function filterFilesByMetadata(
+	projectRoot: string,
+	files: string[],
+	options: {
+		file_pattern?: string;
+		date_after?: string;
+		date_before?: string;
+		size_min?: number;
+		size_max?: number;
+	},
+): Promise<string[]> {
+	const filteredFiles: string[] = [];
+
+	for (const file of files) {
+		const fullPath = join(projectRoot, file);
+		const stat = await Deno.stat(fullPath);
+
+		// Check date range
+		if (options.date_after && stat.mtime && stat.mtime < new Date(options.date_after)) continue;
+		if (options.date_before && stat.mtime && stat.mtime > new Date(options.date_before)) continue;
+
+		// Check file size
+		if (options.size_min !== undefined && stat.size < options.size_min) continue;
+		if (options.size_max !== undefined && stat.size > options.size_max) continue;
+
+		filteredFiles.push(file);
+	}
+
+	return filteredFiles;
+}
+
+export async function searchFilesMetadata(
+	projectRoot: string,
+	options: {
+		file_pattern?: string;
+		date_after?: string;
+		date_before?: string;
+		size_min?: number;
+		size_max?: number;
+	},
+): Promise<{ files: string[]; errorMessage: string | null }> {
+	try {
+		const excludeOptions = await getExcludeOptions(projectRoot);
+		const matchingFiles: string[] = [];
+
+		for await (const entry of walk(projectRoot, { includeDirs: false })) {
+			const relativePath = relative(projectRoot, entry.path);
+			if (shouldExclude(relativePath, excludeOptions)) continue;
+
+			const stat = await Deno.stat(entry.path);
+
+			// Check file pattern
+			if (options.file_pattern && !isMatch(relativePath, options.file_pattern)) continue;
+
+			// Check date range
+			if (!stat.mtime) {
+				console.log(`File ${relativePath} has no modification time, excluding from results`);
+				continue;
+			}
+			if (options.date_after) {
+				const afterDate = new Date(options.date_after);
+				//if (stat.mtime < afterDate || stat.mtime > now) {
+				if (stat.mtime < afterDate) {
+					console.log(
+						`File ${relativePath} modified at ${stat.mtime.toISOString()} is outside the valid range (after ${options.date_after})`,
+					);
+					continue;
+				}
+			}
+			if (options.date_before) {
+				const beforeDate = new Date(options.date_before);
+				//if (stat.mtime >= beforeDate || stat.mtime > now) {
+				if (stat.mtime >= beforeDate) {
+					console.log(
+						`File ${relativePath} modified at ${stat.mtime.toISOString()} is outside the valid range (before ${options.date_before})`,
+					);
+					continue;
+				}
+			}
+
+			// Check file size
+			if (options.size_min !== undefined && stat.size < options.size_min) continue;
+			if (options.size_max !== undefined && stat.size > options.size_max) continue;
+
+			console.log(`File ${relativePath} matches all criteria`);
+			matchingFiles.push(relativePath);
+		}
+
+		return { files: matchingFiles, errorMessage: null };
+	} catch (error) {
+		logger.error(`Error in searchFilesMetadata: ${error.message}`);
 		return { files: [], errorMessage: error.message };
 	}
 }

@@ -73,6 +73,26 @@ BBai has a strict code of being kind to everyone - listening without judgement a
 - Document new code based on the Documentation Styleguide.
 - End all files with a newline.
 
+## Interface-Specific Guidelines
+
+### API
+- Follow RESTful principles when designing new endpoints
+- Ensure proper error handling and logging
+
+### BUI (Browser User Interface)
+- Use modern web technologies (e.g., HTML5, CSS3, JavaScript)
+- Ensure responsive design for various screen sizes
+- Follow accessibility guidelines (WCAG 2.1)
+
+### CLI (Command Line Interface)
+- Maintain consistent command structure
+- Provide clear and helpful error messages
+- Implement proper argument parsing
+
+### DUI (Desktop User Interface) - Future
+- Plan for cross-platform compatibility (Windows, macOS, Linux)
+- Consider native UI elements for each platform
+
 ## Development Workflow
 
 1. Ensure you have the latest changes: `git pull origin main`
@@ -85,6 +105,7 @@ BBai has a strict code of being kind to everyone - listening without judgement a
 8. If you've made version changes, update the version: `deno task update-version`
 9. Commit your changes (preferably using BBai to generate the commit message).
 10. Push to your fork and submit a pull request.
+11. When working on a specific interface (API, BUI, CLI, or DUI), follow the respective guidelines mentioned in the [Interface-Specific Guidelines](#interface-specific-guidelines) section.
 
 ### Important Tasks
 

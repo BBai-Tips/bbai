@@ -19,7 +19,7 @@ export class LLMToolRequestFiles extends LLMTool {
 	constructor() {
 		super(
 			'request_files',
-			'Request files to be added to the chat',
+			`Request files for the chat when you need to review them or make changes. Before requesting a file, check that you don't already have it included in an earlier message`,
 		);
 	}
 
@@ -34,8 +34,6 @@ export class LLMToolRequestFiles extends LLMTool {
 				},
 			},
 			required: ['fileNames'],
-			description:
-				`Request files for the chat when you need to review them or make changes. Before requesting a file, check that you don't already have it included in an earlier message`,
 		};
 	}
 

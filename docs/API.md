@@ -79,7 +79,7 @@ All endpoints are relative to: `http://localhost:<port>/api/v1`
     ```
   - The server will emit events for conversation updates, including:
     - `conversationReady`
-    - `conversationEntry`
+    - `conversationContinue`
     - `conversationAnswer`
     - `conversationError`
     - `conversationCancelled`

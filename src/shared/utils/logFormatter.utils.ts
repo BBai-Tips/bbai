@@ -50,7 +50,7 @@ export class LogFormatter {
 		if (userDefinedLength && userDefinedLength > 0) {
 			return userDefinedLength;
 		}
-		const { columns, rows: _rows } = Deno.consoleSize();
+		const { columns, rows: _rows } = Deno.stdin.isTerminal() ? Deno.consoleSize() : { columns:0,rows:0};
 		return columns > 0 ? columns : 120; // Default to 120 if unable to determine console width
 	}
 

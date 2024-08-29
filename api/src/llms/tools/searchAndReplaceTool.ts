@@ -5,7 +5,7 @@ import LLMTool, {
 	LLMToolRunResultContent,
 } from 'api/llms/llmTool.ts';
 import { colors } from 'cliffy/ansi/mod.ts';
-import { html, safeHtml, stripIndent, stripIndents } from 'common-tags';
+import { safeHtml, stripIndents } from 'common-tags';
 import LLMConversationInteraction from '../interactions/conversationInteraction.ts';
 import { LLMAnswerToolUse, LLMMessageContentPart, LLMMessageContentParts } from 'api/llms/llmMessage.ts';
 import ProjectEditor from '../../editor/projectEditor.ts';

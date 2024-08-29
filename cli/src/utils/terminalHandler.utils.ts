@@ -13,7 +13,7 @@ import { LogFormatter } from 'shared/logFormatter.ts';
 import { LLMMessageContentPartTextBlock } from 'api/llms/llmMessage.ts';
 import { getStatementHistory } from './statementHistory.utils.ts';
 import {
-	ConversationEntry,
+	ConversationContinue,
 	ConversationId,
 	ConversationResponse,
 	ConversationStart,
@@ -231,8 +231,8 @@ export class TerminalHandler {
 		}
 	}
 
-	public displayConversationEntry(
-		data: ConversationEntry,
+	public displayConversationContinue(
+		data: ConversationContinue,
 		_conversationId?: ConversationId,
 		expectingMoreInput: boolean = false,
 	): void {

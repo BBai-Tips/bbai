@@ -1,16 +1,14 @@
 import { Command } from 'cliffy/command/mod.ts';
-import { Spinner, TerminalHandler } from '../utils/terminalHandler.utils.ts';
-import { readLines } from '@std/io';
-
+import { TerminalHandler } from '../utils/terminalHandler.utils.ts';
 import { logger } from 'shared/logger.ts';
-import { apiClient } from '../utils/apiClient.ts';
-import { LogFormatter } from 'shared/logFormatter.ts';
-import { ConversationEntry, ConversationId, ConversationResponse, ConversationStart } from 'shared/types.ts';
+import { apiClient } from 'cli/apiClient.ts';
+import { websocketManager } from 'cli/websocketManager.ts';
+//import { LogFormatter } from 'shared/logFormatter.ts';
+import { ConversationContinue, ConversationId, ConversationResponse, ConversationStart } from 'shared/types.ts';
 import { isApiRunning } from '../utils/pid.utils.ts';
 import { startApiServer, stopApiServer } from '../utils/apiControl.utils.ts';
 import { getBbaiDir, getProjectRoot } from 'shared/dataDir.ts';
 import { addToStatementHistory } from '../utils/statementHistory.utils.ts';
-import { websocketManager } from '../utils/websocketManager.ts';
 import { generateConversationId } from 'shared/conversationManagement.ts';
 import { eventManager } from 'shared/eventManager.ts';
 
@@ -61,14 +59,13 @@ export const conversationStart = new Command()
 
 		try {
 			// Check if API is running, start it if not
-
-			//const apiRunning = await isApiRunning(projectRoot);
-			//if (!apiRunning) {
-			//	console.log('API is not running. Starting it now...');
-			//	await startApiServer(projectRoot);
-			//	apiStartedByUs = true;
-			//	console.log('API started successfully.');
-			//}
+			const apiRunning = await isApiRunning(projectRoot);
+			if (!apiRunning) {
+				console.log('API is not running. Starting it now...');
+				await startApiServer(projectRoot);
+				apiStartedByUs = true;
+				console.log('API started successfully.');
+			}
 
 			const startDir = Deno.cwd();
 			conversationId = options.id || generateConversationId();
@@ -80,8 +77,15 @@ export const conversationStart = new Command()
 				// no statement passed, so must be stdin, read all the lines
 				if (!statement) {
 					const input = [];
-					for await (const line of readLines(stdin)) {
-						input.push(line);
+					const reader = stdin.readable.getReader();
+					try {
+						while (true) {
+							const { done, value } = await reader.read();
+							if (done) break;
+							input.push(new TextDecoder().decode(value));
+						}
+					} finally {
+						reader.releaseLock();
 					}
 					if (input.length === 0) {
 						console.error('No input provided. Use -p option or provide input via STDIN.');
@@ -154,13 +158,13 @@ export const conversationStart = new Command()
 					}
 				}, conversationId);
 
-				eventManager.on('cli:conversationEntry', (data) => {
+				eventManager.on('cli:conversationContinue', (data) => {
 					if (!terminalHandler) {
 						logger.error(
-							`Terminal handler not initialized for conversation ${conversationId} and event cli:conversationEntry`,
+							`Terminal handler not initialized for conversation ${conversationId} and event cli:conversationContinue`,
 						);
 					}
-					terminalHandler?.displayConversationEntry(data as ConversationEntry, conversationId, true);
+					terminalHandler?.displayConversationContinue(data as ConversationContinue, conversationId, true);
 				}, conversationId);
 
 				eventManager.on('cli:conversationAnswer', (data) => {

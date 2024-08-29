@@ -16,6 +16,7 @@ import EventManager, { EventPayloadMap } from 'shared/eventManager.ts';
 import ConversationPersistence from '../storage/conversationPersistence.ts';
 import { ErrorHandlingConfig, LLMProviderMessageResponse, Task } from 'api/types/llms.ts';
 import {
+	ConversationContinue,
 	ConversationEntry,
 	ConversationId,
 	ConversationMetrics,
@@ -35,6 +36,35 @@ import { stageAndCommitAfterPatching } from '../utils/git.utils.ts';
 import { config } from 'shared/configManager.ts';
 
 class OrchestratorController {
+	// 	private getConversationHistory(interaction: LLMConversationInteraction): ConversationEntry[] {
+	// 		const history = interaction.getMessageHistory();
+	// 		return history.map((message: LLMMessage) => ({
+	// 			type: message.role,
+	// 			timestamp: message.timestamp,
+	// 			content: message.content,
+	// 			conversationStats: message.conversationStats || {
+	// 				statementCount: 0,
+	// 				statementTurnCount: 0,
+	// 				conversationTurnCount: 0
+	// 			},
+	// 			tokenUsageTurn: message.tokenUsageTurn || {
+	// 				inputTokens: 0,
+	// 				outputTokens: 0,
+	// 				totalTokens: 0
+	// 			},
+	// 			tokenUsageStatement: message.tokenUsageStatement || {
+	// 				inputTokens: 0,
+	// 				outputTokens: 0,
+	// 				totalTokens: 0
+	// 			},
+	// 			tokenUsageConversation: message.tokenUsageConversation || {
+	// 				inputTokensTotal: 0,
+	// 				outputTokensTotal: 0,
+	// 				totalTokensTotal: 0
+	// 			}
+	// 		}));
+	// 	}
+
 	private interactionStats: Map<ConversationId, ConversationMetrics> = new Map();
 	private interactionTokenUsage: Map<ConversationId, ConversationTokenUsage> = new Map();
 	private isCancelled: boolean = false;
@@ -372,7 +402,7 @@ class OrchestratorController {
 				tokenUsageStatement: TokenUsage,
 				tokenUsageConversation: ConversationTokenUsage,
 			): Promise<void> => {
-				const conversationEntry: ConversationEntry = {
+				const conversationContinue: ConversationContinue = {
 					type,
 					timestamp,
 					conversationId: this.primaryInteraction.id,
@@ -384,8 +414,8 @@ class OrchestratorController {
 					tokenUsageConversation: tokenUsageConversation,
 				};
 				this.eventManager.emit(
-					'projectEditor:conversationEntry',
-					conversationEntry as EventPayloadMap['projectEditor']['projectEditor:conversationEntry'],
+					'projectEditor:conversationContinue',
+					conversationContinue as EventPayloadMap['projectEditor']['projectEditor:conversationContinue'],
 				);
 			},
 			PREPARE_SYSTEM_PROMPT: async (system: string, interactionId: string): Promise<string> => {
@@ -536,7 +566,10 @@ class OrchestratorController {
 		this._conversationTurnCount++;
 		this._statementCount++;
 
-		const conversationReady: ConversationStart & { conversationStats: ConversationMetrics } = {
+		const conversationReady: ConversationStart & {
+			conversationStats: ConversationMetrics;
+			conversationHistory: ConversationEntry[];
+		} = {
 			conversationId: interaction.id,
 			conversationTitle: interaction.title,
 			timestamp: new Date().toISOString(),
@@ -545,8 +578,8 @@ class OrchestratorController {
 				statementTurnCount: this._statementTurnCount,
 				conversationTurnCount: this._conversationTurnCount,
 			},
-			//tokenUsageStatement: {inputTokens:0,outputTokens:0,totalTokens:0},
 			tokenUsageConversation: this.tokenUsageTotals,
+			conversationHistory: [], //this.getConversationHistory(interaction),
 		};
 		this.eventManager.emit(
 			'projectEditor:conversationReady',
@@ -635,13 +668,13 @@ class OrchestratorController {
 						/*
 						// Emit conversation entry event with updated stats
 						this.eventManager.emit(
-							'projectEditor:conversationEntry',
+							'projectEditor:conversationContinue',
 							{
 								type: 'human',
 								timestamp: new Date().toISOString(),
 								content: statement,
 								...getConversationStats(),
-							} as EventPayloadMap['projectEditor']['projectEditor:conversationEntry']
+							} as EventPayloadMap['projectEditor']['projectEditor:conversationContinue']
 						);
 						 */
 						//logger.info('OrchestratorController: tool response', currentResponse);

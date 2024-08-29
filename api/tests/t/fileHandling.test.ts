@@ -1,14 +1,110 @@
-import { assertEquals, assertStringIncludes } from '../deps.ts';
+import { assert, assertEquals, assertStringIncludes } from '../deps.ts';
 import { join } from '@std/path';
 
-import { generateFileListing, searchFiles } from '../../src/utils/fileHandling.utils.ts';
+import { generateFileListing, searchFilesContent, searchFilesMetadata } from '../../src/utils/fileHandling.utils.ts';
 import { GitUtils } from 'shared/git.ts';
 
 const testProjectRoot = Deno.makeTempDirSync();
 
+async function setFileModificationTime(filePath: string, date: Date) {
+	await Deno.utime(filePath, date, date);
+}
+
+async function createTestFiles() {
+	Deno.writeTextFileSync(join(testProjectRoot, 'file1.txt'), 'Hello, world!');
+	Deno.writeTextFileSync(join(testProjectRoot, 'file2.js'), 'console.log("Hello, JavaScript!");');
+	Deno.mkdirSync(join(testProjectRoot, 'subdir'));
+	Deno.writeTextFileSync(join(testProjectRoot, 'subdir', 'file3.txt'), 'Hello from subdirectory!');
+	Deno.writeTextFileSync(join(testProjectRoot, 'large_file.txt'), 'A'.repeat(10000)); // 10KB file
+	Deno.writeTextFileSync(join(testProjectRoot, 'empty_file.txt'), '');
+
+	const pastDate = new Date('2023-01-01T00:00:00Z');
+	const futureDate = new Date('2025-01-01T00:00:00Z');
+	const currentDate = new Date();
+
+	await setFileModificationTime(join(testProjectRoot, 'file1.txt'), pastDate);
+	await setFileModificationTime(join(testProjectRoot, 'file2.js'), futureDate);
+	await setFileModificationTime(join(testProjectRoot, 'subdir', 'file3.txt'), pastDate);
+	await setFileModificationTime(join(testProjectRoot, 'large_file.txt'), currentDate);
+	await setFileModificationTime(join(testProjectRoot, 'empty_file.txt'), currentDate);
+}
+
 function cleanupTestDirectory() {
 	for (const entry of Deno.readDirSync(testProjectRoot)) {
 		Deno.removeSync(join(testProjectRoot, entry.name), { recursive: true });
+
+		Deno.test({
+			name: 'searchFilesMetadata - find files based on date range',
+			fn: async () => {
+				cleanupTestDirectory();
+				try {
+					await createTestFiles();
+
+					const result = await searchFilesMetadata(testProjectRoot, {
+						date_after: '2024-01-01',
+						date_before: '2026-01-01',
+					});
+					console.log('Date-based search results:', result);
+					assertEquals(result.files.length, 1);
+					assertStringIncludes(result.files[0], 'file2.js');
+					assertEquals(result.errorMessage, null);
+				} finally {
+					await GitUtils.cleanup();
+				}
+			},
+			sanitizeResources: false,
+			sanitizeOps: false,
+		});
+
+		Deno.test({
+			name: 'searchFilesMetadata - find files based on size criteria',
+			fn: async () => {
+				cleanupTestDirectory();
+				try {
+					await createTestFiles();
+
+					const result = await searchFilesMetadata(testProjectRoot, {
+						size_min: 5000,
+						size_max: 15000,
+					});
+					console.log('Size-based search results:', result);
+					assertEquals(result.files.length, 1);
+					assertStringIncludes(result.files[0], 'large_file.txt');
+					assertEquals(result.errorMessage, null);
+				} finally {
+					await GitUtils.cleanup();
+				}
+			},
+			sanitizeResources: false,
+			sanitizeOps: false,
+		});
+
+		Deno.test({
+			name: 'searchFilesMetadata - combine multiple criteria',
+			fn: async () => {
+				cleanupTestDirectory();
+				try {
+					await createTestFiles();
+
+					const result = await searchFilesMetadata(testProjectRoot, {
+						file_pattern: '*.txt',
+						date_after: '2022-01-01',
+						date_before: '2024-01-01',
+						size_min: 1,
+						size_max: 1000,
+					});
+					console.log('Combined criteria search results:', result);
+					assertEquals(result.files.length, 2);
+					assert(result.files.some((file) => file.endsWith('file1.txt')));
+					assert(result.files.some((file) => file.endsWith('subdir/file3.txt')));
+					assertEquals(result.errorMessage, null);
+				} finally {
+					await GitUtils.cleanup();
+				}
+			},
+			sanitizeResources: false,
+			sanitizeOps: false,
+		});
 	}
 }
 
@@ -79,7 +175,7 @@ Deno.test({
 			Deno.writeTextFileSync(join(testProjectRoot, 'file1.txt'), 'Hello, world!');
 			Deno.writeTextFileSync(join(testProjectRoot, 'file2.txt'), 'Goodbye, world!');
 
-			const result = await searchFiles(testProjectRoot, 'Hello');
+			const result = await searchFilesContent(testProjectRoot, 'Hello');
 			assertEquals(result.files, ['./file1.txt']);
 			assertEquals(result.errorMessage, null);
 		} finally {
@@ -97,7 +193,7 @@ Deno.test({
 		try {
 			Deno.writeTextFileSync(join(testProjectRoot, 'file1.txt'), 'Hello, world!');
 
-			const result = await searchFiles(testProjectRoot, 'Nonexistent');
+			const result = await searchFilesContent(testProjectRoot, 'Nonexistent');
 			assertEquals(result.files, []);
 			assertEquals(result.errorMessage, null);
 		} finally {
@@ -116,7 +212,9 @@ Deno.test({
 			Deno.writeTextFileSync(join(testProjectRoot, 'file1.txt'), 'Hello, world!');
 			Deno.writeTextFileSync(join(testProjectRoot, 'file2.md'), 'Hello, markdown!');
 
-			const result = await searchFiles(testProjectRoot, 'Hello', '*.md');
+			const result = await searchFilesContent(testProjectRoot, 'Hello', {
+				file_pattern: '*.md',
+			});
 			assertEquals(result.files, ['./file2.md']);
 			assertEquals(result.errorMessage, null);
 		} finally {
@@ -128,13 +226,13 @@ Deno.test({
 });
 
 Deno.test({
-	name: 'searchFiles - handle errors gracefully',
+	name: 'searchFilesContent - handle errors gracefully',
 	fn: async () => {
 		cleanupTestDirectory();
 		try {
 			// This test simulates an error by searching in a non-existent directory
 			const nonExistentDir = join(testProjectRoot, 'nonexistent');
-			const result = await searchFiles(nonExistentDir, 'pattern');
+			const result = await searchFilesContent(nonExistentDir, 'pattern');
 			assertEquals(result.files, []);
 			assertStringIncludes(result.errorMessage!, "Failed to spawn 'grep': No such cwd");
 		} finally {

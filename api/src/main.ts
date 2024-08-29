@@ -1,12 +1,12 @@
 import { Application } from '@oak/oak';
 import oak_logger from 'oak_logger';
 import { parseArgs } from '@std/cli';
-//import { oakCors } from "cors";
+//import { oakCors } from 'cors';
 
 import { config, redactedConfig } from 'shared/configManager.ts';
 import router from './routes/routes.ts';
 import { logger } from 'shared/logger.ts';
-import { BbAiState } from './types.ts';
+import { BbAiState } from 'api/types.ts';
 
 const { environment, apiPort } = config.api || {};
 
@@ -71,6 +71,9 @@ if (environment === 'local') {
 	app.use(oak_logger.responseTime);
 }
 
+// app.use(oakCors({
+// 	origin: [/^.+localhost:(300.|800.)$/, 'http://localhost:8002'],
+// })); // Enable CORS for All Routes
 app.use(router.routes());
 app.use(router.allowedMethods());
 

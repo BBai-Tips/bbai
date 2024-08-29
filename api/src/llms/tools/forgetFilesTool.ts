@@ -19,7 +19,7 @@ export class LLMToolForgetFiles extends LLMTool {
 	constructor() {
 		super(
 			'forget_files',
-			'Forget specified files from the chat',
+			'Remove and Forget specified files from the chat when you no longer need them, to save on token cost and reduce the context you have to read.',
 		);
 	}
 
@@ -34,8 +34,6 @@ export class LLMToolForgetFiles extends LLMTool {
 				},
 			},
 			required: ['fileNames'],
-			description:
-				'Remove files from the chat when you no longer need them, to save on token cost and reduce the context you have to read.',
 		};
 	}
 

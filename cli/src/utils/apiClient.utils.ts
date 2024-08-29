@@ -14,24 +14,27 @@ class ApiClient {
 		const apiPort = config.api?.apiPort || 3000;
 		const baseUrl = `http://localhost:${apiPort}`;
 		const wsUrl = `ws://localhost:${apiPort}`;
+		logger.info(`APIClient: client created with baseUrl: ${baseUrl}, wsUrl: ${wsUrl}`);
 		return new ApiClient(baseUrl, wsUrl);
 	}
 
 	async get(endpoint: string) {
 		try {
+			//logger.info(`APIClient: GET request to: ${this.baseUrl}${endpoint}`);
 			const response = await fetch(`${this.baseUrl}${endpoint}`);
 			if (!response.ok) {
 				throw new Error(`HTTP error! status: ${response.status}`);
 			}
 			return response;
 		} catch (error) {
-			logger.error(`GET request failed for ${endpoint}: ${error.message}`);
+			logger.error(`APIClient: GET request failed for ${endpoint}: ${error.message}`);
 			throw error;
 		}
 	}
 
 	async post(endpoint: string, data: Record<string, unknown>) {
 		try {
+			//logger.info(`APIClient: POST request to: ${this.baseUrl}${endpoint}`);
 			const response = await fetch(`${this.baseUrl}${endpoint}`, {
 				method: 'POST',
 				headers: {
@@ -44,30 +47,27 @@ class ApiClient {
 			}
 			return response;
 		} catch (error) {
-			logger.error(`POST request failed for ${endpoint}: ${error.message}`);
+			logger.error(`APIClient: POST request failed for ${endpoint}: ${error.message}`);
 			throw error;
 		}
 	}
 
-	/*
-	async sendPrompt(prompt: string, conversationId?: ConversationId): Promise<any> {
-		const endpoint = conversationId ? `/api/v1/prompt/${conversationId}` : '/api/v1/prompt';
-		const response = await this.post(endpoint, { prompt });
-		return await response.json();
-	}
-	 */
-
 	async connectWebSocket(endpoint: string): Promise<WebSocket> {
-		const ws = new WebSocket(`${this.wsUrl}${endpoint}`);
-		// we don't want to wait for the connection to be open
-		//await new Promise((resolve) => {
-		//	ws.onopen = resolve;
-		//});
-		return ws;
+		const fullWsUrl = `${this.wsUrl}${endpoint}`;
+		//logger.info(`APIClient: Connecting WebSocket to: ${fullWsUrl}`);
+		const ws = new WebSocket(fullWsUrl);
+
+		return new Promise((resolve, reject) => {
+			ws.onopen = () => {
+				//logger.info('APIClient: WebSocket connection opened');
+				resolve(ws);
+			};
+			ws.onerror = (error) => {
+				logger.error('APIClient: WebSocket connection error:', error);
+				reject(error);
+			};
+		});
 	}
-	//private sendWsMessage(ws: WebSocket, type: string, data: any) {
-	//	ws.send(JSON.stringify({ type, data }));
-	//}
 }
 
 export const apiClient = await ApiClient.create();

@@ -1,7 +1,7 @@
 import { Command } from 'cliffy/command/mod.ts';
 import { ConversationMetadata } from 'shared/types.ts';
 import { resolve } from '@std/path';
-import { apiClient } from '../utils/apiClient.ts';
+import { apiClient } from 'cli/apiClient.ts';
 // import { createSpinner, startSpinner, stopSpinner } from '../utils/terminalHandler.utils.ts';
 
 export const conversationList = new Command()

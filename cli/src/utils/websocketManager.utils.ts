@@ -1,6 +1,6 @@
 import { eventManager, EventName, EventPayloadMap } from 'shared/eventManager.ts';
 import { ConversationId } from 'shared/types.ts';
-import { apiClient } from './apiClient.ts';
+import { apiClient } from 'cli/apiClient.ts';
 
 export class WebsocketManager {
 	private cancellationRequested: boolean = false;
@@ -14,6 +14,7 @@ export class WebsocketManager {
 		this.currentConversationId = conversationId;
 		const connectWebSocket = async (): Promise<WebSocket> => {
 			try {
+				//console.log(`WebsocketManager: Connecting websocket for conversation: ${conversationId}`);
 				return await apiClient.connectWebSocket(`/api/v1/ws/conversation/${conversationId}`);
 			} catch (error) {
 				await this.handleRetry(error);
@@ -24,10 +25,10 @@ export class WebsocketManager {
 		this.ws = await connectWebSocket();
 		this.retryCount = 0; // Reset retry count on successful connection
 
-		// Set up event listeners and wait for them to be ready
-		await this.setupEventListeners();
+		//console.log(`WebsocketManager: Setting up ws listeners for conversation: ${conversationId}`);
+		this.setupEventListeners();
 
-		// Send greeting after listeners are set up
+		//console.log(`WebsocketManager: Sending greeting for conversation: ${conversationId}`);
 		this.sendGreeting();
 	}
 
@@ -40,7 +41,8 @@ export class WebsocketManager {
 		}
 	}
 
-	private async setupEventListeners(): Promise<void> {
+	//private async setupEventListeners(): Promise<void> {
+	private setupEventListeners(): void {
 		if (!this.ws) {
 			throw new Error('WebSocket is not initialized');
 		}
@@ -48,15 +50,19 @@ export class WebsocketManager {
 		// Remove any existing listeners
 		this.removeEventListeners();
 
-		return new Promise<void>((resolve) => {
-			this.ws!.onmessage = this.handleMessage.bind(this);
-			this.ws!.onclose = this.handleClose.bind(this);
-			this.ws!.onerror = this.handleError.bind(this);
-			this.ws!.onopen = (event: Event) => {
-				this.handleOpen(event);
-				resolve();
-			};
-		});
+		this.ws!.onmessage = this.handleMessage.bind(this);
+		this.ws!.onclose = this.handleClose.bind(this);
+		this.ws!.onerror = this.handleError.bind(this);
+		this.ws!.onopen = this.handleOpen.bind(this);
+		// 		return new Promise<void>((resolve) => {
+		// 			this.ws!.onmessage = this.handleMessage.bind(this);
+		// 			this.ws!.onclose = this.handleClose.bind(this);
+		// 			this.ws!.onerror = this.handleError.bind(this);
+		// 			this.ws!.onopen = ((event: Event) => {
+		// 				this.handleOpen(event);
+		// 				resolve();
+		// 			}).bind(this);
+		// 		});
 	}
 
 	private handleOpen(_event: Event): void {
@@ -66,7 +72,7 @@ export class WebsocketManager {
 
 	private handleMessage(event: MessageEvent): void {
 		const msgData = JSON.parse(event.data);
-		//console.log(`WebSocket handling message for type: ${msgData.type}`);
+		//console.log(`WebsocketManager: WebSocket handling message for type: ${msgData.type}`);
 		switch (msgData.type) {
 			case 'conversationReady':
 				eventManager.emit(
@@ -80,10 +86,10 @@ export class WebsocketManager {
 					} as EventPayloadMap['cli']['cli:conversationWaitForReady'],
 				);
 				break;
-			case 'conversationEntry':
+			case 'conversationContinue':
 				eventManager.emit(
-					'cli:conversationEntry',
-					{ ...msgData.data, expectingMoreInput: true } as EventPayloadMap['cli']['cli:conversationEntry'],
+					'cli:conversationContinue',
+					{ ...msgData.data, expectingMoreInput: true } as EventPayloadMap['cli']['cli:conversationContinue'],
 				);
 				break;
 			case 'conversationAnswer':
@@ -99,7 +105,7 @@ export class WebsocketManager {
 				);
 				break;
 			case 'conversationError':
-				console.error(`WebsocketManager: Received conversation error:`, msgData.data);
+				//console.error(`WebsocketManager: Received conversation error:`, msgData.data);
 				eventManager.emit(
 					'cli:conversationError',
 					{ ...msgData.data } as EventPayloadMap['cli']['cli:conversationError'],

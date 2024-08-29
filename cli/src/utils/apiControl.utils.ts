@@ -4,7 +4,7 @@ import { getPid, isApiRunning, removePid, savePid } from '../utils/pid.utils.ts'
 import { getBbaiDir, getProjectRoot } from 'shared/dataDir.ts';
 import { join } from '@std/path';
 import { isCompiledBinary } from '../utils/environment.utils.ts';
-import { apiClient } from '../utils/apiClient.ts';
+import { apiClient } from 'cli/apiClient.ts';
 import { watchLogs } from 'shared/logViewer.ts';
 
 export async function startApiServer(

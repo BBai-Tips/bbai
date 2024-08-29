@@ -40,7 +40,9 @@ It supports vector embeddings for code and text chunks from local repositories, 
 
 ## Project Structure
 - API: `api/src/`
+- BUI: `bui/src/`
 - CLI: `cli/src/`
+- DUI: `dui/src/` (future)
 - Shared: `src/shared/` for code shared between API and CLI
 - Utilities: Separate utils in `api/src/utils/` and `cli/src/utils/`
 - Documentation: `docs/`
@@ -97,13 +99,16 @@ Key API Endpoints:
 - Maintain separate builds for API and CLI
 - Use `src/shared/` for code shared between API and CLI
 
-## CLI Structure and Conventions
+## Interface Structure and Conventions
 - Main CLI process in `cli/src/main.ts`
 - Include `bbai logs` command for viewing conversations
 - Ensure cross-platform compatibility
 - Use descriptive names for CLI-specific components
 - Prefix CLI-specific types with `CLI`
 - The CLI tool is named `bbai` (lowercase)
+- The API server is referred to as 'api'
+- The Browser User Interface is referred to as 'bui'
+- The future Desktop User Interface will be referred to as 'dui'
 
 ## Configuration
 - Use `deno.jsonc` for project configuration

@@ -54,6 +54,8 @@ export interface ConversationMetrics {
 	providerRequestCount?: number;
 }
 
+export type ConversationEntry = ConversationStart | ConversationContinue | ConversationResponse;
+
 export interface ConversationStart {
 	conversationId: ConversationId;
 	conversationTitle: string;
@@ -61,9 +63,10 @@ export interface ConversationStart {
 	tokenUsageStatement?: TokenUsage;
 	tokenUsageConversation: ConversationTokenUsage;
 	conversationStats: ConversationMetrics; // for resuming a conversation
+	conversationHistory: ConversationEntry[];
 }
 
-export interface ConversationEntry {
+export interface ConversationContinue {
 	conversationId: ConversationId;
 	conversationTitle: string;
 	type: ConversationLoggerEntryType;

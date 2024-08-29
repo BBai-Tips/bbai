@@ -183,8 +183,8 @@ class WebSocketHandler {
 				callback: (data) => this.sendMessage(ws, 'conversationReady', data),
 			},
 			{
-				event: 'projectEditor:conversationEntry',
-				callback: (data) => this.sendMessage(ws, 'conversationEntry', data),
+				event: 'projectEditor:conversationContinue',
+				callback: (data) => this.sendMessage(ws, 'conversationContinue', data),
 			},
 			{
 				event: 'projectEditor:conversationAnswer',

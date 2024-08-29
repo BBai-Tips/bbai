@@ -1,5 +1,10 @@
 # TODO List
 
+## Interface Development
+1. Implement Browser User Interface (BUI) for increased accessibility
+2. Plan and design Desktop User Interface (DUI) for future development
+3. Ensure consistency across API, BUI, CLI, and future DUI interfaces
+
 ## Repository Information Management
 1. Convert projectInfo into a proper class with support for:
    - ctags
@@ -37,6 +42,8 @@
 2. Format JSON in display of logs
 
 ## Configuration and Customization
+1. Create configs for different interfaces (API, BUI, CLI, DUI)
+2. Implement interface-specific settings in the configuration file
 1. Make the 'post-run' script (currently hard-coded for deno format) a user config option
 2. Implement a safety switch (e.g., allow_dangerous_user_scripts) for potentially dangerous user scripts
 3. Create a meta tool to choose which toolset to load (e.g., different tools for coding projects vs. creative writing)
@@ -57,6 +64,8 @@
 4. Don't persist a conversation for a quick chat
 
 ## New Tools and Commands
+1. Develop BUI-specific tools and commands
+2. Plan for DUI-specific tools and commands
 1. Create a `bbai doctor` command to zip a conversation for sharing
 2. Create a summarize history tool to reduce token count and delete earlier messages
 3. Implement new tools:

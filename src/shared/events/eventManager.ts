@@ -1,7 +1,7 @@
 import type { ConversationLoggerEntryType } from 'shared/conversationLogger.ts';
 import { LLMProviderMessageMeta, LLMProviderMessageResponse } from 'api/types/llms.ts';
 import {
-	ConversationEntry,
+	ConversationContinue,
 	ConversationId,
 	ConversationMetrics,
 	ConversationResponse,
@@ -13,7 +13,7 @@ export type EventMap = {
 	projectEditor: {
 		speakWith: { conversationId: ConversationId; startDir: string; prompt: string };
 		conversationReady: ConversationStart;
-		conversationEntry: ConversationEntry;
+		conversationContinue: ConversationContinue;
 		conversationAnswer: ConversationResponse;
 		conversationCancelled: { conversationId: ConversationId; message: string };
 		conversationError: {
@@ -33,7 +33,7 @@ export type EventMap = {
 		conversationWaitForReady: { conversationId: ConversationId };
 		conversationWaitForAnswer: { conversationId: ConversationId };
 		conversationReady: ConversationStart;
-		conversationEntry: ConversationEntry;
+		conversationContinue: ConversationContinue;
 		conversationAnswer: ConversationResponse;
 		websocketReconnected: { conversationId: ConversationId };
 		conversationError: {

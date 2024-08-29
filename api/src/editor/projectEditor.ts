@@ -45,7 +45,7 @@ class ProjectEditor {
 			this.eventManager = EventManager.getInstance();
 			this.orchestratorController = await new OrchestratorController(this).init();
 		} catch (error) {
-			logger.error('Failed to initialize ProjectEditor:', error);
+			logger.error(`Failed to initialize ProjectEditor in ${this.startDir}:`, error);
 			throw error;
 		}
 		return this;
