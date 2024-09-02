@@ -1,9 +1,8 @@
 # TODO List
 
 ## Interface Development
-1. Implement Browser User Interface (BUI) for increased accessibility
-2. Plan and design Desktop User Interface (DUI) for future development
-3. Ensure consistency across API, BUI, CLI, and future DUI interfaces
+1. Plan and design Desktop User Interface (DUI) for future development
+2. Ensure consistency across API, BUI, CLI, and future DUI interfaces
 
 ## Repository Information Management
 1. Convert projectInfo into a proper class with support for:
@@ -16,11 +15,8 @@
 4. Don't create tags file in .bbai - either save with conversation or use the persistence solution
 
 ## Patching and Git Integration
-1. Create a new tool to add files rather than update files
-2. For new files in patches, check for paths starting with `b/` and strip it
-2. Add config option to create new branch when starting a conversation
-4. Implement a way to "end" conversation which merges branch back to original
-5. New files need to be staged before committing
+1. Add config option to create new branch when starting a conversation
+2. Implement a way to "end" conversation which merges branch back to original
 
 ## Task Management
 1. Create an 'add task' tool allowing Claude to give bbai a list of tasks to complete
@@ -56,12 +52,8 @@
 1. Implement conversation state management:
    - Keep state of conversations with a currently active 'speak with'
    - Use KV (or similar) to create "conversation locking" in ProjectEditor to allow only a single active conversation
-1. At start of each conversation, get current git commit, save it with the "Add File" content of new message
-1. When running `bbai chat`:
-   - Check if API is running; if not, start it, and then kill it when exiting
-   - Ensure the API logs go to file and not to chat terminal (Unless debug CLI arg is passed)
-   - Don't start API in watch mode if auto-started by `bbai chat` (pass args via action(...))
-4. Don't persist a conversation for a quick chat
+2. At start of each conversation, get current git commit, save it with the "Add File" content of new message
+3. Don't persist a conversation for a quick chat
 
 ## New Tools and Commands
 1. Develop BUI-specific tools and commands
@@ -129,10 +121,17 @@
 36. √ Format JSON in display of logs
 37. √ Patching and Git Integration
    - Modify apply_patch tool to accept a list of file names and patches
+38. √ Implement Browser User Interface (BUI) for increased accessibility
+39. √ Create a new tool to add files rather than update files
+40. √ For new files in patches, check for paths starting with `b/` and strip it
+41. √ New files need to be staged before committing
+42. √ When running `bbai chat`:
+   - Check if API is running; if not, start it, and then kill it when exiting
+   - Ensure the API logs go to file and not to chat terminal (Unless debug CLI arg is passed)
+   - Don't start API in watch mode if auto-started by `bbai chat` (pass args via action(...))
+
 
 Thoughts...
-
-
 
 Pull thinking out of tool use 
 Pull <reply> out of answer and send as summary - rest of answer is 'assistant' log entry
