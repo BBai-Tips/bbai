@@ -9,8 +9,8 @@ const getLogLevel = async (): Promise<LogLevel> => {
 		return envLogLevel as LogLevel;
 	}
 
-	if (config.logLevel && logLevels.includes(config.logLevel as LogLevel)) {
-		return config.logLevel as LogLevel;
+	if (config.api?.logLevel && logLevels.includes(config.api?.logLevel as LogLevel)) {
+		return config.api?.logLevel as LogLevel;
 	}
 
 	return 'info';

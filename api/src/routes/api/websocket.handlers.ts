@@ -1,9 +1,10 @@
-import { Context, RouterContext } from '@oak/oak';
+import type { Context, RouterContext } from '@oak/oak';
 
 import { projectEditorManager } from '../../editor/projectEditorManager.ts';
 import { logger } from 'shared/logger.ts';
-import { ConversationId } from 'shared/types.ts';
-import EventManager, { EventMap, EventName } from 'shared/eventManager.ts';
+import type { ConversationId } from 'shared/types.ts';
+import EventManager from 'shared/eventManager.ts';
+import type { EventMap, EventName } from 'shared/eventManager.ts';
 
 class WebSocketHandler {
 	private listeners: Map<ConversationId, Array<{ event: EventName<keyof EventMap>; callback: (data: any) => void }>> =
@@ -133,7 +134,7 @@ class WebSocketHandler {
 			} else if (task === 'cancel') {
 				logger.error(`WebSocketHandler: Cancelling statement for conversationId: ${conversationId}`);
 				try {
-					await projectEditor?.orchestratorController.cancelCurrentOperation(conversationId);
+					projectEditor?.orchestratorController.cancelCurrentOperation(conversationId);
 					this.eventManager.emit('projectEditor:conversationCancelled', {
 						conversationId,
 						message: 'Operation cancelled',
@@ -183,8 +184,8 @@ class WebSocketHandler {
 				callback: (data) => this.sendMessage(ws, 'conversationReady', data),
 			},
 			{
-				event: 'projectEditor:conversationEntry',
-				callback: (data) => this.sendMessage(ws, 'conversationEntry', data),
+				event: 'projectEditor:conversationContinue',
+				callback: (data) => this.sendMessage(ws, 'conversationContinue', data),
 			},
 			{
 				event: 'projectEditor:conversationAnswer',
@@ -222,6 +223,9 @@ class WebSocketHandler {
 		this.activeConnections.delete(conversationId);
 		projectEditorManager.releaseEditor(conversationId);
 		ws.close();
+		this.activeConnections.delete(conversationId);
+		projectEditorManager.releaseEditor(conversationId);
+		ws.close();
 		// removeEventListeners is called by the 'close' event listener
 		// so we don't need to call it explicitly here
 	}
@@ -241,7 +245,7 @@ const eventManager = EventManager.getInstance();
 const wsHandler = new WebSocketHandler(eventManager);
 
 // This is the function that gets mounted to the endpoint in apiRouter
-export const websocketConversation = async (ctx: Context) => {
+export const websocketConversation = (ctx: Context) => {
 	logger.debug('WebSocketHandler: websocketConversation called from router');
 
 	try {

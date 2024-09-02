@@ -1,23 +1,26 @@
-import LLMTool, {
-	LLMToolFormatterDestination,
-	LLMToolInputSchema,
-	LLMToolRunResult,
-	LLMToolRunResultContent,
-} from 'api/llms/llmTool.ts';
-import { colors } from 'cliffy/ansi/mod.ts';
-import { html, safeHtml, stripIndent, stripIndents } from 'common-tags';
-import LLMConversationInteraction from '../interactions/conversationInteraction.ts';
-import { LLMAnswerToolUse, LLMMessageContentPart, LLMMessageContentParts } from 'api/llms/llmMessage.ts';
-import ProjectEditor from '../../editor/projectEditor.ts';
+import type { JSX } from 'preact';
+import LLMTool from 'api/llms/llmTool.ts';
+import type { LLMToolInputSchema, LLMToolRunResult, LLMToolRunResultContent } from 'api/llms/llmTool.ts';
+import {
+	formatToolResult as formatToolResultBrowser,
+	formatToolUse as formatToolUseBrowser,
+} from './formatters/searchAndReplaceTool.browser.tsx';
+import {
+	formatToolResult as formatToolResultConsole,
+	formatToolUse as formatToolUseConsole,
+} from './formatters/searchAndReplaceTool.console.ts';
+import type LLMConversationInteraction from '../interactions/conversationInteraction.ts';
+import type { LLMAnswerToolUse, LLMMessageContentParts } from 'api/llms/llmMessage.ts';
+import type ProjectEditor from '../../editor/projectEditor.ts';
 import { createError, ErrorType } from '../../utils/error.utils.ts';
-import { FileHandlingErrorOptions } from '../../errors/error.ts';
+import type { FileHandlingErrorOptions } from '../../errors/error.ts';
 import { isPathWithinProject } from '../../utils/fileHandling.utils.ts';
 import { logger } from 'shared/logger.ts';
 import { dirname, join } from '@std/path';
 import { ensureDir } from '@std/fs';
 import { getContentFromToolResult } from '../../utils/llms.utils.ts';
 
-export class LLMToolSearchAndReplace extends LLMTool {
+export default class LLMToolSearchAndReplace extends LLMTool {
 	private static readonly MIN_SEARCH_LENGTH = 1;
 
 	constructor() {
@@ -25,6 +28,7 @@ export class LLMToolSearchAndReplace extends LLMTool {
 			'search_and_replace',
 			'Apply a list of search and replace operations to a file',
 		);
+		this.fileName = 'searchAndReplaceTool.ts';
 	}
 
 	get input_schema(): LLMToolInputSchema {
@@ -75,93 +79,12 @@ export class LLMToolSearchAndReplace extends LLMTool {
 		};
 	}
 
-	toolUseInputFormatter(toolInput: LLMToolInputSchema, format: LLMToolFormatterDestination = 'console'): string {
-		const { filePath, operations, createIfMissing = true } = toolInput;
-
-		let formattedInput = '';
-
-		if (format === 'console') {
-			formattedInput = stripIndents`
-				File: ${colors.bold(filePath)} (${
-				colors.bold(createIfMissing ? 'Create if missing' : "Don't create new file")
-			})
-				
-				${colors.bold('Operations:\n')}
-			`;
-			operations.forEach(
-				(
-					op: { search: string; replace: string; replaceAll: boolean; caseSensitive: boolean },
-					index: number,
-				) => {
-					formattedInput += `
-${colors.bold(`Operation ${index + 1}:`)} (${colors.bold(op.replaceAll ? 'Replace all' : 'Replace first')})  (${
-						colors.bold(op.caseSensitive ? 'Case sensitive' : 'Case insensitive')
-					})
-${colors.yellow.bold('Search:')}
-${op.search}
-
-${colors.green.bold('Replace:')}
-${op.replace}
-
-`;
-				},
-			);
-		} else if (format === 'browser') {
-			formattedInput = stripIndents`
-					<p><strong>File:</strong> ${filePath}  <strong>(${
-				createIfMissing ? 'Create if missing' : "Don't create new file"
-			})</strong></p>
-					<h3>Operations:</h3>
-				`;
-			operations.forEach(
-				(
-					op: { search: string; replace: string; replaceAll: boolean; caseSensitive: boolean },
-					index: number,
-				) => {
-					formattedInput += safeHtml`
-						<div>
-						<h4>Operation ${index + 1}: <strong>(${
-						op.replaceAll ? 'Replace all' : 'Replace first'
-					})</strong> <strong>(${op.caseSensitive ? 'Case sensitive' : 'Case insensitive'})</strong></h4>
-						<p><strong>Search:</strong></p>
-						<pre style="color: #DAA520;">${op.search}</pre>
-						<p><strong>Replace:</strong></p>
-						<pre style="color: #228B22;">${op.replace}</pre>
-						<p><strong>Replace all:</strong> ${op.replaceAll ?? false}</p>
-						<p><strong>Case sensitive:</strong> ${op.caseSensitive ?? true}</p>
-						</div>
-					`;
-				},
-			);
-		}
-
-		return formattedInput;
+	formatToolUse(toolInput: LLMToolInputSchema, format: 'console' | 'browser'): string | JSX.Element {
+		return format === 'console' ? formatToolUseConsole(toolInput) : formatToolUseBrowser(toolInput);
 	}
 
-	toolRunResultFormatter(
-		toolResult: LLMToolRunResultContent,
-		format: LLMToolFormatterDestination = 'console',
-	): string {
-		const results: LLMMessageContentParts = Array.isArray(toolResult)
-			? toolResult
-			: [toolResult as LLMMessageContentPart];
-		let formattedResult = '';
-
-		results.forEach((result: LLMMessageContentPart) => {
-			if (result.type === 'text') {
-				if (format === 'console') {
-					formattedResult += `${colors.bold(result.text)}\n`;
-				} else if (format === 'browser') {
-					formattedResult += `<p><strong>${result.text}</strong></p>`;
-				} else {
-					formattedResult += `${result.text}\n`;
-				}
-			} else {
-				formattedResult += `Unknown type: ${result.type}\n`;
-			}
-		});
-
-		return formattedResult.trim();
+	formatToolResult(toolResult: LLMToolRunResultContent, format: 'console' | 'browser'): string | JSX.Element {
+		return format === 'console' ? formatToolResultConsole(toolResult) : formatToolResultBrowser(toolResult);
 	}
 
 	async runTool(
@@ -208,10 +131,10 @@ ${op.replace}
 			}
 
 			const operationResults = [];
-			let successfulOperations = [];
+			const successfulOperations = [];
 			for (const [index, operation] of operations.entries()) {
 				const { search, replace, replaceAll = false, caseSensitive = true } = operation;
-				let operationWarnings = [];
+				const operationWarnings = [];
 				let operationSuccess = false;
 
 				// Validate search string
@@ -284,7 +207,9 @@ ${op.replace}
 					JSON.stringify(successfulOperations),
 				);
 
-				const toolResultContentParts: LLMMessageContentParts = operationResults.map((result: any) => ({
+				const toolResultContentParts: LLMMessageContentParts = operationResults.map((
+					result: { status: string; operationIndex: number; message: string },
+				) => ({
 					type: 'text',
 					text: `${result.status === 'success' ? '✅  ' : '⚠️  '} Operation ${
 						result.operationIndex + 1
@@ -330,7 +255,7 @@ ${op.replace}
 			if (error.name === 'search-and-replace') {
 				throw error;
 			}
-			let errorMessage = `Failed to apply search and replace to ${filePath}: ${error.message}`;
+			const errorMessage = `Failed to apply search and replace to ${filePath}: ${error.message}`;
 			logger.error(errorMessage);
 
 			throw createError(ErrorType.FileHandling, errorMessage, {

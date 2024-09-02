@@ -1,12 +1,12 @@
 import { Application } from '@oak/oak';
 import oak_logger from 'oak_logger';
 import { parseArgs } from '@std/cli';
-//import { oakCors } from "cors";
+import { oakCors } from 'cors';
 
 import { config, redactedConfig } from 'shared/configManager.ts';
 import router from './routes/routes.ts';
 import { logger } from 'shared/logger.ts';
-import { BbAiState } from './types.ts';
+import { BbAiState } from 'api/types.ts';
 
 const { environment, apiPort } = config.api || {};
 
@@ -35,14 +35,14 @@ if (args.version) {
 	Deno.exit(0);
 }
 
-const logFile = args['log-file'];
+const apiLogFile = args['log-file'];
 const customPort = args.port ? parseInt(args.port, 10) : apiPort;
 
-if (logFile) {
+if (apiLogFile) {
 	// Redirect console.log and console.error to the log file
 	const consoleFunctions = ['log', 'debug', 'info', 'warn', 'error'];
 
-	const logFileStream = await Deno.open(logFile, { write: true, create: true, append: true });
+	const apiLogFileStream = await Deno.open(apiLogFile, { write: true, create: true, append: true });
 	const encoder = new TextEncoder();
 
 	consoleFunctions.forEach((funcName) => {
@@ -52,14 +52,14 @@ if (logFile) {
 			const message = `${timestamp} ${prefix}${
 				args.map((arg) => typeof arg === 'string' ? arg : JSON.stringify(arg)).join(' ')
 			}\n`;
-			logFileStream.write(encoder.encode(message));
+			apiLogFileStream.write(encoder.encode(message));
 		};
 	});
 
 	// Redirect Deno.stderr to the log file
 	const originalStderrWrite = Deno.stderr.write;
 	Deno.stderr.write = (p: Uint8Array): Promise<number> => {
-		logFileStream.write(p);
+		apiLogFileStream.write(p);
 		return originalStderrWrite.call(Deno.stderr, p);
 	};
 }
@@ -71,6 +71,9 @@ if (environment === 'local') {
 	app.use(oak_logger.responseTime);
 }
 
+app.use(oakCors({
+	origin: /^https?:\/\/localhost(:\d+)?$/,
+})); // Enable CORS for all localhost requests, regardless of port
 app.use(router.routes());
 app.use(router.allowedMethods());
 

@@ -1,11 +1,11 @@
 import { Command } from 'cliffy/command/mod.ts';
 import { logger } from 'shared/logger.ts';
-import { config } from 'shared/configManager.ts';
-import { getBbaiDir } from 'shared/dataDir.ts';
+//import { config } from 'shared/configManager.ts';
+//import { getBbaiDir } from 'shared/dataDir.ts';
 import { getLogFilePath, viewLastLines, watchLogs } from 'shared/logViewer.ts';
-import { join } from '@std/path';
+//import { join } from '@std/path';
 //import { ensureDir } from '@std/fs';
-import { displayFormattedLogs } from 'shared/logFormatter.ts';
+import { displayFormattedLogs } from 'shared/conversationLogFormatter.ts';
 
 export const viewLogs = new Command()
 	.name('logs')
@@ -32,7 +32,7 @@ export const viewLogs = new Command()
 
 			if (options.follow) {
 				if (!options.api && options.id) {
-					// Use the LogFormatter for conversation logs
+					// Use the ConversationLogFormatter for conversation logs
 					await displayFormattedLogs(
 						options.id,
 						(formattedEntry) => {

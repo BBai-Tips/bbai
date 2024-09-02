@@ -1,18 +1,19 @@
-import LLMTool, {
-	LLMToolFormatterDestination,
-	LLMToolInputSchema,
-	LLMToolRunResult,
-	LLMToolRunResultContent,
-	LLMToolRunResultFormatter,
-	LLMToolUseInputFormatter,
-} from 'api/llms/llmTool.ts';
+import { JSX } from 'preact';
+import LLMTool, { LLMToolInputSchema, LLMToolRunResult, LLMToolRunResultContent } from 'api/llms/llmTool.ts';
+import {
+	formatToolResult as formatToolResultBrowser,
+	formatToolUse as formatToolUseBrowser,
+} from './formatters/fetchWebScreenshotTool.browser.tsx';
+import {
+	formatToolResult as formatToolResultConsole,
+	formatToolUse as formatToolUseConsole,
+} from './formatters/fetchWebScreenshotTool.console.ts';
 import LLMConversationInteraction from '../interactions/conversationInteraction.ts';
 import { LLMAnswerToolUse, LLMMessageContentPartImageBlock, LLMMessageContentParts } from 'api/llms/llmMessage.ts';
 import FetchManager from 'shared/fetchManager.ts';
 import ProjectEditor from '../../editor/projectEditor.ts';
 import { encodeBase64 } from '@std/encoding';
 import { createError, ErrorType } from '../../utils/error.utils.ts';
-import { getContentFromToolResult } from '../../utils/llms.utils.ts';
 
 export default class LLMToolFetchWebScreenshot extends LLMTool {
 	constructor() {
@@ -20,6 +21,7 @@ export default class LLMToolFetchWebScreenshot extends LLMTool {
 			'fetch_web_screenshot',
 			'Fetches a screenshot of a specified web page',
 		);
+		this.fileName = 'fetchWebScreenshotTool.ts';
 	}
 
 	get input_schema(): LLMToolInputSchema {
@@ -32,20 +34,13 @@ export default class LLMToolFetchWebScreenshot extends LLMTool {
 		};
 	}
 
-	toolUseInputFormatter: LLMToolUseInputFormatter = (
-		toolInput: LLMToolInputSchema,
-		_format: LLMToolFormatterDestination = 'console',
-	): string => {
-		return `Fetching screenshot of web page: ${toolInput.url}`;
-	};
+	formatToolUse(toolInput: LLMToolInputSchema, format: 'console' | 'browser'): string | JSX.Element {
+		return format === 'console' ? formatToolUseConsole(toolInput) : formatToolUseBrowser(toolInput);
+	}
 
-	toolRunResultFormatter: LLMToolRunResultFormatter = (
-		toolResult: LLMToolRunResultContent,
-		_format: LLMToolFormatterDestination = 'console',
-	): string => {
-		const content = getContentFromToolResult(toolResult);
-		return `Web page screenshot fetched successfully. Base64 data length: ${content.length} characters.`;
-	};
+	formatToolResult(toolResult: LLMToolRunResultContent, format: 'console' | 'browser'): string | JSX.Element {
+		return format === 'console' ? formatToolResultConsole(toolResult) : formatToolResultBrowser(toolResult);
+	}
 
 	async runTool(
 		_interaction: LLMConversationInteraction,

@@ -1,17 +1,29 @@
-import LLMTool, { LLMToolInputSchema, LLMToolRunResult } from 'api/llms/llmTool.ts';
-import LLMConversationInteraction from '../interactions/conversationInteraction.ts';
-import { LLMAnswerToolUse } from 'api/llms/llmMessage.ts';
+import type { JSX } from 'preact';
+import LLMTool from 'api/llms/llmTool.ts';
+import type { LLMToolInputSchema, LLMToolRunResult, LLMToolRunResultContent } from 'api/llms/llmTool.ts';
+import {
+	formatToolResult as formatToolResultBrowser,
+	formatToolUse as formatToolUseBrowser,
+} from './formatters/vectorSearchTool.browser.tsx';
+import {
+	formatToolResult as formatToolResultConsole,
+	formatToolUse as formatToolUseConsole,
+} from './formatters/vectorSearchTool.console.ts';
+import type LLMConversationInteraction from '../interactions/conversationInteraction.ts';
+import type { LLMAnswerToolUse } from 'api/llms/llmMessage.ts';
 import { logger } from 'shared/logger.ts';
 import { createError, ErrorType } from '../../utils/error.utils.ts';
 import { searchEmbeddings } from '../../utils/embedding.utils.ts';
-import { VectorSearchErrorOptions } from '../../errors/error.ts';
+import type { VectorSearchErrorOptions } from '../../errors/error.ts';
 
-export class LLMToolVectorSearch extends LLMTool {
+export default class LLMToolVectorSearch extends LLMTool {
 	constructor() {
 		super(
 			'vector_search',
 			'Perform a vector search on the project files',
 		);
+		const url = new URL(import.meta.url);
+		this.fileName = url.pathname.split('/').pop() || '';
 	}
 
 	get input_schema(): LLMToolInputSchema {
@@ -25,6 +37,14 @@ export class LLMToolVectorSearch extends LLMTool {
 			},
 			required: ['query'],
 		};
+	}
+
+	formatToolUse(toolInput: LLMToolInputSchema, format: 'console' | 'browser'): string | JSX.Element {
+		return format === 'console' ? formatToolUseConsole(toolInput) : formatToolUseBrowser(toolInput);
+	}
+
+	formatToolResult(toolResult: LLMToolRunResultContent, format: 'console' | 'browser'): string | JSX.Element {
+		return format === 'console' ? formatToolResultConsole(toolResult) : formatToolResultBrowser(toolResult);
 	}
 
 	async runTool(

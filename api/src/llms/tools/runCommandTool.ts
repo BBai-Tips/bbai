@@ -1,31 +1,35 @@
-import LLMTool, {
-	LLMToolFormatterDestination,
-	LLMToolInputSchema,
-	LLMToolRunResult,
-	LLMToolRunResultContent,
-	LLMToolRunResultFormatter,
-	LLMToolUseInputFormatter,
-} from 'api/llms/llmTool.ts';
-import { colors } from 'cliffy/ansi/colors.ts';
-import { stripIndents } from 'common-tags';
-import LLMConversationInteraction from '../interactions/conversationInteraction.ts';
-import { LLMAnswerToolUse } from 'api/llms/llmMessage.ts';
-import ProjectEditor from '../../editor/projectEditor.ts';
+import type { JSX } from 'preact';
+import LLMTool from 'api/llms/llmTool.ts';
+import type { LLMToolInputSchema, LLMToolRunResult, LLMToolRunResultContent } from 'api/llms/llmTool.ts';
+import {
+	formatToolResult as formatToolResultBrowser,
+	formatToolUse as formatToolUseBrowser,
+} from './formatters/runCommandTool.browser.tsx';
+import {
+	formatToolResult as formatToolResultConsole,
+	formatToolUse as formatToolUseConsole,
+} from './formatters/runCommandTool.console.ts';
+import type LLMConversationInteraction from '../interactions/conversationInteraction.ts';
+import type { LLMAnswerToolUse } from 'api/llms/llmMessage.ts';
+import type ProjectEditor from '../../editor/projectEditor.ts';
 import { createError, ErrorType } from '../../utils/error.utils.ts';
 import { logger } from 'shared/logger.ts';
-import { getContentFromToolResult } from '../../utils/llms.utils.ts';
 
-export class LLMToolRunCommand extends LLMTool {
+export default class LLMToolRunCommand extends LLMTool {
 	private static readonly ALLOWED_COMMANDS = [
-		'deno task tool:check-types',
+		'deno task tool:check-types-project',
+		'deno task tool:check-types-args',
 		'deno task tool:test',
 		'deno task tool:format',
 	];
+
 	constructor() {
 		super(
 			'run_command',
 			'Run a system command and return the output',
 		);
+		const url = new URL(import.meta.url);
+		this.fileName = url.pathname.split('/').pop() || '';
 	}
 
 	get input_schema(): LLMToolInputSchema {
@@ -49,58 +53,13 @@ export class LLMToolRunCommand extends LLMTool {
 		};
 	}
 
-	toolUseInputFormatter: LLMToolUseInputFormatter = (
-		toolInput: LLMToolInputSchema,
-		format: LLMToolFormatterDestination = 'console',
-	): string => {
-		const { command, args = [] } = toolInput as { command: string; args?: string[] };
-		if (format === 'console') {
-			return stripIndents`
-				${colors.bold('Command:')} ${colors.yellow(command)}${
-				args.length > 0
-					? `
-				${colors.bold('Arguments:')} ${colors.cyan(args.join(' '))}`
-					: ''
-			}`;
-		} else if (format === 'browser') {
-			return stripIndents`
-				<p><strong>Command:</strong> 
-				  <span style="color: #DAA520;">${command}</span>
-				</p>${
-				args.length > 0
-					? `
-				<p><strong>Arguments:</strong> 
-				  <span style="color: #4169E1;">${args.join(' ')}</span>
-				</p>`
-					: ''
-			}
-			`;
-		}
-		return JSON.stringify(toolInput, null, 2);
-	};
+	formatToolUse(toolInput: LLMToolInputSchema, format: 'console' | 'browser'): string | JSX.Element {
+		return format === 'console' ? formatToolUseConsole(toolInput) : formatToolUseBrowser(toolInput);
+	}
 
-	toolRunResultFormatter: LLMToolRunResultFormatter = (
-		toolResult: LLMToolRunResultContent,
-		format: LLMToolFormatterDestination = 'console',
-	): string => {
-		const lines = getContentFromToolResult(toolResult).split('\n');
-		const exitCodeLine = lines[0];
-		const output = lines.slice(2).join('\n');
-
-		if (format === 'console') {
-			return stripIndents`
-				${colors.bold(exitCodeLine)}\n\n${colors.cyan('Command output:')}
-				${output}
-			`;
-		} else if (format === 'browser') {
-			return stripIndents`
-				<p><strong>${exitCodeLine}</strong></p>
-				<p><strong>Command output:</strong></p>
-				<pre style="background-color: #F0F8FF; padding: 10px;">${output}</pre>
-			`;
-		}
-		return getContentFromToolResult(toolResult);
-	};
+	formatToolResult(toolResult: LLMToolRunResultContent, format: 'console' | 'browser'): string | JSX.Element {
+		return format === 'console' ? formatToolResultConsole(toolResult) : formatToolResultBrowser(toolResult);
+	}
 
 	async runTool(
 		_interaction: LLMConversationInteraction,
@@ -136,9 +95,6 @@ export class LLMToolRunCommand extends LLMTool {
 				const output = new TextDecoder().decode(stdout);
 				const errorOutput = new TextDecoder().decode(stderr);
 
-				// [Needs testing] should errorOutput cause tool.isError, or just non-zero code
-				// what about return codes like grep which have non-zero values that are not "errors"
-				// we'll remain cautious say it's an error
 				const isError = code !== 0 || errorOutput !== '';
 
 				const toolResults = `Command executed with exit code: ${code}\n\nOutput:\n${output}${

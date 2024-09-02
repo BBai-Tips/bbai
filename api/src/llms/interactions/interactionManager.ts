@@ -26,6 +26,8 @@ class InteractionManager {
 		//const interactionId = generateConversationId();
 		let interaction: LLMInteraction;
 
+		logger.info('InteractionManager: Creating interaction of type: ', type);
+
 		if (type === 'conversation') {
 			interaction = await new LLMConversationInteraction(llmProvider, interactionId).init();
 		} else {
@@ -145,4 +147,7 @@ class InteractionManager {
 		return interaction;
 	}
 }
+
 export default InteractionManager;
+
+export const interactionManager: InteractionManager = new InteractionManager();

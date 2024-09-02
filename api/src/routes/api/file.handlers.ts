@@ -1,4 +1,5 @@
 import { Context } from '@oak/oak';
+import { join, resolve } from '@std/path';
 
 export const addFile = async (
 	{ response }: { response: Context['response'] },
@@ -19,4 +20,27 @@ export const listFiles = async (
 ) => {
 	// List files in conversation
 	response.body = { message: 'Files in conversation listed' };
+};
+
+export const resolvePath = async (
+	{ request, response }: { request: Context['request']; response: Context['response'] },
+) => {
+	const { partialPath } = await request.body.json();
+
+	if (!partialPath) {
+		response.status = 400;
+		response.body = { error: 'Partial path is required' };
+		return;
+	}
+
+	// Resolve the path relative to the user's home directory
+	const homeDir = Deno.env.get('HOME') || Deno.env.get('USERPROFILE') || '';
+	if (!homeDir) {
+		response.status = 500;
+		response.body = { error: 'Unable to determine user home directory' };
+		return;
+	}
+	const fullPath = resolve(join(homeDir, partialPath));
+
+	response.body = { fullPath };
 };

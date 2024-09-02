@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 
 
+## [0.0.10-alpha] - 2024-09-02
+
+### Changed
+
+- Added custom tool content formatters for console and browser
+- Added browser interface
+- Added prompt caching for tools and system prompt
+- Updated cli tool to auto-start api server
+
+
 ## [0.0.9-alpha] - 2024-08-18
 
 ### Changed

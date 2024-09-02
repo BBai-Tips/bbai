@@ -4,37 +4,37 @@ import { getPid, isApiRunning, removePid, savePid } from '../utils/pid.utils.ts'
 import { getBbaiDir, getProjectRoot } from 'shared/dataDir.ts';
 import { join } from '@std/path';
 import { isCompiledBinary } from '../utils/environment.utils.ts';
-import { apiClient } from '../utils/apiClient.ts';
+import { apiClient } from 'cli/apiClient.ts';
 import { watchLogs } from 'shared/logViewer.ts';
 
 export async function startApiServer(
 	startDir: string,
-	cliLogLevel?: string,
-	cliLogFile?: string,
+	apiLogLevel?: string,
+	apiLogFile?: string,
 	follow?: boolean,
-): Promise<{ pid: number; logFilePath: string }> {
+): Promise<{ pid: number; apiLogFilePath: string }> {
 	if (await isApiRunning(startDir)) {
 		logger.info('bbai API server is already running.');
 		const pid = await getPid(startDir);
 		const bbaiDir = await getBbaiDir(startDir);
-		const logFile = cliLogFile || config.logFile || 'api.log';
-		const logFilePath = join(bbaiDir, logFile);
-		return { pid: pid || 0, logFilePath };
+		const apiLogFileName = apiLogFile || config.api?.logFile || 'api.log';
+		const apiLogFilePath = join(bbaiDir, apiLogFileName);
+		return { pid: pid || 0, apiLogFilePath };
 	}
 
 	const bbaiDir = await getBbaiDir(startDir);
 	const projectRoot = await getProjectRoot(startDir);
-	const logFile = cliLogFile || config.logFile || 'api.log';
-	const logFilePath = join(bbaiDir, logFile);
-	const logLevel = cliLogLevel || config.logLevel || 'info';
+	const apiLogFileName = apiLogFile || config.api?.logFile || 'api.log';
+	const apiLogFilePath = join(bbaiDir, apiLogFileName);
+	const logLevel = apiLogLevel || config.api?.logLevel || 'info';
 
-	logger.info(`Starting bbai API server, logging to ${logFilePath}`);
+	logger.info(`Starting bbai API server, logging to ${apiLogFilePath}`);
 
 	let command: Deno.Command;
 
 	if (isCompiledBinary()) {
 		command = new Deno.Command('bbai-api', {
-			args: ['--log-file', logFilePath],
+			args: ['--log-file', apiLogFilePath],
 			stdout: 'null',
 			stderr: 'null',
 			stdin: 'null',
@@ -54,11 +54,11 @@ export async function startApiServer(
 		];
 
 		command = new Deno.Command(Deno.execPath(), {
-			args: [...cmdArgs, join(projectRoot, 'api/src/main.ts'), '--log-file', logFilePath],
+			args: [...cmdArgs, join(projectRoot, 'api/src/main.ts'), '--log-file', apiLogFilePath],
 			cwd: join(projectRoot, 'api'),
-			//args: [...cmdArgs, join(Deno.cwd(), './bbai-api'), '--log-file', logFilePath],
+			//args: [...cmdArgs, join(Deno.cwd(), './bbai-api'), '--log-file', apiLogFilePath],
 			//cwd: join(projectRoot, 'api'),
-			//args: [...cmdArgs, Deno.execPath(), 'start', '--log-file', logFilePath],
+			//args: [...cmdArgs, Deno.execPath(), 'start', '--log-file', apiLogFilePath],
 			//cwd: join(projectRoot, 'api'),
 			stdout: 'null',
 			stderr: 'null',
@@ -83,7 +83,7 @@ export async function startApiServer(
 		process.unref();
 	}
 
-	return { pid, logFilePath };
+	return { pid, apiLogFilePath };
 }
 
 export async function stopApiServer(startDir: string): Promise<void> {
@@ -109,16 +109,16 @@ export async function stopApiServer(startDir: string): Promise<void> {
 	}
 }
 
-export async function restartApiServer(startDir: string, cliLogLevel?: string, cliLogFile?: string): Promise<void> {
+export async function restartApiServer(startDir: string, apiLogLevel?: string, apiLogFile?: string): Promise<void> {
 	await stopApiServer(startDir);
-	await startApiServer(startDir, cliLogLevel, cliLogFile);
+	await startApiServer(startDir, apiLogLevel, apiLogFile);
 }
 
-export async function followApiLogs(logFilePath: string, startDir: string): Promise<void> {
+export async function followApiLogs(apiLogFilePath: string, startDir: string): Promise<void> {
 	try {
 		// Set up SIGINT (Ctrl+C) handler
 		const ac = new AbortController();
-		const signal = ac.signal;
+		//const signal = ac.signal;
 
 		Deno.addSignalListener('SIGINT', async () => {
 			console.log('\nReceived SIGINT. Stopping API server...');
@@ -127,7 +127,7 @@ export async function followApiLogs(logFilePath: string, startDir: string): Prom
 			Deno.exit(0);
 		});
 
-		await watchLogs(logFilePath, (content: string) => {
+		await watchLogs(apiLogFilePath, (content: string) => {
 			console.log(content);
 		});
 	} catch (error) {

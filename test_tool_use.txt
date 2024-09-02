@@ -1,5 +1,0 @@
-This is a test message to confirm that the tool use is working correctly.
-
-File written at: ${new Date().toISOString()}
-
-If you can read this, it means the rewrite_file tool is functioning as expected!

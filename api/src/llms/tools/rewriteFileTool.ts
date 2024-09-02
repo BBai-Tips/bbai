@@ -1,13 +1,13 @@
-import LLMTool, {
-	LLMToolFormatterDestination,
-	LLMToolInputSchema,
-	LLMToolRunResult,
-	LLMToolRunResultContent,
-	LLMToolRunResultFormatter,
-	LLMToolUseInputFormatter,
-} from 'api/llms/llmTool.ts';
-import { colors } from 'cliffy/ansi/colors.ts';
-import { stripIndents } from 'common-tags';
+import { JSX } from 'preact';
+import LLMTool, { LLMToolInputSchema, LLMToolRunResult, LLMToolRunResultContent } from 'api/llms/llmTool.ts';
+import {
+	formatToolResult as formatToolResultBrowser,
+	formatToolUse as formatToolUseBrowser,
+} from './formatters/rewriteFileTool.browser.tsx';
+import {
+	formatToolResult as formatToolResultConsole,
+	formatToolUse as formatToolUseConsole,
+} from './formatters/rewriteFileTool.console.ts';
 import LLMConversationInteraction from '../interactions/conversationInteraction.ts';
 import ProjectEditor from '../../editor/projectEditor.ts';
 import { isPathWithinProject } from '../../utils/fileHandling.utils.ts';
@@ -17,14 +17,15 @@ import { LLMAnswerToolUse } from 'api/llms/llmMessage.ts';
 import { logger } from 'shared/logger.ts';
 import { ensureDir } from '@std/fs';
 import { dirname, join } from '@std/path';
-import { getContentFromToolResult } from '../../utils/llms.utils.ts';
+// Removed unused import
 
-export class LLMToolRewriteFile extends LLMTool {
+export default class LLMToolRewriteFile extends LLMTool {
 	constructor() {
 		super(
 			'rewrite_file',
 			'Rewrite an entire file or create a new one',
 		);
+		this.fileName = 'rewriteFileTool.ts';
 	}
 
 	get input_schema(): LLMToolInputSchema {
@@ -43,43 +44,13 @@ export class LLMToolRewriteFile extends LLMTool {
 		};
 	}
 
-	toolUseInputFormatter: LLMToolUseInputFormatter = (
-		toolInput: LLMToolInputSchema,
-		format: LLMToolFormatterDestination = 'console',
-	): string => {
-		const { filePath, content, createIfMissing = true } = toolInput as {
-			filePath: string;
-			content: string;
-			createIfMissing?: boolean;
-		};
-		const contentPreview = content.length > 100 ? content.slice(0, 100) + '...' : content;
-		if (format === 'console') {
-			return stripIndents`
-				${colors.bold('File path:')} ${colors.cyan(filePath)}
-				${colors.bold('Create if missing:')} ${colors.yellow(createIfMissing.toString())}
-				${colors.bold('Content preview:')}
-				${colors.green(contentPreview)}`;
-		} else if (format === 'browser') {
-			return stripIndents`
-				<p><strong>File path:</strong> <span style="color: #4169E1;">${filePath}</span></p>
-				<p><strong>Create if missing:</strong> <span style="color: #DAA520;">${createIfMissing}</span></p>
-				<p><strong>Content preview:</strong></p>
-				<pre style="background-color: #F0FFF0; padding: 10px;">${contentPreview}</pre>`;
-		}
-		return JSON.stringify(toolInput, null, 2);
-	};
+	formatToolUse(toolInput: LLMToolInputSchema, format: 'console' | 'browser'): string | JSX.Element {
+		return format === 'console' ? formatToolUseConsole(toolInput) : formatToolUseBrowser(toolInput);
+	}
 
-	toolRunResultFormatter: LLMToolRunResultFormatter = (
-		toolResult: LLMToolRunResultContent,
-		format: LLMToolFormatterDestination = 'console',
-	): string => {
-		if (format === 'console') {
-			return colors.bold(getContentFromToolResult(toolResult));
-		} else if (format === 'browser') {
-			return `<p><strong>${getContentFromToolResult(toolResult)}</strong></p>`;
-		}
-		return getContentFromToolResult(toolResult);
-	};
+	formatToolResult(toolResult: LLMToolRunResultContent, format: 'console' | 'browser'): string | JSX.Element {
+		return format === 'console' ? formatToolResultConsole(toolResult) : formatToolResultBrowser(toolResult);
+	}
 
 	async runTool(
 		interaction: LLMConversationInteraction,

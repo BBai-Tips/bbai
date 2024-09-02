@@ -8,6 +8,8 @@ export interface ConfigSchema {
 		environment?: string;
 		apiPort?: number;
 		ignoreLLMRequestCache?: boolean;
+		logFile?: string;
+		logLevel: 'debug' | 'info' | 'warn' | 'error';
 	};
 	cli: {};
 	repoInfo: {
@@ -15,8 +17,6 @@ export interface ConfigSchema {
 		ctagsFilePath?: string;
 		tokenLimit?: number;
 	};
-	logFile?: string;
-	logLevel: 'debug' | 'info' | 'warn' | 'error';
 	myPersonsName?: string;
 	myAssistantsName?: string;
 	version: string;
@@ -27,6 +27,8 @@ export const defaultConfig: ConfigSchema = {
 		environment: 'local',
 		apiPort: 3000,
 		ignoreLLMRequestCache: false,
+		logFile: 'api.log',
+		logLevel: 'info',
 	},
 	cli: {},
 	repoInfo: {
@@ -34,8 +36,6 @@ export const defaultConfig: ConfigSchema = {
 		//ctagsFilePath: 'tags',
 		tokenLimit: 1024,
 	},
-	logFile: 'api.log',
-	logLevel: 'info',
 	myPersonsName: Deno.env.get('USER') || 'User',
 	myAssistantsName: 'Claude',
 	version: 'unknown', // This will be overwritten by the actual version from version.ts

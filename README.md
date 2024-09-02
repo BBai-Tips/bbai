@@ -32,7 +32,7 @@ In a world where AI assistants are becoming commonplace, BBai stands out by offe
 - **Project-Wide Understanding**: Uses `ctags` for initial project comprehension, with plans for advanced techniques like RAG and embeddings in the future.
 - **Intelligent Tools**: Employs LLM tools for clear, purpose-driven interactions.
 - **First-Class Project Discussions**: Makes conversations about your project as important as the changes themselves.
-- **Multiple Interface Options**: CLI, API, and future browser support for flexible usage.
+- **Multiple Interface Options**: API, Browser User Interface (BUI), Command Line Interface (CLI), and future Desktop User Interface (DUI) for flexible usage.
 - **Conversation Management**: Handles multiple conversations simultaneously for complex projects.
 
 ## Who Can Benefit from BBai?
@@ -84,8 +84,10 @@ After installation, you can start using BBai by running `bbai init` in your proj
 
 For detailed information on how to use BBai, please refer to our documentation:
 
-- [CLI Documentation](CLI.md): Learn how to use the BBai command-line interface for managing conversations, files, and more.
-- [API Documentation](API.md): Explore the BBai API endpoints for integrating BBai into your workflows or building custom tools.
+- [API Documentation](docs/API.md): Explore the BBai API endpoints for integrating BBai into your workflows or building custom tools.
+- [BUI Documentation](docs/BUI.md): Learn about the planned Browser User Interface for BBai.
+- [CLI Documentation](docs/CLI.md): Understand how to use the BBai Command Line Interface for various operations.
+- [DUI Documentation](docs/DUI.md): Explore the future plans for the Desktop User Interface.
 
 These guides provide comprehensive information on BBai's features, usage patterns, and best practices to help you make the most of this powerful tool.
 
@@ -119,10 +121,10 @@ Start your journey with BBai today and transform the way you work with text!
 
 - [BBai GitHub Repository](https://github.com/BBai-Tips/bbai)
 - [Installation Guide](INSTALL.md)
-- [Contributing Guidelines](CONTRIBUTING.md)
-- [Code of Conduct](CODE_OF_CONDUCT.md)
-- [Security Policy](SECURITY.md)
-- [API Documentation](API.md)
-- [CLI Documentation](CLI.md)
-- [File Handling Guidelines](FILE_HANDLING.md)
+- [Contributing Guidelines](docs/CONTRIBUTING.md)
+- [Code of Conduct](docs/CODE_OF_CONDUCT.md)
+- [Security Policy](docs/SECURITY.md)
+- [API Documentation](docs/API.md)
+- [CLI Documentation](docs/CLI.md)
+- [File Handling Guidelines](docs/FILE_HANDLING.md)
 - [Project Conventions](CONVENTIONS.md)

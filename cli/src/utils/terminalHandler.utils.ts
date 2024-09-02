@@ -8,12 +8,13 @@ import { ansi, colors, tty } from 'cliffy/ansi/mod.ts';
 //import { stripAnsiCode } from '@std/fmt/colors';
 import Kia from 'kia-spinner';
 import { SPINNERS } from './terminalSpinners.ts';
-import { LogFormatter } from 'shared/logFormatter.ts';
+import { apiClient } from 'cli/apiClient.ts';
+import ConversationLogFormatter from 'shared/conversationLogFormatter.ts';
 //import { LLMProviderMessageMeta, LLMProviderMessageResponse } from 'api/types/llms.ts';
-import { LLMMessageContentPartTextBlock } from 'api/llms/llmMessage.ts';
+import type { LLMMessageContentPartTextBlock } from 'api/llms/llmMessage.ts';
 import { getStatementHistory } from './statementHistory.utils.ts';
-import {
-	ConversationEntry,
+import type {
+	ConversationContinue,
 	ConversationId,
 	ConversationResponse,
 	ConversationStart,
@@ -46,14 +47,14 @@ export const palette = {
 };
 
 export class TerminalHandler {
-	private formatter: LogFormatter;
+	private formatter: ConversationLogFormatter;
 	private history: string[] = [];
 	private spinner!: Spinner;
 	private statementInProgress: boolean = false;
 	private bbaiDir: string;
 
 	constructor(bbaiDir: string) {
-		this.formatter = new LogFormatter();
+		this.formatter = new ConversationLogFormatter();
 		this.bbaiDir = bbaiDir;
 		this.spinner = this.createSpinner('BBai warming up...');
 		this.loadHistory();
@@ -137,7 +138,6 @@ export class TerminalHandler {
 			//suggestions: [
 			//	'apiStart',
 			//	'apiStatus',
-			//	'conversationStart',
 			//],
 			//transform: (input: string) => highlight(input, { language: 'plaintext' }).value,
 		});
@@ -231,16 +231,14 @@ export class TerminalHandler {
 		}
 	}
 
-	public displayConversationEntry(
-		data: ConversationEntry,
+	public async displayConversationContinue(
+		data: ConversationContinue,
 		_conversationId?: ConversationId,
 		expectingMoreInput: boolean = false,
-	): void {
-		if (this.spinner) this.hideSpinner();
+	): Promise<void> {
 		// Ensure all optional properties are handled
 		const {
-			type,
-			content,
+			logEntry,
 			timestamp,
 			conversationStats = {
 				statementCount: 1,
@@ -255,19 +253,40 @@ export class TerminalHandler {
 		} = data;
 		//conversationId = data.conversationId;
 
-		if (!content) {
+		if (!logEntry) {
 			console.log('Entry has no content', data);
 			return;
 		}
 
-		const formattedEntry = this.formatter.formatLogEntry(
-			type,
-			timestamp,
-			this.highlightOutput(content),
-			conversationStats,
-			tokenUsageStatement,
-		);
-		console.log(formattedEntry);
+		try {
+			const formatterResponse = await apiClient.post(`/api/v1/format_log_entry/console/${logEntry.entryType}`, {
+				...logEntry,
+			});
+
+			if (!formatterResponse.ok) {
+				throw new Error(`Failed to fetch formatted response: ${formatterResponse.statusText}`);
+			} else {
+				const responseContent = await formatterResponse.json();
+				const formattedContent = responseContent.formattedContent;
+				const formattedEntry = this.formatter.formatLogEntry(
+					logEntry.entryType,
+					timestamp,
+					//this.highlightOutput(formattedContent),
+					formattedContent,
+					conversationStats,
+					tokenUsageStatement,
+					logEntry.toolName,
+				);
+
+				if (this.spinner) this.hideSpinner();
+
+				console.log(formattedEntry);
+			}
+		} catch (error) {
+			console.error(`Error formatting log entry: ${error.message}`);
+			// Fallback to basic formatting
+			console.log(`${logEntry.entryType.toUpperCase()}: ${logEntry.content}`);
+		}
 
 		if (expectingMoreInput && this.spinner) {
 			this.startSpinner('Claude is working...');
@@ -298,7 +317,7 @@ export class TerminalHandler {
 			},
 		} = data;
 
-		const timestamp = LogFormatter.getTimestamp();
+		const timestamp = ConversationLogFormatter.getTimestamp();
 		const contentPart = data.response.answerContent[0] as LLMMessageContentPartTextBlock;
 		const formattedEntry = this.formatter.formatLogEntry(
 			'assistant',

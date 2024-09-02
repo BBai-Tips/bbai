@@ -1,7 +1,15 @@
 import { join } from '@std/path';
 
 import { FILE_LISTING_TIERS, generateFileListing, isPathWithinProject } from '../utils/fileHandling.utils.ts';
-import LLMConversationInteraction, { FileMetadata, ProjectInfo } from '../llms/interactions/conversationInteraction.ts';
+import LLMConversationInteraction, {
+	FileMetadata,
+	ProjectInfo as BaseProjectInfo,
+} from '../llms/interactions/conversationInteraction.ts';
+
+// Extend ProjectInfo to include startDir
+export interface ProjectInfo extends BaseProjectInfo {
+	startDir: string;
+}
 import OrchestratorController from '../controllers/orchestratorController.ts';
 import { logger } from 'shared/logger.ts';
 //import { config } from 'shared/configManager.ts';
@@ -29,6 +37,7 @@ class ProjectEditor {
 	public patchedFiles: Set<string> = new Set();
 	public patchContents: Map<string, string> = new Map();
 	private _projectInfo: ProjectInfo = {
+		startDir: '',
 		type: 'empty',
 		content: '',
 		tier: null,
@@ -37,6 +46,7 @@ class ProjectEditor {
 	constructor(startDir: string) {
 		this.projectRoot = '.'; // init() will overwrite this
 		this.startDir = startDir;
+		this._projectInfo.startDir = startDir;
 	}
 
 	public async init(): Promise<ProjectEditor> {
@@ -45,7 +55,7 @@ class ProjectEditor {
 			this.eventManager = EventManager.getInstance();
 			this.orchestratorController = await new OrchestratorController(this).init();
 		} catch (error) {
-			logger.error('Failed to initialize ProjectEditor:', error);
+			logger.error(`Failed to initialize ProjectEditor in ${this.startDir}:`, error);
 			throw error;
 		}
 		return this;
@@ -80,11 +90,12 @@ class ProjectEditor {
 	}
 
 	set projectInfo(projectInfo: ProjectInfo) {
+		projectInfo.startDir = this.startDir;
 		this._projectInfo = projectInfo;
 	}
 
 	public async updateProjectInfo(): Promise<void> {
-		const projectInfo: ProjectInfo = { type: 'empty', content: '', tier: null };
+		const projectInfo: ProjectInfo = { startDir: this.startDir, type: 'empty', content: '', tier: null };
 
 		/*
 		await generateCtags(this.bbaiDir, this.projectRoot);
@@ -111,16 +122,17 @@ class ProjectEditor {
 			}
 		}
 
-		this.projectInfo = projectInfo;
+		this.projectInfo = { ...projectInfo, startDir: this.startDir };
 	}
 
 	public async initConversation(conversationId: ConversationId): Promise<LLMConversationInteraction> {
-		logger.info(`Initializing a conversation with ID: ${conversationId}`);
+		logger.info(`ProjectEditor: Initializing a conversation with ID: ${conversationId}`);
 		return await this.orchestratorController.initializePrimaryInteraction(conversationId);
 	}
 
 	async handleStatement(statement: string, conversationId: ConversationId): Promise<ConversationResponse> {
 		await this.initConversation(conversationId);
+		logger.info(`ProjectEditor: Initialized conversation with ID: ${conversationId}, handling statement`);
 		const statementAnswer = await this.orchestratorController.handleStatement(statement, conversationId);
 		return statementAnswer;
 	}
@@ -167,7 +179,7 @@ class ProjectEditor {
 
 				logger.info(`ProjectEditor has prepared file ${fileName}`);
 			} catch (error) {
-				logger.error(`Error adding file ${fileName}: ${error.message}`);
+				logger.error(`ProjectEditor: Error adding file ${fileName}: ${error.message}`);
 				// [TODO] Sanitize the error message so it doesn't send (eg) fill file path
 				//const errorMessage = error.message.includes('No such file or directory') ? 'File Not Found' : '';
 				const errorMessage = error.message;

@@ -11,7 +11,7 @@ import LLMTool from 'api/llms/llmTool.ts';
 import { logger } from 'shared/logger.ts';
 //import { readFileContent } from 'shared/dataDir.ts';
 import { ResourceManager } from '../resourceManager.ts';
-import { GitUtils } from 'shared/git.ts';
+//import { GitUtils } from 'shared/git.ts';
 
 export interface FileMetadata {
 	path: string;
@@ -33,7 +33,7 @@ class LLMConversationInteraction extends LLMInteraction {
 	private _files: Map<string, FileMetadata> = new Map();
 	private resourceManager: ResourceManager;
 	private systemPromptFiles: string[] = [];
-	private currentCommit: string | null = null;
+	//private currentCommit: string | null = null;
 
 	constructor(llm: LLM, conversationId?: ConversationId) {
 		super(llm, conversationId);
@@ -48,36 +48,76 @@ class LLMConversationInteraction extends LLMInteraction {
 		this._tokenUsageInteraction = tokenUsage;
 	}
 
-	public async prepareSytemPrompt(system: string): Promise<string> {
-		const projectInfo = await this.llm.invoke(LLMCallbackType.PROJECT_INFO);
-		system = this.appendProjectInfoToSystem(system, projectInfo);
-		system = await this.appendFilesToSystem(system);
-		system = await this.appendGitCommitToSystem(system);
-		return new Promise((resolve) => resolve(system));
+	public async prepareSytemPrompt(baseSystem: string): Promise<string> {
+		//logger.info('ConversationInteraction: Preparing system prompt', baseSystem);
+		if (!this.conversationPersistence) {
+			throw new Error('ConversationPersistence not initialized');
+		}
+		// First, try to get the system prompt from storage
+		let preparedSystemPrompt = await this.conversationPersistence.getPreparedSystemPrompt();
+
+		if (!preparedSystemPrompt) {
+			// If not found in storage, generate a new system prompt
+			const projectInfo = await this.llm.invoke(LLMCallbackType.PROJECT_INFO);
+			preparedSystemPrompt = this.appendProjectInfoToSystem(baseSystem, projectInfo);
+
+			// We're not currently adding files to system prompt, only in messages
+			//preparedSystemPrompt = await this.appendFilesToSystem(preparedSystemPrompt);
+
+			// Save the generated system prompt
+			await this.conversationPersistence.savePreparedSystemPrompt(preparedSystemPrompt);
+			//logger.info('ConversationInteraction: Created system prompt', preparedSystemPrompt);
+		}
+
+		//logger.info('ConversationInteraction: Using prepared system prompt', preparedSystem);
+		return preparedSystemPrompt;
 	}
+
+	public async prepareTools(tools: Map<string, LLMTool>): Promise<LLMTool[]> {
+		if (!this.conversationPersistence) {
+			throw new Error('ConversationInteraction: ConversationPersistence not initialized');
+		}
+
+		// First, try to get the prepared tools from storage
+		let preparedTools = await this.conversationPersistence.getPreparedTools();
+
+		if (!preparedTools) {
+			// If not found in storage, prepare the tools
+
+			preparedTools = Array.from(tools.values()).map((tool) => ({
+				name: tool.name,
+				description: tool.description,
+				input_schema: tool.input_schema,
+			} as LLMTool));
+
+			// Save the prepared tools
+			await this.conversationPersistence.savePreparedTools(preparedTools || []);
+		}
+		//logger.info('ConversationInteraction: preparedTools', preparedTools);
+
+		return preparedTools || [];
+	}
+
 	public async prepareMessages(messages: LLMMessage[]): Promise<LLMMessage[]> {
 		return await this.hydrateMessages(messages);
 	}
-	public async prepareTools(tools: LLMTool[]): Promise<LLMTool[]> {
-		return new Promise((resolve) => resolve(tools));
-	}
 
-	private async getCurrentGitCommit(): Promise<string | null> {
-		const projectRoot = await this.llm.invoke(LLMCallbackType.PROJECT_ROOT);
-		return GitUtils.getCurrentCommit(projectRoot);
-	}
+	//private async getCurrentGitCommit(): Promise<string | null> {
+	//	const projectRoot = await this.llm.invoke(LLMCallbackType.PROJECT_ROOT);
+	//	return GitUtils.getCurrentCommit(projectRoot);
+	//}
 
-	private async appendGitCommitToSystem(system: string): Promise<string> {
-		this.currentCommit = await this.getCurrentGitCommit();
-		if (this.currentCommit) {
-			system += `\n\n<git-commit>${this.currentCommit}</git-commit>`;
-		}
-		return system;
-	}
+	//private async appendGitCommitToSystem(system: string): Promise<string> {
+	//	this.currentCommit = await this.getCurrentGitCommit();
+	//	if (this.currentCommit) {
+	//		system += `\n\n<git-commit>${this.currentCommit}</git-commit>`;
+	//	}
+	//	return system;
+	//}
 
 	protected async createFileXmlString(filePath: string): Promise<string | null> {
 		try {
-			logger.info('createFileXmlString - filePath', filePath);
+			logger.info('ConversationInteraction: createFileXmlString - filePath', filePath);
 			const content = await this.readProjectFileContent(filePath);
 			const metadata = {
 				size: new TextEncoder().encode(content).length,
@@ -85,7 +125,7 @@ class LLMConversationInteraction extends LLMInteraction {
 			};
 			return `<file path="${filePath}" size="${metadata.size}" last_modified="${metadata.lastModified.toISOString()}">\n${content}\n</file>`;
 		} catch (error) {
-			logger.error(`Error creating XML string for ${filePath}: ${error.message}`);
+			logger.error(`ConversationInteraction: Error creating XML string for ${filePath}: ${error.message}`);
 			//throw createError(ErrorType.FileHandling, `Failed to create xmlString for ${filePath}`, {
 			//	filePath,
 			//	operation: 'write',
@@ -97,7 +137,7 @@ class LLMConversationInteraction extends LLMInteraction {
 	public async readProjectFileContent(filePath: string): Promise<string> {
 		const projectRoot = await this.llm.invoke(LLMCallbackType.PROJECT_ROOT);
 		const fullFilePath = join(projectRoot, filePath);
-		logger.info(`Reading contents of File ${fullFilePath}`);
+		logger.info(`ConversationInteraction: Reading contents of File ${fullFilePath}`);
 		try {
 			return await this.resourceManager.loadResource({ type: 'file', location: fullFilePath });
 		} catch (error) {
@@ -140,7 +180,9 @@ class LLMConversationInteraction extends LLMInteraction {
 				const filePath = contentPart.text.split(': ')[1].trim();
 
 				if (!hydratedFiles.has(filePath)) {
-					logger.info(`Hydrating message for file: ${filePath} - Turn: ${turnIndex}`);
+					logger.info(
+						`ConversationInteraction: Hydrating message for file: ${filePath} - Turn: ${turnIndex}`,
+					);
 					const fileXml = await this.createFileXmlString(filePath);
 					if (fileXml) {
 						hydratedFiles.set(filePath, turnIndex);
@@ -149,7 +191,7 @@ class LLMConversationInteraction extends LLMInteraction {
 				} else {
 					const lastHydratedTurn = hydratedFiles.get(filePath)!;
 					logger.info(
-						`Skipping hydration for file: ${filePath} - Current Turn: ${turnIndex}, Last Hydrated Turn: ${lastHydratedTurn}`,
+						`ConversationInteraction: Skipping hydration for file: ${filePath} - Current Turn: ${turnIndex}, Last Hydrated Turn: ${lastHydratedTurn}`,
 					);
 					return {
 						...contentPart,
@@ -168,7 +210,7 @@ class LLMConversationInteraction extends LLMInteraction {
 
 		const processMessage = async (message: LLMMessage, index: number): Promise<LLMMessage> => {
 			if (!message || typeof message !== 'object') {
-				logger.error(`Invalid message encountered: ${JSON.stringify(message)}`);
+				logger.error(`ConversationInteraction: Invalid message encountered: ${JSON.stringify(message)}`);
 				return message;
 			}
 			if (message.role === 'user') {
@@ -328,10 +370,12 @@ class LLMConversationInteraction extends LLMInteraction {
 			 */
 		}
 		this._statementTurnCount++;
-		//logger.debug(`converse - calling addMessageForUserRole for turn ${this._statementTurnCount}` );
-		this.addMessageForUserRole({ type: 'text', text: prompt });
-		this.conversationLogger?.logUserMessage(prompt);
 
+		//logger.debug(`ConversationInteraction: converse - calling addMessageForUserRole for turn ${this._statementTurnCount}` );
+		this.addMessageForUserRole({ type: 'text', text: prompt });
+		this.conversationLogger?.logUserMessage(prompt, this.getConversationStats());
+
+		logger.debug(`ConversationInteraction: converse - calling llm.speakWithRetry`);
 		const response = await this.llm.speakWithRetry(this, speakOptions);
 
 		// Update totals once per turn
@@ -342,13 +386,13 @@ class LLMConversationInteraction extends LLMInteraction {
 			.answerContent[0] as LLMMessageContentPartTextBlock;
 
 		const msg = contentPart.text;
-		const conversationStats: ConversationMetrics = this.getAllStats();
-		const tokenUsage: TokenUsage = response.messageResponse.usage;
+		const conversationStats: ConversationMetrics = this.getConversationStats();
+		const tokenUsageMessage: TokenUsage = response.messageResponse.usage;
 
 		this.conversationLogger.logAssistantMessage(
 			msg,
 			conversationStats,
-			tokenUsage,
+			tokenUsageMessage,
 			this._tokenUsageStatement,
 			this._tokenUsageInteraction,
 		);

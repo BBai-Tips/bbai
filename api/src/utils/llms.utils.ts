@@ -1,5 +1,5 @@
-import LLMTool, { LLMToolFinalizeResult, LLMToolRunResultContent } from 'api/llms/llmTool.ts';
-import { LLMMessageContentPart } from 'api/llms/llmMessage.ts';
+import type { LLMToolRunResultContent } from 'api/llms/llmTool.ts';
+import type { LLMMessageContentPart } from 'api/llms/llmMessage.ts';
 
 export const getContentFromToolResult = (toolRunResultContent: LLMToolRunResultContent): string => {
 	if (Array.isArray(toolRunResultContent)) {

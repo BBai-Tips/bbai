@@ -1,13 +1,15 @@
-import { Context, Router } from '@oak/oak';
-//import { logger } from 'shared/logger.ts';
+import { Router } from '@oak/oak';
+import type { Context } from '@oak/oak';
 import {
+	chatConversation,
 	clearConversation,
-	continueConversation,
 	deleteConversation,
 	getConversation,
 	listConversations,
 } from './api/conversation.handlers.ts';
 import { websocketConversation } from './api/websocket.handlers.ts';
+import { logEntryFormatter } from './api/logEntryFormatter.handlers.ts';
+import { setupProject } from './api/project.handlers.ts';
 
 const apiRouter = new Router();
 
@@ -17,26 +19,18 @@ apiRouter
 	})
 	// Conversation endpoints
 	.get('/v1/ws/conversation/:id', websocketConversation)
-	//.post('/v1/conversation', startConversation)
 	.get('/v1/conversation', listConversations)
 	.get('/v1/conversation/:id', getConversation)
-	.post('/v1/conversation/:id', continueConversation)
+	.post('/v1/conversation/:id', chatConversation)
 	.delete('/v1/conversation/:id', deleteConversation)
-	//.post('/v1/conversation/:id/message', addMessage)
-	//.post('/v1/conversation/:id/undo', undoConversation)
-	.post('/v1/conversation/:id/clear', clearConversation);
+	.post('/v1/conversation/:id/clear', clearConversation)
+	// Log Entries endpoints
+	.post('/v1/format_log_entry/:logEntryDestination/:logEntryFormatterType', logEntryFormatter)
+	// File handling endpoints
+	.post('/v1/setup_project', setupProject);
+
 /*
 	// NOT IMPLEMENTED
-	// File management endpoints
-	.post('/v1/files', addFile)
-	.delete('/v1/files/:id', removeFile)
-	.get('/v1/files', listFiles)
-	// Token usage endpoint
-	.get('/v1/tokens', getTokenUsage)
-	// CLI command endpoint
-	.post('/v1/cli', runCliCommand)
-	// External content endpoint
-	.post('/v1/external', loadExternalContent)
 	// Logs endpoint
 	.get('/v1/logs', getLogs)
 	// Persistence endpoints

@@ -1,5 +1,5 @@
 import { Command } from 'cliffy/command/mod.ts';
-import { apiClient } from '../utils/apiClient.ts';
+import { apiClient } from 'cli/apiClient.ts';
 
 export const requestChanges = new Command()
 	.name('request')

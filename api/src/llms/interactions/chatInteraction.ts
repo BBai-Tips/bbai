@@ -3,7 +3,7 @@ import LLM from '../providers/baseLLM.ts';
 import { AnthropicModel, LLMMessageContentPart, LLMSpeakWithOptions, LLMSpeakWithResponse } from 'api/types.ts';
 import { ConversationId } from 'shared/types.ts';
 import LLMMessage, { LLMMessageContentPartTextBlock } from 'api/llms/llmMessage.ts';
-import LLMTool from '../llmTool.ts';
+import LLMTool from 'api/llms/llmTool.ts';
 //import { logger } from 'shared/logger.ts';
 
 class LLMChatInteraction extends LLMInteraction {
@@ -12,13 +12,14 @@ class LLMChatInteraction extends LLMInteraction {
 	}
 
 	public async prepareSytemPrompt(system: string): Promise<string> {
+		//logger.info('ChatInteraction: Preparing system prompt for chat', system);
 		return new Promise((resolve) => resolve(system));
 	}
 	public async prepareMessages(messages: LLMMessage[]): Promise<LLMMessage[]> {
 		return new Promise((resolve) => resolve(messages));
 	}
-	public async prepareTools(tools: LLMTool[]): Promise<LLMTool[]> {
-		return new Promise((resolve) => resolve(tools));
+	public async prepareTools(tools: Map<string, LLMTool>): Promise<LLMTool[]> {
+		return Array.from(tools.values());
 	}
 
 	public async chat(

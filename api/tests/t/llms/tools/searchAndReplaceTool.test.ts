@@ -3,7 +3,7 @@ import { join } from '@std/path';
 
 //import OrchestratorController from '../../../../src/controllers/orchestratorController.ts';
 import LLMConversationInteraction from '../../../../src/llms/interactions/conversationInteraction.ts';
-import { LLMToolSearchAndReplace } from '../../../../src/llms/tools/searchAndReplaceTool.ts';
+import LLMToolSearchAndReplace from '../../../../src/llms/tools/searchAndReplaceTool.ts';
 import ProjectEditor from '../../../../src/editor/projectEditor.ts';
 import { LLMAnswerToolUse } from 'api/llms/llmMessage.ts';
 import { GitUtils } from 'shared/git.ts';
