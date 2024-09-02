@@ -3,8 +3,7 @@ import { TerminalHandler } from '../utils/terminalHandler.utils.ts';
 import { logger } from 'shared/logger.ts';
 import { apiClient } from 'cli/apiClient.ts';
 import { websocketManager } from 'cli/websocketManager.ts';
-//import { LogFormatter } from 'shared/logFormatter.ts';
-import { ConversationContinue, ConversationId, ConversationResponse, ConversationStart } from 'shared/types.ts';
+import type { ConversationContinue, ConversationId, ConversationResponse, ConversationStart } from 'shared/types.ts';
 import { isApiRunning } from '../utils/pid.utils.ts';
 import { startApiServer, stopApiServer } from '../utils/apiControl.utils.ts';
 import { getBbaiDir, getProjectRoot } from 'shared/dataDir.ts';
@@ -16,7 +15,7 @@ const startDir = Deno.cwd();
 const bbaiDir = await getBbaiDir(startDir);
 const projectRoot = await getProjectRoot(startDir);
 
-export const conversationStart = new Command()
+export const conversationChat = new Command()
 	.name('chat')
 	.description('Start a new conversation or continue an existing one')
 	.option('-s, --statement <string>', 'Statement (or question) to start or continue the conversation')
@@ -33,7 +32,7 @@ export const conversationStart = new Command()
 			if (terminalHandler && terminalHandler.isStatementInProgress()) {
 				if (conversationId) {
 					console.log('\nCancelling current statement...');
-					await websocketManager.sendCancellationMessage(conversationId);
+					websocketManager.sendCancellationMessage(conversationId);
 				} else {
 					console.log("\nCan't cancel without conversation ID...");
 				}
@@ -51,7 +50,7 @@ export const conversationStart = new Command()
 			}
 		};
 		const exit = async () => {
-			cleanup();
+			await cleanup();
 			Deno.exit(0);
 		};
 		// Additional signal listeners will be added after terminalHandler is initialized
@@ -145,16 +144,16 @@ export const conversationStart = new Command()
 				await websocketManager.setupWebsocket(conversationId);
 
 				// Set up event listeners
-				let conversationStartDisplayed = false;
+				let conversationChatDisplayed = false;
 				eventManager.on('cli:conversationReady', (data) => {
-					if (!conversationStartDisplayed) {
+					if (!conversationChatDisplayed) {
 						if (!terminalHandler) {
 							logger.error(
 								`Terminal handler not initialized for conversation ${conversationId} and event cli:conversationReady`,
 							);
 						}
 						terminalHandler?.displayConversationStart(data as ConversationStart, conversationId, true);
-						conversationStartDisplayed = true;
+						conversationChatDisplayed = true;
 					}
 				}, conversationId);
 

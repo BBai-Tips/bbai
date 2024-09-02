@@ -10,15 +10,21 @@ This document serves as a guide for creating new tools in the BBai project. It i
 
 3. **Create the Tool File**: Create a new TypeScript file in the `api/src/llms/tools` directory. Name it according to the existing naming convention (e.g., `newToolNameTool.ts`).
 
-4. **Implement the Tool**: Use the gathered information to implement the tool, following the structure of existing tools.
+4. **Create Formatter Files**: Create two new files in the `api/src/llms/tools/formatters` directory:
+   - `newToolNameTool.browser.tsx` for browser formatting
+   - `newToolNameTool.console.ts` for console formatting
 
-5. **Error Handling and Input Validation**: Implement robust error handling and input validation.
+5. **Implement the Tool**: Use the gathered information to implement the tool, following the structure of existing tools.
 
-6. **Integration with LLMToolManager**: Ensure the tool is properly integrated with the LLMToolManager.
+6. **Implement Formatters**: Implement the `formatToolUse` and `formatToolResult` functions in both formatter files.
 
-7. **Testing**: Create comprehensive tests for the new tool in the `api/tests/t/llms/tools` directory. It is critical to read the TESTING.md file before writing tests to ensure consistency and proper test coverage.
+7. **Error Handling and Input Validation**: Implement robust error handling and input validation.
 
-8. **Documentation**: Add necessary documentation for the tool.
+8. **Integration with LLMToolManager**: Ensure the tool is properly integrated with the LLMToolManager.
+
+9. **Testing**: Create comprehensive tests for the new tool in the `api/tests/t/llms/tools` directory. It is critical to read the TESTING.md file before writing tests to ensure consistency and proper test coverage.
+
+10. **Documentation**: Add necessary documentation for the tool.
 
 ## Information Gathering Template
 
@@ -43,17 +49,11 @@ When creating a new tool, gather the following information:
 
 8. Testing Considerations: [Specific aspects to focus on during testing]
 
+9. Formatting Considerations: [Describe any specific formatting needs for browser and console output]
+
 ## Tool Implementation Guidelines
 
 When implementing a new tool, it's crucial to maintain consistency with existing tools in the project. This consistency ensures easier maintenance, better readability, and a more cohesive codebase. Pay close attention to the structure, naming conventions, and types used in other tools.
-
-When implementing a new tool, it's crucial to maintain consistency with existing tools in the project. Pay close attention to the structure, naming conventions, and types used in other tools. For example:
-
-- Use proper class methods instead of attributes for functions like `toolUseInputFormatter` and `toolRunResultFormatter`.
-- Apply appropriate types such as `LLMToolUseInputFormatter` and `LLMToolRunResultFormatter` to these methods.
-- Follow the existing pattern for the `input_schema` getter and other class methods.
-
-Refer to existing tools in the `api/src/llms/tools` directory as examples when creating a new tool.
 
 ### Structure
 Each tool should be a class that extends the `LLMTool` base class. The class should implement the following methods:
@@ -66,6 +66,41 @@ Each tool should be a class that extends the `LLMTool` base class. The class sho
 
 ### Naming Conventions
 Follow the naming conventions used in existing tools. Use PascalCase for class names (e.g., `LLMToolNewFeature`) and camelCase for method and variable names.
+
+### Formatter Implementation
+Create two separate formatter files for each tool:
+
+1. Browser Formatter (`newToolNameTool.browser.tsx`):
+   - Import necessary types from `api/llms/llmTool.ts` and `api/llms/llmMessage.ts`.
+   - Implement `formatToolUse` and `formatToolResult` functions that return JSX elements.
+
+2. Console Formatter (`newToolNameTool.console.ts`):
+   - Import necessary types from `api/llms/llmTool.ts` and `api/llms/llmMessage.ts`.
+   - Import `colors` from `cliffy/ansi/colors.ts` and `stripIndents` from `common-tags`.
+   - Implement `formatToolUse` and `formatToolResult` functions that return strings.
+
+### Main Tool File
+In the main tool file (`newToolNameTool.ts`):
+
+- Import the formatter functions from both formatter files.
+- Implement `toolUseInputFormatter` and `toolRunResultFormatter` methods to use the appropriate formatter based on the format parameter.
+
+Example:
+
+```typescript
+import { formatToolUse as formatToolUseBrowser, formatToolResult as formatToolResultBrowser } from './formatters/newToolNameTool.browser.tsx';
+import { formatToolUse as formatToolUseConsole, formatToolResult as formatToolResultConsole } from './formatters/newToolNameTool.console.ts';
+
+// ...
+
+toolUseInputFormatter = (toolInput: LLMToolInputSchema, format: 'console' | 'browser' = 'console'): string | JSX.Element => {
+    return format === 'console' ? formatToolUseConsole(toolInput) : formatToolUseBrowser(toolInput);
+};
+
+toolRunResultFormatter = (toolResult: LLMToolRunResultContent, format: 'console' | 'browser' = 'console'): string | JSX.Element => {
+    return format === 'console' ? formatToolResultConsole(toolResult) : formatToolResultBrowser(toolResult);
+};
+```
 
 ### Input Validation
 Use the input schema to validate incoming data. The `validateInput` method in the base `LLMTool` class will automatically use this schema for validation.
@@ -100,23 +135,9 @@ When creating tests for your new tool:
 - Ensure comprehensive test coverage, including edge cases and error scenarios.
 - Refer to TESTING.md for detailed guidelines on writing and organizing tests.
 - Study existing tool tests as examples to maintain consistency in testing approach.
+- Include tests for both browser and console formatters.
 
 It is crucial to read and follow the guidelines in TESTING.md before writing any tests. This ensures consistency across the project and helps maintain high-quality test coverage.
-
-When creating tests for your new tool:
-
-- Place test files in the `api/tests/t/llms/tools` directory.
-- Follow the naming convention: `toolName.test.ts`.
-- Ensure comprehensive test coverage, including edge cases and error scenarios.
-- Refer to TESTING.md for detailed guidelines on writing and organizing tests.
-- Study existing tool tests as examples to maintain consistency in testing approach.
-Create a corresponding test file in `api/tests/t/llms/tools`. Include tests for:
-- Basic functionality
-- Edge cases
-- Error scenarios
-- Input validation
-
-Use Deno's testing framework and follow the patterns established in existing tool tests.
 
 ### Documentation
 Include JSDoc comments for the class and its methods. Update any relevant project documentation to include information about the new tool.
@@ -153,7 +174,8 @@ Tools that execute system commands. Example: RunCommand tool.
 - After adding or modifying tools, always restart the API server to ensure the changes are applied.
 - Be cautious when implementing tools that interact with the file system or execute commands, as they can have significant impacts on the user's environment.
 - Consider the impact of the tool on the overall conversation flow and user experience.
+- Ensure that both browser and console formatters are implemented and used correctly for each tool.
 
 ## Conclusion
 
-Creating a new tool involves careful planning, implementation, and testing. By following this guide and maintaining consistency with existing tools, you can ensure that new tools integrate seamlessly into the BBai project and provide reliable functionality. Remember to consider both the technical implementation and the user experience when designing and implementing new tools.
+Creating a new tool involves careful planning, implementation, and testing. By following this guide and maintaining consistency with existing tools, you can ensure that new tools integrate seamlessly into the BBai project and provide reliable functionality. Remember to consider both the technical implementation and the user experience when designing and implementing new tools, including proper formatting for both browser and console outputs.

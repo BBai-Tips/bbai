@@ -181,10 +181,15 @@ export async function searchFilesContent(
 ): Promise<{ files: string[]; errorMessage: string | null }> {
 	try {
 		const excludeOptions = await getExcludeOptions(projectRoot);
-		const grepCommand = ['-r', '-l', '-E', `${contentPattern}`];
+		// Escape special characters for grep
+		//const escapedPattern = contentPattern.replace(/([.?*+^$[\]\\(){}|-])/g, "\\$1");
+		// Escape backslash characters for grep
+		const escapedPattern = contentPattern.replace(/(\\)/g, '\$1');
+		//logger.error(`Using escaped pattern in ${projectRoot}: `, JSON.stringify(escapedPattern));
+		const grepCommand = ['-r', '-l', '-E', escapedPattern];
 
 		if (options?.file_pattern) {
-			grepCommand.push('--include', options.file_pattern);
+			grepCommand.push('--include', `./${options.file_pattern}`);
 		}
 
 		// Add exclude options
@@ -193,7 +198,7 @@ export async function searchFilesContent(
 			grepCommand.push('--exclude', option);
 		}
 		grepCommand.push('.');
-		logger.debug(`Search command in dir ${projectRoot}: grep ${grepCommand.join(' ')}`);
+		logger.error(`Search command in dir ${projectRoot}: grep ${grepCommand.join(' ')}`);
 
 		const command = new Deno.Command('grep', {
 			args: grepCommand,

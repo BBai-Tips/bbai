@@ -42,9 +42,9 @@ class AnthropicLLM extends LLM {
 		} as Anthropic.MessageParam));
 	}
 
-	private asProviderToolType(tools: Map<string, LLMTool>): Anthropic.Tool[] {
+	private asProviderToolType(tools: LLMTool[]): Anthropic.Beta.PromptCaching.PromptCachingBetaTool[] {
 		//logger.debug('llms-anthropic-asProviderToolType', tools);
-		return Array.from(tools.values()).map((tool) => ({
+		return tools.map((tool) => ({
 			name: tool.name,
 			description: tool.description,
 			input_schema: tool.input_schema,
@@ -55,25 +55,38 @@ class AnthropicLLM extends LLM {
 		interaction: LLMInteraction,
 		speakOptions?: LLMSpeakWithOptions,
 	): Promise<Anthropic.MessageCreateParams> {
-		const system = await this.invoke(
+		//logger.debug('llms-anthropic-prepareMessageParams-systemPrompt', interaction.baseSystem);
+		const systemPrompt = await this.invoke(
 			LLMCallbackType.PREPARE_SYSTEM_PROMPT,
 			speakOptions?.system || interaction.baseSystem,
 			interaction.id,
 		);
-
-		const messages = this.asProviderMessageType(
-			await this.invoke(
-				LLMCallbackType.PREPARE_MESSAGES,
-				speakOptions?.messages || interaction.getMessages(),
-				interaction.id,
-			),
-		);
+		const system = systemPrompt
+			? [
+				{
+					type: 'text',
+					text: systemPrompt,
+					cache_control: { type: 'ephemeral' },
+				} as Anthropic.Beta.PromptCaching.PromptCachingBetaTextBlockParam,
+			]
+			: '';
 
 		//logger.debug('llms-anthropic-prepareMessageParams-tools', interaction.allTools());
 		const tools = this.asProviderToolType(
 			await this.invoke(
 				LLMCallbackType.PREPARE_TOOLS,
 				speakOptions?.tools || interaction.allTools(),
+				interaction.id,
+			),
+		);
+		if (tools.length > 0) {
+			tools[tools.length - 1].cache_control = { type: 'ephemeral' };
+		}
+
+		const messages = this.asProviderMessageType(
+			await this.invoke(
+				LLMCallbackType.PREPARE_MESSAGES,
+				speakOptions?.messages || interaction.getMessages(),
 				interaction.id,
 			),
 		);
@@ -89,7 +102,7 @@ class AnthropicLLM extends LLM {
 		const maxTokens: number = speakOptions?.maxTokens || interaction.maxTokens || 8192;
 		const temperature: number = speakOptions?.temperature || interaction.temperature || 0.2;
 
-		const messageParams: Anthropic.MessageCreateParams = {
+		const messageParams: Anthropic.Beta.PromptCaching.MessageCreateParams = {
 			messages,
 			tools,
 			system,
@@ -114,22 +127,25 @@ class AnthropicLLM extends LLM {
 		messageParams: LLMProviderMessageRequest,
 	): Promise<LLMSpeakWithResponse> {
 		try {
-			//logger.info('llms-anthropic-speakWith-messageParams', messageParams);
+			logger.dir(messageParams);
 
+			// https://github.com/anthropics/anthropic-sdk-typescript/blob/6886b29e0a550d28aa082670381a4bb92101099c/src/resources/beta/prompt-caching/prompt-caching.ts
 			//const { data: anthropicMessageStream, response: anthropicResponse } = await this.anthropic.messages.create(
 			const { data: anthropicMessageStream, response: anthropicResponse } = await this.anthropic.beta
 				.promptCaching.messages.create(
 					messageParams as Anthropic.MessageCreateParams,
 					{
-						headers: { 'anthropic-beta': 'max-tokens-3-5-sonnet-2024-07-15' },
-						//headers: { 'anthropic-beta': ['max-tokens-3-5-sonnet-2024-07-15', 'prompt-caching-2024-07-31'] },
+						headers: { 'anthropic-beta': 'prompt-caching-2024-07-31,max-tokens-3-5-sonnet-2024-07-15' },
 					},
 				).withResponse();
 
-			const anthropicMessage = anthropicMessageStream as Anthropic.Message;
-			//logger.info('llms-anthropic-anthropicMessage', anthropicMessage);
+			const anthropicMessage = anthropicMessageStream as Anthropic.Beta.PromptCaching.PromptCachingBetaMessage;
+			logger.info('llms-anthropic-anthropicMessage', anthropicMessage);
+			//logger.info('llms-anthropic-anthropicResponse', anthropicResponse);
 
 			const headers = anthropicResponse?.headers;
+
+			//const requestId = headers.get('request-id');
 
 			const requestsRemaining = Number(headers.get('anthropic-ratelimit-requests-remaining'));
 			const requestsLimit = Number(headers.get('anthropic-ratelimit-requests-limit'));
@@ -157,6 +173,8 @@ class AnthropicLLM extends LLM {
 					inputTokens: anthropicMessage.usage.input_tokens,
 					outputTokens: anthropicMessage.usage.output_tokens,
 					totalTokens: (anthropicMessage.usage.input_tokens + anthropicMessage.usage.output_tokens),
+					cacheCreationInputTokens: anthropicMessage.usage.cache_creation_input_tokens || 0,
+					cacheReadInputTokens: anthropicMessage.usage.cache_read_input_tokens || 0,
 				},
 				rateLimit: {
 					requestsRemaining,

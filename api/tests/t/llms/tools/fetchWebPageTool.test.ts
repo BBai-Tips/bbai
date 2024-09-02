@@ -1,6 +1,6 @@
 import { assertEquals, assertStringIncludes } from '../../../deps.ts';
 
-import { LLMToolFetchWebPage } from '../../../../src/llms/tools/fetchWebPageTool.ts';
+import LLMToolFetchWebPage from '../../../../src/llms/tools/fetchWebPageTool.ts';
 import ProjectEditor from '../../../../src/editor/projectEditor.ts';
 import type { LLMAnswerToolUse } from 'api/llms/llmMessage.ts';
 import { GitUtils } from 'shared/git.ts';

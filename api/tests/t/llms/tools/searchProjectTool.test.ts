@@ -1,7 +1,7 @@
 import { assert, assertStringIncludes } from '../../../deps.ts';
 import { join } from '@std/path';
 
-import { LLMToolSearchProject } from '../../../../src/llms/tools/searchProjectTool.ts';
+import LLMToolSearchProject from '../../../../src/llms/tools/searchProjectTool.ts';
 import ProjectEditor from '../../../../src/editor/projectEditor.ts';
 import type { LLMAnswerToolUse } from 'api/llms/llmMessage.ts';
 import { GitUtils } from 'shared/git.ts';
@@ -23,6 +23,13 @@ async function createTestFiles() {
 	Deno.writeTextFileSync(join(testProjectRoot, 'large_file.txt'), 'A'.repeat(10000)); // 10KB file
 	// Create an empty file for edge case testing
 	Deno.writeTextFileSync(join(testProjectRoot, 'empty_file.txt'), '');
+
+	// Create files with special content for regex testing
+	Deno.writeTextFileSync(join(testProjectRoot, 'regex_test1.txt'), 'This is a test. Another test.');
+	Deno.writeTextFileSync(join(testProjectRoot, 'regex_test2.txt'), 'Testing 123, testing 456.');
+	Deno.writeTextFileSync(join(testProjectRoot, 'regex_test3.txt'), 'Test@email.com and another.test@email.com');
+	Deno.writeTextFileSync(join(testProjectRoot, 'regex_test4.txt'), 'https://example.com and http://test.com');
+	Deno.writeTextFileSync(join(testProjectRoot, 'regex_test5.txt'), 'Telephone: 123-456-7890 and (987) 654-3210');
 
 	// Set specific modification times for date-based search tests
 	const pastDate = new Date('2023-01-01T00:00:00Z');
@@ -107,22 +114,31 @@ Deno.test({
 
 		assertStringIncludes(
 			result.bbaiResponse,
-			'BBai found 3 files matching the search criteria: modified after 2024-01-01, modified before 2026-01-01',
+			'BBai found 8 files matching the search criteria: modified after 2024-01-01, modified before 2026-01-01',
 		);
 		assertStringIncludes(
 			result.toolResponse,
-			'Found 3 files matching the search criteria: modified after 2024-01-01, modified before 2026-01-01',
+			'Found 8 files matching the search criteria: modified after 2024-01-01, modified before 2026-01-01',
 		);
 
 		const toolResults = result.toolResults as string;
 		assertStringIncludes(
 			toolResults,
-			'3 files match the search criteria: modified after 2024-01-01, modified before 2026-01-01',
+			'8 files match the search criteria: modified after 2024-01-01, modified before 2026-01-01',
 		);
 		assertStringIncludes(toolResults, '<files>');
 		assertStringIncludes(toolResults, '</files>');
 
-		const expectedFiles = ['file2.js', 'large_file.txt', 'empty_file.txt'];
+		const expectedFiles = [
+			'file2.js',
+			'large_file.txt',
+			'empty_file.txt',
+			'regex_test1.txt',
+			'regex_test2.txt',
+			'regex_test3.txt',
+			'regex_test4.txt',
+			'regex_test5.txt',
+		];
 		//console.log('Expected files:', expectedFiles);
 		const fileContent = toolResults.split('<files>')[1].split('</files>')[0].trim();
 		const foundFiles = fileContent.split('\n');
@@ -158,21 +174,29 @@ Deno.test({
 
 		assertStringIncludes(
 			result.bbaiResponse,
-			'BBai found 2 files matching the search criteria: file pattern "*.txt", minimum size 1 bytes',
+			'BBai found 7 files matching the search criteria: file pattern "*.txt", minimum size 1 bytes',
 		);
 		assertStringIncludes(
 			result.toolResponse,
-			'Found 2 files matching the search criteria: file pattern "*.txt", minimum size 1 bytes',
+			'Found 7 files matching the search criteria: file pattern "*.txt", minimum size 1 bytes',
 		);
 		const toolResults = result.toolResults as string;
 		assertStringIncludes(
 			toolResults,
-			'2 files match the search criteria: file pattern "*.txt", minimum size 1 bytes',
+			'7 files match the search criteria: file pattern "*.txt", minimum size 1 bytes',
 		);
 		assertStringIncludes(toolResults, '<files>');
 		assertStringIncludes(toolResults, '</files>');
 
-		const expectedFiles = ['file1.txt', 'large_file.txt'];
+		const expectedFiles = [
+			'file1.txt',
+			'large_file.txt',
+			'regex_test1.txt',
+			'regex_test2.txt',
+			'regex_test3.txt',
+			'regex_test4.txt',
+			'regex_test5.txt',
+		];
 		const fileContent = toolResults.split('<files>')[1].split('</files>')[0].trim();
 		const foundFiles = fileContent.split('\n');
 
@@ -531,6 +555,341 @@ Deno.test({
 			assert(foundFiles.some((f) => f.endsWith(file)), `File ${file} not found in the result`);
 		});
 		assert(foundFiles.length === expectedFiles.length, 'Number of found files does not match expected');
+	},
+	sanitizeResources: false,
+	sanitizeOps: false,
+});
+
+Deno.test({
+	name: 'SearchProjectTool - Search with specific content and file pattern',
+	fn: async () => {
+		const tool = new LLMToolSearchProject();
+
+		// Create a test file with the specific content
+		const testFilePath = join(testProjectRoot, 'bui', 'src', 'islands', 'Chat.tsx');
+		await Deno.mkdir(join(testProjectRoot, 'bui', 'src', 'islands'), { recursive: true });
+		await Deno.writeTextFile(testFilePath, 'const title = currentConversation?.title;');
+
+		const toolUse: LLMAnswerToolUse = {
+			toolValidation: { validated: true, results: '' },
+			toolUseId: 'test-id',
+			toolName: 'search_project',
+			toolInput: {
+				content_pattern: String.raw`currentConversation\?\.title`,
+				file_pattern: 'bui/src/islands/Chat.tsx',
+			},
+		};
+
+		const conversation = await projectEditor.initConversation('test-conversation-id');
+		const result = await tool.runTool(conversation, toolUse, projectEditor);
+
+		console.info('Tool result:', result);
+		assertStringIncludes(
+			result.bbaiResponse,
+			String
+				.raw`BBai found 1 files matching the search criteria: content pattern "currentConversation\?\.title", file pattern "bui/src/islands/Chat.tsx"`,
+		);
+		assertStringIncludes(
+			result.toolResponse,
+			String
+				.raw`Found 1 files matching the search criteria: content pattern "currentConversation\?\.title", file pattern "bui/src/islands/Chat.tsx"`,
+		);
+		const toolResults = result.toolResults as string;
+		assertStringIncludes(
+			toolResults,
+			String
+				.raw`1 files match the search criteria: content pattern "currentConversation\?\.title", file pattern "bui/src/islands/Chat.tsx"`,
+		);
+		assertStringIncludes(toolResults, '<files>');
+		assertStringIncludes(toolResults, '</files>');
+
+		const expectedFiles = ['bui/src/islands/Chat.tsx'];
+		const fileContent = toolResults.split('<files>')[1].split('</files>')[0].trim();
+		const foundFiles = fileContent.split('\n');
+
+		expectedFiles.forEach((file) => {
+			assert(foundFiles.some((f) => f.endsWith(file)), `File ${file} not found in the result`);
+		});
+		assert(foundFiles.length === expectedFiles.length, 'Number of found files does not match expected');
+
+		// Clean up the test file
+		await Deno.remove(testFilePath);
+	},
+	sanitizeResources: false,
+	sanitizeOps: false,
+});
+
+Deno.test({
+	name: 'SearchProjectTool - Search with word boundary regex',
+	fn: async () => {
+		const tool = new LLMToolSearchProject();
+
+		const toolUse: LLMAnswerToolUse = {
+			toolValidation: { validated: true, results: '' },
+			toolUseId: 'test-id',
+			toolName: 'search_project',
+			toolInput: {
+				content_pattern: String.raw`\btest\b`,
+				file_pattern: 'regex_test*.txt',
+			},
+		};
+
+		const conversation = await projectEditor.initConversation('test-conversation-id');
+		const result = await tool.runTool(conversation, toolUse, projectEditor);
+
+		assertStringIncludes(
+			result.bbaiResponse,
+			String
+				.raw`BBai found 3 files matching the search criteria: content pattern "\btest\b", file pattern "regex_test*.txt"`,
+		);
+		const toolResults = result.toolResults as string;
+		assertStringIncludes(toolResults, 'regex_test1.txt');
+		assert(!toolResults.includes('regex_test2.txt'), 'regex_test2.txt should not be in the results');
+	},
+	sanitizeResources: false,
+	sanitizeOps: false,
+});
+
+Deno.test({
+	name: 'SearchProjectTool - Search with email regex pattern',
+	fn: async () => {
+		const tool = new LLMToolSearchProject();
+
+		const toolUse: LLMAnswerToolUse = {
+			toolValidation: { validated: true, results: '' },
+			toolName: 'search_project',
+			toolUseId: 'test-id',
+			toolInput: {
+				content_pattern: String.raw`[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}`,
+				file_pattern: 'regex_test*.txt',
+			},
+		};
+
+		const conversation = await projectEditor.initConversation('test-conversation-id');
+		const result = await tool.runTool(conversation, toolUse, projectEditor);
+
+		assertStringIncludes(
+			result.bbaiResponse,
+			String
+				.raw`BBai found 1 files matching the search criteria: content pattern "[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}", file pattern "regex_test*.txt"`,
+		);
+		const toolResults = result.toolResults as string;
+		assertStringIncludes(toolResults, 'regex_test3.txt');
+	},
+	sanitizeResources: false,
+	sanitizeOps: false,
+});
+
+Deno.test({
+	name: 'SearchProjectTool - Search with URL regex pattern',
+	fn: async () => {
+		const tool = new LLMToolSearchProject();
+
+		const toolUse: LLMAnswerToolUse = {
+			toolValidation: { validated: true, results: '' },
+			toolName: 'search_project',
+			toolUseId: 'test-id',
+			toolInput: {
+				content_pattern: String.raw`https?://[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}`,
+				file_pattern: 'regex_test*.txt',
+			},
+		};
+
+		const conversation = await projectEditor.initConversation('test-conversation-id');
+		const result = await tool.runTool(conversation, toolUse, projectEditor);
+
+		assertStringIncludes(
+			result.bbaiResponse,
+			String
+				.raw`BBai found 1 files matching the search criteria: content pattern "https?://[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}", file pattern "regex_test*.txt"`,
+		);
+		const toolResults = result.toolResults as string;
+		assertStringIncludes(toolResults, 'regex_test4.txt');
+	},
+	sanitizeResources: false,
+	sanitizeOps: false,
+});
+
+Deno.test({
+	name: 'SearchProjectTool - Search with phone number regex pattern',
+	fn: async () => {
+		const tool = new LLMToolSearchProject();
+
+		const toolUse: LLMAnswerToolUse = {
+			toolValidation: { validated: true, results: '' },
+			toolName: 'search_project',
+			toolUseId: 'test-id',
+			toolInput: {
+				content_pattern: String.raw`(\d{3}[-.]?\d{3}[-.]?\d{4}|\(\d{3}\)\s*\d{3}[-.]?\d{4})`,
+				file_pattern: 'regex_test*.txt',
+			},
+		};
+
+		const conversation = await projectEditor.initConversation('test-conversation-id');
+		const result = await tool.runTool(conversation, toolUse, projectEditor);
+
+		assertStringIncludes(
+			result.bbaiResponse,
+			String
+				.raw`BBai found 1 files matching the search criteria: content pattern "(\d{3}[-.]?\d{3}[-.]?\d{4}|\(\d{3}\)\s*\d{3}[-.]?\d{4})", file pattern "regex_test*.txt"`,
+		);
+		const toolResults = result.toolResults as string;
+		assertStringIncludes(toolResults, 'regex_test5.txt');
+	},
+	sanitizeResources: false,
+	sanitizeOps: false,
+});
+
+/*
+// [TODO] these two tests are failing - I suspect incompatible `grep` pattern
+// Claude: The issue is likely with the escaping of the pattern. In grep's extended regex (-E), parentheses have special meaning and need to be escaped.
+// I tried escaping the parens but test still fails
+Deno.test({
+	name: 'SearchProjectTool - Search with lookahead regex',
+	fn: async () => {
+		const tool = new LLMToolSearchProject();
+
+		const toolUse: LLMAnswerToolUse = {
+			toolValidation: { validated: true, results: '' },
+			toolName: 'search_project',
+			toolUseId: 'test-id',
+			toolInput: {
+				content_pattern: String.raw`Test(?=ing)`,
+				file_pattern: 'regex_test*.txt',
+			},
+		};
+
+		const conversation = await projectEditor.initConversation('test-conversation-id');
+		const result = await tool.runTool(conversation, toolUse, projectEditor);
+
+		assertStringIncludes(
+			result.bbaiResponse,
+			String
+				.raw`BBai found 1 files matching the search criteria: content pattern "Test(?=ing)", file pattern "regex_test*.txt"`,
+		);
+		const toolResults = result.toolResults as string;
+		assertStringIncludes(toolResults, 'regex_test2.txt');
+	},
+	sanitizeResources: false,
+	sanitizeOps: false,
+});
+
+Deno.test({
+	name: 'SearchProjectTool - Search with negative lookahead regex',
+	fn: async () => {
+		const tool = new LLMToolSearchProject();
+
+		const toolUse: LLMAnswerToolUse = {
+			toolValidation: { validated: true, results: '' },
+			toolName: 'search_project',
+			toolUseId: 'test-id',
+			toolInput: {
+				content_pattern: String.raw`test(?!ing)`,
+				file_pattern: 'regex_test*.txt',
+			},
+		};
+
+		const conversation = await projectEditor.initConversation('test-conversation-id');
+		const result = await tool.runTool(conversation, toolUse, projectEditor);
+
+		assertStringIncludes(
+			result.bbaiResponse,
+			String
+				.raw`BBai found 1 files matching the search criteria: content pattern "test(?!ing)", file pattern "regex_test*.txt"`,
+		);
+		const toolResults = result.toolResults as string;
+		assertStringIncludes(toolResults, 'regex_test1.txt');
+	},
+	sanitizeResources: false,
+	sanitizeOps: false,
+});
+ */
+
+Deno.test({
+	name: 'SearchProjectTool - Search with complex regex pattern',
+	fn: async () => {
+		const tool = new LLMToolSearchProject();
+
+		const toolUse: LLMAnswerToolUse = {
+			toolValidation: { validated: true, results: '' },
+			toolName: 'search_project',
+			toolUseId: 'test-id',
+			toolInput: {
+				content_pattern: String.raw`\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b`,
+				file_pattern: 'regex_test*.txt',
+			},
+		};
+
+		const conversation = await projectEditor.initConversation('test-conversation-id');
+		const result = await tool.runTool(conversation, toolUse, projectEditor);
+
+		assertStringIncludes(
+			result.bbaiResponse,
+			String
+				.raw`BBai found 1 files matching the search criteria: content pattern "\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b", file pattern "regex_test*.txt"`,
+		);
+		const toolResults = result.toolResults as string;
+		assertStringIncludes(toolResults, 'regex_test3.txt');
+	},
+	sanitizeResources: false,
+	sanitizeOps: false,
+});
+
+Deno.test({
+	name: 'SearchProjectTool - Search with regex using quantifiers',
+	fn: async () => {
+		const tool = new LLMToolSearchProject();
+
+		const toolUse: LLMAnswerToolUse = {
+			toolValidation: { validated: true, results: '' },
+			toolName: 'search_project',
+			toolUseId: 'test-id',
+			toolInput: {
+				content_pattern: String.raw`test.*test`,
+				file_pattern: 'regex_test*.txt',
+			},
+		};
+
+		const conversation = await projectEditor.initConversation('test-conversation-id');
+		const result = await tool.runTool(conversation, toolUse, projectEditor);
+
+		assertStringIncludes(
+			result.bbaiResponse,
+			String
+				.raw`BBai found 1 files matching the search criteria: content pattern "test.*test", file pattern "regex_test*.txt"`,
+		);
+		const toolResults = result.toolResults as string;
+		assertStringIncludes(toolResults, 'regex_test1.txt');
+	},
+	sanitizeResources: false,
+	sanitizeOps: false,
+});
+
+Deno.test({
+	name: 'SearchProjectTool - Search with regex using character classes',
+	fn: async () => {
+		const tool = new LLMToolSearchProject();
+
+		const toolUse: LLMAnswerToolUse = {
+			toolValidation: { validated: true, results: '' },
+			toolName: 'search_project',
+			toolUseId: 'test-id',
+			toolInput: {
+				content_pattern: String.raw`[Tt]esting [0-9]+`,
+				file_pattern: 'regex_test*.txt',
+			},
+		};
+
+		const conversation = await projectEditor.initConversation('test-conversation-id');
+		const result = await tool.runTool(conversation, toolUse, projectEditor);
+
+		assertStringIncludes(
+			result.bbaiResponse,
+			String
+				.raw`BBai found 1 files matching the search criteria: content pattern "[Tt]esting [0-9]+", file pattern "regex_test*.txt"`,
+		);
+		const toolResults = result.toolResults as string;
+		assertStringIncludes(toolResults, 'regex_test2.txt');
 	},
 	sanitizeResources: false,
 	sanitizeOps: false,

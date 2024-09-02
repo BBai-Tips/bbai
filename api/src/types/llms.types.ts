@@ -1,10 +1,10 @@
 import LLMInteraction from '../llms/interactions/baseInteraction.ts';
 import { TokenUsage } from 'shared/types.ts';
 
-import LLMTool from '../llms/llmTool.ts';
+import LLMTool from 'api/llms/llmTool.ts';
 export type { LLMToolInputSchema } from '../llms/llmTool.ts';
 
-import LLMMessage from '../llms/llmMessage.ts';
+import LLMMessage from 'api/llms/llmMessage.ts';
 import type { LLMAnswerToolUse, LLMMessageContentParts } from '../llms/llmMessage.ts';
 export type { LLMMessageContentPart, LLMMessageContentParts } from '../llms/llmMessage.ts';
 
@@ -226,6 +226,7 @@ export interface LLMSpeakWithResponse {
 }
 
 export enum LLMCallbackType {
+	PROJECT_EDITOR = 'PROJECT_EDITOR',
 	PROJECT_ROOT = 'PROJECT_ROOT',
 	PROJECT_INFO = 'PROJECT_INFO',
 	PROJECT_FILE_CONTENT = 'PROJECT_FILE_CONTENT',

@@ -13,6 +13,7 @@ export class ConfigManager {
 		api: {
 			environment: 'local',
 			apiPort: 3000,
+			logLevel: 'info',
 		},
 		cli: {},
 		repoInfo: {
@@ -75,11 +76,12 @@ export class ConfigManager {
 					  # Set to true to ignore the LLM request cache (useful for development)
 					  ignoreLLMRequestCache: false
 					
+					  # Add any shared configuration options here
+					  logLevel: info
+
 					# Add any CLI-specific configuration options here
 					cli: {}
 					
-					# Add any shared configuration options here
-					logLevel: info
 					`;
 				await Deno.writeTextFile(userConfigPath, defaultConfig);
 			} else {
@@ -106,8 +108,8 @@ export class ConfigManager {
 				  # Your VoyageAI API key. Uncomment and replace with your actual key if using VoyageAI.
 				  # voyageaiApiKey: "your-voyageai-api-key-here"
 
-				# Add any project-specific configuration options here
-				logLevel: info
+				  # Add any project-specific configuration options here
+				  logLevel: info
 				`;
 			await Deno.writeTextFile(projectConfigPath, projectConfig);
 		} catch (error) {
@@ -140,7 +142,7 @@ export class ConfigManager {
 
 	private loadEnvConfig(): Partial<ConfigSchema> {
 		const config: Partial<ConfigSchema> = {};
-		const apiConfig: Partial<ConfigSchema['api']> = {};
+		const apiConfig: ConfigSchema['api'] = { logLevel: 'info' };
 		const cliConfig: Partial<ConfigSchema['cli']> = {};
 
 		const anthropicApiKey = Deno.env.get('ANTHROPIC_API_KEY');
@@ -161,7 +163,11 @@ export class ConfigManager {
 		const ignoreLLMRequestCache = Deno.env.get('BBAI_IGNORE_LLM_REQUEST_CACHE');
 		if (ignoreLLMRequestCache) apiConfig.ignoreLLMRequestCache = ignoreLLMRequestCache === 'true';
 
-		// Add CLI-specific env variables here if needed
+		const apiLogFile = Deno.env.get('BBAI_API_LOG_FILE');
+		if (apiLogFile) apiConfig.logFile = apiLogFile;
+
+		const apiLogLevel = Deno.env.get('BBAI_API_LOG_LEVEL');
+		if (apiLogLevel) apiConfig.logLevel = apiLogLevel as 'debug' | 'info' | 'warn' | 'error';
 
 		if (Object.keys(apiConfig).length > 0) {
 			config.api = apiConfig;
@@ -170,12 +176,6 @@ export class ConfigManager {
 		if (Object.keys(cliConfig).length > 0) {
 			config.cli = cliConfig;
 		}
-
-		const logFile = Deno.env.get('BBAI_LOG_FILE');
-		if (logFile) config.logFile = logFile;
-
-		const logLevel = Deno.env.get('BBAI_LOG_LEVEL');
-		if (logLevel) config.logLevel = logLevel as 'debug' | 'info' | 'warn' | 'error';
 
 		return config;
 	}

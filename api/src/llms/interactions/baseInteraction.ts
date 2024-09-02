@@ -1,7 +1,7 @@
 import type { LLMSpeakWithOptions, LLMSpeakWithResponse } from '../../types.ts';
-import LLM from '../providers/baseLLM.ts';
+import type LLM from '../providers/baseLLM.ts';
 import { LLMCallbackType } from 'api/types.ts';
-import { ConversationId, ConversationMetrics, ConversationTokenUsage, TokenUsage } from 'shared/types.ts';
+import type { ConversationId, ConversationMetrics, ConversationTokenUsage, TokenUsage } from 'shared/types.ts';
 import type {
 	LLMMessageContentPart,
 	LLMMessageContentPartImageBlock,
@@ -11,8 +11,11 @@ import type {
 	LLMMessageProviderResponse,
 } from '../llmMessage.ts';
 import LLMMessage from 'api/llms/llmMessage.ts';
-import LLMTool, { LLMToolRunResultContent } from 'api/llms/llmTool.ts';
-import { ConversationLogger, ConversationLoggerEntryType } from 'shared/conversationLogger.ts';
+import type LLMTool from 'api/llms/llmTool.ts';
+import type { LLMToolRunResultContent } from 'api/llms/llmTool.ts';
+import ConversationPersistence from '../../storage/conversationPersistence.ts';
+import ConversationLogger from 'shared/conversationLogger.ts';
+import type { ConversationLogEntry } from 'shared/conversationLogger.ts';
 import { logger } from 'shared/logger.ts';
 import { generateConversationId } from 'shared/conversationManagement.ts';
 
@@ -43,6 +46,7 @@ class LLMInteraction {
 	protected messages: LLMMessage[] = [];
 	protected tools: Map<string, LLMTool> = new Map();
 	protected _baseSystem: string = '';
+	protected conversationPersistence!: ConversationPersistence;
 	public conversationLogger!: ConversationLogger;
 
 	private _model: string = '';
@@ -60,25 +64,25 @@ class LLMInteraction {
 		try {
 			const projectRoot = await this.llm.invoke(LLMCallbackType.PROJECT_ROOT);
 			const logEntryHandler = async (
-				type: ConversationLoggerEntryType,
 				timestamp: string,
-				content: string,
+				logEntry: ConversationLogEntry,
 				conversationStats: ConversationMetrics,
 				tokenUsageTurn: TokenUsage,
 				tokenUsageStatement: TokenUsage,
 				tokenUsageConversation: ConversationTokenUsage,
-			) => {
+			): Promise<void> => {
 				await this.llm.invoke(
 					LLMCallbackType.LOG_ENTRY_HANDLER,
-					type,
 					timestamp,
-					content,
+					logEntry,
 					conversationStats,
 					tokenUsageTurn,
 					tokenUsageStatement,
 					tokenUsageConversation,
 				);
 			};
+			const projectEditor = await this.llm.invoke(LLMCallbackType.PROJECT_EDITOR);
+			this.conversationPersistence = await new ConversationPersistence(this.id, projectEditor).init();
 			this.conversationLogger = await new ConversationLogger(projectRoot, this.id, logEntryHandler).init();
 		} catch (error) {
 			logger.error('Failed to initialize LLMConversationInteraction:', error);
@@ -173,17 +177,26 @@ class LLMInteraction {
 		this._conversationTurnCount++;
 	}
 
+	public getConversationStats(): ConversationMetrics {
+		return {
+			statementTurnCount: this._statementTurnCount,
+			conversationTurnCount: this._conversationTurnCount,
+			statementCount: this._statementCount,
+		};
+	}
+	/*
 	public getAllStats(): ConversationMetrics {
 		return {
 			//totalProviderRequests: this._totalProviderRequests,
 			statementTurnCount: this._statementTurnCount,
 			conversationTurnCount: this._conversationTurnCount,
 			statementCount: this._statementCount,
-			// 			tokenUsageTurn: this._tokenUsageTurn,
-			// 			tokenUsageStatement: this._tokenUsageStatement,
-			// 			tokenUsageInteraction: this._tokenUsageInteraction
+			tokenUsageTurn: this._tokenUsageTurn,
+			tokenUsageStatement: this._tokenUsageStatement,
+			tokenUsageInteraction: this._tokenUsageInteraction
 		};
 	}
+ */
 
 	public prepareSytemPrompt(_system: string): Promise<string> {
 		throw new Error("Method 'prepareSytemPrompt' must be implemented.");
@@ -191,7 +204,7 @@ class LLMInteraction {
 	public prepareMessages(_messages: LLMMessage[]): Promise<LLMMessage[]> {
 		throw new Error("Method 'prepareMessages' must be implemented.");
 	}
-	public prepareTools(_tools: LLMTool[]): Promise<LLMTool[]> {
+	public prepareTools(_tools: Map<string, LLMTool>): Promise<LLMTool[]> {
 		throw new Error("Method 'prepareTools' must be implemented.");
 	}
 
@@ -224,7 +237,7 @@ class LLMInteraction {
 	): string {
 		const lastMessage = this.getLastMessage();
 		//logger.debug('lastMessage for assistant', lastMessage);
-		//this.conversationLogger?.logAssistantMessage(content);
+
 		if (lastMessage && lastMessage.role === 'assistant') {
 			logger.error('Why are we adding another assistant message - SOMETHING IS WRONG!');
 			// Append content to the content array of the last assistant message

@@ -1,7 +1,7 @@
 import Ajv from 'ajv';
 import md5 from 'md5';
 
-import { LLMCallbackType, LLMProvider as LLMProviderEnum } from '../../types.ts';
+import { LLMCallbackType, LLMProvider as LLMProviderEnum } from 'api/types.ts';
 import type {
 	LLMCallbacks,
 	LLMProviderMessageRequest,
@@ -11,7 +11,6 @@ import type {
 	LLMTokenUsage,
 	LLMValidateResponseCallback,
 } from '../../types.ts';
-import LLMMessage from '../llmMessage.ts';
 import type { LLMMessageContentPart } from '../llmMessage.ts';
 //import LLMTool from '../llmTool.ts';
 import type { LLMToolInputSchema } from '../llmTool.ts';

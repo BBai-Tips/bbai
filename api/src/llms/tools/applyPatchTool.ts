@@ -1,20 +1,15 @@
-import LLMTool, {
-	LLMToolFormatterDestination,
-	LLMToolInputSchema,
-	LLMToolRunResult,
-	LLMToolRunResultContent,
-	LLMToolRunResultFormatter,
-	LLMToolUseInputFormatter,
-} from 'api/llms/llmTool.ts';
-import { colors } from 'cliffy/ansi/colors.ts';
-import { stripIndents } from 'common-tags';
-import LLMConversationInteraction from '../interactions/conversationInteraction.ts';
+import { JSX } from 'preact';
+import LLMTool, { LLMToolInputSchema, LLMToolRunResult, LLMToolRunResultContent } from 'api/llms/llmTool.ts';
 import {
-	LLMAnswerToolUse,
-	LLMMessageContentPart,
-	LLMMessageContentParts,
-	LLMMessageContentPartTextBlock,
-} from 'api/llms/llmMessage.ts';
+	formatToolResult as formatToolResultBrowser,
+	formatToolUse as formatToolUseBrowser,
+} from './formatters/applyPatchTool.browser.tsx';
+import {
+	formatToolResult as formatToolResultConsole,
+	formatToolUse as formatToolUseConsole,
+} from './formatters/applyPatchTool.console.ts';
+import LLMConversationInteraction from '../interactions/conversationInteraction.ts';
+import { LLMAnswerToolUse, LLMMessageContentParts, LLMMessageContentPartTextBlock } from 'api/llms/llmMessage.ts';
 import ProjectEditor from '../../editor/projectEditor.ts';
 import { isPathWithinProject } from '../../utils/fileHandling.utils.ts';
 import { createError, ErrorType } from '../../utils/error.utils.ts';
@@ -24,12 +19,13 @@ import { dirname, join } from '@std/path';
 import { ensureDir } from '@std/fs';
 import * as diff from 'diff';
 
-export class LLMToolApplyPatch extends LLMTool {
+export default class LLMToolApplyPatch extends LLMTool {
 	constructor() {
 		super(
 			'apply_patch',
 			'Apply a well-formed patch to one or more files',
 		);
+		this.fileName = 'applyPatchTool.ts';
 	}
 
 	get input_schema(): LLMToolInputSchema {
@@ -49,58 +45,13 @@ export class LLMToolApplyPatch extends LLMTool {
 		};
 	}
 
-	toolUseInputFormatter: LLMToolUseInputFormatter = (
-		toolInput: LLMToolInputSchema,
-		format: LLMToolFormatterDestination = 'console',
-	): string => {
-		const { filePath, patch } = toolInput as { filePath?: string; patch: string };
-		if (format === 'console') {
-			return stripIndents`
-				${
-				filePath ? `${colors.bold('File to patch:')} ${colors.cyan(filePath)}` : colors.bold('Multi-file patch')
-			}
-				
-				${colors.bold('Patch:')}\n${colors.yellow(patch)}
-			`;
-		} else if (format === 'browser') {
-			return `
-				${
-				filePath
-					? `<p><strong>File to patch:</strong> <span style="color: #4169E1;">${filePath}</span></p>`
-					: '<p><strong>Multi-file patch</strong></p>'
-			}
-				<p><strong>Patch:</strong></p>
-				<pre style="background-color: #FFFACD; padding: 10px;">${patch}</pre>
-			`;
-		}
-		return JSON.stringify(toolInput, null, 2);
-	};
+	formatToolUse(toolInput: LLMToolInputSchema, format: 'console' | 'browser'): string | JSX.Element {
+		return format === 'console' ? formatToolUseConsole(toolInput) : formatToolUseBrowser(toolInput);
+	}
 
-	toolRunResultFormatter: LLMToolRunResultFormatter = (
-		toolResult: LLMToolRunResultContent,
-		format: LLMToolFormatterDestination = 'console',
-	): string => {
-		const results: LLMMessageContentParts = Array.isArray(toolResult)
-			? toolResult
-			: [toolResult as LLMMessageContentPart];
-		let formattedResult = '';
-
-		results.forEach((result: LLMMessageContentPart) => {
-			if (result.type === 'text') {
-				if (format === 'console') {
-					formattedResult += `${colors.bold(result.text)}\n`;
-				} else if (format === 'browser') {
-					formattedResult += `<p><strong>${result.text}</strong></p>`;
-				} else {
-					formattedResult += `${result.text}\n`;
-				}
-			} else {
-				formattedResult += `Unknown type: ${result.type}\n`;
-			}
-		});
-
-		return formattedResult.trim();
-	};
+	formatToolResult(toolResult: LLMToolRunResultContent, format: 'console' | 'browser'): string | JSX.Element {
+		return format === 'console' ? formatToolResultConsole(toolResult) : formatToolResultBrowser(toolResult);
+	}
 
 	async runTool(
 		interaction: LLMConversationInteraction,

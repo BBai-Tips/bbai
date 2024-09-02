@@ -3,7 +3,11 @@ import { stripIndents } from 'common-tags';
 import { join } from '@std/path';
 import { BufReader } from '@std/io';
 import { colors } from 'cliffy/ansi/mod.ts';
+import { renderToString } from 'preact-render-to-string';
 
+import LogEntryFormatterManager from '../../../api/src/logEntries/logEntryFormatterManager.ts';
+import ConversationLogger from 'shared/conversationLogger.ts';
+import type { ConversationLogEntry, ConversationLoggerEntryType } from 'shared/conversationLogger.ts';
 import { getBbaiDataDir } from 'shared/dataDir.ts';
 import { ConversationId, ConversationMetrics, ConversationTokenUsage, TokenUsage } from 'shared/types.ts';
 import { config } from 'shared/configManager.ts';
@@ -23,11 +27,8 @@ const ERROR_ICON = '❌';
 const UNKNOWN_ICON = '❓';
 const CLOCK_ICON = '🕒'; // Clock emoji
 
-import { ConversationLoggerEntryType } from 'shared/conversationLogger.ts';
-
-export class LogFormatter {
-	private static readonly ENTRY_SEPARATOR = '<<<BBAI_LOG_ENTRY_SEPARATOR>>>';
-
+export default class ConversationLogFormatter {
+	private logEntryFormatterManager = new LogEntryFormatterManager();
 	private _maxLineLength: number;
 
 	private static readonly iconColorMap: Record<
@@ -36,21 +37,21 @@ export class LogFormatter {
 	> = {
 		user: { icon: USER_ICON, color: colors.green, label: config.myPersonsName || 'Person' },
 		assistant: { icon: ASSISTANT_ICON, color: colors.blue, label: config.myAssistantsName || 'Assistant' },
-		tool_use: { icon: TOOL_ICON, color: colors.yellow, label: 'Tool Use' },
-		tool_result: { icon: TOOL_ICON, color: colors.yellow, label: 'Tool Result' },
+		tool_use: { icon: TOOL_ICON, color: colors.yellow, label: 'Tool Input' },
+		tool_result: { icon: TOOL_ICON, color: colors.yellow, label: 'Tool Output' },
 		auxiliary: { icon: AUXILIARY_ICON, color: colors.cyan, label: 'Auxiliary Chat' },
 		error: { icon: ERROR_ICON, color: colors.red, label: 'Error' },
 	};
 
 	constructor(maxLineLength?: number) {
-		this._maxLineLength = LogFormatter.getMaxLineLength(maxLineLength);
+		this._maxLineLength = ConversationLogFormatter.getMaxLineLength(maxLineLength);
 	}
 
 	static getMaxLineLength(userDefinedLength?: number): number {
 		if (userDefinedLength && userDefinedLength > 0) {
 			return userDefinedLength;
 		}
-		const { columns, rows: _rows } = Deno.stdin.isTerminal() ? Deno.consoleSize() : { columns:0,rows:0};
+		const { columns, rows: _rows } = Deno.stdin.isTerminal() ? Deno.consoleSize() : { columns: 0, rows: 0 };
 		return columns > 0 ? columns : 120; // Default to 120 if unable to determine console width
 	}
 
@@ -98,43 +99,6 @@ export class LogFormatter {
 		return wrappedParagraphs.filter((p, i) => p !== '' || (i > 0 && i < wrappedParagraphs.length - 1)).join('\n');
 	}
 
-	static createRawEntry(
-		type: ConversationLoggerEntryType,
-		timestamp: string,
-		message: string,
-		conversationStats: ConversationMetrics,
-		tokenUsage: TokenUsage,
-		tokenUsageStatement?: TokenUsage,
-		tokenUsageConversation?: ConversationTokenUsage,
-	): string {
-		// [TODO] add token usage to header line
-		const { label } = LogFormatter.iconColorMap[type] || { label: 'Unknown' };
-		return `## ${label} [${timestamp}]\n${message.trim()}`;
-	}
-
-	static createRawEntryWithSeparator(
-		type: ConversationLoggerEntryType,
-		timestamp: string,
-		message: string,
-		conversationStats: ConversationMetrics,
-		tokenUsage: TokenUsage,
-		tokenUsageStatement?: TokenUsage,
-		tokenUsageConversation?: ConversationTokenUsage,
-	): string {
-		let rawEntry = LogFormatter.createRawEntry(
-			type,
-			timestamp,
-			message,
-			conversationStats,
-			tokenUsage,
-			tokenUsageStatement,
-			tokenUsageConversation,
-		);
-		// Ensure entry ends with a single newline and the separator
-		rawEntry = rawEntry.trimEnd() + '\n' + LogFormatter.getEntrySeparator() + '\n';
-		return rawEntry;
-	}
-
 	static getTimestamp(): string {
 		return new Date().toISOString();
 	}
@@ -151,19 +115,23 @@ export class LogFormatter {
 	formatLogEntry(
 		type: ConversationLoggerEntryType,
 		timestamp: string,
-		message: string,
+		//logEntry: ConversationLogEntry,
+		content: string,
 		conversationStats: ConversationMetrics,
 		tokenUsage: TokenUsage,
+		toolName?: string,
 	): string {
-		const { icon, color, label } = LogFormatter.iconColorMap[type] ||
+		const { icon, color, label } = ConversationLogFormatter.iconColorMap[type] ||
 			{ icon: UNKNOWN_ICON, color: colors.reset, label: 'Unknown' };
 		//const label = type === 'user' || type === 'assistant' ? rawLabel : rawLabel + ' Message';
 
 		let header = color(
-			`╭─ ${icon}  ${colors.bold(label)} 🕒  ${new Date(timestamp).toLocaleString()}`,
+			`╭─ ${icon}  ${colors.bold(label)}${
+				type === 'tool_use' || type === 'tool_result' ? ` (${toolName})` : ''
+			}   🕒  ${new Date(timestamp).toLocaleString()}`,
 		);
 
-		if (!LogFormatter.isStatsAndUsageEmpty(conversationStats, tokenUsage)) {
+		if (!ConversationLogFormatter.isStatsAndUsageEmpty(conversationStats, tokenUsage)) {
 			const summaryInfo = [
 				colors.green(`📝  St:${conversationStats.statementCount}`),
 				colors.magenta(`🔄  Tn:${conversationStats.statementTurnCount}`),
@@ -176,10 +144,15 @@ export class LogFormatter {
 		}
 		const footer = color(`╰${'─'.repeat(this._maxLineLength - 1)}`);
 
-		let formattedMessage = message.trim();
+		const formattedContent = content;
+		//const formattedContent = logEntryFormatterManager.formatLogEntry(
+		//	'console' as LLMToolFormatterDestination,
+		//	logEntry,
+		//	{}, // metadata
+		//).trim();
 
-		//const wrappedMessage = this.wrapText(formattedMessage, color('│ '), '');
-		const wrappedMessage = this.wrapText(formattedMessage, color('  '), '');
+		//const wrappedMessage = this.wrapText(formattedContent, color('│ '), '');
+		const wrappedMessage = this.wrapText(formattedContent, color('  '), '');
 
 		return stripIndents`
 			${header}
@@ -218,10 +191,6 @@ export class LogFormatter {
 	formatSeparator(): string {
 		return colors.blue(`${'─'.repeat(this._maxLineLength)}\n`);
 	}
-
-	static getEntrySeparator(): string {
-		return this.ENTRY_SEPARATOR.trim();
-	}
 }
 
 export async function displayFormattedLogs(
@@ -229,10 +198,8 @@ export async function displayFormattedLogs(
 	callback?: (formattedEntry: string) => void,
 	follow = false,
 ): Promise<void> {
-	const formatter = new LogFormatter();
-
-	const bbaiDataDir = await getBbaiDataDir(Deno.cwd());
-	const logFile = join(bbaiDataDir, 'conversations', conversationId, 'conversation.log');
+	const formatter = new ConversationLogFormatter();
+	const rawLogFile = await ConversationLogger.getLogFileRawPath(Deno.cwd(), conversationId);
 
 	const processEntry = (entry: string) => {
 		//console.debug('Debug: Raw entry before processing:\n', entry.trimStart());
@@ -250,7 +217,7 @@ export async function displayFormattedLogs(
 	const readAndProcessEntries = async (startPosition = 0) => {
 		let file: Deno.FsFile | null = null;
 		try {
-			file = await Deno.open(logFile, { read: true });
+			file = await Deno.open(rawLogFile, { read: true });
 			await file.seek(startPosition, Deno.SeekMode.Start);
 			const bufReader = new BufReader(file);
 
@@ -258,7 +225,7 @@ export async function displayFormattedLogs(
 			let line: string | null;
 			while ((line = await bufReader.readString('\n')) !== null) {
 				//console.debug('Debug: Read line:', line.trimEnd());
-				if (line.includes(LogFormatter.getEntrySeparator())) {
+				if (line.includes(ConversationLogger.getEntrySeparator())) {
 					processEntry(entry);
 					entry = '';
 					//console.debug('Debug: Entry separator found, resetting entry');
@@ -279,7 +246,7 @@ export async function displayFormattedLogs(
 		let lastPosition = await readAndProcessEntries();
 
 		if (follow) {
-			const watcher = Deno.watchFs(logFile);
+			const watcher = Deno.watchFs(rawLogFile);
 			for await (const event of watcher) {
 				if (event.kind === 'modify') {
 					lastPosition = await readAndProcessEntries(lastPosition);
@@ -291,44 +258,12 @@ export async function displayFormattedLogs(
 	}
 }
 
-export async function writeLogEntry(
-	conversationId: ConversationId,
-	type: ConversationLoggerEntryType,
-	message: string,
-	conversationStats: ConversationMetrics,
-	tokenUsage: TokenUsage,
-	tokenUsageStatement?: TokenUsage,
-	tokenUsageConversation?: ConversationTokenUsage,
-): Promise<void> {
-	const bbaiDataDir = await getBbaiDataDir(Deno.cwd());
-	const logFile = join(bbaiDataDir, 'conversations', conversationId, 'conversation.log');
-
-	const timestamp = new Date().toISOString();
-	const entry = LogFormatter.createRawEntryWithSeparator(
-		type,
-		timestamp,
-		message,
-		conversationStats,
-		tokenUsage,
-		tokenUsageStatement,
-		tokenUsageConversation,
-	);
-
-	try {
-		// Append the entry to the log file
-		await Deno.writeTextFile(logFile, entry, { append: true });
-	} catch (error) {
-		console.error(`Error writing log entry: ${error.message}`);
-	}
-}
-
 export async function countLogEntries(conversationId: ConversationId): Promise<number> {
-	const bbaiDataDir = await getBbaiDataDir(Deno.cwd());
-	const logFile = join(bbaiDataDir, 'conversations', conversationId, 'conversation.log');
+	const rawLogFile = await ConversationLogger.getLogFileRawPath(Deno.cwd(), conversationId);
 
 	try {
-		const content = await Deno.readTextFile(logFile);
-		const entries = content.split(LogFormatter.getEntrySeparator());
+		const content = await Deno.readTextFile(rawLogFile);
+		const entries = content.split(ConversationLogger.getEntrySeparator());
 		// Filter out any empty entries
 		return entries.filter((entry) => entry.trim() !== '').length;
 	} catch (error) {

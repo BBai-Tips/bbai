@@ -1,8 +1,16 @@
-import { eventManager, EventName, EventPayloadMap } from 'shared/eventManager.ts';
-import { ConversationId } from 'shared/types.ts';
+import { eventManager } from 'shared/eventManager.ts';
+import type { EventName, EventPayloadMap } from 'shared/eventManager.ts';
+import type { ConversationId } from 'shared/types.ts';
 import { apiClient } from 'cli/apiClient.ts';
 
 export class WebsocketManager {
+	updateConversation(conversationId: ConversationId): void {
+		this.currentConversationId = conversationId;
+		if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+			this.ws.close();
+		}
+		this.setupWebsocket(conversationId);
+	}
 	private cancellationRequested: boolean = false;
 	public ws: WebSocket | null = null;
 	private MAX_RETRIES = 5;
@@ -13,9 +21,10 @@ export class WebsocketManager {
 	async setupWebsocket(conversationId?: ConversationId): Promise<void> {
 		this.currentConversationId = conversationId;
 		const connectWebSocket = async (): Promise<WebSocket> => {
+			//console.log(`WebsocketManager: Connecting websocket for conversation: ${conversationId}`);
 			try {
-				//console.log(`WebsocketManager: Connecting websocket for conversation: ${conversationId}`);
-				return await apiClient.connectWebSocket(`/api/v1/ws/conversation/${conversationId}`);
+				// apiClient.connectWebSocket returns a promise, so we return that promise rather than awaiting
+				return apiClient.connectWebSocket(`/api/v1/ws/conversation/${conversationId}`);
 			} catch (error) {
 				await this.handleRetry(error);
 				return connectWebSocket();
@@ -206,7 +215,7 @@ export class WebsocketManager {
 		await new Promise((resolve) => setTimeout(resolve, delay));
 	}
 
-	async sendCancellationMessage(conversationId: ConversationId): Promise<void> {
+	sendCancellationMessage(conversationId: ConversationId): void {
 		if (this.ws && this.ws.readyState === WebSocket.OPEN) {
 			this.cancellationRequested = true;
 			this.ws.send(JSON.stringify({ conversationId, task: 'cancel' }));

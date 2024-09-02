@@ -1,100 +1,14 @@
-import { Context, RouterContext } from '@oak/oak';
+import type { Context, RouterContext } from '@oak/oak';
 import { logger } from 'shared/logger.ts';
 import { projectEditorManager } from '../../editor/projectEditorManager.ts';
-import { ConversationId, ConversationMetadata, ConversationResponse } from 'shared/types.ts';
-//import { generateConversationId } from 'shared/conversationManagement.ts';
+import type { ConversationId, ConversationResponse } from 'shared/types.ts';
 import ConversationPersistence from '../../storage/conversationPersistence.ts';
-
-/**
- * @openapi
- * /api/v1/conversation:
- *   post:
- *     summary: Start a new conversation
- *     description: Initiates a new conversation with the AI assistant using the OrchestratorController
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - statement
- *               - startDir
- *             properties:
- *               statement:
- *                 type: string
- *                 description: The initial statement to start the conversation
- *               startDir:
- *                 type: string
- *                 description: The starting directory for the project
- *     responses:
- *       200:
- *         description: Successful response with conversation details
- *       400:
- *         description: Bad request, missing required parameters
- *       500:
- *         description: Internal server error
- */
-/*
-export const startConversation = async (ctx: Context) => {
-	let projectEditor;
-	let orchestratorController;
-	logger.debug('startConversation called');
-
-	try {
-		const body = await ctx.request.body.json();
-		const { statement, startDir } = body;
-
-		if (!statement) {
-			ctx.response.status = 400;
-			ctx.response.body = { error: 'Missing statement' };
-			return;
-		}
-
-		if (!startDir) {
-			ctx.response.status = 400;
-			ctx.response.body = { error: 'Missing startDir' };
-			return;
-		}
-		const conversationId: ConversationId = generateConversationId();
-
-		if (projectEditorManager.isConversationActive(conversationId)) {
-			ctx.response.status = 400;
-			ctx.response.body = { error: 'Conversation is already in use' };
-			return;
-		}
-
-		logger.debug(`Creating ProjectEditor for dir: ${startDir}`);
-		projectEditor = await projectEditorManager.getOrCreateEditor(conversationId, startDir);
-		orchestratorController = projectEditor.orchestratorController;
-		if (!orchestratorController) {
-			throw new Error('Failed to initialize OrchestratorController');
-		}
-
-		const response = await projectEditor.handleStatement(statement, conversationId);
-
-		ctx.response.body = response;
-	} catch (error) {
-		logger.error(`Error in startConversation: ${error.message}`, error);
-		if (error instanceof Error && 'status' in error) {
-			ctx.response.status = error.status as number;
-		} else {
-			ctx.response.status = 500;
-		}
-		ctx.response.body = {
-			error: 'Failed to generate response',
-			details: error.message,
-			type: error.name || 'UnknownError',
-		};
-	}
-};
- */
 
 /**
  * @openapi
  * /api/v1/conversation/{id}:
  *   post:
- *     summary: Continue an existing conversation
+ *     summary: Chat in an conversation
  *     description: Continues an existing conversation with the AI assistant using the OrchestratorController
  *     parameters:
  *       - in: path
@@ -128,10 +42,10 @@ export const startConversation = async (ctx: Context) => {
  *         description: Internal server error
  */
 
-export const continueConversation = async (
+export const chatConversation = async (
 	{ params, request, response }: RouterContext<'/v1/conversation/:id', { id: string }>,
 ) => {
-	logger.debug('continueConversation called');
+	logger.debug('chatConversation called');
 
 	const { id: conversationId } = params;
 	try {
@@ -139,7 +53,7 @@ export const continueConversation = async (
 		const { statement, startDir } = body;
 
 		logger.info(
-			`continueConversation for conversationId: ${conversationId}, Prompt: "${statement?.substring(0, 50)}..."`,
+			`chatConversation for conversationId: ${conversationId}, Prompt: "${statement?.substring(0, 50)}..."`,
 		);
 
 		if (!statement) {
@@ -183,7 +97,7 @@ export const continueConversation = async (
 			tokenUsageConversation: result.tokenUsageConversation,
 		};
 	} catch (error) {
-		logger.error(`Error in continueConversation for conversationId: ${conversationId}: ${error.message}`, error);
+		logger.error(`Error in chatConversation for conversationId: ${conversationId}: ${error.message}`, error);
 		response.status = 500;
 		response.body = { error: 'Failed to generate response', details: error.message };
 	}
@@ -229,7 +143,6 @@ export const getConversation = async (
 			throw new Error('Failed to initialize OrchestratorController');
 		}
 
-		// orchestratorController already defined
 		const interaction = orchestratorController.interactionManager.getInteraction(conversationId);
 
 		if (!interaction) {
@@ -242,6 +155,7 @@ export const getConversation = async (
 		response.body = {
 			id: interaction.id,
 			llmProviderName: interaction.llmProviderName,
+			title: interaction.title,
 			system: interaction.baseSystem,
 			model: interaction.model,
 			maxTokens: interaction.maxTokens,
@@ -249,6 +163,12 @@ export const getConversation = async (
 			statementTurnCount: orchestratorController.statementTurnCount,
 			totalTokenUsage: orchestratorController.totalTokensTotal,
 			messages: interaction.getMessages(),
+			conversationStats: {
+				statementTurnCount: interaction.statementTurnCount,
+				conversationTurnCount: interaction.conversationTurnCount,
+				statementCount: interaction.statementCount,
+			},
+			tokenUsageConversation: interaction.tokenUsageInteraction,
 		};
 	} catch (error) {
 		logger.error(`Error in getConversation: ${error.message}`);
@@ -381,6 +301,8 @@ export const listConversations = async (
 				updatedAt: conv.updatedAt,
 				llmProviderName: conv.llmProviderName,
 				model: conv.model,
+				conversationStats: conv.conversationStats,
+				tokenUsageConversation: conv.tokenUsageConversation,
 			})),
 			pagination: {
 				page: page,
@@ -395,15 +317,6 @@ export const listConversations = async (
 		response.body = { error: 'Failed to list conversations' };
 	}
 };
-
-/*
-export const addMessage = async (
-	{ params, response }: { params: { id: string }; response: Context['response'] },
-) => {
-	// Add a message to the conversation
-	response.body = { message: `Message added to conversation ${params.id}` };
-};
- */
 
 export const clearConversation = async (
 	{ params, request, response }: RouterContext<'/v1/conversation/:id/clear', { id: string }>,
@@ -470,116 +383,4 @@ export const undoConversation = async (
 	}
 };
 
-export const addFile = async (
-	{ params, request, response }: {
-		params: { id: string };
-		request: Context['request'];
-		response: Context['response'];
-	},
-) => {
-	try {
-		const { id: conversationId } = params;
-		const startDir = request.url.searchParams.get('startDir') || '';
-		const body = await request.body;
-		const form: FormData = await body.formData();
-		const fileObj: File = form.get('file') as File;
-		const filePath = fileObj.name;
-		const fileSize = fileObj.size;
-		const fileData = await fileObj.arrayBuffer();
-
-		if (!filePath) {
-			response.status = 400;
-			response.body = { error: 'Missing filePath in request body' };
-			return;
-		}
-
-		const projectEditor = await projectEditorManager.getOrCreateEditor(conversationId as ConversationId, startDir);
-
-		// orchestratorController already defined
-		const interaction = orchestratorController.getInteraction(conversationId as ConversationId);
-
-		if (!interaction) {
-			response.status = 404;
-			response.body = { error: 'Conversation not found' };
-			return;
-		}
-
-		await interaction.addFile(filePath, new Uint8Array(fileData));
-
-		logger.info(`File ${filePath} added to conversation ${conversationId}`);
-
-		response.status = 200;
-		response.body = { message: 'File added to conversation', conversationId, filePath };
-	} catch (error) {
-		logger.error(`Error in addFile: ${error.message}`);
-		response.status = 500;
-		response.body = { error: 'Failed to add file to conversation' };
-	}
-};
-
-export const removeFile = async (
-	{ params, response }: { params: { id: string; fileId: string }; response: Context['response'] },
-) => {
-	try {
-		const { id: conversationId, fileId } = params;
-		const startDir = request.url.searchParams.get('startDir') || '';
-
-		if (!fileId) {
-			response.status = 400;
-			response.body = { error: 'Missing fileId in request parameters' };
-			return;
-		}
-
-		const projectEditor = await projectEditorManager.getOrCreateEditor(conversationId as ConversationId, startDir);
-
-		// orchestratorController already defined
-		const interaction = orchestratorController.getInteraction(conversationId as ConversationId);
-
-		if (!interaction) {
-			response.status = 404;
-			response.body = { error: 'Conversation not found' };
-			return;
-		}
-
-		await interaction.removeFile(fileId);
-
-		logger.info(`File ${fileId} removed from conversation ${conversationId}`);
-
-		response.status = 200;
-		response.body = { message: `File ${fileId} removed from conversation`, conversationId, fileId };
-	} catch (error) {
-		logger.error(`Error in removeFile: ${error.message}`);
-		response.status = 500;
-		response.body = { error: 'Failed to remove file from conversation' };
-	}
-};
-
-export const listFiles = async (
-	{ params, response }: { params: { id: string }; response: Context['response'] },
-) => {
-	try {
-		const { id: conversationId } = params;
-		const startDir = request.url.searchParams.get('startDir') || '';
-
-		const projectEditor = await projectEditorManager.getOrCreateEditor(conversationId as ConversationId, startDir);
-
-		// orchestratorController already defined
-		const interaction = orchestratorController.getInteraction(conversationId as ConversationId);
-
-		if (!interaction) {
-			response.status = 404;
-			response.body = { error: 'Conversation not found' };
-			return;
-		}
-
-		const files = interaction.listFiles();
-
-		response.status = 200;
-		response.body = { conversationId, files };
-	} catch (error) {
-		logger.error(`Error in listFiles: ${error.message}`);
-		response.status = 500;
-		response.body = { error: 'Failed to list files in conversation' };
-	}
-};
  */

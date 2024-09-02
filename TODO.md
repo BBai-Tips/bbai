@@ -113,7 +113,7 @@
 26. ✓ Print a divider line after prompt in console
 27. ✓ Clear screen when starting editor
 28. ✓ Fix LogFormatter to include new lines in formatted log entries
-29. ✓ Improve the appearance of the summary block with conversation id, turn count, token usage, etc. in conversationStart chat terminal
+29. ✓ Improve the appearance of the summary block with conversation id, turn count, token usage, etc. in conversationCmd chat terminal
 30. ✓ When hydrating files, process messages in reverse order, and keep track of which files have been hydrated
 31. ✓ Validate results of search/replace in `handleSearchAndReplace`
 32. ✓ Implement chat history in terminal
@@ -129,5 +129,12 @@
 36. √ Format JSON in display of logs
 37. √ Patching and Git Integration
    - Modify apply_patch tool to accept a list of file names and patches
+
+Thoughts...
+
+
+
+Pull thinking out of tool use 
+Pull <reply> out of answer and send as summary - rest of answer is 'assistant' log entry
 
 

@@ -1,27 +1,28 @@
-import LLMTool, {
-	LLMToolFormatterDestination,
-	LLMToolInputSchema,
-	LLMToolRunResult,
-	LLMToolRunResultContent,
-	LLMToolRunResultFormatter,
-	LLMToolUseInputFormatter,
-} from 'api/llms/llmTool.ts';
-//import { colors } from 'cliffy/ansi/colors.ts';
-//import { stripIndents } from 'common-tags';
+import { JSX } from 'preact';
+import LLMTool, { LLMToolInputSchema, LLMToolRunResult, LLMToolRunResultContent } from 'api/llms/llmTool.ts';
+import {
+	formatToolResult as formatToolResultBrowser,
+	formatToolUse as formatToolUseBrowser,
+} from './formatters/fetchWebPageTool.browser.tsx';
+import {
+	formatToolResult as formatToolResultConsole,
+	formatToolUse as formatToolUseConsole,
+} from './formatters/fetchWebPageTool.console.ts';
 import LLMConversationInteraction from '../interactions/conversationInteraction.ts';
 import { LLMAnswerToolUse } from 'api/llms/llmMessage.ts';
 import FetchManager from 'shared/fetchManager.ts';
 import ProjectEditor from '../../editor/projectEditor.ts';
 //import { logger } from 'shared/logger.ts';
 import { createError, ErrorType } from '../../utils/error.utils.ts';
-import { getContentFromToolResult } from '../../utils/llms.utils.ts';
+//import { getContentFromToolResult } from '../../utils/llms.utils.ts';
 
-export class LLMToolFetchWebPage extends LLMTool {
+export default class LLMToolFetchWebPage extends LLMTool {
 	constructor() {
 		super(
 			'fetch_web_page',
 			'Fetches the content of a specified web page',
 		);
+		this.fileName = 'fetchWebPageTool.ts';
 	}
 
 	get input_schema(): LLMToolInputSchema {
@@ -34,21 +35,13 @@ export class LLMToolFetchWebPage extends LLMTool {
 		};
 	}
 
-	toolUseInputFormatter: LLMToolUseInputFormatter = (
-		toolInput: LLMToolInputSchema,
-		_format: LLMToolFormatterDestination = 'console',
-	): string => {
-		return `Fetching web page: ${toolInput.url}`;
-	};
+	formatToolUse(toolInput: LLMToolInputSchema, format: 'console' | 'browser'): string | JSX.Element {
+		return format === 'console' ? formatToolUseConsole(toolInput) : formatToolUseBrowser(toolInput);
+	}
 
-	toolRunResultFormatter: LLMToolRunResultFormatter = (
-		toolResult: LLMToolRunResultContent,
-		_format: LLMToolFormatterDestination = 'console',
-	): string => {
-		return `Web page content fetched successfully. Length: ${
-			getContentFromToolResult(toolResult).length
-		} characters.`;
-	};
+	formatToolResult(toolResult: LLMToolRunResultContent, format: 'console' | 'browser'): string | JSX.Element {
+		return format === 'console' ? formatToolResultConsole(toolResult) : formatToolResultBrowser(toolResult);
+	}
 
 	async runTool(
 		_interaction: LLMConversationInteraction,

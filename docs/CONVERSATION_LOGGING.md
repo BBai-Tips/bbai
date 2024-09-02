@@ -7,7 +7,7 @@ This document outlines the conversation logging and formatting system for BBai, 
 ## Key Components
 
 1. ConversationLogger (API)
-2. LogFormatter (CLI/BUI)
+2. ConversationLogFormatter (CLI/BUI)
 3. Dynamic Formatter Loader (CLI/BUI)
 4. Formatter Provider (API)
 

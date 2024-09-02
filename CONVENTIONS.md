@@ -5,13 +5,10 @@ This document is primarily intended for the AI assistant to understand the proje
 
 ## IMPORTANT NOTE FOR ASSISTANT
 
-Refer to LLM_INSTRUCTIONS.md as needed for guidance on project-specific files and their purposes. This file (CONVENTIONS.md) will always be available in the chat context, but other files should be requested when their specific information is required.
-
-
-DO NOT MAKE ANY CODE CHANGES UNTIL EXPLICITLY ASKED TO DO SO. The coding assistant will prompt for code changes. Respect those instructions but wait until explicitly told to write code.
+Refer to `docs/LLM_INSTRUCTIONS.md` as needed for guidance on project-specific files and their purposes. This file (CONVENTIONS.md) will always be available in the chat context, but other files should be requested when their specific information is required.
 
 ## Project Overview
-BBai is a versatile project that provides REST API and CLI tools to modify and enhance a wide range of text-based projects using LLM technology. Inspired by the `aider` tool, BBai is designed to work with various text formats including, but not limited to:
+BBai is a versatile project that provides REST API, CLI tools, and BUI browser interface to modify and enhance a wide range of text-based projects using LLM technology. BBai is designed to work with various text formats including, but not limited to:
 
 - Programming code in any language
 - Prose and documentation

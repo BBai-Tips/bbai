@@ -1,9 +1,9 @@
-import { assert, assertEquals, assertStringIncludes, assertThrows } from '../../../deps.ts';
+import { assert, assertEquals, assertStringIncludes } from '../../../deps.ts';
 import { join } from '@std/path';
-import { existsSync } from '@std/fs';
+//import { existsSync } from '@std/fs';
 
 import LLMConversationInteraction from '../../../../src/llms/interactions/conversationInteraction.ts';
-import { LLMToolRewriteFile } from '../../../../src/llms/tools/rewriteFileTool.ts';
+import LLMToolRewriteFile from '../../../../src/llms/tools/rewriteFileTool.ts';
 import ProjectEditor from '../../../../src/editor/projectEditor.ts';
 import { LLMAnswerToolUse } from 'api/llms/llmMessage.ts';
 import { GitUtils } from 'shared/git.ts';

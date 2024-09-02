@@ -1,3 +1,4 @@
+import { JSX } from 'preact';
 import LLMTool, { LLMToolInputSchema, LLMToolRunResult } from 'api/llms/llmTool.ts';
 import LLMConversationInteraction from '../interactions/conversationInteraction.ts';
 import { LLMAnswerToolUse } from 'api/llms/llmMessage.ts';
@@ -170,7 +171,7 @@ const languageConfigs: Record<string, LanguageConfig> = {
 	// Add more language configs as needed
 };
 
-export class LLMToolSearchAndReplaceCode extends LLMTool {
+export default class LLMToolSearchAndReplaceCode extends LLMTool {
 	private static readonly MIN_SEARCH_LENGTH = 1;
 
 	constructor() {
@@ -178,6 +179,8 @@ export class LLMToolSearchAndReplaceCode extends LLMTool {
 			'search_and_replace_code',
 			'Apply a list of search and replace operations to a file',
 		);
+		const url = new URL(import.meta.url);
+		this.fileName = url.pathname.split('/').pop() || '';
 	}
 
 	get input_schema(): LLMToolInputSchema {

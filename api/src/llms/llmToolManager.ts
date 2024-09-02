@@ -1,46 +1,36 @@
-import { logger } from 'shared/logger.ts';
-import LLMTool, {
-	LLMToolRunResultContent,
-	LLMToolRunResultFormatter,
-	LLMToolUseInputFormatter,
-} from 'api/llms/llmTool.ts';
-import { LLMAnswerToolUse } from 'api/llms/llmMessage.ts';
-import LLMConversationInteraction from './interactions/conversationInteraction.ts';
-import ProjectEditor from '../editor/projectEditor.ts';
-import { LLMToolRequestFiles } from './tools/requestFilesTool.ts';
-import { LLMToolForgetFiles } from './tools/forgetFilesTool.ts';
-import { LLMToolSearchProject } from './tools/searchProjectTool.ts';
-import { LLMToolRunCommand } from './tools/runCommandTool.ts';
-import { LLMToolFetchWebPage } from './tools/fetchWebPageTool.ts';
+import type ProjectEditor from '../editor/projectEditor.ts';
+import type LLMConversationInteraction from './interactions/conversationInteraction.ts';
+import type { LLMAnswerToolUse } from 'api/llms/llmMessage.ts';
+
+import type LLMTool from 'api/llms/llmTool.ts';
+import type { LLMToolRunResultContent } from 'api/llms/llmTool.ts';
+import LLMToolRequestFiles from './tools/requestFilesTool.ts';
+import LLMToolForgetFiles from './tools/forgetFilesTool.ts';
+import LLMToolSearchProject from './tools/searchProjectTool.ts';
+import LLMToolRunCommand from './tools/runCommandTool.ts';
+import LLMToolFetchWebPage from './tools/fetchWebPageTool.ts';
 import LLMToolFetchWebScreenshot from './tools/fetchWebScreenshotTool.ts';
-import { LLMToolApplyPatch } from './tools/applyPatchTool.ts';
-import { LLMToolSearchAndReplace } from './tools/searchAndReplaceTool.ts';
-import { LLMToolRewriteFile } from './tools/rewriteFileTool.ts';
-//import { LLMToolVectorSearch } from './tools/vectorSearchTool.ts';
+import LLMToolApplyPatch from './tools/applyPatchTool.ts';
+import LLMToolSearchAndReplace from './tools/searchAndReplaceTool.ts';
+import LLMToolRewriteFile from './tools/rewriteFileTool.ts';
+
 import { createError, ErrorType } from '../utils/error.utils.ts';
-import { getContentFromToolResult } from '../utils/llms.utils.ts';
-import { LLMValidationErrorOptions } from '../errors/error.ts';
+import type { LLMValidationErrorOptions } from '../errors/error.ts';
+//import { getContentFromToolResult } from '../utils/llms.utils.ts';
+import { logger } from 'shared/logger.ts';
 
 export type LLMToolManagerToolSetType = 'coding' | 'research' | 'creative';
 
 class LLMToolManager {
 	private tools: Map<string, LLMTool> = new Map();
 	public toolSet: LLMToolManagerToolSetType = 'coding';
-	//private static instance: LLMToolManager;
 
 	constructor(toolSet?: LLMToolManagerToolSetType) {
 		if (toolSet) {
 			this.toolSet = toolSet;
 		}
 		this.registerDefaultTools();
-		//this.loadTools();
 	}
-	//static getInstance(): LLMToolManager {
-	//	if (!LLMToolManager.instance) {
-	//		LLMToolManager.instance = new LLMToolManager();
-	//	}
-	//	return LLMToolManager.instance;
-	//}
 
 	private registerDefaultTools(): void {
 		this.registerTool(new LLMToolRequestFiles());
@@ -48,34 +38,11 @@ class LLMToolManager {
 		this.registerTool(new LLMToolSearchProject());
 		this.registerTool(new LLMToolRewriteFile());
 		this.registerTool(new LLMToolSearchAndReplace());
-		this.registerTool(new LLMToolApplyPatch()); // Claude isn't good enough yet writing diff patches
+		this.registerTool(new LLMToolApplyPatch());
 		this.registerTool(new LLMToolRunCommand());
 		this.registerTool(new LLMToolFetchWebPage());
 		this.registerTool(new LLMToolFetchWebScreenshot());
-		//this.registerTool(new LLMToolVectorSearch());
 	}
-	/*
-	private async loadTools() {
-		const toolsDir = new URL('./tools', import.meta.url);
-		for await (const entry of Deno.readDir(toolsDir)) {
-			if (entry.isFile && entry.name.endsWith('Tool.ts')) {
-				try {
-					const module = await import(`./tools/${entry.name}`);
-					const ToolClass = Object.values(module)[0] as typeof LLMTool;
-					const tool = new ToolClass();
-					this.registerTool(tool);
-
-					// Check if there's a formatter for this tool
-					if ('formatter' in ToolClass) {
-						this.registerToolFormatter(tool.name, (ToolClass as any).formatter);
-					}
-				} catch (error) {
-					logger.error(`Error loading tool ${entry.name}:`, error);
-				}
-			}
-		}
-	}
-	 */
 
 	registerTool(tool: LLMTool): void {
 		this.tools.set(tool.name, tool);
@@ -83,6 +50,11 @@ class LLMToolManager {
 
 	getTool(name: string): LLMTool | undefined {
 		return this.tools.get(name);
+	}
+
+	getToolFileName(name: string): string | undefined {
+		const tool = this.tools.get(name);
+		return tool ? tool.fileName : undefined;
 	}
 
 	getAllTools(): LLMTool[] {
@@ -100,11 +72,9 @@ class LLMToolManager {
 			toolResponse: string;
 			bbaiResponse: string;
 			isError: boolean;
-			toolUseInputFormatter: LLMToolUseInputFormatter;
-			toolRunResultFormatter: LLMToolRunResultFormatter;
 		}
 	> {
-		const tool = this.getTool(toolUse.toolName);
+		const tool = this.tools.get(toolUse.toolName);
 		if (!tool) {
 			logger.warn(`Unknown tool used: ${toolUse.toolName}`);
 			throw new Error(`Unknown tool used: ${toolUse.toolName}`);
@@ -121,9 +91,7 @@ class LLMToolManager {
 					`handleToolUse - Tool ${toolUse.toolName} is already validated with results: ${toolUse.toolValidation.results}`,
 				);
 			}
-			//logger.debug(`handleToolUse - calling runTool for ${toolUse.toolName}`);
 
-			// runTool will call finalizeToolUse, which handles addMessageForToolResult
 			const { toolResults, toolResponse, bbaiResponse, finalize } = await tool.runTool(
 				interaction,
 				toolUse,
@@ -147,8 +115,6 @@ class LLMToolManager {
 				toolResponse,
 				bbaiResponse,
 				isError: false,
-				toolUseInputFormatter: tool.toolUseInputFormatter,
-				toolRunResultFormatter: tool.toolRunResultFormatter,
 			};
 		} catch (error) {
 			logger.error(`Error executing tool ${toolUse.toolName}: ${error.message}`);
@@ -157,7 +123,6 @@ class LLMToolManager {
 				toolUse,
 				error.message,
 				true,
-				//projectEditor,
 			);
 			return {
 				messageId,
@@ -165,8 +130,6 @@ class LLMToolManager {
 				toolResponse: `Error with ${toolUse.toolName}: ${error.message}`,
 				bbaiResponse: 'BBai could not run the tool',
 				isError: true,
-				toolUseInputFormatter: (input, _format) => JSON.stringify(input, null, 2),
-				toolRunResultFormatter: (result, _format) => getContentFromToolResult(result),
 			};
 		}
 	}

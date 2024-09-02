@@ -1,4 +1,13 @@
-import LLMTool, { LLMToolInputSchema, LLMToolRunResult } from 'api/llms/llmTool.ts';
+import { JSX } from 'preact';
+import LLMTool, { LLMToolInputSchema, LLMToolRunResult, LLMToolRunResultContent } from 'api/llms/llmTool.ts';
+import {
+	formatToolResult as formatToolResultBrowser,
+	formatToolUse as formatToolUseBrowser,
+} from './formatters/delegateTasksTool.browser.tsx';
+import {
+	formatToolResult as formatToolResultConsole,
+	formatToolUse as formatToolUseConsole,
+} from './formatters/delegateTasksTool.console.ts';
 import LLMConversationInteraction from '../interactions/conversationInteraction.ts';
 import { logger } from 'shared/logger.ts';
 import { LLMAnswerToolUse } from 'api/llms/llmMessage.ts';
@@ -26,7 +35,7 @@ interface Resource {
 
 type InputSchema = Record<string, unknown>;
 
-export class DelegateTasksTool extends LLMTool {
+export default class DelegateTasksTool extends LLMTool {
 	private interactionManager: InteractionManager;
 	private resourceManager: ResourceManager;
 	private capabilityManager: CapabilityManager;
@@ -44,6 +53,8 @@ export class DelegateTasksTool extends LLMTool {
 			'delegate_tasks',
 			'Delegate tasks to child interactions. Input includes background, instructions, and resources. Output is the completed task requirements.',
 		);
+		this.fileName = 'delegateTasksTool.ts';
+
 		this.interactionManager = interactionManager;
 		this.resourceManager = resourceManager;
 		this.capabilityManager = capabilityManager;
@@ -107,6 +118,14 @@ export class DelegateTasksTool extends LLMTool {
 			},
 			required: ['tasks', 'sync'],
 		};
+	}
+
+	formatToolUse(toolInput: LLMToolInputSchema, format: 'console' | 'browser'): string | JSX.Element {
+		return format === 'console' ? formatToolUseConsole(toolInput) : formatToolUseBrowser(toolInput);
+	}
+
+	formatToolResult(toolResult: LLMToolRunResultContent, format: 'console' | 'browser'): string | JSX.Element {
+		return format === 'console' ? formatToolResultConsole(toolResult) : formatToolResultBrowser(toolResult);
 	}
 
 	async runTool(

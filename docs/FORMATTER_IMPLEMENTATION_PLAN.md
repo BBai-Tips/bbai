@@ -2,118 +2,123 @@
 
 ## Overview
 
-This document outlines the detailed plan for implementing the dynamic formatting system for BBai, including the API formatter provider, shared dynamic formatter loader, versioning system, bundling, and offline support.
+This document outlines the plan for implementing formatters for tool input and output in the BBai project. The goal is to provide flexible, maintainable, and type-safe formatting for both console and browser environments.
 
-## Components to Implement
+## Considered Approaches
 
-1. API Formatter Provider
-2. Shared Dynamic Formatter Loader
-3. Versioning System
-4. Formatter Bundling
-5. Offline Support and Fallback Mechanism
+### Option A: Centralized Formatting
 
-## Detailed Implementation Steps
+Create a single file (e.g., `browserFormatters.tsx`) containing formatting functions for all tools.
 
-### 1. API Formatter Provider
+Pros:
+- All browser-specific formatting in one place
+- Easier to manage and update
+- Keeps tool files focused on primary functionality
 
-a. Create a new file: `api/src/routes/api/formatter.handlers.ts`
-   - Implement the `createFormatterRouter` function
-   - Handle requests for both tool formatters and log entry formatters
-   - Include version information in the response
+Cons:
+- May become unwieldy with a large number of tools
 
-b. Update `api/src/routes/apiRouter.ts` to include the new formatter routes
+### Option B: Formatting Directory
 
-c. Implement a `FormatterManager` class in `api/src/utils/formatterManager.ts`
-   - Manage formatters for different tools and log entry types
-   - Handle versioning of formatters
+Create a subdirectory within `tools` for formatting-related files.
 
-### 2. Shared Dynamic Formatter Loader
+Structure:
+```
+tools/
+  runCommandTool.ts
+  searchProjectTool.ts
+  ...
+  formatters/
+    runCommandTool.browser.tsx
+    runCommandTool.console.ts
+    searchProjectTool.browser.tsx
+    searchProjectTool.console.ts
+    ...
+```
 
-a. Create a new file: `src/shared/utils/dynamicFormatter.ts`
-   - Implement the `DynamicFormatter` class
-   - Include methods for loading formatters, caching, and version management
-   - Implement error handling and fallback mechanisms
+Pros:
+- Clear separation of concerns
+- Scalable for future additions
+- Keeps main tool files as .ts
 
-b. Update CLI and BUI to use the shared `DynamicFormatter`
+Cons:
+- Increases the number of files in the project
 
-### 3. Versioning System
+### Option C: JavaScript-based Approach
 
-a. Update `FormatterManager` to support multiple versions of formatters
-   - Implement a version naming convention (e.g., semantic versioning)
-   - Store multiple versions of each formatter
+Use a JavaScript object structure to represent the component tree, interpretable by Preact components.
 
-b. Modify the formatter endpoint to accept and return version information
-   - Update `createFormatterRouter` to handle version requests
+Example:
 
-c. Update `DynamicFormatter` to request and manage specific versions of formatters
+```typescript
+// api/src/llms/tools/runCommandTool.formatter.ts
 
-### 4. Formatter Bundling
+import { VNode } from 'preact';
+import { LLMToolInputSchema, LLMToolRunResultContent } from '../llmTool.ts';
 
-a. Implement a simple bundling system in the API
-   - Create a new file: `api/src/utils/formatterBundler.ts`
-   - Implement functions to combine multiple formatters into a single module
+export const formatToolUse = (input: LLMToolInputSchema): VNode => {
+  return {
+    type: 'div',
+    props: {
+      className: "tool-use run-command",
+      children: [
+        { type: 'h3', props: { children: "Run Command Tool" } },
+        {
+          type: 'p',
+          props: {
+            children: [
+              { type: 'strong', props: { children: "Command:" } },
+              " ",
+              { type: 'span', props: { style: { color: '#DAA520' }, children: input.command } }
+            ]
+          }
+        },
+        input.args && input.args.length > 0 ? {
+          type: 'p',
+          props: {
+            children: [
+              { type: 'strong', props: { children: "Arguments:" } },
+              " ",
+              { type: 'span', props: { style: { color: '#4169E1' }, children: input.args.join(' ') } }
+            ]
+          }
+        } : null
+      ].filter(Boolean)
+    }
+  };
+};
 
-b. Update the formatter endpoint to support bundled formatter requests
-   - Modify `createFormatterRouter` to handle bundle requests
+// ... similar structure for formatToolResult
+```
 
-c. Update `DynamicFormatter` to support loading bundled formatters
+Pros:
+- Avoids need for .tsx files
+- Maintains type safety
+- Can be used in standard .ts files
 
-### 5. Offline Support and Fallback Mechanism
+Cons:
+- Less readable HTML structure
+- May be more verbose than JSX
 
-a. Implement a caching system in `DynamicFormatter`
-   - Store loaded formatters in local storage or IndexedDB
-   - Implement a sync mechanism to update cached formatters
+## Chosen Approach
 
-b. Create fallback formatters for each log entry type
-   - Implement basic formatting functions that don't rely on dynamic loading
+After careful consideration, Option B (Formatting Directory) has been chosen for implementation. This approach provides a good balance between separation of concerns, scalability, and maintainability.
 
-c. Update `DynamicFormatter` to use fallback formatters when necessary
-   - Use cached formatters when offline
-   - Use fallback formatters if a specific formatter is unavailable
+## Implementation Steps
 
-## Implementation Order and Dependencies
+1. Create a `formatters` directory within the `tools` directory.
+2. For each tool, create two formatter files:
+   - `<toolName>.browser.tsx` for browser formatting
+   - `<toolName>.console.ts` for console formatting
+3. Implement formatting functions in each file, using the existing `toolUseInputFormatter` and `toolRunResultFormatter` methods as a base.
+4. Update the main tool files to remove formatting logic, keeping only the core functionality.
+5. Update the `LogEntryFormatterManager` to use the new formatter files.
+6. Update `logEntryFormatter.handlers.ts` to serve the correct formatter based on the client request.
+7. Implement necessary changes in the CLI and BUI to use the new formatting system.
 
-1. API Formatter Provider
-2. Shared Dynamic Formatter Loader
-3. Versioning System
-4. Offline Support and Fallback Mechanism
-5. Formatter Bundling
+## Next Steps
 
-## Testing Plan
-
-1. Unit Tests
-   - Test each component in isolation (FormatterManager, DynamicFormatter, etc.)
-   - Test version management functions
-   - Test bundling functions
-
-2. Integration Tests
-   - Test API formatter endpoints
-   - Test dynamic loading in CLI and BUI environments
-
-3. Offline and Fallback Tests
-   - Test system behavior when API is unavailable
-   - Test fallback mechanism for missing formatters
-
-4. Performance Tests
-   - Measure load times with and without bundling
-   - Test caching effectiveness
-
-## Migration and Backwards Compatibility
-
-1. Implement the new system alongside the existing one
-2. Create a migration script to update existing log entries if necessary
-3. Maintain backwards compatibility for older versions of formatters
-
-## Documentation Updates
-
-1. Update CONVERSATION_LOGGING.md with implementation details
-2. Create API documentation for new formatter endpoints
-3. Update CLI and BUI documentation to reflect new formatting capabilities
-
-## Future Considerations
-
-1. Explore more advanced bundling techniques if performance becomes an issue
-2. Consider implementing a formatter creation UI for easier management
-3. Investigate potential for using WebAssembly for more complex formatters
-
-This implementation plan provides a structured approach to building the dynamic formatting system. It covers all major components, testing strategies, and considerations for backwards compatibility and future improvements. When starting a new conversation to implement this system, refer to this document for guidance on the next steps and overall architecture.
+- Implement the chosen approach for the RunCommand tool as a prototype.
+- Review and refine the implementation.
+- Gradually apply the same pattern to other tools.
+- Update documentation and tests to reflect the new structure.

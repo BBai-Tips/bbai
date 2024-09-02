@@ -1,8 +1,8 @@
-import { assert, assertEquals, assertExists, assertRejects, assertStringIncludes } from '../../../deps.ts';
+import { assert, assertEquals, assertStringIncludes } from '../../../deps.ts';
 import { join } from '@std/path';
-import { ensureDir } from '@std/fs';
+//import { ensureDir } from '@std/fs';
 
-import { LLMToolRequestFiles } from '../../../../src/llms/tools/requestFilesTool.ts';
+import LLMToolRequestFiles from '../../../../src/llms/tools/requestFilesTool.ts';
 import ProjectEditor from '../../../../src/editor/projectEditor.ts';
 import type { LLMAnswerToolUse } from 'api/llms/llmMessage.ts';
 import { GitUtils } from 'shared/git.ts';
@@ -17,11 +17,11 @@ async function getProjectEditor(testProjectRoot: string): Promise<ProjectEditor>
 	return await new ProjectEditor(testProjectRoot).init();
 }
 
-function cleanupTestDirectory() {
-	for (const entry of Deno.readDirSync(testProjectRoot)) {
-		Deno.removeSync(join(testProjectRoot, entry.name), { recursive: true });
-	}
-}
+//function cleanupTestDirectory() {
+//	for (const entry of Deno.readDirSync(testProjectRoot)) {
+//		Deno.removeSync(join(testProjectRoot, entry.name), { recursive: true });
+//	}
+//}
 
 Deno.test({
 	name: 'RequestFilesTool - Request existing files',

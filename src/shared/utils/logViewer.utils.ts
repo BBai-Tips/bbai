@@ -1,6 +1,7 @@
 import { join } from '@std/path';
 import { getBbaiDir } from 'shared/dataDir.ts';
 import { config } from 'shared/configManager.ts';
+import ConversationLogger from 'shared/conversationLogger.ts';
 
 export async function watchLogs(logFilePath: string, onNewContent: (content: string) => void) {
 	const watcher = Deno.watchFs(logFilePath);
@@ -57,9 +58,7 @@ export async function viewLastLines(logFilePath: string, lines: number): Promise
 }
 
 export async function getLogFilePath(startDir: string, isApiLog: boolean, conversationId?: string): Promise<string> {
-	const bbaiDir = await getBbaiDir(startDir);
-	const logFile = !isApiLog && conversationId
-		? join('data', 'conversations', conversationId, 'conversation.log')
-		: config.logFile ?? 'api.log';
-	return join(bbaiDir, logFile);
+	return !isApiLog && conversationId
+		? await ConversationLogger.getLogFileRawPath(startDir, conversationId)
+		: join(await getBbaiDir(startDir), config.api?.logFile ?? 'api.log');
 }

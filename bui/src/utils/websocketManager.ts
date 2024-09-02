@@ -2,6 +2,13 @@ import { Signal, signal } from '@preact/signals';
 import { ConversationEntry } from 'shared/types.ts';
 
 class WebSocketManager {
+	updateConversation(id: string) {
+		this.setConversationId(id);
+		if (this.socket) {
+			this.socket.close();
+		}
+		this.connect();
+	}
 	private socket: WebSocket | null = null;
 	private apiPort: number;
 	private conversationId: string | null = null;
@@ -58,7 +65,7 @@ class WebSocketManager {
 			if (
 				'type' in msg.data || 'answer' in msg.data || 'conversationTitle' in msg.data
 			) {
-				if ('answer' in msg.data || 'type' in msg.data) {
+				if ('answer' in msg.data || 'logEntry' in msg.data) {
 					//this.conversationEntriesSignal.value = [...this.conversationEntriesSignal.value, msg.data as ConversationEntry];
 					this.conversationEntriesSignal.value = msg.data as ConversationEntry;
 				} else if ('conversationTitle' in msg.data) {

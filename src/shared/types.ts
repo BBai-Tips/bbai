@@ -1,11 +1,15 @@
-import { ConversationLoggerEntryType } from 'shared/conversationLogger.ts';
-import { LLMProviderMessageMeta, LLMProviderMessageResponse } from 'api/types/llms.ts';
+import type { ConversationLogEntry, ConversationLoggerEntryType } from 'shared/conversationLogger.ts';
+import type { LLMProviderMessageMeta, LLMProviderMessageResponse } from 'api/types/llms.ts';
+import type { LLMToolInputSchema, LLMToolRunResultContent } from 'api/llms/llmTool.ts';
 
 export type ConversationId = string;
 
 export type VectorId = string;
 
 export interface ConversationMetadata {
+	//startDir: string;
+	conversationStats?: ConversationMetrics;
+	tokenUsageConversation?: ConversationTokenUsage;
 	id: ConversationId;
 	title: string;
 	llmProviderName: string;
@@ -15,7 +19,7 @@ export interface ConversationMetadata {
 }
 
 export interface ConversationDetailedMetadata extends ConversationMetadata {
-	system: string;
+	//system: string;
 	temperature: number;
 	maxTokens: number;
 
@@ -31,13 +35,15 @@ export interface ConversationDetailedMetadata extends ConversationMetadata {
 
 	conversationStats: ConversationMetrics;
 
-	tools?: Array<{ name: string; description: string }>;
+	//tools?: Array<{ name: string; description: string }>;
 }
 
 export interface TokenUsage {
 	inputTokens: number;
 	outputTokens: number;
 	totalTokens: number;
+	cacheCreationInputTokens?: number;
+	cacheReadInputTokens?: number;
 }
 
 export interface ConversationTokenUsage {
@@ -69,9 +75,8 @@ export interface ConversationStart {
 export interface ConversationContinue {
 	conversationId: ConversationId;
 	conversationTitle: string;
-	type: ConversationLoggerEntryType;
 	timestamp: string;
-	content: string;
+	logEntry: ConversationLogEntry;
 	tokenUsageTurn: TokenUsage;
 	tokenUsageStatement: TokenUsage;
 	tokenUsageConversation: ConversationTokenUsage;
@@ -80,9 +85,10 @@ export interface ConversationContinue {
 
 export interface ConversationResponse {
 	conversationId: ConversationId;
+	conversationTitle: string;
+	timestamp: string;
 	response: LLMProviderMessageResponse;
 	messageMeta: LLMProviderMessageMeta;
-	conversationTitle: string;
 	tokenUsageStatement: TokenUsage;
 	tokenUsageConversation: ConversationTokenUsage;
 	conversationStats: ConversationMetrics;

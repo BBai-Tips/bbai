@@ -1,7 +1,7 @@
 import { assert, assertEquals, assertStringIncludes } from '../../../deps.ts';
 import { join } from '@std/path';
 
-import { LLMToolForgetFiles } from '../../../../src/llms/tools/forgetFilesTool.ts';
+import LLMToolForgetFiles from '../../../../src/llms/tools/forgetFilesTool.ts';
 import ProjectEditor from '../../../../src/editor/projectEditor.ts';
 import type { LLMAnswerToolUse } from 'api/llms/llmMessage.ts';
 import { GitUtils } from 'shared/git.ts';

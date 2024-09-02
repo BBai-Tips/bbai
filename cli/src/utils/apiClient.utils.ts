@@ -10,7 +10,7 @@ class ApiClient {
 		this.wsUrl = wsUrl;
 	}
 
-	static async create(): Promise<ApiClient> {
+	static create(): ApiClient {
 		const apiPort = config.api?.apiPort || 3000;
 		const baseUrl = `http://localhost:${apiPort}`;
 		const wsUrl = `ws://localhost:${apiPort}`;
@@ -52,7 +52,7 @@ class ApiClient {
 		}
 	}
 
-	async connectWebSocket(endpoint: string): Promise<WebSocket> {
+	connectWebSocket(endpoint: string): Promise<WebSocket> {
 		const fullWsUrl = `${this.wsUrl}${endpoint}`;
 		//logger.info(`APIClient: Connecting WebSocket to: ${fullWsUrl}`);
 		const ws = new WebSocket(fullWsUrl);
@@ -70,4 +70,4 @@ class ApiClient {
 	}
 }
 
-export const apiClient = await ApiClient.create();
+export const apiClient = ApiClient.create();

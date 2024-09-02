@@ -18,6 +18,10 @@ import { createError, ErrorType } from '../utils/error.utils.ts';
 import { FileHandlingErrorOptions } from '../errors/error.ts';
 import ProjectEditor from '../editor/projectEditor.ts';
 import { ProjectInfo } from '../llms/interactions/conversationInteraction.ts';
+import LLMTool from 'api/llms/llmTool.ts';
+
+// Ensure ProjectInfo includes startDir
+type ExtendedProjectInfo = ProjectInfo & { startDir: string };
 import { stripIndents } from 'common-tags';
 
 class ConversationPersistence {
@@ -25,11 +29,16 @@ class ConversationPersistence {
 	private metadataPath!: string;
 	private messagesPath!: string;
 	private patchLogPath!: string;
+	private preparedSystemPath!: string;
+	private preparedToolsPath!: string;
 	private conversationsMetadataPath!: string;
 	private filesDir!: string;
 	private initialized: boolean = false;
 
-	constructor(private conversationId: ConversationId, private projectEditor: ProjectEditor) {
+	constructor(
+		private conversationId: ConversationId,
+		private projectEditor: ProjectEditor & { projectInfo: ExtendedProjectInfo },
+	) {
 		//this.ensureInitialized();
 	}
 
@@ -51,6 +60,8 @@ class ConversationPersistence {
 		this.metadataPath = join(this.conversationDir, 'metadata.json');
 		this.messagesPath = join(this.conversationDir, 'messages.jsonl');
 		this.patchLogPath = join(this.conversationDir, 'patches.jsonl');
+		this.preparedSystemPath = join(this.conversationDir, 'prepared_system.json');
+		this.preparedToolsPath = join(this.conversationDir, 'prepared_tools.json');
 		this.filesDir = join(this.conversationDir, 'files');
 		await ensureDir(this.filesDir);
 		return this;
@@ -90,11 +101,23 @@ class ConversationPersistence {
 		// Get total count before pagination
 		const totalCount = conversations.length;
 
+		// Sort conversations by updatedAt in descending order
+		conversations.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+
 		// Apply pagination
 		const startIndex = (options.page - 1) * options.limit;
 		conversations = conversations.slice(startIndex, startIndex + options.limit);
 
-		return { conversations, totalCount };
+		return {
+			conversations: conversations.map((conv) => ({
+				...conv,
+				conversationStats: (conv as ConversationMetadata).conversationStats ||
+					ConversationPersistence.defaultConversationStats(),
+				tokenUsageConversation: (conv as ConversationMetadata).tokenUsageConversation ||
+					ConversationPersistence.defaultConversationTokenUsage(),
+			})),
+			totalCount,
+		};
 	}
 
 	async saveConversation(conversation: LLMConversationInteraction): Promise<void> {
@@ -113,7 +136,7 @@ class ConversationPersistence {
 
 			const detailedMetadata: ConversationDetailedMetadata = {
 				...metadata,
-				system: conversation.baseSystem,
+				//system: conversation.baseSystem,
 				temperature: conversation.temperature,
 				maxTokens: conversation.maxTokens,
 
@@ -128,7 +151,7 @@ class ConversationPersistence {
 
 				totalProviderRequests: conversation.totalProviderRequests,
 
-				tools: conversation.getAllTools().map((tool) => ({ name: tool.name, description: tool.description })),
+				//tools: conversation.getAllTools().map((tool) => ({ name: tool.name, description: tool.description })),
 
 				// following attributes are for reference only; they are not set when conversation is loaded
 				projectInfoType: this.projectEditor.projectInfo.type,
@@ -156,12 +179,12 @@ class ConversationPersistence {
 						timestamp: m.timestamp, // Assuming this property exists
 					});
 				} else {
-					logger.warn(`Invalid message encountered: ${JSON.stringify(m)}`);
+					logger.warn(`ConversationPersistence: Invalid message encountered: ${JSON.stringify(m)}`);
 					return null;
 				}
 			}).filter(Boolean).join('\n') + '\n';
 			await Deno.writeTextFile(this.messagesPath, messagesContent);
-			logger.info(`Saved messages for conversation: ${conversation.id}`);
+			logger.info(`ConversationPersistence: Saved messages for conversation: ${conversation.id}`);
 
 			// Save files
 			const files = conversation.getFiles();
@@ -170,9 +193,9 @@ class ConversationPersistence {
 				await ensureDir(join(fileStoragePath, '..'));
 				await Deno.writeTextFile(`${fileStoragePath}.meta`, JSON.stringify(fileData));
 			}
-			logger.info(`Saved files for conversation: ${conversation.id}`);
+			logger.info(`ConversationPersistence: Saved files for conversation: ${conversation.id}`);
 		} catch (error) {
-			logger.error(`Error saving conversation: ${error.message}`);
+			logger.error(`ConversationPersistence: Error saving conversation: ${error.message}`);
 			this.handleSaveError(error, this.metadataPath);
 		}
 	}
@@ -182,7 +205,7 @@ class ConversationPersistence {
 			await this.ensureInitialized();
 
 			if (!await exists(this.metadataPath)) {
-				//logger.warn(`Conversation metadata file not found: ${this.metadataPath}`);
+				//logger.warn(`ConversationPersistence: Conversation metadata file not found: ${this.metadataPath}`);
 				return null;
 			}
 
@@ -192,17 +215,18 @@ class ConversationPersistence {
 
 			conversation.id = metadata.id;
 			conversation.title = metadata.title;
-			conversation.baseSystem = metadata.system;
+			//conversation.baseSystem = metadata.system;
 			conversation.model = metadata.model;
 			conversation.maxTokens = metadata.maxTokens;
 			conversation.temperature = metadata.temperature;
 
 			conversation.totalProviderRequests = metadata.totalProviderRequests;
 
-			conversation.tokenUsageTurn = metadata.tokenUsageTurn || this.defaultTokenUsage();
-			conversation.tokenUsageStatement = metadata.tokenUsageStatement || this.defaultTokenUsage();
+			conversation.tokenUsageTurn = metadata.tokenUsageTurn || ConversationPersistence.defaultTokenUsage();
+			conversation.tokenUsageStatement = metadata.tokenUsageStatement ||
+				ConversationPersistence.defaultTokenUsage();
 			conversation.tokenUsageConversation = metadata.tokenUsageConversation ||
-				this.defaultConversationTokenUsage();
+				ConversationPersistence.defaultConversationTokenUsage();
 
 			conversation.statementTurnCount = metadata.conversationStats.statementTurnCount;
 			conversation.conversationTurnCount = metadata.conversationStats.conversationTurnCount;
@@ -219,7 +243,7 @@ class ConversationPersistence {
 						const messageData = JSON.parse(line);
 						conversation.addMessage(messageData);
 					} catch (error) {
-						logger.error(`Error parsing message: ${error.message}`);
+						logger.error(`ConversationPersistence: Error parsing message: ${error.message}`);
 						// Continue to the next message if there's an error
 					}
 				}
@@ -239,7 +263,9 @@ class ConversationPersistence {
 						'Tool use was interrupted, results could not be generated. You may try again now.',
 						true,
 					);
-					logger.warn('Added generated tool_result message due to interrupted tool use');
+					logger.warn(
+						'ConversationPersistence: Added generated tool_result message due to interrupted tool use',
+					);
 				}
 			}
 
@@ -254,14 +280,14 @@ class ConversationPersistence {
 						if (fileMetadata.inSystemPrompt) {
 							conversation.addFileForSystemPrompt(filePath, fileMetadata);
 						}
-						logger.info(`Loaded file: ${filePath}`);
+						logger.info(`ConversationPersistence: Loaded file: ${filePath}`);
 					}
 				}
 			}
 
 			return conversation;
 		} catch (error) {
-			logger.error(`Error saving conversation: ${error.message}`);
+			logger.error(`ConversationPersistence: Error saving conversation: ${error.message}`);
 			throw createError(
 				ErrorType.FileHandling,
 				`File or directory not found when loading conversation: ${this.metadataPath}`,
@@ -273,7 +299,12 @@ class ConversationPersistence {
 		}
 	}
 
-	private async updateConversationsMetadata(conversation: ConversationMetadata): Promise<void> {
+	private async updateConversationsMetadata(
+		conversation: ConversationMetadata & {
+			conversationStats?: ConversationMetrics;
+			tokenUsageConversation?: ConversationTokenUsage;
+		},
+	): Promise<void> {
 		let conversations: ConversationMetadata[] = [];
 
 		if (await exists(this.conversationsMetadataPath)) {
@@ -283,9 +314,20 @@ class ConversationPersistence {
 
 		const index = conversations.findIndex((conv) => conv.id === conversation.id);
 		if (index !== -1) {
-			conversations[index] = conversation;
+			conversations[index] = {
+				...conversations[index],
+				...conversation,
+				conversationStats: conversation.conversationStats || ConversationPersistence.defaultConversationStats(),
+				tokenUsageConversation: conversation.tokenUsageConversation ||
+					ConversationPersistence.defaultConversationTokenUsage(),
+			};
 		} else {
-			conversations.push(conversation);
+			conversations.push({
+				...conversation,
+				conversationStats: conversation.conversationStats || ConversationPersistence.defaultConversationStats(),
+				tokenUsageConversation: conversation.tokenUsageConversation ||
+					ConversationPersistence.defaultConversationTokenUsage(),
+			});
 		}
 
 		await Deno.writeTextFile(
@@ -293,7 +335,7 @@ class ConversationPersistence {
 			JSON.stringify(conversations, null, 2),
 		);
 
-		logger.info(`Saved metadata to project level for conversation: ${conversation.id}`);
+		logger.info(`ConversationPersistence: Saved metadata to project level for conversation: ${conversation.id}`);
 	}
 
 	async getConversationIdByTitle(title: string): Promise<string | null> {
@@ -330,7 +372,10 @@ class ConversationPersistence {
 		const existingMetadata = await this.getMetadata();
 		const updatedMetadata = { ...existingMetadata, ...metadata };
 		await Deno.writeTextFile(this.metadataPath, JSON.stringify(updatedMetadata, null, 2));
-		logger.info(`Saved metadata for conversation: ${this.conversationId}`);
+		logger.info(`ConversationPersistence: Saved metadata for conversation: ${this.conversationId}`);
+
+		// Update the conversations metadata file
+		await this.updateConversationsMetadata(updatedMetadata);
 	}
 
 	async getMetadata(): Promise<ConversationDetailedMetadata> {
@@ -339,33 +384,33 @@ class ConversationPersistence {
 			const metadataContent = await Deno.readTextFile(this.metadataPath);
 			return JSON.parse(metadataContent);
 		}
-		return this.defaultMetadata();
+		return ConversationPersistence.defaultMetadata();
 	}
 
-	defaultConversationStats(): ConversationMetrics {
+	static defaultConversationStats(): ConversationMetrics {
 		return {
 			statementCount: 0,
 			statementTurnCount: 0,
 			conversationTurnCount: 0,
 		};
 	}
-	defaultTokenUsage(): TokenUsage {
-		return {
-			inputTokens: 0,
-			outputTokens: 0,
-			totalTokens: 0,
-		};
-	}
-	defaultConversationTokenUsage(): ConversationTokenUsage {
+	static defaultConversationTokenUsage(): ConversationTokenUsage {
 		return {
 			inputTokensTotal: 0,
 			outputTokensTotal: 0,
 			totalTokensTotal: 0,
 		};
 	}
-
-	defaultMetadata(): ConversationDetailedMetadata {
+	static defaultTokenUsage(): TokenUsage {
 		return {
+			inputTokens: 0,
+			outputTokens: 0,
+			totalTokens: 0,
+		};
+	}
+	static defaultMetadata(): ConversationDetailedMetadata {
+		return {
+			//startDir: this.projectEditor.projectInfo.startDir,
 			id: '',
 			title: '',
 			llmProviderName: '',
@@ -373,7 +418,7 @@ class ConversationPersistence {
 			createdAt: '',
 			updatedAt: '',
 
-			system: '',
+			//system: '',
 			temperature: 0,
 			maxTokens: 4096,
 
@@ -383,26 +428,65 @@ class ConversationPersistence {
 
 			totalProviderRequests: 0,
 
-			tokenUsageTurn: this.defaultTokenUsage(),
-			tokenUsageStatement: this.defaultTokenUsage(),
-			tokenUsageConversation: this.defaultConversationTokenUsage(),
+			tokenUsageTurn: ConversationPersistence.defaultTokenUsage(),
+			tokenUsageStatement: ConversationPersistence.defaultTokenUsage(),
+			tokenUsageConversation: ConversationPersistence.defaultConversationTokenUsage(),
 
-			conversationStats: this.defaultConversationStats(),
-
-			tools: [],
+			conversationStats: ConversationPersistence.defaultConversationStats(),
+			//tools: [],
 		};
 	}
 
-	async saveSystemPrompt(systemPrompt: string): Promise<void> {
+	async savePreparedSystemPrompt(systemPrompt: string): Promise<void> {
 		await this.ensureInitialized();
-		const systemPromptPath = join(this.conversationDir, 'system_prompt.txt');
-		await Deno.writeTextFile(systemPromptPath, systemPrompt);
-		logger.info(`System prompt saved for conversation: ${this.conversationId}`);
+		const promptData = { systemPrompt };
+		await Deno.writeTextFile(this.preparedSystemPath, JSON.stringify(promptData, null, 2));
+		logger.info(`ConversationPersistence: Prepared prompt saved for conversation: ${this.conversationId}`);
 	}
 
+	async getPreparedSystemPrompt(): Promise<string | null> {
+		await this.ensureInitialized();
+		if (await exists(this.preparedSystemPath)) {
+			const content = await Deno.readTextFile(this.preparedSystemPath);
+			const promptData = JSON.parse(content);
+			return promptData.systemPrompt;
+		}
+		return null;
+	}
+
+	async savePreparedTools(tools: LLMTool[]): Promise<void> {
+		await this.ensureInitialized();
+		//const toolsData = Array.from(tools.values()).map((tool) => ({
+		const toolsData = tools.map((tool) => ({
+			name: tool.name,
+			description: tool.description,
+			input_schema: tool.input_schema,
+		}));
+		await Deno.writeTextFile(this.preparedToolsPath, JSON.stringify(toolsData, null, 2));
+		logger.info(`ConversationPersistence: Prepared tools saved for conversation: ${this.conversationId}`);
+	}
+
+	async getPreparedTools(): Promise<LLMTool[] | null> {
+		await this.ensureInitialized();
+		if (await exists(this.preparedToolsPath)) {
+			const content = await Deno.readTextFile(this.preparedToolsPath);
+			const toolsData = JSON.parse(content);
+			return toolsData;
+		}
+		return null;
+	}
+
+	// this is a system prompt dump primarily used for debugging
+	async saveSystemPrompt(systemPrompt: string): Promise<void> {
+		await this.ensureInitialized();
+		const projectInfoPath = join(this.conversationDir, 'dump_system_prompt.md');
+		await Deno.writeTextFile(projectInfoPath, systemPrompt);
+		logger.info(`ConversationPersistence: System prompt saved for conversation: ${this.conversationId}`);
+	}
+	// this is a project info dump primarily used for debugging
 	async saveProjectInfo(projectInfo: ProjectInfo): Promise<void> {
 		await this.ensureInitialized();
-		const projectInfoPath = join(this.conversationDir, 'project_info.md');
+		const projectInfoPath = join(this.conversationDir, 'dump_project_info.md');
 		const content = stripIndents`---
 			type: ${projectInfo.type}
 			tier: ${projectInfo.tier ?? 'null'}
@@ -410,7 +494,7 @@ class ConversationPersistence {
 			${projectInfo.content}
 		`;
 		await Deno.writeTextFile(projectInfoPath, content);
-		logger.info(`Project info saved for conversation: ${this.conversationId}`);
+		logger.info(`ConversationPersistence: Project info saved for conversation: ${this.conversationId}`);
 	}
 
 	private handleSaveError(error: unknown, filePath: string): never {
@@ -433,7 +517,7 @@ class ConversationPersistence {
 				} as FileHandlingErrorOptions,
 			);
 		} else {
-			logger.error(`Error saving conversation: ${(error as Error).message}`);
+			logger.error(`ConversationPersistence: Error saving conversation: ${(error as Error).message}`);
 			throw createError(ErrorType.FileHandling, `Failed to save conversation: ${filePath}`, {
 				filePath,
 				operation: 'write',
@@ -449,7 +533,7 @@ class ConversationPersistence {
 			filePath,
 			patch,
 		}) + '\n';
-		logger.info(`Writing patch file: ${this.patchLogPath}`);
+		logger.info(`ConversationPersistence: Writing patch file: ${this.patchLogPath}`);
 
 		await Deno.writeTextFile(this.patchLogPath, patchEntry, { append: true });
 	}
