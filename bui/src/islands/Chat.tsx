@@ -1,22 +1,18 @@
 import { useEffect, useRef, useState } from 'preact/hooks';
 import { useCallback } from 'preact/hooks';
 import { ConversationMetadata } from 'shared/types.ts';
-// Removed unused import
 
-// Removed unused type declaration
 import { marked } from 'marked';
 import { IS_BROWSER } from '$fresh/runtime.ts';
-// import { generateConversationId } from 'shared/conversationManagement.ts';
+import { generateConversationId } from 'shared/conversationManagement.ts';
 // Temporary browser-compatible replacement
-const generateConversationId = () =>
-	Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+// const generateConversationId = () =>
+// 	Math.random().toString(36).substring(2, 15) +
+// 	Math.random().toString(36).substring(2, 15);
 import { createWebSocketManager } from '../utils/websocketManager.ts';
-// import { ConversationContinue, ConversationEntry, ConversationResponse, ConversationStart } from 'shared/types.ts';
-// Temporary type definitions
-type ConversationEntry = any;
-type ConversationResponse = any;
+import { ConversationContinue, ConversationEntry, ConversationResponse, ConversationStart } from 'shared/types.ts';
+//import type { EventPayloadMap } from 'shared/eventManager.ts';
 import { ApiClient } from '../utils/apiClient.utils.ts';
-// Removed import for ConversationsList
 import { useSignal } from '@preact/signals';
 
 interface ChatProps {
@@ -53,9 +49,6 @@ export default function Chat({ apiPort }: ChatProps) {
 	const [conversations, setConversations] = useState<ConversationMetadata[]>([]);
 	const [isLoadingConversations, setIsLoadingConversations] = useState(false);
 	const [input, setInput] = useState('');
-	// Removed conversations state
-	// Removed selectedConversation state
-	// Removed isLoadingConversations state
 	const [isLoading, setIsLoading] = useState(false);
 	const [isWorking, setIsWorking] = useState(false);
 	const [error, setError] = useState<string | null>(null);
@@ -128,10 +121,6 @@ export default function Chat({ apiPort }: ChatProps) {
 			wsManager.value = manager;
 			manager.connect();
 
-			// ApiClient initialization moved to initializeChat function
-
-			// Removed fetchConversations call
-
 			return () => {
 				manager.disconnect();
 			};
@@ -148,7 +137,7 @@ export default function Chat({ apiPort }: ChatProps) {
 					conversationEntries.value = [...conversationEntries.value, formattedEntry];
 					// Don't set isWorking to false for intermediate entries
 				} else if ('answer' in newEntry) {
-					conversationEntries.value = [...conversationEntries.value, newEntry];
+					conversationEntries.value = [...conversationEntries.value, newEntry as ConversationResponse];
 					// Only set isWorking to false when we receive the final answer
 					setIsWorking(false);
 				} else if ('conversationTitle' in newEntry) {
@@ -156,18 +145,21 @@ export default function Chat({ apiPort }: ChatProps) {
 				}
 				// Update current conversation metadata
 				if (currentConversation) {
-					setCurrentConversation({
-						...currentConversation,
-						title: newEntry.conversationTitle || currentConversation.title,
-						updatedAt: new Date().toISOString(),
-						conversationStats: {
-							...currentConversation.conversationStats,
-							conversationTurnCount: (currentConversation.conversationStats?.conversationTurnCount || 0) +
-								1,
-						},
-						tokenUsageConversation: newEntry.tokenUsageConversation ||
-							currentConversation.tokenUsageConversation,
-					});
+					if (currentConversation) {
+						setCurrentConversation({
+							...currentConversation,
+							title: newEntry.conversationTitle || currentConversation.title,
+							updatedAt: new Date().toISOString(),
+							//conversationStats: {
+							//	...currentConversation.conversationStats,
+							//	conversationTurnCount:
+							//		(currentConversation.conversationStats?.conversationTurnCount || 0) +
+							//		1,
+							//},
+							tokenUsageConversation: newEntry.tokenUsageConversation ||
+								currentConversation.tokenUsageConversation,
+						});
+					}
 				}
 			});
 
@@ -267,16 +259,20 @@ export default function Chat({ apiPort }: ChatProps) {
 				});
 				setInput('');
 				// Update current conversation metadata
-				if (currentConversation) {
-					setCurrentConversation((prev) => ({
-						...prev,
-						updatedAt: new Date().toISOString(),
-						conversationStats: {
-							...prev.conversationStats,
-							conversationTurnCount: (prev.conversationStats?.conversationTurnCount || 0) + 1,
-						},
-					}));
-				}
+				//if (currentConversation) {
+				//	setCurrentConversation((prev) =>
+				//		prev
+				//			? ({
+				//				...prev,
+				//				updatedAt: new Date().toISOString(),
+				//				conversationStats: {
+				//					...prev.conversationStats,
+				//					conversationTurnCount: (prev.conversationStats?.conversationTurnCount ?? 0) + 1,
+				//				},
+				//			})
+				//			: {}
+				//	);
+				//}
 			} catch (error) {
 				console.error('Error sending message:', error);
 				console.error('WebSocket manager state at error:', wsManager.value);
@@ -411,7 +407,7 @@ export default function Chat({ apiPort }: ChatProps) {
 						className='bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4'
 						role='alert'
 					>
-						<strong className='font-bold'>Error:</strong>
+						<strong className='font-bold'>Generic Error:</strong>
 						<span className='block sm:inline'>{error}</span>
 						<span className='absolute top-0 bottom-0 right-0 px-4 py-3' onClick={() => setError(null)}>
 							<svg
