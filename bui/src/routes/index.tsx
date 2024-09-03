@@ -14,7 +14,7 @@ export default function Home(props: PageProps<HomeProps>) {
   //console.log("index.tsx: apiPort =", apiPort);
   return (
     <div class="h-screen bg-gray-100">
-      <Chat apiPort={apiPort} />
+      <Chat apiPort={Number(apiPort)} />
     </div>
   );
 }
