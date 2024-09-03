@@ -44,7 +44,9 @@ class WebSocketManager {
 			return;
 		}
 
-		this.socket = new WebSocket(`ws://localhost:${this.apiPort}/api/v1/ws/conversation/${this.conversationId}`);
+		this.socket = new WebSocket(
+			`ws://localhost:${this.apiPort}/api/v1/ws/conversation/${this.conversationId}`,
+		);
 
 		this.socket.onopen = () => {
 			console.log('WebSocket connected');
@@ -65,7 +67,8 @@ class WebSocketManager {
 			const msg = JSON.parse(event.data);
 			console.log('Received message:', msg);
 			if (
-				'type' in msg.data || 'answer' in msg.data || 'conversationTitle' in msg.data
+				'type' in msg.data || 'answer' in msg.data ||
+				'conversationTitle' in msg.data
 			) {
 				if ('answer' in msg.data || 'logEntry' in msg.data) {
 					//this.conversationEntriesSignal.value = [...this.conversationEntriesSignal.value, msg.data as ConversationEntry];
@@ -97,7 +100,8 @@ class WebSocketManager {
 			return;
 		}
 
-		const delay = this.reconnectDelay * Math.pow(2, this.reconnectAttempts) + Math.random() * 1000;
+		const delay = this.reconnectDelay * Math.pow(2, this.reconnectAttempts) +
+			Math.random() * 1000;
 		console.log(`Retrying connection in ${delay}ms...`);
 
 		setTimeout(() => {

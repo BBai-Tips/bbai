@@ -9,6 +9,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 
 
+## [0.0.10b-alpha] - 2024-09-03
+
+### Changed
+
+- Hotfix for bui
+
+
+## [0.0.10a-alpha] - 2024-09-03
+
+### Changed
+
+- Hot fix for deno.lock and build command
+
+
 ## [0.0.10-alpha] - 2024-09-02
 
 ### Changed

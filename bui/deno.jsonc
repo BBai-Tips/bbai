@@ -1,0 +1,32 @@
+{
+	"lock": false,
+	"tasks": {
+		"check": "deno fmt --check && deno lint && deno check **/*.ts && deno check **/*.tsx",
+		"cli": "echo \"import '\\$fresh/src/dev/cli.ts'\" | deno run --unstable -A -",
+		"manifest": "deno task cli manifest $(pwd)/src",
+		"start": "deno run -A --watch=static/,routes/ src/dev.ts",
+		"start-prod": "deno run -A src/dev.ts",
+		"build-site": "deno run -A src/dev.ts build",
+		"build": "deno compile -A --output ../build/bbai-bui src/main.ts",
+		"preview": "deno run -A src/main.ts",
+		"update": "deno run -A -r https://fresh.deno.dev/update .",
+		"format": "deno fmt",
+		"check-format": "deno fmt --check",
+		"check-types": "deno check src/main.ts",
+		"update-deps": "deno cache src/main.ts && deno cache tests/deps.ts"
+	},
+	"lint": { "rules": { "tags": ["fresh", "recommended"] } },
+	"exclude": ["**/src/_fresh/*"],
+	"importMap": "../import_map.json",
+	"compilerOptions": { "jsx": "react-jsx", "jsxImportSource": "preact" },
+	"fmt": {
+		"useTabs": true,
+		"lineWidth": 120,
+		"indentWidth": 4,
+		"semiColons": true,
+		"singleQuote": true,
+		"proseWrap": "preserve",
+		"include": ["src/", "tests/"],
+		"exclude": ["src/testdata/", "src/fixtures/**/*.ts"]
+	}
+}
