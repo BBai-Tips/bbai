@@ -174,23 +174,20 @@ export default function Chat({ apiPort }: ChatProps) {
           // Only set isWorking to false when we receive the final answer
           setIsWorking(false);
         } else if ("conversationTitle" in newEntry) {
-          wsManager.value.isReady.value = true;
+          wsManager.value!.isReady.value = true;
         }
         // Update current conversation metadata
         if (currentConversation) {
           setCurrentConversation({
             ...currentConversation,
-            title: newEntry.conversationTitle || currentConversation.title,
+            title: 'conversationTitle' in newEntry ? newEntry.conversationTitle || currentConversation.title : currentConversation.title,
             updatedAt: new Date().toISOString(),
             conversationStats: {
               ...currentConversation.conversationStats,
               conversationTurnCount:
-                (currentConversation.conversationStats?.conversationTurnCount ||
-                  0) +
-                1,
+                ((currentConversation.conversationStats?.conversationTurnCount ?? 0) + 1),
             },
-            tokenUsageConversation: newEntry.tokenUsageConversation ||
-              currentConversation.tokenUsageConversation,
+            tokenUsageConversation: 'tokenUsageConversation' in newEntry ? newEntry.tokenUsageConversation || currentConversation.tokenUsageConversation : currentConversation.tokenUsageConversation,
           });
         }
       });
@@ -396,7 +393,7 @@ export default function Chat({ apiPort }: ChatProps) {
             </span>
             <button
               onClick={() =>
-                copyToClipboard(renderContent(entry.logEntry.content))}
+                copyToClipboard(renderContent(entry.logEntry.content) as string)}
               className="text-sm bg-blue-500 text-white px-2 py-1 rounded hover:bg-blue-600 transition-colors duration-300"
             >
               Copy
@@ -405,7 +402,7 @@ export default function Chat({ apiPort }: ChatProps) {
           <div
             className="prose max-w-none"
             dangerouslySetInnerHTML={{
-              __html: renderContent(entry.logEntry.content),
+              __html: renderContent(entry.logEntry.content) as string,
             }}
           />
           <div className="text-xs text-gray-500 mt-2">
@@ -426,13 +423,13 @@ export default function Chat({ apiPort }: ChatProps) {
           <div className="font-semibold mb-2">Assistant</div>
           <div
             className="prose max-w-none"
-            dangerouslySetInnerHTML={{ __html: renderContent(entry.answer) }}
+            dangerouslySetInnerHTML={{ __html: renderContent(entry.answer) as string }}
           />
           <div className="font-semibold mt-4 mb-2">Assistant Thinking:</div>
           <div
             className="prose max-w-none"
             dangerouslySetInnerHTML={{
-              __html: renderContent(entry.assistantThinking),
+              __html: renderContent(entry.assistantThinking) as string,
             }}
           />
           <div className="text-xs text-gray-500 mt-2">
