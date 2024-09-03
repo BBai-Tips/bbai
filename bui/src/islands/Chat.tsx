@@ -71,12 +71,12 @@ export default function Chat({ apiPort }: ChatProps) {
     try {
       const response = await apiClient.value.post("/api/v1/conversation", {
         startDir,
-      });
+      } : null));
       if (response.ok) {
         const newConversation = await response.json();
         setSelectedConversationId(newConversation.id);
         setConversationId(newConversation.id);
-        setCurrentConversation({
+        setCurrentConversation((prevConversation) => ({
           ...newConversation,
           title: "New Conversation",
           updatedAt: new Date().toISOString(),
@@ -179,15 +179,17 @@ export default function Chat({ apiPort }: ChatProps) {
         // Update current conversation metadata
         if (currentConversation) {
           setCurrentConversation({
-            ...currentConversation,
-            title: 'conversationTitle' in newEntry ? newEntry.conversationTitle || currentConversation.title : currentConversation.title,
+            ...(prevConversation || {}),
+            title: 'conversationTitle' in newEntry ? newEntry.conversationTitle || prevConversation?.title || 'Untitled' : prevConversation?.title || 'Untitled',
             updatedAt: new Date().toISOString(),
             conversationStats: {
-              ...currentConversation.conversationStats,
-              conversationTurnCount:
-                ((currentConversation.conversationStats?.conversationTurnCount ?? 0) + 1),
+              ...(prevConversation?.conversationStats || {}),
+              conversationTurnCount: ((prevConversation?.conversationStats?.conversationTurnCount ?? 0) + 1),
+              statementCount: prevConversation?.conversationStats?.statementCount ?? 0,
+              statementTurnCount: prevConversation?.conversationStats?.statementTurnCount ?? 0,
+              providerRequestCount: prevConversation?.conversationStats?.providerRequestCount ?? 0
             },
-            tokenUsageConversation: 'tokenUsageConversation' in newEntry ? newEntry.tokenUsageConversation || currentConversation.tokenUsageConversation : currentConversation.tokenUsageConversation,
+            tokenUsageConversation: 'tokenUsageConversation' in newEntry ? newEntry.tokenUsageConversation || prevConversation?.tokenUsageConversation || { inputTokensTotal: 0, outputTokensTotal: 0, totalTokensTotal: 0 } : prevConversation?.tokenUsageConversation || { inputTokensTotal: 0, outputTokensTotal: 0, totalTokensTotal: 0 },
           });
         }
       });
@@ -302,13 +304,13 @@ export default function Chat({ apiPort }: ChatProps) {
         setInput("");
         // Update current conversation metadata
         if (currentConversation) {
-          setCurrentConversation((prev) => ({
+          setCurrentConversation((prev) => (prev ? {
             ...prev,
             updatedAt: new Date().toISOString(),
             conversationStats: {
               ...prev.conversationStats,
               conversationTurnCount:
-                (prev.conversationStats?.conversationTurnCount || 0) + 1,
+                (prev.conversationStats?.conversationTurnCount ?? 0) + 1,
             },
           }));
         }
