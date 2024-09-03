@@ -3,21 +3,22 @@
 	"version": "0.0.10b-alpha",
 	"exports": "./cli/src/main.ts",
 	"tasks": {
-		"tool:check-types-project": "deno task -c ./cli/deno.jsonc check-types && deno task -c ./api/deno.jsonc check-types",
+		"tool:check-types-project": "deno task -c ./cli/deno.jsonc check-types && deno task -c ./bui/deno.jsonc check-types && deno task -c ./api/deno.jsonc check-types",
 		"tool:check-types-args": "deno check --all $DENO_ARGS",
 		"tool:test": "deno test --allow-all $DENO_ARGS",
 		"tool:format": "deno fmt $DENO_ARGS",
-		"format": "deno fmt src/ && deno task -c ./cli/deno.jsonc format && deno task -c ./api/deno.jsonc format",
-		"format-deno": "deno fmt ./deno.jsonc ./cli/deno.jsonc ./api/deno.jsonc",
-		"check-types": "deno task -c ./cli/deno.jsonc check-types && deno task -c ./api/deno.jsonc check-types",
-		"check-format": "deno task -c ./cli/deno.jsonc check-format && deno task -c ./api/deno.jsonc check-format",
+		"format": "deno fmt src/ && deno task -c ./cli/deno.jsonc format && deno task -c ./bui/deno.jsonc format && deno task -c ./api/deno.jsonc format",
+		"format-deno": "deno fmt ./deno.jsonc ./cli/deno.jsonc ./bui/deno.jsonc ./api/deno.jsonc",
+		"check-types": "deno task -c ./cli/deno.jsonc check-types && deno task -c ./bui/deno.jsonc check-types && deno task -c ./api/deno.jsonc check-types",
+		"check-format": "deno task -c ./cli/deno.jsonc check-format && deno task -c ./bui/deno.jsonc check-format && deno task -c ./api/deno.jsonc check-format",
+		"start-bui": "deno task -c ./bui/deno.jsonc start",
 		"start-api": "deno task -c ./api/deno.jsonc start",
 		"start-api-dev": "deno task -c ./api/deno.jsonc dev",
 		"build": "deno task -c ./cli/deno.jsonc build && deno task -c ./api/deno.jsonc build",
-		"build-all": "deno task -c ./cli/deno.jsonc build && deno task -c ./api/deno.jsonc build && deno task -c ./bui/src/deno.jsonc build-compile",
-		"homebrew": "deno task -c ./cli/deno.jsonc build && deno task -c ./api/deno.jsonc build",
-		"test": "deno task -c ./cli/deno.jsonc test && deno task -c ./api/deno.jsonc test",
-		"update-deps": "deno task -c ./cli/deno.jsonc update-deps && deno task -c ./api/deno.jsonc update-deps",
+		"build-all": "deno task -c ./cli/deno.jsonc build && deno task -c ./api/deno.jsonc build && deno task -c ./bui/deno.jsonc build-compile",
+		"homebrew": "deno task -c ./cli/deno.jsonc build && deno task -c ./bui/deno.jsonc build && deno task -c ./api/deno.jsonc build",
+		"test": "deno task -c ./cli/deno.jsonc test && deno task -c ./bui/deno.jsonc test && deno task -c ./api/deno.jsonc test",
+		"update-deps": "deno task -c ./cli/deno.jsonc update-deps && deno task -c ./bui/deno.jsonc update-deps && deno task -c ./api/deno.jsonc update-deps",
 		"update-version": "deno run --allow-read --allow-write --allow-run ./scripts/update_version.ts"
 	},
 	"importMap": "./import_map.json",
@@ -28,14 +29,7 @@
 		"semiColons": true,
 		"singleQuote": true,
 		"proseWrap": "preserve",
-		"include": [
-			"src/",
-			"cli/src/",
-			"api/src/"
-		],
-		"exclude": [
-			"src/testdata/",
-			"src/fixtures/**/*.ts"
-		]
+		"include": ["src/", "cli/src/", "bui/src/", "api/src/"],
+		"exclude": ["src/testdata/", "src/fixtures/**/*.ts"]
 	}
 }
