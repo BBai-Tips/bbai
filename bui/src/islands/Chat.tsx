@@ -71,7 +71,7 @@ export default function Chat({ apiPort }: ChatProps) {
     try {
       const response = await apiClient.value.post("/api/v1/conversation", {
         startDir,
-      } : null));
+      }) : null);
       if (response.ok) {
         const newConversation = await response.json();
         setSelectedConversationId(newConversation.id);
@@ -304,7 +304,7 @@ export default function Chat({ apiPort }: ChatProps) {
         setInput("");
         // Update current conversation metadata
         if (currentConversation) {
-          setCurrentConversation((prev) => (prev ? {
+          setCurrentConversation((prev) => prev ? ({
             ...prev,
             updatedAt: new Date().toISOString(),
             conversationStats: {
