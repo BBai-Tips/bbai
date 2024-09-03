@@ -152,7 +152,7 @@ export default function Chat({ apiPort }: ChatProps) {
 					// Only set isWorking to false when we receive the final answer
 					setIsWorking(false);
 				} else if ('conversationTitle' in newEntry) {
-					wsManager.value?.isReady.value = true;
+					wsManager.value.isReady.value = true;
 				}
 				// Update current conversation metadata
 				if (currentConversation) {
