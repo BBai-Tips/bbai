@@ -70,7 +70,7 @@ class WebSocketManager {
       ) {
         if ("answer" in msg.data || "logEntry" in msg.data) {
           //this.conversationEntriesSignal.value = [...this.conversationEntriesSignal.value, msg.data as ConversationEntry];
-          this.conversationEntriesSignal.value = msg.data as ConversationEntry;
+          this.conversationEntriesSignal.value = [msg.data as ConversationEntry];
         } else if ("conversationTitle" in msg.data) {
           // Handle conversationReady
           this.isReady.value = true;
