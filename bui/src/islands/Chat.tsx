@@ -76,13 +76,14 @@ export default function Chat({ apiPort }: ChatProps) {
         const newConversation = await response.json();
         setSelectedConversationId(newConversation.id);
         setConversationId(newConversation.id);
-        setCurrentConversation((prevConversation) => ({
+        setCurrentConversation((prevConversation) => {
           ...newConversation,
           title: "New Conversation",
           updatedAt: new Date().toISOString(),
           conversationStats: { conversationTurnCount: 0 },
           tokenUsageConversation: { totalTokensTotal: 0 },
-        });
+        return prevConversation ? updatedConversation : null;
+});
         conversationEntries.value = [];
         await fetchConversations();
       } else {
@@ -179,7 +180,8 @@ export default function Chat({ apiPort }: ChatProps) {
         // Update current conversation metadata
         if (currentConversation) {
           setCurrentConversation({
-            ...(prevConversation || {}),
+            const updatedConversation = {
+        ...prevConversation,
             title: 'conversationTitle' in newEntry ? newEntry.conversationTitle || prevConversation?.title || 'Untitled' : prevConversation?.title || 'Untitled',
             updatedAt: new Date().toISOString(),
             conversationStats: {
