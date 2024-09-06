@@ -1,11 +1,20 @@
 import { PageProps } from '$fresh/server.ts';
+import { useEffect, useState } from 'preact/hooks';
 import { config } from 'shared/configManager.ts';
 import { Head } from '$fresh/runtime.ts';
 
-export default function App({ Component, state }: PageProps) {
-	const apiPort = config.api?.apiPort ?? 8000; // Fallback to 8000 if not defined
-	state.apiPort = apiPort;
-	console.log('_app.tsx: apiPort =', state.apiPort);
+export default function App({ Component }: PageProps) {
+	const [apiPort, setApiPort] = useState(8000); // Default to 8000
+
+	useEffect(() => {
+		const hash = window.location.hash;
+		const params = new URLSearchParams(hash.slice(1)); // Remove the '#' character
+		const portFromUrl = params.get('apiPort');
+		if (portFromUrl) {
+			setApiPort(parseInt(portFromUrl, 10));
+		}
+		console.log('_app.tsx: apiPort =', apiPort);
+	}, []);
 	return (
 		<html>
 			<Head>
@@ -15,7 +24,7 @@ export default function App({ Component, state }: PageProps) {
 				<link rel='stylesheet' href='/styles.css' />
 			</Head>
 			<body>
-				<Component />
+				<Component apiPort={apiPort} />
 			</body>
 		</html>
 	);
