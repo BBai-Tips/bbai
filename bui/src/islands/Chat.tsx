@@ -39,7 +39,12 @@ export default function Chat({ apiPort }: ChatProps) {
 		setInput('');
 	};
 	const messagesEndRef = useRef<HTMLDivElement>(null);
-	const [startDir, setStartDir] = useState('');
+	const [startDir, setStartDir] = useState(() => {
+		if (typeof window !== 'undefined') {
+			return localStorage.getItem('startDir') || '';
+		}
+		return '';
+	});
 	const [conversationId, setConversationId] = useState<string | null>(null);
 	const wsManager = useSignal<ReturnType<typeof createWebSocketManager> | null>(
 		null,
@@ -120,8 +125,10 @@ export default function Chat({ apiPort }: ChatProps) {
 			IS_BROWSER,
 			'apiPort:',
 			apiPort,
+			'startDir:',
+			startDir
 		);
-		if (IS_BROWSER && !wsManager.value && apiPort) {
+		if (IS_BROWSER && !wsManager.value && apiPort && startDir) {
 			const initializeChat = async () => {
 				const baseUrl = `http://localhost:${apiPort}`;
 				apiClient.value = new ApiClient(baseUrl);
@@ -536,7 +543,9 @@ export default function Chat({ apiPort }: ChatProps) {
 									id='startDir'
 									value={startDir}
 									onChange={(e) => {
-										setStartDir(e.currentTarget.value);
+										const newStartDir = e.currentTarget.value;
+						setStartDir(newStartDir);
+						localStorage.setItem('startDir', newStartDir);
 										wsManager.value?.setStartDir(e.currentTarget.value);
 										fetchConversations();
 									}}
