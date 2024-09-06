@@ -17,6 +17,11 @@ interface ChatProps {
 
 export default function Chat({ apiPort }: ChatProps) {
 	console.log('Chat component: Received apiPort:', apiPort);
+	if (typeof window !== 'undefined') {
+		console.log('Chat component: window.location.href:', window.location.href);
+		console.log('Chat component: window.location.hash:', window.location.hash);
+	}
+	console.log('Chat component: Received apiPort:', apiPort);
 	const [selectedConversationId, setSelectedConversationId] = useState<
 		string | null
 	>(null);
@@ -131,6 +136,7 @@ export default function Chat({ apiPort }: ChatProps) {
 			console.log('Initializing chat with apiPort:', apiPort);
 			const initializeChat = async () => {
 				const baseUrl = `http://localhost:${apiPort}`;
+				console.log('Chat component: Initializing API client with baseUrl:', baseUrl);
 				apiClient.value = new ApiClient(baseUrl);
 				await fetchConversations();
 			};
