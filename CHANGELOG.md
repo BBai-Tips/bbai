@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 
 
+## [0.0.11-alpha] - 2024-09-06
+
+### Changed
+
+- BUI is not a hosted site (can still be run manually from localhost)
+- Running `bbai start` will open browser page for hosted BUI, with apiPort pointing to localhost API
+
+
 ## [0.0.10b-alpha] - 2024-09-03
 
 ### Changed

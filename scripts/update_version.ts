@@ -1,7 +1,7 @@
 import { walk } from '@std/fs';
 
 const updateVersion = async (newVersion: string) => {
-	const files = ['deno.jsonc', 'cli/deno.jsonc', 'api/deno.jsonc'];
+	const files = ['deno.jsonc', 'cli/deno.jsonc', 'bui/deno.jsonc', 'api/deno.jsonc'];
 
 	for await (const file of files) {
 		const content = await Deno.readTextFile(file);

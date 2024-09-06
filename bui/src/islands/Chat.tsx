@@ -1,43 +1,97 @@
 import { useEffect, useRef, useState } from 'preact/hooks';
 import { useCallback } from 'preact/hooks';
 import { ConversationMetadata } from 'shared/types.ts';
-// Removed unused import
 
-// Removed unused type declaration
 import { marked } from 'marked';
 import { IS_BROWSER } from '$fresh/runtime.ts';
-// import { generateConversationId } from 'shared/conversationManagement.ts';
-// Temporary browser-compatible replacement
-const generateConversationId = () =>
-	Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+import { generateConversationId } from 'shared/conversationManagement.ts';
 import { createWebSocketManager } from '../utils/websocketManager.ts';
-// import { ConversationContinue, ConversationEntry, ConversationResponse, ConversationStart } from 'shared/types.ts';
-// Temporary type definitions
-type ConversationEntry = any;
-type ConversationResponse = any;
+import { ConversationContinue, ConversationEntry, ConversationResponse, ConversationStart } from 'shared/types.ts';
+//import type { EventPayloadMap } from 'shared/eventManager.ts';
 import { ApiClient } from '../utils/apiClient.utils.ts';
-// Removed import for ConversationsList
 import { useSignal } from '@preact/signals';
 
 interface ChatProps {
-	apiPort: number;
+	//apiPort: number;
 }
 
-export default function Chat({ apiPort }: ChatProps) {
+export default function Chat() {
+	/*
+	console.log('Chat component: Received apiPort:', apiPort);
+	if (typeof window !== 'undefined') {
+		console.log('Chat component: window.location.href:', window.location.href);
+		console.log('Chat component: window.location.hash:', window.location.hash);
+	}
+	console.log('Chat component: Received apiPort:', apiPort);
+ */
+
+	const [selectedConversationId, setSelectedConversationId] = useState<
+		string | null
+	>(null);
+	const [currentConversation, setCurrentConversation] = useState<
+		ConversationMetadata | null
+	>(null);
+	const [conversations, setConversations] = useState<ConversationMetadata[]>(
+		[],
+	);
+	const [isLoadingConversations, setIsLoadingConversations] = useState(false);
+	const [input, setInput] = useState('');
+	const [isLoading, setIsLoading] = useState(false);
+	const [isWorking, setIsWorking] = useState(false);
+	const [error, setError] = useState<string | null>(null);
+	const clearConversation = () => {
+		conversationEntries.value = [];
+		setInput('');
+	};
+	const messagesEndRef = useRef<HTMLDivElement>(null);
+	const [apiPort, setApiPort] = useState(() => {
+		if (IS_BROWSER) {
+			const hash = window.location.hash.slice(1); // Remove the '#'
+			const params = new URLSearchParams(hash);
+	console.log('Chat component: Received apiPort:', params.get('apiPort'));
+			return params.get('apiPort');
+		}
+		return null;
+	});
+	const [startDir, setStartDir] = useState(() => {
+		if (typeof window !== 'undefined') {
+			return localStorage.getItem('startDir') || '';
+		}
+		return '';
+	});
+	const [conversationId, setConversationId] = useState<string | null>(null);
+	const wsManager = useSignal<ReturnType<typeof createWebSocketManager> | null>(
+		null,
+	);
+	const conversationEntries = useSignal<ConversationEntry[]>([]);
+	const textareaRef = useRef<HTMLTextAreaElement>(null);
+	const apiClient = useSignal<ApiClient | null>(null);
+
+	useEffect(() => {
+		if (selectedConversationId) {
+			loadConversation(selectedConversationId);
+		}
+	}, [selectedConversationId]);
+
 	const startNewConversation = async () => {
 		if (!apiClient.value) return;
 		try {
-			const response = await apiClient.value.post('/api/v1/conversation', { startDir });
+			const response = await apiClient.value.post('/api/v1/conversation', {
+				startDir,
+			});
 			if (response.ok) {
 				const newConversation = await response.json();
 				setSelectedConversationId(newConversation.id);
 				setConversationId(newConversation.id);
-				setCurrentConversation({
-					...newConversation,
-					title: 'New Conversation',
-					updatedAt: new Date().toISOString(),
-					conversationStats: { conversationTurnCount: 0 },
-					tokenUsageConversation: { totalTokensTotal: 0 },
+				setCurrentConversation((prevConversation) => {
+					const updatedConversation = {
+						...newConversation,
+						title: 'New Conversation',
+						updatedAt: new Date().toISOString(),
+						conversationStats: { conversationTurnCount: 0 },
+						tokenUsageConversation: { totalTokensTotal: 0 },
+					};
+					return prevConversation ? updatedConversation : null;
 				});
 				conversationEntries.value = [];
 				await fetchConversations();
@@ -48,38 +102,6 @@ export default function Chat({ apiPort }: ChatProps) {
 			console.error('Error creating new conversation:', error);
 		}
 	};
-	const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null);
-	const [currentConversation, setCurrentConversation] = useState<ConversationMetadata | null>(null);
-	const [conversations, setConversations] = useState<ConversationMetadata[]>([]);
-	const [isLoadingConversations, setIsLoadingConversations] = useState(false);
-	const [input, setInput] = useState('');
-	// Removed conversations state
-	// Removed selectedConversation state
-	// Removed isLoadingConversations state
-	const [isLoading, setIsLoading] = useState(false);
-	const [isWorking, setIsWorking] = useState(false);
-	const [error, setError] = useState<string | null>(null);
-	const clearConversation = () => {
-		conversationEntries.value = [];
-		setInput('');
-	};
-	const messagesEndRef = useRef<HTMLDivElement>(null);
-	const [startDir, setStartDir] = useState('/Users/cng/working/bbai/');
-	const [conversationId, setConversationId] = useState<string | null>(null);
-	const wsManager = useSignal<ReturnType<typeof createWebSocketManager> | null>(null);
-	const conversationEntries = useSignal<ConversationEntry[]>([]);
-	const textareaRef = useRef<HTMLTextAreaElement>(null);
-	const apiClient = useSignal<ApiClient | null>(null);
-
-	// Removed fetchConversations function
-
-	// Removed handleConversationSelect function
-
-	useEffect(() => {
-		if (selectedConversationId) {
-			loadConversation(selectedConversationId);
-		}
-	}, [selectedConversationId]);
 
 	const handleConversationSelect = (id: string) => {
 		console.log('Selected conversation:', id);
@@ -112,10 +134,21 @@ export default function Chat({ apiPort }: ChatProps) {
 	};
 
 	useEffect(() => {
-		console.debug('Chat component mounted. IS_BROWSER:', IS_BROWSER, 'apiPort:', apiPort);
-		if (IS_BROWSER && !wsManager.value && apiPort) {
+		console.log('Chat component useEffect. apiPort:', apiPort);
+		console.debug(
+			'Chat component mounted. IS_BROWSER:',
+			IS_BROWSER,
+			'apiPort:',
+			apiPort,
+			'startDir:',
+			startDir,
+		);
+		console.log(`Initializing API client with baseUrl: http://localhost:${apiPort}`);
+		if (IS_BROWSER && !wsManager.value && apiPort && startDir) {
+			console.log('Initializing chat with apiPort:', apiPort);
 			const initializeChat = async () => {
 				const baseUrl = `http://localhost:${apiPort}`;
+				console.log('Chat component: Initializing API client with baseUrl:', baseUrl);
 				apiClient.value = new ApiClient(baseUrl);
 				await fetchConversations();
 			};
@@ -127,10 +160,6 @@ export default function Chat({ apiPort }: ChatProps) {
 			manager.setConversationId(newConversationId);
 			wsManager.value = manager;
 			manager.connect();
-
-			// ApiClient initialization moved to initializeChat function
-
-			// Removed fetchConversations call
 
 			return () => {
 				manager.disconnect();
@@ -145,29 +174,35 @@ export default function Chat({ apiPort }: ChatProps) {
 				console.debug('Received a newEntry', newEntry);
 				if ('logEntry' in newEntry) {
 					const formattedEntry = await formatLogEntry(newEntry);
-					conversationEntries.value = [...conversationEntries.value, formattedEntry];
+					conversationEntries.value = [
+						...conversationEntries.value,
+						formattedEntry,
+					];
 					// Don't set isWorking to false for intermediate entries
 				} else if ('answer' in newEntry) {
-					conversationEntries.value = [...conversationEntries.value, newEntry];
+					conversationEntries.value = [...conversationEntries.value, newEntry as ConversationResponse];
 					// Only set isWorking to false when we receive the final answer
 					setIsWorking(false);
 				} else if ('conversationTitle' in newEntry) {
-					wsManager.value.isReady.value = true;
+					wsManager.value!.isReady.value = true;
 				}
 				// Update current conversation metadata
 				if (currentConversation) {
-					setCurrentConversation({
-						...currentConversation,
-						title: newEntry.conversationTitle || currentConversation.title,
-						updatedAt: new Date().toISOString(),
-						conversationStats: {
-							...currentConversation.conversationStats,
-							conversationTurnCount: (currentConversation.conversationStats?.conversationTurnCount || 0) +
-								1,
-						},
-						tokenUsageConversation: newEntry.tokenUsageConversation ||
-							currentConversation.tokenUsageConversation,
-					});
+					if (currentConversation) {
+						setCurrentConversation({
+							...currentConversation,
+							title: newEntry.conversationTitle || currentConversation.title,
+							updatedAt: new Date().toISOString(),
+							//conversationStats: {
+							//	...currentConversation.conversationStats,
+							//	conversationTurnCount:
+							//		(currentConversation.conversationStats?.conversationTurnCount || 0) +
+							//		1,
+							//},
+							tokenUsageConversation: newEntry.tokenUsageConversation ||
+								currentConversation.tokenUsageConversation,
+						});
+					}
 				}
 			});
 
@@ -191,13 +226,19 @@ export default function Chat({ apiPort }: ChatProps) {
 				entry.logEntry,
 			);
 			if (!formatterResponse.ok) {
-				throw new Error(`Failed to fetch formatted response: ${formatterResponse.statusText}`);
+				throw new Error(
+					`Failed to fetch formatted response: ${formatterResponse.statusText}`,
+				);
 			}
 			const responseContent = await formatterResponse.json();
 			return { ...entry, formattedContent: responseContent.formattedContent };
 		} catch (error) {
 			console.error(`Error formatting log entry: ${error.message}`);
-			return { ...entry, formattedContent: entry.logEntry.content || JSON.stringify(entry.logEntry) };
+			return {
+				...entry,
+				formattedContent: entry.logEntry.content ||
+					JSON.stringify(entry.logEntry),
+			};
 		}
 	};
 
@@ -217,26 +258,31 @@ export default function Chat({ apiPort }: ChatProps) {
 			if (response.ok) {
 				const data = await response.json();
 				console.log(data);
-				const formattedMessages = await Promise.all(data.messages.map(async (message: any) => {
-					const entry = {
-						logEntry: {
-							entryType: message.role,
-							content: message.content,
-						},
-						timestamp: message.timestamp,
-						tokenUsageTurn: message.tokenUsageTurn || { totalTokens: 0 },
-						tokenUsageConversation: message.tokenUsageConversation || { totalTokensTotal: 0 },
-					};
-					return await formatLogEntry(entry);
-				}));
+				const formattedMessages = await Promise.all(
+					data.messages.map(async (message: any) => {
+						const entry = {
+							logEntry: {
+								entryType: message.role,
+								content: message.content,
+							},
+							timestamp: message.timestamp,
+							tokenUsageTurn: message.tokenUsageTurn || { totalTokens: 0 },
+							tokenUsageConversation: message.tokenUsageConversation ||
+								{ totalTokensTotal: 0 },
+						};
+						return await formatLogEntry(entry);
+					}),
+				);
 				conversationEntries.value = formattedMessages;
 				setConversationId(id);
 				setCurrentConversation({
 					...data,
 					title: data.title || 'Untitled Conversation',
 					updatedAt: data.updatedAt || new Date().toISOString(),
-					conversationStats: data.conversationStats || { conversationTurnCount: formattedMessages.length },
-					tokenUsageConversation: data.tokenUsageConversation || { totalTokensTotal: 0 },
+					conversationStats: data.conversationStats ||
+						{ conversationTurnCount: formattedMessages.length },
+					tokenUsageConversation: data.tokenUsageConversation ||
+						{ totalTokensTotal: 0 },
 				});
 			} else {
 				console.error('Failed to load conversation');
@@ -252,7 +298,9 @@ export default function Chat({ apiPort }: ChatProps) {
 		console.debug('Attempting to send message. Input:', input);
 		if (!wsManager.value?.isReady.value) {
 			console.error('WebSocket is not ready');
-			alert('Chat is not ready yet. Please wait for the conversation to start.');
+			alert(
+				'Chat is not ready yet. Please wait for the conversation to start.',
+			);
 			return;
 		}
 		setIsWorking(true);
@@ -267,16 +315,20 @@ export default function Chat({ apiPort }: ChatProps) {
 				});
 				setInput('');
 				// Update current conversation metadata
-				if (currentConversation) {
-					setCurrentConversation((prev) => ({
-						...prev,
-						updatedAt: new Date().toISOString(),
-						conversationStats: {
-							...prev.conversationStats,
-							conversationTurnCount: (prev.conversationStats?.conversationTurnCount || 0) + 1,
-						},
-					}));
-				}
+				//if (currentConversation) {
+				//	setCurrentConversation((prev) =>
+				//		prev
+				//			? ({
+				//				...prev,
+				//				updatedAt: new Date().toISOString(),
+				//				conversationStats: {
+				//					...prev.conversationStats,
+				//					conversationTurnCount: (prev.conversationStats?.conversationTurnCount ?? 0) + 1,
+				//				},
+				//			})
+				//			: {}
+				//	);
+				//}
 			} catch (error) {
 				console.error('Error sending message:', error);
 				console.error('WebSocket manager state at error:', wsManager.value);
@@ -338,7 +390,8 @@ export default function Chat({ apiPort }: ChatProps) {
 				? 'bg-blue-100'
 				: entry.logEntry.entryType === 'assistant'
 				? 'bg-green-100'
-				: entry.logEntry.entryType === 'tool_use' || entry.logEntry.entryType === 'tool_result'
+				: entry.logEntry.entryType === 'tool_use' ||
+						entry.logEntry.entryType === 'tool_result'
 				? 'bg-yellow-100'
 				: entry.logEntry.entryType === 'auxiliary'
 				? 'bg-purple-100'
@@ -351,10 +404,11 @@ export default function Chat({ apiPort }: ChatProps) {
 				>
 					<div className='font-semibold mb-2 flex justify-between items-center'>
 						<span>
-							{entry.logEntry.entryType.charAt(0).toUpperCase() + entry.logEntry.entryType.slice(1)}
+							{entry.logEntry.entryType.charAt(0).toUpperCase() +
+								entry.logEntry.entryType.slice(1)}
 						</span>
 						<button
-							onClick={() => copyToClipboard(renderContent(entry.logEntry.content))}
+							onClick={() => copyToClipboard(renderContent(entry.logEntry.content) as string)}
 							className='text-sm bg-blue-500 text-white px-2 py-1 rounded hover:bg-blue-600 transition-colors duration-300'
 						>
 							Copy
@@ -362,7 +416,9 @@ export default function Chat({ apiPort }: ChatProps) {
 					</div>
 					<div
 						className='prose max-w-none'
-						dangerouslySetInnerHTML={{ __html: renderContent(entry.logEntry.content) }}
+						dangerouslySetInnerHTML={{
+							__html: renderContent(entry.logEntry.content) as string,
+						}}
 					/>
 					<div className='text-xs text-gray-500 mt-2'>
 						{new Date(entry.timestamp).toLocaleString()}
@@ -382,12 +438,14 @@ export default function Chat({ apiPort }: ChatProps) {
 					<div className='font-semibold mb-2'>Assistant</div>
 					<div
 						className='prose max-w-none'
-						dangerouslySetInnerHTML={{ __html: renderContent(entry.answer) }}
+						dangerouslySetInnerHTML={{ __html: renderContent(entry.answer) as string }}
 					/>
 					<div className='font-semibold mt-4 mb-2'>Assistant Thinking:</div>
 					<div
 						className='prose max-w-none'
-						dangerouslySetInnerHTML={{ __html: renderContent(entry.assistantThinking) }}
+						dangerouslySetInnerHTML={{
+							__html: renderContent(entry.assistantThinking) as string,
+						}}
 					/>
 					<div className='text-xs text-gray-500 mt-2'>
 						{new Date(entry.timestamp).toLocaleString()}
@@ -411,9 +469,12 @@ export default function Chat({ apiPort }: ChatProps) {
 						className='bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4'
 						role='alert'
 					>
-						<strong className='font-bold'>Error:</strong>
+						<strong className='font-bold'>Generic Error:</strong>
 						<span className='block sm:inline'>{error}</span>
-						<span className='absolute top-0 bottom-0 right-0 px-4 py-3' onClick={() => setError(null)}>
+						<span
+							className='absolute top-0 bottom-0 right-0 px-4 py-3'
+							onClick={() => setError(null)}
+						>
 							<svg
 								className='fill-current h-6 w-6 text-red-500'
 								role='button'
@@ -440,7 +501,8 @@ export default function Chat({ apiPort }: ChatProps) {
 					{isLoadingConversations ? <p>Loading conversations...</p> : (
 						<ul>
 							{[...conversations].sort((a, b) =>
-								new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
+								new Date(b.updatedAt).getTime() -
+								new Date(a.updatedAt).getTime()
 							).map((conv) => (
 								<li
 									key={conv.id}
@@ -451,13 +513,18 @@ export default function Chat({ apiPort }: ChatProps) {
 								>
 									<h3 className='font-semibold'>{conv.title}</h3>
 									<p className='text-xs text-gray-500'>ID: {conv.id}</p>
-									<p className='text-sm'>Updated: {new Date(conv.updatedAt).toLocaleString()}</p>
+									<p className='text-sm'>
+										Updated: {new Date(conv.updatedAt).toLocaleString()}
+									</p>
 									{conv.conversationStats && (
-										<p className='text-sm'>Turns: {conv.conversationStats.conversationTurnCount}</p>
+										<p className='text-sm'>
+											Turns: {conv.conversationStats.conversationTurnCount}
+										</p>
 									)}
 									{conv.tokenUsageConversation && (
 										<p className='text-sm'>
-											Tokens: {conv.tokenUsageConversation.totalTokensTotal.toLocaleString()}
+											Tokens: {conv.tokenUsageConversation.totalTokensTotal
+												.toLocaleString()}
 										</p>
 									)}
 								</li>
@@ -475,13 +542,18 @@ export default function Chat({ apiPort }: ChatProps) {
 							role='alert'
 						>
 							<strong className='font-bold'>Error:</strong>
-							<span className='block sm:inline'>{wsManager.value.error.value}</span>
+							<span className='block sm:inline'>
+								{wsManager.value.error.value}
+							</span>
 						</div>
 					)}
 					<div className='bg-white p-4 rounded-lg shadow-md'>
 						<div className='flex items-start space-x-4'>
 							<div className='flex-shrink-0 w-1/4'>
-								<label htmlFor='startDir' className='block text-sm font-medium text-gray-700 mb-1'>
+								<label
+									htmlFor='startDir'
+									className='block text-sm font-medium text-gray-700 mb-1'
+								>
 									Project Directory:
 								</label>
 								<input
@@ -489,7 +561,9 @@ export default function Chat({ apiPort }: ChatProps) {
 									id='startDir'
 									value={startDir}
 									onChange={(e) => {
-										setStartDir(e.currentTarget.value);
+										const newStartDir = e.currentTarget.value;
+										setStartDir(newStartDir);
+										localStorage.setItem('startDir', newStartDir);
 										wsManager.value?.setStartDir(e.currentTarget.value);
 										fetchConversations();
 									}}
@@ -501,8 +575,12 @@ export default function Chat({ apiPort }: ChatProps) {
 								<div className='flex-grow grid grid-cols-3 gap-2'>
 									<div>
 										<p className='text-xs text-gray-500'>Title & ID</p>
-										<p className='text-sm text-gray-600'>{currentConversation.title}</p>
-										<p className='text-xs text-gray-600'>{currentConversation.id}</p>
+										<p className='text-sm text-gray-600'>
+											{currentConversation.title}
+										</p>
+										<p className='text-xs text-gray-600'>
+											{currentConversation.id}
+										</p>
 									</div>
 									<div>
 										<p className='text-xs text-gray-500'>Updated</p>
@@ -513,11 +591,12 @@ export default function Chat({ apiPort }: ChatProps) {
 									<div>
 										<p className='text-xs text-gray-500'>Turns & Tokens</p>
 										<p className='text-sm text-gray-600'>
-											Turns: {currentConversation.conversationStats?.conversationTurnCount || 0}
+											Turns: {currentConversation.conversationStats
+												?.conversationTurnCount || 0}
 										</p>
 										<p className='text-sm text-gray-600'>
-											Tokens:{' '}
-											{currentConversation.tokenUsageConversation?.totalTokensTotal
+											Tokens: {currentConversation.tokenUsageConversation
+												?.totalTokensTotal
 												.toLocaleString() || 0}
 										</p>
 									</div>
@@ -534,13 +613,17 @@ export default function Chat({ apiPort }: ChatProps) {
 							Clear Conversation
 						</button>
 					</div>
-					<div className='flex-grow overflow-y-auto bg-white rounded-lg shadow-md p-4' ref={messagesEndRef}>
+					<div
+						className='flex-grow overflow-y-auto bg-white rounded-lg shadow-md p-4'
+						ref={messagesEndRef}
+					>
 						{conversationEntries.value.map((entry, index) => renderEntry(entry, index))}
 					</div>
 					<div className='bg-white p-4 rounded-lg shadow-md'>
 						{isWorking && (
 							<div className='flex items-center justify-center mb-4'>
-								<div className='animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500'></div>
+								<div className='animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500'>
+								</div>
 								<span className='ml-2 text-blue-500'>Claude is working...</span>
 							</div>
 						)}
@@ -551,7 +634,8 @@ export default function Chat({ apiPort }: ChatProps) {
 									value={input}
 									onInput={handleInputChange}
 									onKeyPress={(e) =>
-										e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), sendMessage())}
+										e.key === 'Enter' && !e.shiftKey &&
+										(e.preventDefault(), sendMessage())}
 									className='w-full p-2 border rounded-lg resize-none overflow-hidden focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-300'
 									placeholder='Type your message... (Shift + Enter for new line)'
 									rows={1}

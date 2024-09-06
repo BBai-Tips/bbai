@@ -17,8 +17,10 @@ class WebSocketManager {
 	private maxReconnectAttempts = 5;
 	private reconnectDelay = 1000;
 
-	private conversationEntriesSignal = signal<ConversationEntry[]>([]);
-	private subscribers: ((messages: ConversationEntry[]) => void)[] = [];
+	//private conversationEntriesSignal = signal<ConversationEntry[]>([]);
+	//private subscribers: ((messages: ConversationEntry[]) => void)[] = [];
+	private conversationEntriesSignal = signal<ConversationEntry>({} as ConversationEntry);
+	private subscribers: ((message: ConversationEntry) => void)[] = [];
 	public isConnected = signal<boolean>(false);
 	public isReady = signal<boolean>(false);
 	public error = signal<string | null>(null);
@@ -42,7 +44,9 @@ class WebSocketManager {
 			return;
 		}
 
-		this.socket = new WebSocket(`ws://localhost:${this.apiPort}/api/v1/ws/conversation/${this.conversationId}`);
+		this.socket = new WebSocket(
+			`ws://localhost:${this.apiPort}/api/v1/ws/conversation/${this.conversationId}`,
+		);
 
 		this.socket.onopen = () => {
 			console.log('WebSocket connected');
@@ -63,10 +67,12 @@ class WebSocketManager {
 			const msg = JSON.parse(event.data);
 			console.log('Received message:', msg);
 			if (
-				'type' in msg.data || 'answer' in msg.data || 'conversationTitle' in msg.data
+				'type' in msg.data || 'answer' in msg.data ||
+				'conversationTitle' in msg.data
 			) {
 				if ('answer' in msg.data || 'logEntry' in msg.data) {
 					//this.conversationEntriesSignal.value = [...this.conversationEntriesSignal.value, msg.data as ConversationEntry];
+					//this.conversationEntriesSignal.value = [msg.data as ConversationEntry];
 					this.conversationEntriesSignal.value = msg.data as ConversationEntry;
 				} else if ('conversationTitle' in msg.data) {
 					// Handle conversationReady
@@ -94,7 +100,8 @@ class WebSocketManager {
 			return;
 		}
 
-		const delay = this.reconnectDelay * Math.pow(2, this.reconnectAttempts) + Math.random() * 1000;
+		const delay = this.reconnectDelay * Math.pow(2, this.reconnectAttempts) +
+			Math.random() * 1000;
 		console.log(`Retrying connection in ${delay}ms...`);
 
 		setTimeout(() => {
@@ -117,7 +124,8 @@ class WebSocketManager {
 		}
 	}
 
-	subscribe(callback: (messages: ConversationEntry[]) => void) {
+	//subscribe(callback: (messages: ConversationEntry[]) => void) {
+	subscribe(callback: (message: ConversationEntry) => void) {
 		this.subscribers.push(callback);
 		return {
 			unsubscribe: () => {
@@ -131,7 +139,8 @@ class WebSocketManager {
 		this.subscribers.forEach((callback) => callback(entries));
 	}
 
-	get conversationEntries(): Signal<ConversationEntry[]> {
+	//get conversationEntries(): Signal<ConversationEntry[]> {
+	get conversationEntries(): Signal<ConversationEntry> {
 		return this.conversationEntriesSignal;
 	}
 }
