@@ -4,7 +4,17 @@ import { PageProps } from '$fresh/server.ts';
 import { Head } from '$fresh/runtime.ts';
 
 export default function App({ Component, url }: PageProps) {
+	console.log('_app.tsx: URL object:', url);
+	console.log('_app.tsx: URL hash:', url.hash);
 	const apiPort = url.hash ? new URLSearchParams(url.hash.slice(1)).get('apiPort') : null;
+	console.log(`_app.tsx: Parsed apiPort: ${apiPort}`);
+
+	// Log on both server and client side
+	if (typeof window !== 'undefined') {
+		console.log('_app.tsx (Client): Using apiPort:', apiPort);
+	} else {
+		console.log('_app.tsx (Server): Using apiPort:', apiPort);
+	}
 	return (
 		<html>
 			<Head>
@@ -15,6 +25,10 @@ export default function App({ Component, url }: PageProps) {
 			</Head>
 			<body>
 				<Component apiPort={apiPort ? parseInt(apiPort, 10) : undefined} />
+				{/* Add a script to log apiPort on the client side */}
+				<script dangerouslySetInnerHTML={{ __html: `
+					console.log('Inline script: apiPort from URL:', ${JSON.stringify(apiPort)});
+				`}} />
 			</body>
 		</html>
 	);
