@@ -1,4 +1,5 @@
 import { Command } from 'cliffy/command/mod.ts';
+import { getConfig } from '../../../src/shared/config/configManager.ts';
 
 import { config } from '../../../src/shared/config/configManager.ts';
 import { followApiLogs, startApiServer } from '../utils/apiControl.utils.ts';
@@ -13,7 +14,8 @@ export const apiStart = new Command()
 		const startDir = Deno.cwd();
 		const { pid, apiLogFilePath } = await startApiServer(startDir, apiLogLevel, apiLogFile, follow);
 
-		const apiPort = config.api?.apiPort || 3000;
+		const config = await getConfig();
+const apiPort = config.api.port;
 
 		const chatUrl = `https://chat.bbai.tips/#apiPort=${apiPort}`;
 		console.log(`\n\x1b[1m\x1b[32mBBai API server started successfully!\x1b[0m`);
@@ -21,7 +23,10 @@ export const apiStart = new Command()
 		console.log('Attempting to open the chat in your default browser...');
 
 		try {
-			await open(chatUrl);
+			const command = Deno.build.os === 'windows' ? new Deno.Command('cmd', { args: ['/c', 'start', chatUrl] }) :
+				Deno.build.os === 'darwin' ? new Deno.Command('open', { args: [chatUrl] }) :
+				new Deno.Command('xdg-open', { args: [chatUrl] });
+			await command.output();
 		} catch (error) {
 			console.error('Failed to open the browser automatically. Please open the URL manually.', error);
 		}
