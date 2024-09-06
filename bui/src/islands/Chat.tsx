@@ -16,6 +16,7 @@ interface ChatProps {
 }
 
 export default function Chat({ apiPort }: ChatProps) {
+	console.log('Chat component: Received apiPort:', apiPort);
 	const [selectedConversationId, setSelectedConversationId] = useState<
 		string | null
 	>(null);
@@ -116,6 +117,7 @@ export default function Chat({ apiPort }: ChatProps) {
 	};
 
 	useEffect(() => {
+		console.log('Chat component useEffect. apiPort:', apiPort);
 		console.debug(
 			'Chat component mounted. IS_BROWSER:',
 			IS_BROWSER,
@@ -126,6 +128,7 @@ export default function Chat({ apiPort }: ChatProps) {
 		);
 		console.log(`Initializing API client with baseUrl: http://localhost:${apiPort}`);
 		if (IS_BROWSER && !wsManager.value && apiPort && startDir) {
+			console.log('Initializing chat with apiPort:', apiPort);
 			const initializeChat = async () => {
 				const baseUrl = `http://localhost:${apiPort}`;
 				apiClient.value = new ApiClient(baseUrl);
