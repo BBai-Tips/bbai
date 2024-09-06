@@ -1,5 +1,6 @@
-import { JSX } from 'preact';
-import LLMTool, { LLMToolInputSchema, LLMToolRunResult, LLMToolRunResultContent } from 'api/llms/llmTool.ts';
+import type { JSX } from 'preact';
+import LLMTool from 'api/llms/llmTool.ts';
+import type { LLMToolInputSchema, LLMToolRunResult, LLMToolRunResultContent } from 'api/llms/llmTool.ts';
 import {
 	formatToolResult as formatToolResultBrowser,
 	formatToolUse as formatToolUseBrowser,
@@ -8,12 +9,12 @@ import {
 	formatToolResult as formatToolResultConsole,
 	formatToolUse as formatToolUseConsole,
 } from './formatters/rewriteFileTool.console.ts';
-import LLMConversationInteraction from '../interactions/conversationInteraction.ts';
-import ProjectEditor from '../../editor/projectEditor.ts';
+import type LLMConversationInteraction from '../interactions/conversationInteraction.ts';
+import type ProjectEditor from '../../editor/projectEditor.ts';
 import { isPathWithinProject } from '../../utils/fileHandling.utils.ts';
 import { createError, ErrorType } from '../../utils/error.utils.ts';
-import { FileHandlingErrorOptions } from '../../errors/error.ts';
-import { LLMAnswerToolUse } from 'api/llms/llmMessage.ts';
+import type { FileHandlingErrorOptions } from '../../errors/error.ts';
+import type { LLMAnswerToolUse } from 'api/llms/llmMessage.ts';
 import { logger } from 'shared/logger.ts';
 import { ensureDir } from '@std/fs';
 import { dirname, join } from '@std/path';
@@ -33,7 +34,7 @@ export default class LLMToolRewriteFile extends LLMTool {
 			type: 'object',
 			properties: {
 				filePath: { type: 'string', description: 'The path of the file to be rewritten or created' },
-				content: { type: 'string', description: 'The new content of the file' },
+				content: { type: 'string', description: 'The new content of the file. Include the full file contents. Do not replace any of the content with comments or placeholders.' },
 				createIfMissing: {
 					type: 'boolean',
 					description: 'Create the file if it does not exist',
@@ -120,7 +121,7 @@ export default class LLMToolRewriteFile extends LLMTool {
 			if (error.name === 'rewrite-file') {
 				throw error;
 			}
-			let errorMessage = `Failed to write contents to ${filePath}: ${error.message}`;
+			const errorMessage = `Failed to write contents to ${filePath}: ${error.message}`;
 			logger.error(errorMessage);
 
 			throw createError(ErrorType.FileHandling, errorMessage, {
