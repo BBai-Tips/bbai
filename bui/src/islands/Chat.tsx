@@ -5,10 +5,6 @@ import { ConversationMetadata } from 'shared/types.ts';
 import { marked } from 'marked';
 import { IS_BROWSER } from '$fresh/runtime.ts';
 import { generateConversationId } from 'shared/conversationManagement.ts';
-// Temporary browser-compatible replacement
-// const generateConversationId = () =>
-// 	Math.random().toString(36).substring(2, 15) +
-// 	Math.random().toString(36).substring(2, 15);
 import { createWebSocketManager } from '../utils/websocketManager.ts';
 import { ConversationContinue, ConversationEntry, ConversationResponse, ConversationStart } from 'shared/types.ts';
 //import type { EventPayloadMap } from 'shared/eventManager.ts';
