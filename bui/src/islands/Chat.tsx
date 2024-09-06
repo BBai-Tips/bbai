@@ -124,9 +124,10 @@ export default function Chat({ apiPort }: ChatProps) {
 			'startDir:',
 			startDir
 		);
+		console.log(`Initializing API client with baseUrl: http://localhost:${apiPort}`);
 		if (IS_BROWSER && !wsManager.value && apiPort && startDir) {
 			const initializeChat = async () => {
-				const baseUrl = `https://chat.bbai.tips`;
+				const baseUrl = `http://localhost:${apiPort}`;
 				apiClient.value = new ApiClient(baseUrl);
 				await fetchConversations();
 			};
