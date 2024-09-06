@@ -14,10 +14,22 @@
 		"check-types": "deno check src/main.ts",
 		"update-deps": "deno cache src/main.ts && deno cache tests/deps.ts"
 	},
-	"lint": { "rules": { "tags": ["fresh", "recommended"] } },
-	"exclude": ["**/src/_fresh/*"],
+	"lint": {
+		"rules": {
+			"tags": [
+				"fresh",
+				"recommended"
+			]
+		}
+	},
+	"exclude": [
+		"**/src/_fresh/*"
+	],
 	"importMap": "../import_map.json",
-	"compilerOptions": { "jsx": "react-jsx", "jsxImportSource": "preact" },
+	"compilerOptions": {
+		"jsx": "react-jsx",
+		"jsxImportSource": "preact"
+	},
 	"fmt": {
 		"useTabs": true,
 		"lineWidth": 120,
@@ -25,7 +37,14 @@
 		"semiColons": true,
 		"singleQuote": true,
 		"proseWrap": "preserve",
-		"include": ["src/", "tests/"],
-		"exclude": ["src/testdata/", "src/fixtures/**/*.ts"]
-	}
+		"include": [
+			"src/",
+			"tests/"
+		],
+		"exclude": [
+			"src/testdata/",
+			"src/fixtures/**/*.ts"
+		]
+	},
+	"version": "0.0.11-alpha"
 }
