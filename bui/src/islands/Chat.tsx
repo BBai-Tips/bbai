@@ -12,16 +12,19 @@ import { ApiClient } from '../utils/apiClient.utils.ts';
 import { useSignal } from '@preact/signals';
 
 interface ChatProps {
-	apiPort: number;
+	//apiPort: number;
 }
 
-export default function Chat({ apiPort }: ChatProps) {
+export default function Chat() {
+	/*
 	console.log('Chat component: Received apiPort:', apiPort);
 	if (typeof window !== 'undefined') {
 		console.log('Chat component: window.location.href:', window.location.href);
 		console.log('Chat component: window.location.hash:', window.location.hash);
 	}
 	console.log('Chat component: Received apiPort:', apiPort);
+ */
+
 	const [selectedConversationId, setSelectedConversationId] = useState<
 		string | null
 	>(null);
@@ -41,6 +44,15 @@ export default function Chat({ apiPort }: ChatProps) {
 		setInput('');
 	};
 	const messagesEndRef = useRef<HTMLDivElement>(null);
+	const [apiPort, setApiPort] = useState(() => {
+		if (IS_BROWSER) {
+			const hash = window.location.hash.slice(1); // Remove the '#'
+			const params = new URLSearchParams(hash);
+	console.log('Chat component: Received apiPort:', params.get('apiPort'));
+			return params.get('apiPort');
+		}
+		return null;
+	});
 	const [startDir, setStartDir] = useState(() => {
 		if (typeof window !== 'undefined') {
 			return localStorage.getItem('startDir') || '';
@@ -129,7 +141,7 @@ export default function Chat({ apiPort }: ChatProps) {
 			'apiPort:',
 			apiPort,
 			'startDir:',
-			startDir
+			startDir,
 		);
 		console.log(`Initializing API client with baseUrl: http://localhost:${apiPort}`);
 		if (IS_BROWSER && !wsManager.value && apiPort && startDir) {
@@ -550,8 +562,8 @@ export default function Chat({ apiPort }: ChatProps) {
 									value={startDir}
 									onChange={(e) => {
 										const newStartDir = e.currentTarget.value;
-						setStartDir(newStartDir);
-						localStorage.setItem('startDir', newStartDir);
+										setStartDir(newStartDir);
+										localStorage.setItem('startDir', newStartDir);
 										wsManager.value?.setStartDir(e.currentTarget.value);
 										fetchConversations();
 									}}
