@@ -72,7 +72,7 @@ if (environment === 'local') {
 }
 
 app.use(oakCors({
-	origin: [/^https?:\/\/localhost(:\d+)?$/, /^https?:\/\/(chat\.)?bbai\.tips$/],
+	origin: [/^https?:\/\/localhost(:\d+)?$/, /^https?:\/\/((www|chat)\.)?bbai\.tips$/],
 })); // Enable CORS for localhost, bbai.tips, and chat.bbai.tips
 app.use(router.routes());
 app.use(router.allowedMethods());
