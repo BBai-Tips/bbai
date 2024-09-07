@@ -1,6 +1,10 @@
 import { simpleMerge } from '@cross/deepmerge';
 
 export interface ConfigSchema {
+	project: {
+		name: string;
+		type: 'local' | 'git';
+	};
 	api: {
 		anthropicApiKey?: string;
 		openaiApiKey?: string;
@@ -23,6 +27,10 @@ export interface ConfigSchema {
 }
 
 export const defaultConfig: ConfigSchema = {
+	project: {
+		name: Deno.cwd(),
+		type: 'local',
+	},
 	api: {
 		environment: 'local',
 		apiPort: 3000,

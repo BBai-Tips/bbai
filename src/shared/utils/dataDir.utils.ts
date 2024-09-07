@@ -5,11 +5,15 @@ import { GitUtils } from './git.utils.ts';
 import { ConfigManager } from 'shared/configManager.ts';
 
 export async function getProjectRoot(startDir: string): Promise<string> {
-	const gitRoot = await GitUtils.findGitRoot(startDir);
-	if (!gitRoot) {
-		throw new Error('Not in a git repository');
+	let currentDir = resolve(startDir);
+	while (currentDir !== '/') {
+		const bbaiDir = join(currentDir, '.bbai');
+		if (await exists(bbaiDir)) {
+			return currentDir;
+		}
+		currentDir = resolve(currentDir, '..');
 	}
-	return gitRoot;
+	throw new Error('No .bbai directory found in project hierarchy');
 }
 
 export async function getBbaiDir(startDir: string): Promise<string> {

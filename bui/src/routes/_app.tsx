@@ -4,7 +4,7 @@ import { PageProps } from '$fresh/server.ts';
 import { Head } from '$fresh/runtime.ts';
 
 export default function App({ Component, url }: PageProps) {
-/* 
+	/*
 	console.log('_app.tsx: URL object:', url);
 	if (typeof window !== 'undefined') {
 		//console.log('_app.tsx: window.location.href:', window.location.href);
@@ -40,7 +40,7 @@ export default function App({ Component, url }: PageProps) {
 				<link rel='stylesheet' href='/styles.css' />
 			</Head>
 			<body>
-				<Component  />
+				<Component />
 			</body>
 		</html>
 	);
