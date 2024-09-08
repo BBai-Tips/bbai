@@ -1,7 +1,7 @@
 import { Command } from 'cliffy/command/mod.ts';
 import { TerminalHandler } from '../utils/terminalHandler.utils.ts';
 import { logger } from 'shared/logger.ts';
-import { apiClient } from 'cli/apiClient.ts';
+import ApiClient from 'cli/apiClient.ts';
 import { websocketManager } from 'cli/websocketManager.ts';
 import type { ConversationContinue, ConversationId, ConversationResponse, ConversationStart } from 'shared/types.ts';
 import { isApiRunning } from '../utils/pid.utils.ts';
@@ -24,6 +24,7 @@ export const conversationChat = new Command()
 	.option('--text', 'Return plain text instead of JSON')
 	.action(async (options) => {
 		let apiStartedByUs = false;
+		const apiClient = await ApiClient.create(startDir);
 
 		let terminalHandler: TerminalHandler | null = null;
 		let conversationId: ConversationId;
@@ -66,7 +67,6 @@ export const conversationChat = new Command()
 				console.log('API started successfully.');
 			}
 
-			const startDir = Deno.cwd();
 			conversationId = options.id || generateConversationId();
 			let statement = options.statement?.trim();
 
@@ -130,9 +130,7 @@ export const conversationChat = new Command()
 				}
 			} else {
 				terminalHandler = new TerminalHandler(bbaiDir);
-
-				// we're running in a terminal
-				terminalHandler.initializeTerminal();
+				await terminalHandler.initializeTerminal();
 
 				// Spinner is now managed by terminalHandler
 				terminalHandler.startSpinner('Setting up...');

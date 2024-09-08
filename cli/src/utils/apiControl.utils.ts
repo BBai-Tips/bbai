@@ -3,7 +3,7 @@ import { getPid, isApiRunning, removePid, savePid } from '../utils/pid.utils.ts'
 import { getBbaiDir, getProjectRoot } from 'shared/dataDir.ts';
 import { join } from '@std/path';
 import { isCompiledBinary } from '../utils/environment.utils.ts';
-import { apiClient } from 'cli/apiClient.ts';
+import ApiClient from 'cli/apiClient.ts';
 import { watchLogs } from 'shared/logViewer.ts';
 import { ConfigManager, type GlobalConfigSchema } from 'shared/configManager.ts';
 //import { getProjectRoot } from 'shared/dataDir.ts';
@@ -180,6 +180,7 @@ export async function getApiStatus(startDir: string): Promise<{
 		status.apiUrl = `http://localhost:${apiPort}`;
 
 		try {
+			const apiClient = await ApiClient.create(startDir);
 			const response = await apiClient.get('/api/v1/status');
 			if (response.ok) {
 				const apiStatus = await response.json();

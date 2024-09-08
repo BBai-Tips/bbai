@@ -8,7 +8,7 @@ import { ansi, colors, tty } from 'cliffy/ansi/mod.ts';
 //import { stripAnsiCode } from '@std/fmt/colors';
 import Kia from 'kia-spinner';
 import { SPINNERS } from './terminalSpinners.ts';
-import { apiClient } from 'cli/apiClient.ts';
+import ApiClient from 'cli/apiClient.ts';
 import ConversationLogFormatter from 'shared/conversationLogFormatter.ts';
 //import { LLMProviderMessageMeta, LLMProviderMessageResponse } from 'api/types/llms.ts';
 import type { LLMMessageContentPartTextBlock } from 'api/llms/llmMessage.ts';
@@ -52,6 +52,7 @@ export class TerminalHandler {
 	private spinner!: Spinner;
 	private statementInProgress: boolean = false;
 	private bbaiDir: string;
+	private apiClient!: ApiClient;
 
 	constructor(bbaiDir: string) {
 		this.formatter = new ConversationLogFormatter();
@@ -60,7 +61,7 @@ export class TerminalHandler {
 		this.loadHistory();
 	}
 
-	public initializeTerminal(): void {
+	public async initializeTerminal(): Promise<void> {
 		tty
 			//.cursorSave
 			//.cursorHide
@@ -79,6 +80,7 @@ export class TerminalHandler {
 			//colors.bold.blue(ansi.link('BBai', 'https://bbai.tips')) +
 			//+ '\n',
 		);
+		this.apiClient = await ApiClient.create();
 	}
 
 	/*
@@ -259,7 +261,7 @@ export class TerminalHandler {
 		}
 
 		try {
-			const formatterResponse = await apiClient.post(`/api/v1/format_log_entry/console/${logEntry.entryType}`, {
+			const formatterResponse = await this.apiClient.post(`/api/v1/format_log_entry/console/${logEntry.entryType}`, {
 				...logEntry,
 			});
 
