@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 
 
+## [0.0.12a-beta] - 2024-09-08
+
+### Changed
+
+- Hotfix for over-ambitious api client
+
+
 ## [0.0.12-beta] - 2024-09-08
 
 ### Changed
