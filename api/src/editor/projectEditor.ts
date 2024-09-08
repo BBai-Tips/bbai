@@ -1,10 +1,8 @@
 import { join } from '@std/path';
 
 import { FILE_LISTING_TIERS, generateFileListing, isPathWithinProject } from '../utils/fileHandling.utils.ts';
-import LLMConversationInteraction, {
-	FileMetadata,
-	ProjectInfo as BaseProjectInfo,
-} from '../llms/interactions/conversationInteraction.ts';
+import type LLMConversationInteraction from '../llms/interactions/conversationInteraction.ts';
+import type { FileMetadata, ProjectInfo as BaseProjectInfo } from '../llms/interactions/conversationInteraction.ts';
 
 // Extend ProjectInfo to include startDir
 export interface ProjectInfo extends BaseProjectInfo {
@@ -12,11 +10,9 @@ export interface ProjectInfo extends BaseProjectInfo {
 }
 import OrchestratorController from '../controllers/orchestratorController.ts';
 import { logger } from 'shared/logger.ts';
-//import { config } from 'shared/configManager.ts';
-//import {LLMSpeakWithResponse} from 'api/types.ts';
-//import  { LLMAnswerToolUse } from 'api/llms/llmMessage.ts';
-import { ConversationId, ConversationResponse } from 'shared/types.ts';
-import { LLMToolManagerToolSetType } from '../llms/llmToolManager.ts';
+import { ConfigManager, type ConfigSchema } from 'shared/configManager.ts';
+import type { ConversationId, ConversationResponse } from 'shared/types.ts';
+import type { LLMToolManagerToolSetType } from '../llms/llmToolManager.ts';
 import {
 	getBbaiDataDir,
 	getBbaiDir,
@@ -29,6 +25,7 @@ import EventManager from 'shared/eventManager.ts';
 
 class ProjectEditor {
 	public orchestratorController!: OrchestratorController;
+	public projectConfig!: ConfigSchema;
 	public eventManager!: EventManager;
 	public startDir: string;
 	public projectRoot: string;
@@ -54,6 +51,12 @@ class ProjectEditor {
 			this.projectRoot = await this.getProjectRoot();
 			this.eventManager = EventManager.getInstance();
 			this.orchestratorController = await new OrchestratorController(this).init();
+
+			// Load project config
+			const configManager = await ConfigManager.getInstance();
+			this.projectConfig = await configManager.getProjectConfig(this.startDir);
+
+			logger.info(`ProjectEditor initialized for ${this.startDir}`);
 		} catch (error) {
 			logger.error(`Failed to initialize ProjectEditor in ${this.startDir}:`, error);
 			throw error;
@@ -97,16 +100,6 @@ class ProjectEditor {
 	public async updateProjectInfo(): Promise<void> {
 		const projectInfo: ProjectInfo = { startDir: this.startDir, type: 'empty', content: '', tier: null };
 
-		/*
-		await generateCtags(this.bbaiDir, this.projectRoot);
-		const ctagsContent = await readCtagsFile(this.bbaiDir);
-		if (ctagsContent) {
-			projectInfo.type = 'ctags';
-			projectInfo.content = ctagsContent;
-			projectInfo.tier = 0; // Assuming ctags is always tier 0
-		}
-		 */
-
 		if (projectInfo.type === 'empty') {
 			const projectRoot = await this.getProjectRoot();
 			const fileListingContent = await generateFileListing(projectRoot);
@@ -137,22 +130,6 @@ class ProjectEditor {
 		return statementAnswer;
 	}
 
-	/*
-	private determineStorageLocation(_filePath: string, content: string, source: 'tool' | 'user'): 'system' | 'message' {
-		if (source === 'tool') {
-			return 'message';
-		}
-		const fileSize = new TextEncoder().encode(content).length;
-		const fileCount = this.conversation?.listFiles().length || 0;
-
-		if (fileCount < 10 && fileSize < 50 * 1024) {
-			return 'system';
-		} else {
-			return 'message';
-		}
-	}
-	 */
-
 	// prepareFilesForConversation is called by request_files tool and by add_file handler for user requests
 	async prepareFilesForConversation(
 		fileNames: string[],
@@ -167,21 +144,16 @@ class ProjectEditor {
 
 				const fullFilePath = join(this.projectRoot, fileName);
 				const content = await Deno.readTextFile(fullFilePath);
-				// [TODO] getting the last commit fails in tests - need to mock/stub static method `GitUtils.getLastCommitForFile` (not sure how??)
-				//const lastCommit = await GitUtils.getLastCommitForFile(this.projectRoot, fileName) || '';
 				const metadata: Omit<FileMetadata, 'path' | 'inSystemPrompt'> = {
 					size: new TextEncoder().encode(content).length,
 					lastModified: new Date(),
 					error: null,
-					//lastCommit: lastCommit,
 				};
 				filesAdded.push({ fileName, metadata });
 
 				logger.info(`ProjectEditor has prepared file ${fileName}`);
 			} catch (error) {
 				logger.error(`ProjectEditor: Error adding file ${fileName}: ${error.message}`);
-				// [TODO] Sanitize the error message so it doesn't send (eg) fill file path
-				//const errorMessage = error.message.includes('No such file or directory') ? 'File Not Found' : '';
 				const errorMessage = error.message;
 				filesAdded.push({
 					fileName,
@@ -189,7 +161,6 @@ class ProjectEditor {
 						size: 0,
 						lastModified: new Date(),
 						error: errorMessage,
-						//lastCommit: '',
 					},
 				});
 			}

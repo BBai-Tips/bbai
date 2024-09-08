@@ -2,8 +2,9 @@ import { join } from '@std/path';
 import { exists } from '@std/fs';
 import { parse as parseYaml } from '@std/yaml';
 import { stripIndents } from 'common-tags';
-import { getBbaiDir, loadConfig, readFileContent, resolveFilePath } from 'shared/dataDir.ts';
+import { getBbaiDir, readFileContent, resolveFilePath } from 'shared/dataDir.ts';
 import * as defaultPrompts from './defaultPrompts.ts';
+import { ConfigManager, type ProjectConfigSchema } from 'shared/configManager.ts';
 import { logger } from 'shared/logger.ts';
 
 interface PromptMetadata {
@@ -19,22 +20,23 @@ interface Prompt {
 
 class PromptManager {
 	private userPromptsDir: string;
-	private config: Record<string, any>;
+	private config!: ProjectConfigSchema;
 
 	constructor() {
 		this.userPromptsDir = '';
-		this.config = {};
+		//this.config = {};
 	}
 
 	async init(projectRoot: string): Promise<PromptManager> {
 		const bbaiDir = await getBbaiDir(projectRoot);
 		this.userPromptsDir = join(bbaiDir, 'prompts');
-		this.config = await loadConfig();
+		const configManager = await ConfigManager.getInstance();
+		this.config = await configManager.loadProjectConfig(projectRoot);
 		return this;
 	}
 
 	public async loadGuidelines(): Promise<string | null> {
-		const guidelinesPath = this.config.llmGuidelinesFile;
+		const guidelinesPath = this.config.project.llmGuidelinesFile;
 		if (!guidelinesPath) {
 			return null;
 		}

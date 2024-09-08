@@ -1,7 +1,6 @@
 import { ensureDir, exists } from '@std/fs';
-import { join, resolve } from '@std/path';
+import { dirname, join, resolve } from '@std/path';
 import { parse as parseYaml } from '@std/yaml';
-import { GitUtils } from './git.utils.ts';
 import { ConfigManager } from 'shared/configManager.ts';
 
 export async function getProjectRoot(startDir: string): Promise<string> {
@@ -92,19 +91,21 @@ export async function removeFromBbaiDataDir(startDir: string, filename: string):
 	}
 }
 
+/*
 export async function loadConfig(): Promise<Record<string, any>> {
 	const configManager = await ConfigManager.getInstance();
 	return configManager.getConfig();
 }
+ */
 
 export async function resolveFilePath(filePath: string): Promise<string> {
 	if (filePath.startsWith('/')) {
 		return filePath;
 	}
 
-	const gitRoot = await GitUtils.findGitRoot();
-	if (gitRoot) {
-		const projectPath = join(gitRoot, filePath);
+	const projectRoot = await getProjectRoot(dirname(filePath));
+	if (projectRoot) {
+		const projectPath = join(projectRoot, filePath);
 		if (await exists(projectPath)) {
 			return projectPath;
 		}

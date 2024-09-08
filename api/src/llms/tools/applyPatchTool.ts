@@ -121,7 +121,10 @@ export default class LLMToolApplyPatch extends LLMTool {
 					logger.info(`Patch applied to existing file: ${currentFilePath}`);
 				}
 
+				// [TODO] the `logPatchAndCommit` (used below) is already adding to patchedFiles and patchContents
+				// Is this legacy usage and should be removed, or do we need it for multi-part patches
 				projectEditor.patchedFiles.add(currentFilePath);
+				// [TODO] for multiple patch parts - will subsequent overwrite the first??
 				projectEditor.patchContents.set(currentFilePath, patch);
 			}
 

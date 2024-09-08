@@ -1,8 +1,8 @@
 import { logger } from 'shared/logger.ts';
 import { stripIndents } from 'common-tags';
-import LLMChatInteraction from '../llms/interactions/chatInteraction.ts';
-import LLMConversationInteraction from '../llms/interactions/conversationInteraction.ts';
-import ProjectEditor from '../editor/projectEditor.ts';
+import type LLMChatInteraction from '../llms/interactions/chatInteraction.ts';
+import type LLMConversationInteraction from '../llms/interactions/conversationInteraction.ts';
+import type ProjectEditor from '../editor/projectEditor.ts';
 import { createFilePatchXmlString } from './patch.utils.ts';
 import { GitUtils } from 'shared/git.ts';
 

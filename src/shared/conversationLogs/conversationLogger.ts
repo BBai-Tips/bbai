@@ -8,7 +8,7 @@ import ConversationLogFormatter from 'shared/conversationLogFormatter.ts';
 import { ConversationId, ConversationMetrics, ConversationTokenUsage, TokenUsage } from 'shared/types.ts';
 import { getBbaiDataDir } from 'shared/dataDir.ts';
 import { logger } from 'shared/logger.ts';
-import { config } from 'shared/configManager.ts';
+import { globalConfig } from 'shared/configManager.ts';
 import {
 	LLMMessageContentPart,
 	LLMMessageContentPartImageBlock,
@@ -32,8 +32,8 @@ export default class ConversationLogger {
 		ConversationLoggerEntryType,
 		string
 	> = {
-		user: config.myPersonsName || 'Person',
-		assistant: config.myAssistantsName || 'Assistant',
+		user: globalConfig.myPersonsName || 'Person',
+		assistant: globalConfig.myAssistantsName || 'Assistant',
 		tool_use: 'Tool Input',
 		tool_result: 'Tool Output',
 		auxiliary: 'Auxiliary Chat',

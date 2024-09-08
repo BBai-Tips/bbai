@@ -3,12 +3,15 @@ import oak_logger from 'oak_logger';
 import { parseArgs } from '@std/cli';
 import { oakCors } from 'cors';
 
-import { config, redactedConfig } from 'shared/configManager.ts';
+import { ConfigManager, type GlobalConfigSchema } from 'shared/configManager.ts';
 import router from './routes/routes.ts';
 import { logger } from 'shared/logger.ts';
-import { BbAiState } from 'api/types.ts';
+import type { BbAiState } from 'api/types.ts';
 
-const { environment, apiPort } = config.api || {};
+const configManager = await ConfigManager.getInstance();
+const globalConfig: GlobalConfigSchema = await configManager.loadGlobalConfig(Deno.cwd());
+const redactedGlobalConfig: GlobalConfigSchema = await configManager.getRedactedGlobalConfig(Deno.cwd());
+const { environment, apiPort } = globalConfig.api || {};
 
 // Parse command line arguments
 const args = parseArgs(Deno.args, {
@@ -78,8 +81,8 @@ app.use(router.routes());
 app.use(router.allowedMethods());
 
 app.addEventListener('listen', ({ hostname, port, secure }: { hostname: string; port: number; secure: boolean }) => {
-	logger.info(`Starting API with config:`, redactedConfig);
-	if (config.api?.ignoreLLMRequestCache) {
+	logger.info(`Starting API with config:`, redactedGlobalConfig);
+	if (globalConfig.api?.ignoreLLMRequestCache) {
 		logger.warn('Cache for LLM requests is disabled!');
 	}
 	logger.info(`Environment: ${environment}`);

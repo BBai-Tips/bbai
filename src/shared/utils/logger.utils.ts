@@ -1,4 +1,4 @@
-import { config } from 'shared/configManager.ts';
+import { globalConfig } from 'shared/configManager.ts';
 
 const logLevels = ['debug', 'info', 'warn', 'error'] as const;
 type LogLevel = typeof logLevels[number];
@@ -9,8 +9,8 @@ const getLogLevel = async (): Promise<LogLevel> => {
 		return envLogLevel as LogLevel;
 	}
 
-	if (config.api?.logLevel && logLevels.includes(config.api?.logLevel as LogLevel)) {
-		return config.api?.logLevel as LogLevel;
+	if (globalConfig.api?.logLevel && logLevels.includes(globalConfig.api?.logLevel as LogLevel)) {
+		return globalConfig.api?.logLevel as LogLevel;
 	}
 
 	return 'info';
