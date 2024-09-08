@@ -1,7 +1,7 @@
 import { eventManager } from 'shared/eventManager.ts';
 import type { EventName, EventPayloadMap } from 'shared/eventManager.ts';
 import type { ConversationId } from 'shared/types.ts';
-import { apiClient } from 'cli/apiClient.ts';
+import ApiClient from 'cli/apiClient.ts';
 
 export class WebsocketManager {
 	private cancellationRequested: boolean = false;
@@ -16,6 +16,7 @@ export class WebsocketManager {
 		const connectWebSocket = async (): Promise<WebSocket> => {
 			//console.log(`WebsocketManager: Connecting websocket for conversation: ${conversationId}`);
 			try {
+				const apiClient = await ApiClient.create();
 				// apiClient.connectWebSocket returns a promise, so we return that promise rather than awaiting
 				return apiClient.connectWebSocket(`/api/v1/ws/conversation/${conversationId}`);
 			} catch (error) {

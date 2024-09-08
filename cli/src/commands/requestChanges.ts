@@ -1,5 +1,5 @@
 import { Command } from 'cliffy/command/mod.ts';
-import { apiClient } from 'cli/apiClient.ts';
+import ApiClient from 'cli/apiClient.ts';
 
 export const requestChanges = new Command()
 	.name('request')
@@ -9,6 +9,7 @@ export const requestChanges = new Command()
 	.option('--text', 'Return plain text instead of JSON')
 	.action(async (options) => {
 		try {
+			const apiClient = await ApiClient.create();
 			const response = await apiClient.post('/api/v1/request-changes', {
 				prompt: options.prompt,
 				conversationId: options.id,

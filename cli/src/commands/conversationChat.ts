@@ -1,7 +1,7 @@
 import { Command } from 'cliffy/command/mod.ts';
 import { TerminalHandler } from '../utils/terminalHandler.utils.ts';
 import { logger } from 'shared/logger.ts';
-import { apiClient } from 'cli/apiClient.ts';
+import ApiClient from 'cli/apiClient.ts';
 import { websocketManager } from 'cli/websocketManager.ts';
 import type { ConversationContinue, ConversationId, ConversationResponse, ConversationStart } from 'shared/types.ts';
 import { isApiRunning } from '../utils/pid.utils.ts';
@@ -14,6 +14,7 @@ import { eventManager } from 'shared/eventManager.ts';
 const startDir = Deno.cwd();
 const bbaiDir = await getBbaiDir(startDir);
 const projectRoot = await getProjectRoot(startDir);
+const apiClient = await ApiClient.create(startDir);
 
 export const conversationChat = new Command()
 	.name('chat')
@@ -66,7 +67,6 @@ export const conversationChat = new Command()
 				console.log('API started successfully.');
 			}
 
-			const startDir = Deno.cwd();
 			conversationId = options.id || generateConversationId();
 			let statement = options.statement?.trim();
 

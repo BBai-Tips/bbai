@@ -8,7 +8,7 @@ import { ansi, colors, tty } from 'cliffy/ansi/mod.ts';
 //import { stripAnsiCode } from '@std/fmt/colors';
 import Kia from 'kia-spinner';
 import { SPINNERS } from './terminalSpinners.ts';
-import { apiClient } from 'cli/apiClient.ts';
+import ApiClient from 'cli/apiClient.ts';
 import ConversationLogFormatter from 'shared/conversationLogFormatter.ts';
 //import { LLMProviderMessageMeta, LLMProviderMessageResponse } from 'api/types/llms.ts';
 import type { LLMMessageContentPartTextBlock } from 'api/llms/llmMessage.ts';
@@ -45,6 +45,8 @@ export const palette = {
 	error: colors.red,
 	info: colors.magenta,
 };
+
+const apiClient = await ApiClient.create();
 
 export class TerminalHandler {
 	private formatter: ConversationLogFormatter;

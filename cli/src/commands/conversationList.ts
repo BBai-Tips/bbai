@@ -1,7 +1,7 @@
 import { Command } from 'cliffy/command/mod.ts';
-import { ConversationMetadata } from 'shared/types.ts';
+import type { ConversationMetadata } from 'shared/types.ts';
 import { resolve } from '@std/path';
-import { apiClient } from 'cli/apiClient.ts';
+import ApiClient from 'cli/apiClient.ts';
 // import { createSpinner, startSpinner, stopSpinner } from '../utils/terminalHandler.utils.ts';
 
 export const conversationList = new Command()
@@ -15,6 +15,7 @@ export const conversationList = new Command()
 
 		try {
 			const startDir = resolve(directory);
+			const apiClient = await ApiClient.create(startDir);
 			const response = await apiClient.get(
 				`/api/v1/conversation?startDir=${encodeURIComponent(startDir)}&page=${page}&limit=${limit}`,
 			);

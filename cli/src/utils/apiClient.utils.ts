@@ -1,7 +1,7 @@
 import { ConfigManager, type GlobalConfigSchema } from 'shared/configManager.ts';
 import { logger } from 'shared/logger.ts';
 
-class ApiClient {
+export default class ApiClient {
 	private baseUrl: string;
 	private wsUrl: string;
 
@@ -10,8 +10,7 @@ class ApiClient {
 		this.wsUrl = wsUrl;
 	}
 
-	static async create(): Promise<ApiClient> {
-		const startDir = Deno.cwd();
+	static async create(startDir: string = Deno.cwd()): Promise<ApiClient> {
 		const configManager = await ConfigManager.getInstance();
 		const globalConfig: GlobalConfigSchema = await configManager.loadGlobalConfig(startDir);
 		const apiPort = globalConfig.api.apiPort || 3000;
@@ -73,4 +72,4 @@ class ApiClient {
 	}
 }
 
-export const apiClient = await ApiClient.create();
+//export const apiClient = await ApiClient.create();
