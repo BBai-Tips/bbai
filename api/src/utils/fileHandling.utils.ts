@@ -173,16 +173,18 @@ export async function updateFile(projectRoot: string, filePath: string, _content
 
 const searchCache = new LRUCache<string, string[]>({ max: 100 });
 
-export async function searchFilesContent(
-	projectRoot: string,
-	contentPattern: string,
-	options?: {
+interface SearchFileOptions {
 		file_pattern?: string;
 		date_after?: string;
 		date_before?: string;
 		size_min?: number;
 		size_max?: number;
-	},
+	};
+	
+export async function searchFilesContent(
+	projectRoot: string,
+	contentPattern: string,
+	options?: SearchFileOptions,
 ): Promise<{ files: string[]; errorMessage: string | null }> {
 	const cacheKey = `${projectRoot}:${contentPattern}:${JSON.stringify(options)}`;
 	const cachedResult = searchCache.get(cacheKey);
@@ -227,7 +229,7 @@ export async function searchFilesContent(
 async function processFile(
 	filePath: string,
 	regex: RegExp,
-	options: any,
+	options: SearchFileOptions | undefined,
 	relativePath: string
 ): Promise<string | null> {
 	logger.debug(`Processing file: ${relativePath}`);
@@ -250,8 +252,7 @@ async function processFile(
 			while (true) {
 				const { done, value: line } = await reader.read();
 				if (done) break;
-				if (regex.test(line)) {
-			if (regex.test(line)) {
+				if (regex.test(line as string)) {
 				logger.debug(`Match found in file: ${relativePath}`);
 					return relativePath;
 			}
@@ -266,7 +267,8 @@ async function processFile(
 	return null;
 }
 
-function passesMetadataFilters(stat: Deno.FileInfo, options: any): boolean {
+function passesMetadataFilters(stat: Deno.FileInfo, options: SearchFileOptions | undefined): boolean {
+	if (!options) return true;
 	if (options.date_after && stat.mtime && stat.mtime < new Date(options.date_after)) return false;
 	if (options.date_before && stat.mtime && stat.mtime > new Date(options.date_before)) return false;
 	if (options.size_min !== undefined && stat.size < options.size_min) return false;
