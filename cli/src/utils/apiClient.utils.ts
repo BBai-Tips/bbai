@@ -1,4 +1,4 @@
-import { config } from 'shared/configManager.ts';
+import { ConfigManager, type GlobalConfigSchema } from 'shared/configManager.ts';
 import { logger } from 'shared/logger.ts';
 
 class ApiClient {
@@ -10,11 +10,14 @@ class ApiClient {
 		this.wsUrl = wsUrl;
 	}
 
-	static create(): ApiClient {
-		const apiPort = config.api?.apiPort || 3000;
+	static async create(): Promise<ApiClient> {
+		const startDir = Deno.cwd();
+		const configManager = await ConfigManager.getInstance();
+		const globalConfig: GlobalConfigSchema = await configManager.loadGlobalConfig(startDir);
+		const apiPort = globalConfig.api.apiPort || 3000;
 		const baseUrl = `http://localhost:${apiPort}`;
 		const wsUrl = `ws://localhost:${apiPort}`;
-		logger.info(`APIClient: client created with baseUrl: ${baseUrl}, wsUrl: ${wsUrl}`);
+		logger.debug(`APIClient: client created with baseUrl: ${baseUrl}, wsUrl: ${wsUrl}`);
 		return new ApiClient(baseUrl, wsUrl);
 	}
 
@@ -70,4 +73,4 @@ class ApiClient {
 	}
 }
 
-export const apiClient = ApiClient.create();
+export const apiClient = await ApiClient.create();

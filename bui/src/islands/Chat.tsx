@@ -48,7 +48,7 @@ export default function Chat() {
 		if (IS_BROWSER) {
 			const hash = window.location.hash.slice(1); // Remove the '#'
 			const params = new URLSearchParams(hash);
-	console.log('Chat component: Received apiPort:', params.get('apiPort'));
+			console.log('Chat component: Received apiPort:', params.get('apiPort'));
 			return params.get('apiPort');
 		}
 		return null;
@@ -156,7 +156,7 @@ export default function Chat() {
 			const newConversationId = generateConversationId();
 			setConversationId(newConversationId);
 
-			const manager = createWebSocketManager(apiPort, startDir);
+			const manager = createWebSocketManager(parseInt(apiPort), startDir);
 			manager.setConversationId(newConversationId);
 			wsManager.value = manager;
 			manager.connect();

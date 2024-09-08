@@ -1,93 +1,91 @@
-import { ensureDir, ensureFile } from '@std/fs';
+import { ensureDir } from '@std/fs';
 import { join } from '@std/path';
-import { ConfigManager } from 'shared/configManager.ts';
+//import type { WizardAnswers } from 'shared/configManager.ts';
+//import { ConfigManager } from 'shared/configManager.ts';
 import { logger } from 'shared/logger.ts';
-import { stringify as stringifyYaml } from '@std/yaml';
 
 export async function createBbaiDir(startDir: string): Promise<void> {
 	const bbaiDir = join(startDir, '.bbai');
 	try {
 		await ensureDir(bbaiDir);
-		logger.info(`Created .bbai directory in ${startDir}`);
+		//logger.info(`Created .bbai directory in ${startDir}`);
 	} catch (error) {
 		logger.error(`Failed to create .bbai directory: ${error.message}`);
 		throw error;
 	}
 }
 
-export async function createTagIgnore(startDir: string): Promise<void> {
-	const tagIgnorePath = join(startDir, '.bbai', 'tags.ignore');
+export async function createBbaiIgnore(startDir: string): Promise<void> {
+	const bbaiIgnorePath = join(startDir, '.bbai', 'ignore');
 	try {
-		await ensureFile(tagIgnorePath);
-		await Deno.writeTextFile(tagIgnorePath, '.bbai/*');
-		logger.info('Created tag.ignore file');
+		const fileInfo = await Deno.stat(bbaiIgnorePath);
+		if (fileInfo.isFile) {
+			logger.info('.bbai/ignore file already exists, skipping creation');
+			return;
+		}
 	} catch (error) {
-		logger.error(`Failed to create tag.ignore file: ${error.message}`);
-		throw error;
+		if (!(error instanceof Deno.errors.NotFound)) {
+			logger.error(`Error checking .bbai/ignore file: ${error.message}`);
+			throw error;
+		}
+		// File doesn't exist, proceed with creation
+		try {
+			await Deno.writeTextFile(bbaiIgnorePath, getDefaultBbaiIgnore());
+			logger.info('Created .bbai/ignore file');
+		} catch (writeError) {
+			logger.error(`Failed to create .bbai/ignore file: ${writeError.message}`);
+			throw writeError;
+		}
 	}
 }
 
-export async function createGitIgnore(startDir: string): Promise<void> {
-	const gitIgnorePath = join(startDir, '.gitignore');
-	try {
-		await ensureFile(gitIgnorePath);
-		await Deno.writeTextFile(gitIgnorePath, '.bbai/*\n');
-		logger.info('Created or updated .gitignore file');
-	} catch (error) {
-		logger.error(`Failed to create or update .gitignore file: ${error.message}`);
-		throw error;
-	}
-}
-
-export function getDefaultGitIgnore(): string {
+export function getDefaultBbaiIgnore(): string {
 	return `
-# Deno
-/.deno/
-/.vscode/
-*.orig
-*.pyc
-*.swp
+# Ignore patterns for bbai
+# Add files and directories that should be ignored by bbai here
 
-# Dependencies
-/node_modules/
-/npm-debug.log
+# Ignore node_modules directory
+node_modules/
 
-# Build output
-/dist/
-/build/
+# Ignore build output directories
+dist/
+build/
+out/
 
-# Environment variables
-.env
-.env.local
-.env.*.local
-
-# IDE files
-.idea/
-*.sublime-project
-*.sublime-workspace
-
-# Logs
-logs
+# Ignore log files
 *.log
-npm-debug.log*
 
-# OS generated files
+# Ignore temporary files
+*.tmp
+*.temp
+
+# Ignore OS-specific files
 .DS_Store
-.DS_Store?
-._*
-.Spotlight-V100
-.Trashes
-ehthumbs.db
 Thumbs.db
 
-# bbai specific
-.bbai/*
+# Ignore IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Ignore bbai's own directory
+.bbai/
+
+# Add your custom ignore patterns below
 `;
 }
 
-export async function createDefaultConfig(startDir: string): Promise<void> {
+/*
+export async function createDefaultConfig(startDir: string, wizardAnswers: WizardAnswers): Promise<void> {
 	const configManager = await ConfigManager.getInstance();
 	await configManager.ensureUserConfig();
-	await configManager.ensureProjectConfig(startDir);
+
+	const projectConfig = {
+		...wizardAnswers,
+	};
+
+	await configManager.ensureProjectConfig(startDir, projectConfig);
 	logger.info('Created default config files');
 }
+ */

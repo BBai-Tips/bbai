@@ -14,7 +14,7 @@ import LLMTool from '../llmTool.ts';
 import { createError } from '../../utils/error.utils.ts';
 import { ErrorType, LLMErrorOptions } from '../../errors/error.ts';
 import { logger } from 'shared/logger.ts';
-import { config } from 'shared/configManager.ts';
+import { globalConfig } from 'shared/configManager.ts';
 import type {
 	LLMCallbacks,
 	LLMProviderMessageRequest,
@@ -33,7 +33,7 @@ class OpenAILLM extends LLM {
 	}
 
 	private async initializeOpenAIClient() {
-		const apiKey = config.api?.openaiApiKey;
+		const apiKey = globalConfig.api?.openaiApiKey;
 		if (!apiKey) {
 			throw new Error('OpenAI API key is not set');
 		}

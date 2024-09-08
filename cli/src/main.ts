@@ -1,5 +1,5 @@
 import { Command } from 'cliffy/command/mod.ts';
-import { config } from 'shared/configManager.ts';
+import { globalConfig } from 'shared/configManager.ts';
 
 import { init } from './commands/init.ts';
 import { apiStart } from './commands/apiStart.ts';
@@ -9,13 +9,14 @@ import { apiRestart } from './commands/apiRestart.ts';
 import { conversationChat } from './commands/conversationChat.ts';
 import { conversationList } from './commands/conversationList.ts';
 import { viewLogs } from './commands/viewLogs.ts';
+import { config as configCommand } from './commands/config.ts';
 //import { logger } from 'shared/logger.ts';
 
-//logger.debug('CLI Config:', config.cli);
+//logger.debug('CLI Config:', globalConfig.cli);
 
 const cli = new Command()
 	.name('bbai')
-	.version(config.version as string)
+	.version(globalConfig.version as string)
 	.description('CLI tool for BBai')
 	.command('init', init)
 	//
@@ -31,7 +32,8 @@ const cli = new Command()
 	.command('start', apiStart)
 	.command('stop', apiStop)
 	.command('status', apiStatus)
-	.command('restart', apiRestart);
+	.command('restart', apiRestart)
+	.command('config', configCommand);
 
 export const main = async () => {
 	await cli.parse(Deno.args);
