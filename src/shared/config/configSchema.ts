@@ -1,10 +1,8 @@
 import { simpleMerge } from '@cross/deepmerge';
 
-export interface ConfigSchema {
-	project: {
-		name: string;
-		type: 'local' | 'git';
-	};
+export interface GlobalConfigSchema {
+	myPersonsName?: string;
+	myAssistantsName?: string;
 	api: {
 		anthropicApiKey?: string;
 		openaiApiKey?: string;
@@ -15,22 +13,28 @@ export interface ConfigSchema {
 		logFile?: string;
 		logLevel: 'debug' | 'info' | 'warn' | 'error';
 	};
-	cli: {};
+	cli: Record<string, unknown>;
 	repoInfo: {
 		ctagsAutoGenerate: boolean;
 		ctagsFilePath?: string;
 		tokenLimit?: number;
 	};
-	myPersonsName?: string;
-	myAssistantsName?: string;
 	version: string;
 }
 
-export const defaultConfig: ConfigSchema = {
+export interface ProjectConfigSchema {
 	project: {
-		name: Deno.cwd(),
-		type: 'local',
-	},
+		name: string;
+		type: 'local' | 'git';
+		llmGuidelinesFile?: string;
+	};
+}
+
+export interface ConfigSchema extends GlobalConfigSchema, ProjectConfigSchema {}
+
+export const defaultGlobalConfig: GlobalConfigSchema = {
+	myPersonsName: Deno.env.get('USER') || 'User',
+	myAssistantsName: 'Claude',
 	api: {
 		environment: 'local',
 		apiPort: 3000,
@@ -41,15 +45,19 @@ export const defaultConfig: ConfigSchema = {
 	cli: {},
 	repoInfo: {
 		ctagsAutoGenerate: true,
-		//ctagsFilePath: 'tags',
 		tokenLimit: 1024,
 	},
-	myPersonsName: Deno.env.get('USER') || 'User',
-	myAssistantsName: 'Claude',
 	version: 'unknown', // This will be overwritten by the actual version from version.ts
 };
 
+export const defaultProjectConfig: ProjectConfigSchema = {
+	project: {
+		name: Deno.cwd(),
+		type: 'local',
+	},
+};
+
 export function mergeConfigs(...configs: Partial<ConfigSchema>[]): ConfigSchema {
-	const mergedConfig = simpleMerge(defaultConfig, ...configs);
+	const mergedConfig = simpleMerge(defaultGlobalConfig as unknown, defaultProjectConfig, ...configs);
 	return mergedConfig as ConfigSchema;
 }

@@ -1,7 +1,9 @@
 import * as diff from 'diff';
 
-import InteractionManager, { interactionManager } from '../llms/interactions/interactionManager.ts';
-import ProjectEditor, { ProjectInfo } from '../editor/projectEditor.ts';
+import type InteractionManager from '../llms/interactions/interactionManager.ts';
+import { interactionManager } from '../llms/interactions/interactionManager.ts';
+import type ProjectEditor from '../editor/projectEditor.ts';
+import type { ProjectInfo } from '../editor/projectEditor.ts';
 import type LLM from '../llms/providers/baseLLM.ts';
 import LLMFactory from '../llms/llmProvider.ts';
 import type LLMMessage from 'api/llms/llmMessage.ts';
@@ -36,7 +38,7 @@ import { generateConversationTitle } from '../utils/conversation.utils.ts';
 import { generateConversationId } from 'shared/conversationManagement.ts';
 //import { runFormatCommand } from '../utils/project.utils.ts';
 import { stageAndCommitAfterPatching } from '../utils/git.utils.ts';
-import { config } from 'shared/configManager.ts';
+import { globalConfig } from 'shared/configManager.ts';
 
 class OrchestratorController {
 	private interactionStats: Map<ConversationId, ConversationMetrics> = new Map();
@@ -227,6 +229,7 @@ class OrchestratorController {
 		);
 		const systemPrompt = await this.promptManager.getPrompt('system', {
 			userDefinedContent: 'You are an AI assistant helping with code and project management.',
+			projectConfig: this.projectEditor.projectConfig,
 		});
 		interaction.baseSystem = systemPrompt;
 		//logger.info(`OrchestratorController: set system prompt for: ${typeof interaction}`, interaction.baseSystem);
@@ -265,7 +268,7 @@ class OrchestratorController {
 			await persistence.saveConversation(interaction);
 
 			// Save system prompt and project info if running in local development
-			if (config.api?.environment === 'localdev') {
+			if (globalConfig.api?.environment === 'localdev') {
 				await persistence.saveSystemPrompt(currentResponse.messageMeta.system);
 				await persistence.saveProjectInfo(this.projectEditor.projectInfo);
 			}
@@ -291,7 +294,7 @@ class OrchestratorController {
 			await persistence.saveConversation(interaction);
 
 			// Save system prompt and project info if running in local development
-			if (config.api?.environment === 'localdev') {
+			if (globalConfig.api?.environment === 'localdev') {
 				await persistence.saveSystemPrompt(currentResponse.messageMeta.system);
 				await persistence.saveProjectInfo(this.projectEditor.projectInfo);
 			}
@@ -792,26 +795,20 @@ class OrchestratorController {
 	}
 	 */
 
-	public async stageAndCommitAfterPatching(interaction: LLMConversationInteraction): Promise<void> {
-		//if (!interaction) {
-		//	throw new Error(`No interaction found for ID: ${interaction.id}`);
-		//}
-		const projectEditor = this.projectEditor;
-		await stageAndCommitAfterPatching(
-			interaction,
-			projectEditor.projectRoot,
-			projectEditor.patchedFiles,
-			projectEditor.patchContents,
-			projectEditor,
-		);
-		projectEditor.patchedFiles.clear();
-		projectEditor.patchContents.clear();
-	}
-
 	async logPatchAndCommit(interaction: LLMConversationInteraction, filePath: string, patch: string): Promise<void> {
 		this.projectEditor.patchedFiles.add(filePath);
 		this.projectEditor.patchContents.set(filePath, patch);
-		await this.projectEditor.orchestratorController.stageAndCommitAfterPatching(interaction);
+		if (this.projectEditor.projectConfig.project.type === 'git') {
+			await stageAndCommitAfterPatching(
+				interaction,
+				this.projectEditor.projectRoot,
+				this.projectEditor.patchedFiles,
+				this.projectEditor.patchContents,
+				this.projectEditor,
+			);
+		}
+		this.projectEditor.patchedFiles.clear();
+		this.projectEditor.patchContents.clear();
 		// Log the applied changes
 		const persistence = await new ConversationPersistence(interaction.id, this.projectEditor).init();
 		await persistence.logPatch(filePath, patch);

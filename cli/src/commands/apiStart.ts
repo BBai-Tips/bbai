@@ -1,6 +1,7 @@
 import { Command } from 'cliffy/command/mod.ts';
+import { colors } from 'cliffy/ansi/colors.ts';
 
-import { config } from 'shared/configManager.ts';
+import { ConfigManager, type GlobalConfigSchema } from 'shared/configManager.ts';
 import { followApiLogs, startApiServer } from '../utils/apiControl.utils.ts';
 
 export const apiStart = new Command()
@@ -8,11 +9,14 @@ export const apiStart = new Command()
 	.description('Start the bbai API server')
 	.option('--log-level <level:string>', 'Set the log level for the API server', { default: undefined })
 	.option('--log-file <file:string>', 'Specify a log file to write output', { default: undefined })
+	.option('--port <string>', 'Specify the port for API to listen on', { default: undefined })
 	.option('--follow', 'Do not detach and follow the API logs', { default: false })
-	.action(async ({ logLevel: apiLogLevel, logFile: apiLogFile, follow }) => {
+	.action(async ({ logLevel: apiLogLevel, logFile: apiLogFile, port, follow }) => {
 		const startDir = Deno.cwd();
-		const { pid, apiLogFilePath } = await startApiServer(startDir, apiLogLevel, apiLogFile, follow);
-		const apiPort = config.api?.apiPort || 3000;
+		const configManager = await ConfigManager.getInstance();
+		const globalConfig: GlobalConfigSchema = await configManager.loadGlobalConfig(startDir);
+		const apiPort = `${port || globalConfig.api?.apiPort || 3000}`; // cast as string
+		const { pid, apiLogFilePath } = await startApiServer(startDir, apiPort, apiLogLevel, apiLogFile, follow);
 
 		const chatUrl = `https://chat.bbai.tips/#apiPort=${apiPort}`;
 
@@ -30,12 +34,13 @@ export const apiStart = new Command()
 		if (follow) {
 			await followApiLogs(apiLogFilePath, startDir);
 		} else {
-			console.log(`API server started with PID: ${pid}`);
-			console.log(`Logs are being written to: ${apiLogFilePath}`);
-			console.log(`\n\x1b[1m\x1b[32mBBai API started successfully!\x1b[0m`);
-			console.log(`\x1b[1m\x1b[36mPlease visit: ${chatUrl}\x1b[0m`);
+			console.log(`${colors.bold.blue.underline('BBai API started successfully!')}`);
+
+			console.log(`\nAPI server started with PID: ${pid}`);
+			console.log(`Logs are being written to: ${colors.green(apiLogFilePath)}`);
+			console.log(`Please visit: ${colors.bold.cyan(chatUrl)}`);
 			console.log('Attempting to open the chat in your default browser...');
-			console.log("Use 'bbai api stop' to stop the server.");
+			console.log(`Use ${colors.bold.green('bbai stop')} to stop the server.`);
 			Deno.exit(0);
 		}
 	});

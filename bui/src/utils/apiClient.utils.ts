@@ -1,6 +1,3 @@
-// import { config } from 'shared/configManager.ts';
-// import { logger } from 'shared/logger.ts';
-
 // Browser-compatible logger
 const logger = {
 	info: (message: string) => console.log(message),
