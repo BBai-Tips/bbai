@@ -1,4 +1,6 @@
 import { join, normalize, relative, resolve } from '@std/path';
+import { walk, readLines } from '@std/fs';
+import { LRUCache } from 'npm:lru-cache';
 import { exists, walk } from '@std/fs';
 import globToRegExp from 'npm:glob-to-regexp';
 //import { globToRegExp } from '@std/path';
@@ -169,6 +171,8 @@ export async function updateFile(projectRoot: string, filePath: string, _content
 	logger.info(`File ${filePath} updated in the project`);
 }
 
+const searchCache = new LRUCache<string, string[]>({ max: 100 });
+
 export async function searchFilesContent(
 	projectRoot: string,
 	contentPattern: string,
@@ -180,7 +184,14 @@ export async function searchFilesContent(
 		size_max?: number;
 	},
 ): Promise<{ files: string[]; errorMessage: string | null }> {
+	const cacheKey = `${projectRoot}:${contentPattern}:${JSON.stringify(options)}`;
+	const cachedResult = searchCache.get(cacheKey);
+	if (cachedResult) {
+		logger.info(`Returning cached result for search: ${cacheKey}`);
+		return { files: cachedResult, errorMessage: null };
+	}
 	const matchingFiles: string[] = [];
+	logger.info(`Starting file content search in ${projectRoot} with pattern: ${contentPattern}`);
 	const regex = new RegExp(contentPattern, "i");
 	const excludeOptions = await getExcludeOptions(projectRoot);
 
@@ -189,7 +200,14 @@ export async function searchFilesContent(
 
 		for await (const entry of walk(projectRoot, { includeDirs: false })) {
 			const relativePath = relative(projectRoot, entry.path);
-			if (shouldExclude(relativePath, excludeOptions)) continue;
+			if (shouldExclude(relativePath, excludeOptions)) {
+				logger.debug(`Skipping excluded file: ${relativePath}`);
+				continue;
+			}
+			if (options?.file_pattern && !isMatch(relativePath, options.file_pattern)) {
+				logger.debug(`Skipping file not matching pattern: ${relativePath}`);
+				continue;
+			}
 
 			promises.push(processFile(entry.path, regex, options, relativePath));
 		}
@@ -197,6 +215,8 @@ export async function searchFilesContent(
 		const results = await Promise.all(promises);
 		matchingFiles.push(...results.filter(Boolean));
 
+		logger.info(`File content search completed. Found ${matchingFiles.length} matching files.`);
+		searchCache.set(cacheKey, matchingFiles);
 		return { files: matchingFiles, errorMessage: null };
 	} catch (error) {
 		logger.error(`Error in searchFilesContent: ${error.message}`);
@@ -210,16 +230,21 @@ async function processFile(
 	options: any,
 	relativePath: string
 ): Promise<string | null> {
+	logger.debug(`Processing file: ${relativePath}`);
 	try {
 		const stat = await Deno.stat(filePath);
 
 		// Apply metadata filters
-		if (!passesMetadataFilters(stat, options)) return null;
+		if (!passesMetadataFilters(stat, options)) {
+			logger.debug(`File ${relativePath} did not pass metadata filters`);
+			return null;
+		}
 
 		const file = await Deno.open(filePath);
 		for await (const line of readLines(file)) {
 			if (regex.test(line)) {
 				file.close();
+				logger.debug(`Match found in file: ${relativePath}`);
 				return relativePath;
 			}
 		}
