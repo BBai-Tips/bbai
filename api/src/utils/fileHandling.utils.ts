@@ -1,5 +1,6 @@
 import { join, normalize, relative, resolve } from '@std/path';
-import { walk, readLines } from '@std/fs';
+import { walk } from '@std/fs';
+import { TextLineStream } from '@std/streams';
 import { LRUCache } from 'npm:lru-cache';
 import { exists, walk } from '@std/fs';
 import globToRegExp from 'npm:glob-to-regexp';
@@ -241,7 +242,11 @@ async function processFile(
 		}
 
 		const file = await Deno.open(filePath);
-		for await (const line of readLines(file)) {
+		const lineStream = file.readable
+			.pipeThrough(new TextDecoderStream())
+			.pipeThrough(new TextLineStream());
+
+		for await (const line of lineStream) {
 			if (regex.test(line)) {
 				file.close();
 				logger.debug(`Match found in file: ${relativePath}`);
