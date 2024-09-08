@@ -2,7 +2,7 @@ import { Context, State, Status } from '@oak/oak';
 import type { Middleware } from '@oak/oak';
 import { APIError, isAPIError } from '../errors/error.ts';
 import { logger } from 'shared/logger.ts';
-import { config } from 'shared/configManager.ts';
+import { globalConfig } from 'shared/configManager.ts';
 
 /**
  * Error Handler Middleware function
@@ -27,7 +27,7 @@ export const errorHandler: Middleware = async (
 				message: '',
 			};
 
-			if (config.api?.environment === 'production') { // || config.api?.environment === 'docker'
+			if (globalConfig.api?.environment === 'production') { // || globalConfig.api?.environment === 'docker'
 				responseBody.message = message;
 			} else {
 				const name: string = error.name || 'Error';
@@ -35,7 +35,7 @@ export const errorHandler: Middleware = async (
 				const args: object = error.options?.args || error.options || {};
 
 				if (
-					config.api?.environment === 'local' || config.api?.environment === 'development'
+					globalConfig.api?.environment === 'local' || globalConfig.api?.environment === 'localdev'
 				) {
 					logger.error(error.message, args);
 				}
@@ -55,8 +55,8 @@ export const errorHandler: Middleware = async (
 			 * do not want to share internal server errors to
 			 * end user in non "development" mode
 			 */
-			const message = config.api?.environment === 'local' ||
-					config.api?.environment === 'development'
+			const message = globalConfig.api?.environment === 'local' ||
+					globalConfig.api?.environment === 'localdev'
 				? (err.message ?? 'Unknown error occurred')
 				: 'Internal Server Error';
 

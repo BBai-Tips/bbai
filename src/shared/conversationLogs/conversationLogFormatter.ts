@@ -10,7 +10,7 @@ import ConversationLogger from 'shared/conversationLogger.ts';
 import type { ConversationLogEntry, ConversationLoggerEntryType } from 'shared/conversationLogger.ts';
 import { getBbaiDataDir } from 'shared/dataDir.ts';
 import { ConversationId, ConversationMetrics, ConversationTokenUsage, TokenUsage } from 'shared/types.ts';
-import { config } from 'shared/configManager.ts';
+import { globalConfig } from 'shared/configManager.ts';
 
 // Define theme colors.
 //const colorError = colors.bold.red;
@@ -35,8 +35,8 @@ export default class ConversationLogFormatter {
 		ConversationLoggerEntryType,
 		{ icon: string; color: (text: string) => string; label: string }
 	> = {
-		user: { icon: USER_ICON, color: colors.green, label: config.myPersonsName || 'Person' },
-		assistant: { icon: ASSISTANT_ICON, color: colors.blue, label: config.myAssistantsName || 'Assistant' },
+		user: { icon: USER_ICON, color: colors.green, label: globalConfig.myPersonsName || 'Person' },
+		assistant: { icon: ASSISTANT_ICON, color: colors.blue, label: globalConfig.myAssistantsName || 'Assistant' },
 		tool_use: { icon: TOOL_ICON, color: colors.yellow, label: 'Tool Input' },
 		tool_result: { icon: TOOL_ICON, color: colors.yellow, label: 'Tool Output' },
 		auxiliary: { icon: AUXILIARY_ICON, color: colors.cyan, label: 'Auxiliary Chat' },

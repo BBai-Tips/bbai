@@ -156,7 +156,7 @@ export default function Chat() {
 			const newConversationId = generateConversationId();
 			setConversationId(newConversationId);
 
-			const manager = createWebSocketManager(apiPort, startDir);
+			const manager = createWebSocketManager(parseInt(apiPort), startDir);
 			manager.setConversationId(newConversationId);
 			wsManager.value = manager;
 			manager.connect();

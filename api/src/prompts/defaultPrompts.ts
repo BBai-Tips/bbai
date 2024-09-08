@@ -1,6 +1,6 @@
 import { stripIndents } from 'common-tags';
 
-import { loadConfig, readFileContent, resolveFilePath } from 'shared/dataDir.ts';
+import { readFileContent, resolveFilePath } from 'shared/dataDir.ts';
 import { logger } from 'shared/logger.ts';
 
 interface PromptMetadata {
@@ -20,11 +20,9 @@ export const system: Prompt = {
 		description: 'Default system prompt for bbai',
 		version: '1.0.0',
 	},
-	getContent: async ({ userDefinedContent = '' }) => {
-		const config = await loadConfig();
-		const guidelinesPath = config.llmGuidelinesFile;
-		let guidelines = '';
-
+	getContent: async ({ userDefinedContent = '', projectConfig }) => {
+		let guidelines;
+		const guidelinesPath = projectConfig.project.llmGuidelinesFile;
 		if (guidelinesPath) {
 			try {
 				const resolvedPath = await resolveFilePath(guidelinesPath);
@@ -34,10 +32,11 @@ export const system: Prompt = {
 			}
 		}
 
-		const myPersonsName = config.myPersonsName;
+		const myPersonsName = projectConfig.myPersonsName;
+		const myAssistantsName = projectConfig.myAssistantsName;
 
 		return stripIndents`
-		  You are an AI assistant, an expert at a variety of coding and writing tasks. Your capabilities include:
+		  You are an AI assistant named ${myAssistantsName}, an expert at a variety of coding and writing tasks. Your capabilities include:
 	
 		  1. Analyzing and modifying programming code in any language
 		  2. Reviewing and enhancing documentation and prose

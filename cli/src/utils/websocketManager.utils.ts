@@ -4,13 +4,6 @@ import type { ConversationId } from 'shared/types.ts';
 import { apiClient } from 'cli/apiClient.ts';
 
 export class WebsocketManager {
-	updateConversation(conversationId: ConversationId): void {
-		this.currentConversationId = conversationId;
-		if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-			this.ws.close();
-		}
-		this.setupWebsocket(conversationId);
-	}
 	private cancellationRequested: boolean = false;
 	public ws: WebSocket | null = null;
 	private MAX_RETRIES = 5;
@@ -77,6 +70,14 @@ export class WebsocketManager {
 	private handleOpen(_event: Event): void {
 		//console.log('WebSocket connection opened');
 		// Greeting is now sent after listener setup in setupWebsocket
+	}
+
+	updateConversation(conversationId: ConversationId): void {
+		this.currentConversationId = conversationId;
+		if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+			this.ws.close();
+		}
+		this.setupWebsocket(conversationId);
 	}
 
 	private handleMessage(event: MessageEvent): void {

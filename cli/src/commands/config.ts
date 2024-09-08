@@ -8,7 +8,7 @@ export const config = new Command()
 	.description('View or update bbai configuration')
 	.action(async () => {
 		const configManager = await ConfigManager.getInstance();
-		const currentConfig = configManager.getRedactedConfig();
+		const currentConfig = await configManager.getRedactedGlobalConfig();
 		console.log('Current configuration:');
 		console.log(JSON.stringify(currentConfig, null, 2));
 	})
@@ -16,14 +16,14 @@ export const config = new Command()
 	.arguments('<key:string> <value:string>')
 	.action(async (_, key, value) => {
 		const configManager = await ConfigManager.getInstance();
-		await configManager.setConfigValue(key, value);
+		await configManager.setGlobalConfigValue(key, value);
 		logger.info(`Configuration updated: ${key} = ${value}`);
 	})
 	.command('get', 'Get a configuration value')
 	.arguments('<key:string>')
 	.action(async (_, key) => {
 		const configManager = await ConfigManager.getInstance();
-		const value = configManager.getConfigValue(key);
+		const value = configManager.getGlobalConfigValue(key);
 		console.log(`${key}: ${value}`);
 	});
 

@@ -37,7 +37,7 @@ export default class LLMToolRewriteFile extends LLMTool {
 				content: {
 					type: 'string',
 					description:
-						'The new content of the file. Include the full file contents. Do not replace any of the content with comments or placeholders.',
+						'The new content of the file. IMPORTANT: Include the full file contents. DO NOT replace any of the content with comments or placeholders. DO rewrite the whole file.',
 				},
 				createIfMissing: {
 					type: 'boolean',

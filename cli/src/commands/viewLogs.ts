@@ -1,6 +1,5 @@
 import { Command } from 'cliffy/command/mod.ts';
 import { logger } from 'shared/logger.ts';
-//import { config } from 'shared/configManager.ts';
 //import { getBbaiDir } from 'shared/dataDir.ts';
 import { getLogFilePath, viewLastLines, watchLogs } from 'shared/logViewer.ts';
 //import { join } from '@std/path';

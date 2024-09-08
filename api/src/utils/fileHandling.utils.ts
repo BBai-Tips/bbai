@@ -5,9 +5,9 @@ import globToRegExp from 'npm:glob-to-regexp';
 import { countTokens } from 'anthropic-tokenizer';
 import { contentType } from '@std/media-types';
 
-import { ConfigManager } from 'shared/configManager.ts';
+import { ConfigManager, type GlobalConfigSchema } from 'shared/configManager.ts';
 import { logger } from 'shared/logger.ts';
-import { FileHandlingErrorOptions } from '../errors/error.ts';
+import type { FileHandlingErrorOptions } from '../errors/error.ts';
 import { createError, ErrorType } from '../utils/error.utils.ts';
 
 export const FILE_LISTING_TIERS = [
@@ -20,8 +20,9 @@ export const FILE_LISTING_TIERS = [
 ];
 
 export async function generateFileListing(projectRoot: string): Promise<string | null> {
-	const config = await ConfigManager.getInstance();
-	const repoInfoConfig = config.getConfig().repoInfo;
+	const configManager = await ConfigManager.getInstance();
+	const config: GlobalConfigSchema = await configManager.loadGlobalConfig(projectRoot);
+	const repoInfoConfig = config.repoInfo;
 	const tokenLimit = repoInfoConfig?.tokenLimit || 1024;
 
 	const excludeOptions = await getExcludeOptions(projectRoot);
@@ -179,85 +180,62 @@ export async function searchFilesContent(
 		size_max?: number;
 	},
 ): Promise<{ files: string[]; errorMessage: string | null }> {
+	const matchingFiles: string[] = [];
+	const regex = new RegExp(contentPattern, "i");
+	const excludeOptions = await getExcludeOptions(projectRoot);
+
 	try {
-		const excludeOptions = await getExcludeOptions(projectRoot);
-		// Escape special characters for grep
-		//const escapedPattern = contentPattern.replace(/([.?*+^$[\]\\(){}|-])/g, "\\$1");
-		// Escape backslash characters for grep
-		const escapedPattern = contentPattern.replace(/(\\)/g, '\$1');
-		//logger.error(`Using escaped pattern in ${projectRoot}: `, JSON.stringify(escapedPattern));
-		const grepCommand = ['-r', '-l', '-E', escapedPattern];
+		const promises = [];
 
-		if (options?.file_pattern) {
-			grepCommand.push('--include', `./${options.file_pattern}`);
+		for await (const entry of walk(projectRoot, { includeDirs: false })) {
+			const relativePath = relative(projectRoot, entry.path);
+			if (shouldExclude(relativePath, excludeOptions)) continue;
+
+			promises.push(processFile(entry.path, regex, options, relativePath));
 		}
 
-		// Add exclude options
-		for (const option of excludeOptions) {
-			grepCommand.push('--exclude-dir', option);
-			grepCommand.push('--exclude', option);
-		}
-		grepCommand.push('.');
-		logger.error(`Search command in dir ${projectRoot}: grep ${grepCommand.join(' ')}`);
+		const results = await Promise.all(promises);
+		matchingFiles.push(...results.filter(Boolean));
 
-		const command = new Deno.Command('grep', {
-			args: grepCommand,
-			cwd: projectRoot,
-			stdout: 'piped',
-			stderr: 'piped',
-		});
-
-		const { code, stdout, stderr } = await command.output();
-		const rawOutput = new TextDecoder().decode(stdout).trim();
-		const rawError = new TextDecoder().decode(stderr).trim();
-
-		if (code === 0 || code === 1) { // grep returns 1 if no matches found, which is not an error for us
-			let files = rawOutput.split('\n').filter(Boolean);
-
-			// Apply additional metadata filters
-			if (options) {
-				files = await filterFilesByMetadata(projectRoot, files, options);
-			}
-
-			return { files, errorMessage: null };
-		} else {
-			return { files: [], errorMessage: rawError };
-		}
+		return { files: matchingFiles, errorMessage: null };
 	} catch (error) {
 		logger.error(`Error in searchFilesContent: ${error.message}`);
 		return { files: [], errorMessage: error.message };
 	}
 }
 
-async function filterFilesByMetadata(
-	projectRoot: string,
-	files: string[],
-	options: {
-		file_pattern?: string;
-		date_after?: string;
-		date_before?: string;
-		size_min?: number;
-		size_max?: number;
-	},
-): Promise<string[]> {
-	const filteredFiles: string[] = [];
+async function processFile(
+	filePath: string,
+	regex: RegExp,
+	options: any,
+	relativePath: string
+): Promise<string | null> {
+	try {
+		const stat = await Deno.stat(filePath);
 
-	for (const file of files) {
-		const fullPath = join(projectRoot, file);
-		const stat = await Deno.stat(fullPath);
+		// Apply metadata filters
+		if (!passesMetadataFilters(stat, options)) return null;
 
-		// Check date range
-		if (options.date_after && stat.mtime && stat.mtime < new Date(options.date_after)) continue;
-		if (options.date_before && stat.mtime && stat.mtime > new Date(options.date_before)) continue;
-
-		// Check file size
-		if (options.size_min !== undefined && stat.size < options.size_min) continue;
-		if (options.size_max !== undefined && stat.size > options.size_max) continue;
-
-		filteredFiles.push(file);
+		const file = await Deno.open(filePath);
+		for await (const line of readLines(file)) {
+			if (regex.test(line)) {
+				file.close();
+				return relativePath;
+			}
+		}
+		file.close();
+	} catch (error) {
+		logger.warn(`Error processing file ${filePath}: ${error.message}`);
 	}
+	return null;
+}
 
-	return filteredFiles;
+function passesMetadataFilters(stat: Deno.FileInfo, options: any): boolean {
+	if (options.date_after && stat.mtime && stat.mtime < new Date(options.date_after)) return false;
+	if (options.date_before && stat.mtime && stat.mtime > new Date(options.date_before)) return false;
+	if (options.size_min !== undefined && stat.size < options.size_min) return false;
+	if (options.size_max !== undefined && stat.size > options.size_max) return false;
+	return true;
 }
 
 export async function searchFilesMetadata(
