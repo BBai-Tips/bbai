@@ -46,14 +46,13 @@ export const palette = {
 	info: colors.magenta,
 };
 
-const apiClient = await ApiClient.create();
-
 export class TerminalHandler {
 	private formatter: ConversationLogFormatter;
 	private history: string[] = [];
 	private spinner!: Spinner;
 	private statementInProgress: boolean = false;
 	private bbaiDir: string;
+	private apiClient!: ApiClient;
 
 	constructor(bbaiDir: string) {
 		this.formatter = new ConversationLogFormatter();
@@ -62,7 +61,7 @@ export class TerminalHandler {
 		this.loadHistory();
 	}
 
-	public initializeTerminal(): void {
+	public async initializeTerminal(): Promise<void> {
 		tty
 			//.cursorSave
 			//.cursorHide
@@ -81,6 +80,7 @@ export class TerminalHandler {
 			//colors.bold.blue(ansi.link('BBai', 'https://bbai.tips')) +
 			//+ '\n',
 		);
+		this.apiClient = await ApiClient.create();
 	}
 
 	/*

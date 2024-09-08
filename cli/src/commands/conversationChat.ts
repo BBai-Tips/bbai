@@ -130,9 +130,7 @@ export const conversationChat = new Command()
 				}
 			} else {
 				terminalHandler = new TerminalHandler(bbaiDir);
-
-				// we're running in a terminal
-				terminalHandler.initializeTerminal();
+				await terminalHandler.initializeTerminal();
 
 				// Spinner is now managed by terminalHandler
 				terminalHandler.startSpinner('Setting up...');
