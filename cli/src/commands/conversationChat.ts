@@ -14,7 +14,6 @@ import { eventManager } from 'shared/eventManager.ts';
 const startDir = Deno.cwd();
 const bbaiDir = await getBbaiDir(startDir);
 const projectRoot = await getProjectRoot(startDir);
-const apiClient = await ApiClient.create(startDir);
 
 export const conversationChat = new Command()
 	.name('chat')
@@ -25,6 +24,7 @@ export const conversationChat = new Command()
 	.option('--text', 'Return plain text instead of JSON')
 	.action(async (options) => {
 		let apiStartedByUs = false;
+		const apiClient = await ApiClient.create(startDir);
 
 		let terminalHandler: TerminalHandler | null = null;
 		let conversationId: ConversationId;
