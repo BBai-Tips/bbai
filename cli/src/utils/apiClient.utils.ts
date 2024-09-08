@@ -14,7 +14,7 @@ class ApiClient {
 		const apiPort = config.api?.apiPort || 3000;
 		const baseUrl = `http://localhost:${apiPort}`;
 		const wsUrl = `ws://localhost:${apiPort}`;
-		logger.info(`APIClient: client created with baseUrl: ${baseUrl}, wsUrl: ${wsUrl}`);
+		logger.debug(`APIClient: client created with baseUrl: ${baseUrl}, wsUrl: ${wsUrl}`);
 		return new ApiClient(baseUrl, wsUrl);
 	}
 

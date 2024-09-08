@@ -9,6 +9,7 @@ import { apiRestart } from './commands/apiRestart.ts';
 import { conversationChat } from './commands/conversationChat.ts';
 import { conversationList } from './commands/conversationList.ts';
 import { viewLogs } from './commands/viewLogs.ts';
+import { config as configCommand } from './commands/config.ts';
 //import { logger } from 'shared/logger.ts';
 
 //logger.debug('CLI Config:', config.cli);
@@ -31,7 +32,8 @@ const cli = new Command()
 	.command('start', apiStart)
 	.command('stop', apiStop)
 	.command('status', apiStatus)
-	.command('restart', apiRestart);
+	.command('restart', apiRestart)
+	.command('config', configCommand);
 
 export const main = async () => {
 	await cli.parse(Deno.args);

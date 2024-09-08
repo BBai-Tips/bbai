@@ -34,7 +34,11 @@ export default class LLMToolRewriteFile extends LLMTool {
 			type: 'object',
 			properties: {
 				filePath: { type: 'string', description: 'The path of the file to be rewritten or created' },
-				content: { type: 'string', description: 'The new content of the file. Include the full file contents. Do not replace any of the content with comments or placeholders.' },
+				content: {
+					type: 'string',
+					description:
+						'The new content of the file. Include the full file contents. Do not replace any of the content with comments or placeholders.',
+				},
 				createIfMissing: {
 					type: 'boolean',
 					description: 'Create the file if it does not exist',

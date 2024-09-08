@@ -7,9 +7,24 @@ import { GitUtils } from '../utils/git.utils.ts';
 import { ConfigSchema, mergeConfigs } from './configSchema.ts';
 import { VERSION } from '../../../version.ts';
 
+export type ProjectType = 'git' | 'local';
+export interface WizardAnswers {
+	project: {
+		name: string;
+		type: ProjectType;
+	};
+	anthropicApiKey?: string;
+	myPersonsName?: string;
+	myAssistantsName?: string;
+}
+
 export class ConfigManager {
 	private static instance: ConfigManager;
 	private config: Partial<ConfigSchema> = {
+		project: {
+			name: '',
+			type: 'local',
+		},
 		api: {
 			environment: 'local',
 			apiPort: 3000,
@@ -18,7 +33,6 @@ export class ConfigManager {
 		cli: {},
 		repoInfo: {
 			ctagsAutoGenerate: true,
-			//ctagsFilePath: 'tags',
 		},
 		version: VERSION,
 	};
@@ -58,8 +72,8 @@ export class ConfigManager {
 					  tokenLimit: 1024
 
 					api:
-					  # Your Anthropic API key. Replace with your actual key.
-					  anthropicApiKey: "your-anthropic-api-key-here"
+					  # Your Anthropic API key. Uncomment and replace with your actual key.
+					  # anthropicApiKey: "your-anthropic-api-key-here"
 					
 					  # Your OpenAI API key. Uncomment and replace with your actual key if using OpenAI.
 					  # openaiApiKey: "your-openai-api-key-here"
@@ -81,7 +95,6 @@ export class ConfigManager {
 
 					# Add any CLI-specific configuration options here
 					cli: {}
-					
 					`;
 				await Deno.writeTextFile(userConfigPath, defaultConfig);
 			} else {
@@ -90,34 +103,50 @@ export class ConfigManager {
 		}
 	}
 
-	public async ensureProjectConfig(startDir: string): Promise<void> {
+	public async ensureProjectConfig(startDir: string, wizardAnswers: WizardAnswers): Promise<void> {
 		const projectConfigPath = join(startDir, '.bbai', 'config.yaml');
 
 		try {
 			await ensureDir(join(startDir, '.bbai'));
-			const projectConfig = stripIndent`
-				# bbai Project Configuration File
+			let existingConfig: Record<string, unknown> = {};
+			try {
+				const content = await Deno.readTextFile(projectConfigPath);
+				existingConfig = parseYaml(content) as Record<string, unknown>;
+			} catch (_) {
+				// If the file doesn't exist, we'll start with an empty config
+			}
 
-				api:
-				  # Your Anthropic API key. Replace with your actual key.
-				  anthropicApiKey: "your-anthropic-api-key-here"
-				
-				  # Your OpenAI API key. Uncomment and replace with your actual key if using OpenAI.
-				  # openaiApiKey: "your-openai-api-key-here"
+			const projectConfig: Record<string, unknown> = {
+				...existingConfig,
+				api: {
+					...existingConfig.api as Record<string, unknown>,
+				},
+				project: {
+					...existingConfig.project as Record<string, unknown>,
+					name: wizardAnswers.project.name,
+					type: wizardAnswers.project.type,
+				},
+			};
 
-				  # Your VoyageAI API key. Uncomment and replace with your actual key if using VoyageAI.
-				  # voyageaiApiKey: "your-voyageai-api-key-here"
+			// Only set anthropicApiKey if it's provided in wizardAnswers
+			if (wizardAnswers.anthropicApiKey) {
+				(projectConfig.api as Record<string, unknown>).anthropicApiKey = wizardAnswers.anthropicApiKey;
+			}
 
-				  # Add any project-specific configuration options here
-				  logLevel: info
-				`;
-			await Deno.writeTextFile(projectConfigPath, projectConfig);
+			if (wizardAnswers.myPersonsName) {
+				projectConfig.myPersonsName = wizardAnswers.myPersonsName;
+			}
+			if (wizardAnswers.myAssistantsName) {
+				projectConfig.myAssistantsName = wizardAnswers.myAssistantsName;
+			}
+
+			await Deno.writeTextFile(projectConfigPath, stringifyYaml(projectConfig));
 		} catch (error) {
 			throw error;
 		}
 	}
 
-	private async loadUserConfig(): Promise<Partial<ConfigSchema>> {
+	public async loadUserConfig(): Promise<Partial<ConfigSchema>> {
 		const userConfigPath = join(Deno.env.get('HOME') || '', '.config', 'bbai', 'config.yaml');
 		try {
 			const content = await Deno.readTextFile(userConfigPath);
@@ -127,11 +156,21 @@ export class ConfigManager {
 		}
 	}
 
-	private async loadProjectConfig(): Promise<Partial<ConfigSchema>> {
+	public async loadProjectConfig(): Promise<Partial<ConfigSchema>> {
 		const gitRoot = await GitUtils.findGitRoot();
 		if (!gitRoot) return {};
 
 		const projectConfigPath = `${gitRoot}/.bbai/config.yaml`;
+		try {
+			const content = await Deno.readTextFile(projectConfigPath);
+			return parseYaml(content) as Partial<ConfigSchema>;
+		} catch (_) {
+			return {};
+		}
+	}
+
+	public async getExistingProjectConfig(startDir: string): Promise<Partial<ConfigSchema>> {
+		const projectConfigPath = join(startDir, '.bbai', 'config.yaml');
 		try {
 			const content = await Deno.readTextFile(projectConfigPath);
 			return parseYaml(content) as Partial<ConfigSchema>;
@@ -147,12 +186,6 @@ export class ConfigManager {
 
 		const anthropicApiKey = Deno.env.get('ANTHROPIC_API_KEY');
 		if (anthropicApiKey) apiConfig.anthropicApiKey = anthropicApiKey;
-
-		const openaiApiKey = Deno.env.get('OPENAI_API_KEY');
-		if (openaiApiKey) apiConfig.openaiApiKey = openaiApiKey;
-
-		const voyageaiApiKey = Deno.env.get('VOYAGEAI_API_KEY');
-		if (voyageaiApiKey) apiConfig.voyageaiApiKey = voyageaiApiKey;
 
 		const environment = Deno.env.get('BBAI_ENVIRONMENT');
 		if (environment) apiConfig.environment = environment;
@@ -186,9 +219,34 @@ export class ConfigManager {
 
 	public getRedactedConfig(): Partial<ConfigSchema> {
 		const redactedConfig = JSON.parse(JSON.stringify(this.config));
-		if (redactedConfig.api.anthropicApiKey) redactedConfig.api.anthropicApiKey = '[REDACTED]';
-		if (redactedConfig.api.openaiApiKey) redactedConfig.api.openaiApiKey = '[REDACTED]';
+		if (redactedConfig.api?.anthropicApiKey) redactedConfig.api.anthropicApiKey = '[REDACTED]';
 		return redactedConfig;
+	}
+
+	public async setConfigValue(key: string, value: string): Promise<void> {
+		const keys = key.split('.');
+		let current: any = this.config;
+		for (let i = 0; i < keys.length - 1; i++) {
+			if (!current[keys[i]]) current[keys[i]] = {};
+			current = current[keys[i]];
+		}
+		current[keys[keys.length - 1]] = value;
+		await this.saveConfig();
+	}
+
+	public getConfigValue(key: string): string | undefined {
+		const keys = key.split('.');
+		let current: any = this.config;
+		for (const k of keys) {
+			if (current[k] === undefined) return undefined;
+			current = current[k];
+		}
+		return current;
+	}
+
+	private async saveConfig(): Promise<void> {
+		const userConfigPath = join(Deno.env.get('HOME') || '', '.config', 'bbai', 'config.yaml');
+		await Deno.writeTextFile(userConfigPath, stringifyYaml(this.config));
 	}
 }
 

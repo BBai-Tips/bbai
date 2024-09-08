@@ -14,8 +14,7 @@ export const apiStart = new Command()
 		const { pid, apiLogFilePath } = await startApiServer(startDir, apiLogLevel, apiLogFile, follow);
 		const apiPort = config.api?.apiPort || 3000;
 
-		//const chatUrl = `https://chat.bbai.tips/#apiPort=${apiPort}`;
-		const chatUrl = `https://bbai.tips/#apiPort=${apiPort}`;
+		const chatUrl = `https://chat.bbai.tips/#apiPort=${apiPort}`;
 
 		try {
 			const command = Deno.build.os === 'windows'
