@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+
+
+## [0.0.12-beta] - 2024-09-08
+
+### Changed
+
 - Added wizard for `bbai init`; will re-use existing config values for defaults if present
 - Changed git to be optional
 - Split config handling into global and project
