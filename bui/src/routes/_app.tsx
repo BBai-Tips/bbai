@@ -11,7 +11,7 @@ export default function App({ Component, url }: PageProps) {
 				<link rel='stylesheet' href='/styles.css' />
 			</Head>
 			<body>
-				<Component />
+				<Component  />
 			</body>
 		</html>
 	);

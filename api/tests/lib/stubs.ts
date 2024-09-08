@@ -1,6 +1,6 @@
 import { stub } from '../deps.ts';
-import ProjectEditor from '../../src/editor/projectEditor.ts';
-import OrchestratorController from '../../src/controllers/orchestratorController.ts';
+import type ProjectEditor from '../../src/editor/projectEditor.ts';
+import type OrchestratorController from '../../src/controllers/orchestratorController.ts';
 //import LLMConversationInteraction from '../../src/llms/interactions/conversationInteraction.ts';
 //import type { LLMSpeakWithResponse } from '../../src/types.ts';
 //import { ConversationId, ConversationResponse } from 'shared/types.ts';
@@ -60,7 +60,7 @@ export function makeOrchestratorControllerStub(orchestratorController: Orchestra
 		};
 	};
 	const generateConversationTitleStub = createStub('generateConversationTitle');
-	const stageAndCommitAfterPatchingStub = createStub('stageAndCommitAfterPatching');
+	//const stageAndCommitAfterPatchingStub = createStub('stageAndCommitAfterPatching');
 	const revertLastPatchStub = createStub('revertLastPatch');
 	const logPatchAndCommitStub = createStub('logPatchAndCommit');
 	const saveInitialConversationWithResponseStub = createStub('saveInitialConversationWithResponse');
@@ -121,7 +121,7 @@ export function makeOrchestratorControllerStub(orchestratorController: Orchestra
 	return {
 		orchestratorController,
 		generateConversationTitleStub,
-		stageAndCommitAfterPatchingStub,
+		//stageAndCommitAfterPatchingStub,
 		revertLastPatchStub,
 		logPatchAndCommitStub,
 		saveInitialConversationWithResponseStub,
