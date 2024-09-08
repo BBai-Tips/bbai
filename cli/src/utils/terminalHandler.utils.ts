@@ -261,7 +261,7 @@ export class TerminalHandler {
 		}
 
 		try {
-			const formatterResponse = await apiClient.post(`/api/v1/format_log_entry/console/${logEntry.entryType}`, {
+			const formatterResponse = await this.apiClient.post(`/api/v1/format_log_entry/console/${logEntry.entryType}`, {
 				...logEntry,
 			});
 
