@@ -1,6 +1,5 @@
 import { join, normalize, relative, resolve } from '@std/path';
-import { walk } from '@std/fs';
-import { TextLineStream } from '@std/streams';
+import { TextLineStream } from '@std/streams/text-line-stream';
 import { LRUCache } from 'npm:lru-cache';
 import { exists, walk } from '@std/fs';
 import globToRegExp from 'npm:glob-to-regexp';
@@ -214,7 +213,7 @@ export async function searchFilesContent(
 		}
 
 		const results = await Promise.all(promises);
-		matchingFiles.push(...results.filter(Boolean));
+		matchingFiles.push(...results.filter((result): result is string => result !== null));
 
 		logger.info(`File content search completed. Found ${matchingFiles.length} matching files.`);
 		searchCache.set(cacheKey, matchingFiles);
@@ -246,14 +245,21 @@ async function processFile(
 			.pipeThrough(new TextDecoderStream())
 			.pipeThrough(new TextLineStream());
 
-		for await (const line of lineStream) {
+		const reader = lineStream.getReader();
+		try {
+			while (true) {
+				const { done, value: line } = await reader.read();
+				if (done) break;
+				if (regex.test(line)) {
 			if (regex.test(line)) {
-				file.close();
 				logger.debug(`Match found in file: ${relativePath}`);
-				return relativePath;
+					return relativePath;
 			}
 		}
-		file.close();
+		} finally {
+			reader.releaseLock();
+			file.close();
+		}
 	} catch (error) {
 		logger.warn(`Error processing file ${filePath}: ${error.message}`);
 	}
