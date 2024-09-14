@@ -68,11 +68,11 @@ jobs:
 
       - name: Copy README and INSTALL
         run: |
-          cp README.md build/
           if [ "${{ matrix.target }}" = "x86_64-pc-windows-msvc" ]; then
+            cp README.md build/README.txt
             cp INSTALL.md build/INSTALL.txt
           else
-            cp INSTALL.md build/
+            cp README.md INSTALL.md build/
           fi
 
       - name: Upload artifacts
@@ -111,9 +111,9 @@ jobs:
       - name: Download all artifacts
         uses: actions/download-artifact@v4
 
-      - name: List directory contents
-        run: ls -R
-        shell: bash
+#       - name: List directory contents
+#         run: ls -R
+#         shell: bash
 
       - name: Upload Release Assets
         run: |
@@ -127,6 +127,7 @@ jobs:
             cd bbai-$target
             zip -r ../bbai-$target-v${{ steps.get_version.outputs.VERSION }}.zip .
             if [ "$target" != "x86_64-pc-windows-msvc" ]; then
+              chmod 755 install.sh bbai bbai-api
               tar czf ../bbai-$target-v${{ steps.get_version.outputs.VERSION }}.tar.gz .
             fi
             cd ..
