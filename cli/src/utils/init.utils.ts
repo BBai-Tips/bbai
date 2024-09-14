@@ -31,7 +31,7 @@ export async function createBbaiIgnore(startDir: string): Promise<void> {
 		// File doesn't exist, proceed with creation
 		try {
 			await Deno.writeTextFile(bbaiIgnorePath, getDefaultBbaiIgnore());
-			logger.info('Created .bbai/ignore file');
+			//logger.debug('Created .bbai/ignore file');
 		} catch (writeError) {
 			logger.error(`Failed to create .bbai/ignore file: ${writeError.message}`);
 			throw writeError;

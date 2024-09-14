@@ -1,7 +1,7 @@
 import { OpenAI } from 'openai';
 import { ms } from 'ms';
 
-import { LLMProvider, OpenAIModel } from '../../types.ts';
+import { LLMProvider, OpenAIModel } from 'api/types.ts';
 import LLM from './baseLLM.ts';
 import LLMInteraction from '../interactions/baseInteraction.ts';
 import LLMMessage, {
@@ -9,12 +9,11 @@ import LLMMessage, {
 	LLMMessageContentParts,
 	LLMMessageContentPartTextBlock,
 	LLMMessageContentPartToolUseBlock,
-} from '../llmMessage.ts';
-import LLMTool from '../llmTool.ts';
+} from 'api/llms/llmMessage.ts';
+import LLMTool from 'api/llms/llmTool.ts';
 import { createError } from '../../utils/error.utils.ts';
 import { ErrorType, LLMErrorOptions } from '../../errors/error.ts';
 import { logger } from 'shared/logger.ts';
-import { globalConfig } from 'shared/configManager.ts';
 import type {
 	LLMCallbacks,
 	LLMProviderMessageRequest,
@@ -33,7 +32,7 @@ class OpenAILLM extends LLM {
 	}
 
 	private async initializeOpenAIClient() {
-		const apiKey = globalConfig.api?.openaiApiKey;
+		const apiKey = this.fullConfig.api?.openaiApiKey;
 		if (!apiKey) {
 			throw new Error('OpenAI API key is not set');
 		}
