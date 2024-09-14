@@ -19,22 +19,29 @@ These dependencies can be easily installed using package managers like Homebrew 
 
 ## Installation Methods
 
-### Option 1: Using Homebrew (macOS only)
+### Option 1: Installing from Release Packages (Recommended)
 
-If you're on macOS, you can install BBai using Homebrew:
+1. Go to the [BBai Releases page](https://github.com/BBai-Tips/bbai/releases) on GitHub.
+2. Download the appropriate package for your operating system and architecture:
+   - For Linux: `bbai-x86_64-unknown-linux-gnu.tar.gz` or `bbai-aarch64-unknown-linux-gnu.tar.gz`
+   - For macOS: `bbai-x86_64-apple-darwin.tar.gz` or `bbai-aarch64-apple-darwin.tar.gz`
+   - For Windows: `bbai-x86_64-pc-windows-msvc.zip`
+3. Extract the downloaded package:
+   - For .tar.gz files (Linux and macOS):
+     ```
+     tar -xzf bbai-<your-platform>.tar.gz
+     ```
+   - For .zip files (Windows):
+     Extract using your preferred zip tool or the built-in Windows explorer.
+4. Run the installation script:
+   - For Linux and macOS:
+     ```
+     sudo ./install.sh
+     ```
+   - For Windows:
+     Run `install.bat` as administrator
 
-1. Clone the BBai repository:
-   ```
-   git clone https://github.com/BBai-Tips/bbai.git
-   cd bbai
-   ```
-
-2. Install from the repo using Homebrew:
-   ```
-   brew install deployment/homebrew/bbai.rb
-   ```
-
-### Option 2: Manual Installation
+### Option 2: Manual Installation from Source
 
 1. Clone the BBai repository:
    ```
@@ -44,13 +51,18 @@ If you're on macOS, you can install BBai using Homebrew:
 
 2. Build the project:
    ```
-   deno task build
+   deno task -c ./cli/deno.jsonc build
+   deno task -c ./api/deno.jsonc build
    ```
 
 3. Move the built executables to a directory in your PATH:
-   ```
-   sudo mv ./build/bbai ./build/bbai-api /usr/local/bin/
-   ```
+   - For Linux and macOS:
+     ```
+     sudo mv ./cli/build/bbai ./api/build/bbai-api /usr/local/bin/
+     ```
+   - For Windows:
+     Move `bbai.exe` and `bbai-api.exe` to a directory in your PATH, such as `C:\Windows\System32\`
+
 
 ## Configuration
 
