@@ -1,7 +1,7 @@
 import { logger } from 'shared/logger.ts';
 import { getPid, isApiRunning, removePid, savePid } from '../utils/pid.utils.ts';
 import { getBbaiDir, getProjectRoot } from 'shared/dataDir.ts';
-import { join } from '@std/path';
+import { dirname, join } from '@std/path';
 import { isCompiledBinary } from '../utils/environment.utils.ts';
 import ApiClient from 'cli/apiClient.ts';
 import { watchLogs } from 'shared/logViewer.ts';
@@ -15,7 +15,7 @@ export async function startApiServer(
 	apiLogLevel?: string,
 	apiLogFile?: string,
 	follow?: boolean,
-): Promise<{ pid: number; apiLogFilePath: string }> {
+): Promise<{ pid: number; apiLogFilePath: string; listen: string }> {
 	const fullConfig = await ConfigManager.fullConfig(startDir);
 	if (await isApiRunning(startDir)) {
 		logger.info('bbai API server is already running.');
@@ -23,7 +23,9 @@ export async function startApiServer(
 		const bbaiDir = await getBbaiDir(startDir);
 		const apiLogFileName = apiLogFile || fullConfig.api?.logFile || 'api.log';
 		const apiLogFilePath = join(bbaiDir, apiLogFileName);
-		return { pid: pid || 0, apiLogFilePath };
+		const apiHostname = fullConfig.api?.apiHostname || 'localhost';
+		const apiPort = fullConfig.api?.apiPort || 3000;
+		return { pid: pid || 0, apiLogFilePath, listen: `${apiHostname}:${apiPort}` };
 	}
 
 	const bbaiDir = await getBbaiDir(startDir);
@@ -36,14 +38,16 @@ export async function startApiServer(
 	const apiHostnameArgs = apiHostname ? ['--hostname', apiHostname] : [];
 	const apiPortArgs = apiPort ? ['--port', apiPort] : [];
 
-	logger.info(`Starting bbai API server on ${apiHostname}:${apiPort}, logging to ${apiLogFilePath}`);
+	logger.debug(`Starting bbai API server on ${apiHostname}:${apiPort}, logging to ${apiLogFilePath}`);
 
 	let command: Deno.Command;
 
 	if (isCompiledBinary()) {
-		command = new Deno.Command('bbai-api', {
+		const bbaiExecFile = await Deno.realPath(join(dirname(Deno.execPath()), 'bbai-api'));
+		logger.debug(`Starting bbai API as compiled binary using ${bbaiExecFile}`);
+		command = new Deno.Command(bbaiExecFile, {
 			args: ['--log-file', apiLogFilePath, ...apiHostnameArgs, ...apiPortArgs],
-			//cwd: startDir,
+			cwd: startDir,
 			stdout: 'null',
 			stderr: 'null',
 			stdin: 'null',
@@ -53,6 +57,7 @@ export async function startApiServer(
 			},
 		});
 	} else {
+		logger.debug(`Starting bbai API as script using ${projectRoot}/api/src/main.ts`);
 		const cmdArgs = [
 			'run',
 			'--allow-read',
@@ -63,12 +68,15 @@ export async function startApiServer(
 		];
 
 		command = new Deno.Command(Deno.execPath(), {
-			args: [...cmdArgs, join(projectRoot, 'api/src/main.ts'), '--log-file', apiLogFilePath],
+			args: [
+				...cmdArgs,
+				join(projectRoot, 'api/src/main.ts'),
+				'--log-file',
+				apiLogFilePath,
+				...apiHostnameArgs,
+				...apiPortArgs,
+			],
 			cwd: join(projectRoot, 'api'),
-			//args: [...cmdArgs, join(Deno.cwd(), './bbai-api'), '--log-file', apiLogFilePath],
-			//cwd: join(projectRoot, 'api'),
-			//args: [...cmdArgs, Deno.execPath(), 'start', '--log-file', apiLogFilePath],
-			//cwd: join(projectRoot, 'api'),
 			stdout: 'null',
 			stderr: 'null',
 			stdin: 'null',
@@ -82,7 +90,7 @@ export async function startApiServer(
 	const process = command.spawn();
 
 	// Wait a short time to ensure the process has started
-	await new Promise((resolve) => setTimeout(resolve, 1000));
+	await new Promise((resolve) => setTimeout(resolve, 500));
 
 	const pid = process.pid;
 	await savePid(startDir, pid);
@@ -90,9 +98,10 @@ export async function startApiServer(
 	if (!follow) {
 		// Unref the child process to allow the parent to exit
 		process.unref();
+		logger.debug(`Detached from bbai API and returning with PID ${pid}`);
 	}
 
-	return { pid, apiLogFilePath };
+	return { pid, apiLogFilePath, listen: `${apiHostname}:${apiPort}` };
 }
 
 export async function stopApiServer(startDir: string): Promise<void> {
@@ -181,7 +190,7 @@ export async function getApiStatus(startDir: string): Promise<{
 		status.apiUrl = `http://${apiHostname}:${apiPort}`;
 
 		try {
-			const apiClient = await ApiClient.create(startDir);
+			const apiClient = await ApiClient.create(startDir, apiHostname, apiPort);
 			const response = await apiClient.get('/api/v1/status');
 			if (response.ok) {
 				const apiStatus = await response.json();

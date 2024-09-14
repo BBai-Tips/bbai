@@ -2,14 +2,15 @@ import { Command } from 'cliffy/command/mod.ts';
 import { TerminalHandler } from '../utils/terminalHandler.utils.ts';
 import { logger } from 'shared/logger.ts';
 import ApiClient from 'cli/apiClient.ts';
-import { websocketManager } from 'cli/websocketManager.ts';
+import WebsocketManager from 'cli/websocketManager.ts';
 import type { ConversationContinue, ConversationId, ConversationResponse, ConversationStart } from 'shared/types.ts';
 import { isApiRunning } from '../utils/pid.utils.ts';
-import { startApiServer, stopApiServer } from '../utils/apiControl.utils.ts';
+import { getApiStatus, startApiServer, stopApiServer } from '../utils/apiControl.utils.ts';
 import { getBbaiDir, getProjectRoot } from 'shared/dataDir.ts';
 import { addToStatementHistory } from '../utils/statementHistory.utils.ts';
 import { generateConversationId } from 'shared/conversationManagement.ts';
 import { eventManager } from 'shared/eventManager.ts';
+import { ConfigManager } from 'shared/configManager.ts';
 
 const startDir = Deno.cwd();
 
@@ -22,9 +23,14 @@ export const conversationChat = new Command()
 	.option('--text', 'Return plain text instead of JSON')
 	.action(async (options) => {
 		let apiStartedByUs = false;
+		const fullConfig = await ConfigManager.fullConfig(startDir);
 		const bbaiDir = await getBbaiDir(startDir);
 		const projectRoot = await getProjectRoot(startDir);
-		const apiClient = await ApiClient.create(startDir);
+
+		const apiHostname = fullConfig.api?.apiHostname || 'localhost';
+		const apiPort = fullConfig.api?.apiPort || 3000; // cast as string
+		const apiClient = await ApiClient.create(startDir, apiHostname, apiPort);
+		const websocketManager = new WebsocketManager();
 
 		let terminalHandler: TerminalHandler | null = null;
 		let conversationId: ConversationId;
@@ -50,9 +56,9 @@ export const conversationChat = new Command()
 				await stopApiServer(projectRoot);
 			}
 		};
-		const exit = async () => {
+		const exit = async (code: number = 0) => {
 			await cleanup();
-			Deno.exit(0);
+			Deno.exit(code);
 		};
 		// Additional signal listeners will be added after terminalHandler is initialized
 		Deno.addSignalListener('SIGTERM', exit);
@@ -61,9 +67,35 @@ export const conversationChat = new Command()
 			// Check if API is running, start it if not
 			const apiRunning = await isApiRunning(projectRoot);
 			if (!apiRunning) {
-				console.log('API is not running. Starting it now...');
-				await startApiServer(projectRoot);
 				apiStartedByUs = true;
+
+				console.log('API is not running. Starting it now...');
+				const { pid: _pid, apiLogFilePath: _apiLogFilePath, listen: _listen } = await startApiServer(
+					projectRoot,
+					apiHostname,
+					`${apiPort}`,
+				);
+				//console.debug(`API running - PID: ${pid} - Log: ${apiLogFilePath} - Listening on: ${listen}.`);
+
+				// Check if the API is running
+				let apiRunning = false;
+				const maxAttempts = 5;
+				const delayMs = 1000;
+
+				await new Promise((resolve) => setTimeout(resolve, delayMs * 2));
+				for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+					const status = await getApiStatus(startDir);
+					if (status.running) {
+						apiRunning = true;
+						break;
+					}
+					await new Promise((resolve) => setTimeout(resolve, delayMs * attempt));
+				}
+				if (!apiRunning) {
+					console.error('Failed to start the API server after multiple attempts.');
+					exit(1);
+				}
+
 				console.log('API started successfully.');
 			}
 
@@ -139,7 +171,9 @@ export const conversationChat = new Command()
 				Deno.addSignalListener('SIGINT', handleInterrupt);
 				Deno.addSignalListener('SIGTERM', exit);
 
-				await websocketManager.setupWebsocket(conversationId);
+				// 				console.log(`Waiting for 2 mins.`);
+				// 	await new Promise((resolve) => setTimeout(resolve, 120000));
+				await websocketManager.setupWebsocket(conversationId, startDir, apiHostname, apiPort);
 
 				// Set up event listeners
 				let conversationChatDisplayed = false;
@@ -206,7 +240,7 @@ export const conversationChat = new Command()
 
 					try {
 						//console.log(`Processing statement using conversationId: ${conversationId}`);
-						await processStatement(bbaiDir, terminalHandler, conversationId!, statement);
+						await processStatement(bbaiDir, websocketManager, terminalHandler, conversationId!, statement);
 					} catch (error) {
 						logger.error(`Error in chat: ${error.message}`);
 					}
@@ -237,6 +271,7 @@ function handleWebsocketReconnection() {
 
 const processStatement = async (
 	bbaiDir: string,
+	websocketManager: WebsocketManager,
 	terminalHandler: TerminalHandler,
 	conversationId: ConversationId,
 	statement: string,

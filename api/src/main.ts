@@ -34,13 +34,14 @@ Options:
 }
 
 if (args.version) {
-	console.log('BBai API version 0.1.0'); // Replace with actual version
+	console.log(`BBai API version ${fullConfig.version}`);
 	Deno.exit(0);
 }
 
 const apiLogFile = args['log-file'];
 const customHostname = args.hostname ? args.hostname : apiHostname;
 const customPort = args.port ? parseInt(args.port, 10) : apiPort;
+//console.debug(`BBai API starting at ${customHostname}:${customPort}`);
 
 if (apiLogFile) {
 	// Redirect console.log and console.error to the log file
