@@ -19,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fixes for init wizard
 - Changed tests to create configured project for each unit
 - Release builds for each platform
+- Updated docs for INSTALL and README
 
 
 ## [0.0.12b-beta] - 2024-09-08
