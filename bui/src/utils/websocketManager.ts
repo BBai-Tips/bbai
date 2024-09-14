@@ -2,14 +2,8 @@ import { Signal, signal } from '@preact/signals';
 import { ConversationEntry } from 'shared/types.ts';
 
 class WebSocketManager {
-	updateConversation(id: string) {
-		this.setConversationId(id);
-		if (this.socket) {
-			this.socket.close();
-		}
-		this.connect();
-	}
 	private socket: WebSocket | null = null;
+	private apiHostname: string;
 	private apiPort: number;
 	private conversationId: string | null = null;
 	private startDir: string;
@@ -25,7 +19,8 @@ class WebSocketManager {
 	public isReady = signal<boolean>(false);
 	public error = signal<string | null>(null);
 
-	constructor(apiPort: number, startDir: string) {
+	constructor(apiHostname: string, apiPort: number, startDir: string) {
+		this.apiHostname = apiHostname;
 		this.apiPort = apiPort;
 		this.startDir = startDir;
 	}
@@ -37,6 +32,13 @@ class WebSocketManager {
 	setStartDir(dir: string) {
 		this.startDir = dir;
 	}
+	updateConversation(id: string) {
+		this.setConversationId(id);
+		if (this.socket) {
+			this.socket.close();
+		}
+		this.connect();
+	}
 
 	connect() {
 		if (!this.conversationId) {
@@ -45,7 +47,7 @@ class WebSocketManager {
 		}
 
 		this.socket = new WebSocket(
-			`ws://localhost:${this.apiPort}/api/v1/ws/conversation/${this.conversationId}`,
+			`ws://${this.apiHostname}:${this.apiPort}/api/v1/ws/conversation/${this.conversationId}`,
 		);
 
 		this.socket.onopen = () => {
@@ -145,4 +147,5 @@ class WebSocketManager {
 	}
 }
 
-export const createWebSocketManager = (apiPort: number, startDir: string) => new WebSocketManager(apiPort, startDir);
+export const createWebSocketManager = (apiHostname: string, apiPort: number, startDir: string) =>
+	new WebSocketManager(apiHostname, apiPort, startDir);

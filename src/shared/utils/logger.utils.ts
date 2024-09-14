@@ -1,4 +1,6 @@
-import { globalConfig } from 'shared/configManager.ts';
+import { ConfigManager } from 'shared/configManager.ts';
+
+const globalConfig = await ConfigManager.globalConfig();
 
 const logLevels = ['debug', 'info', 'warn', 'error'] as const;
 type LogLevel = typeof logLevels[number];

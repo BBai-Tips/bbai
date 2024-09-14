@@ -4,7 +4,7 @@ import { parse as parseYaml } from '@std/yaml';
 import { stripIndents } from 'common-tags';
 import { getBbaiDir, readFileContent, resolveFilePath } from 'shared/dataDir.ts';
 import * as defaultPrompts from './defaultPrompts.ts';
-import { ConfigManager, type ProjectConfigSchema } from 'shared/configManager.ts';
+import { ConfigManager, type FullConfigSchema } from 'shared/configManager.ts';
 import { logger } from 'shared/logger.ts';
 
 interface PromptMetadata {
@@ -20,28 +20,25 @@ interface Prompt {
 
 class PromptManager {
 	private userPromptsDir: string;
-	private config!: ProjectConfigSchema;
+	private fullConfig!: FullConfigSchema;
 
 	constructor() {
 		this.userPromptsDir = '';
-		//this.config = {};
 	}
 
 	async init(projectRoot: string): Promise<PromptManager> {
 		const bbaiDir = await getBbaiDir(projectRoot);
 		this.userPromptsDir = join(bbaiDir, 'prompts');
-		const configManager = await ConfigManager.getInstance();
-		this.config = await configManager.loadProjectConfig(projectRoot);
+		this.fullConfig = await ConfigManager.fullConfig(projectRoot);
 		return this;
 	}
 
 	public async loadGuidelines(): Promise<string | null> {
-		const guidelinesPath = this.config.project.llmGuidelinesFile;
+		const guidelinesPath = this.fullConfig.project.llmGuidelinesFile;
 		if (!guidelinesPath) {
 			return null;
 		}
 
-		//const isUserLevel = this.config.configSource === 'user';
 		const resolvedPath = await resolveFilePath(guidelinesPath);
 		return await readFileContent(resolvedPath);
 	}

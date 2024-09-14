@@ -7,19 +7,18 @@ export const config = new Command()
 	.name('config')
 	.description('View or update bbai configuration')
 	.action(async () => {
-		const configManager = await ConfigManager.getInstance();
-		const currentConfig = await configManager.getRedactedGlobalConfig();
+		const currentConfig = await ConfigManager.redactedFullConfig(Deno.cwd());
 		console.log('Current configuration:');
 		console.log(JSON.stringify(currentConfig, null, 2));
 	})
-	.command('set', 'Set a configuration value')
+	.command('set', 'Set a global configuration value')
 	.arguments('<key:string> <value:string>')
 	.action(async (_, key, value) => {
 		const configManager = await ConfigManager.getInstance();
 		await configManager.setGlobalConfigValue(key, value);
 		logger.info(`Configuration updated: ${key} = ${value}`);
 	})
-	.command('get', 'Get a configuration value')
+	.command('get', 'Get a global configuration value')
 	.arguments('<key:string>')
 	.action(async (_, key) => {
 		const configManager = await ConfigManager.getInstance();

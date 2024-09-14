@@ -38,7 +38,7 @@ import { generateConversationTitle } from '../utils/conversation.utils.ts';
 import { generateConversationId } from 'shared/conversationManagement.ts';
 //import { runFormatCommand } from '../utils/project.utils.ts';
 import { stageAndCommitAfterPatching } from '../utils/git.utils.ts';
-import { globalConfig } from 'shared/configManager.ts';
+import { type FullConfigSchema } from 'shared/configManager.ts';
 
 class OrchestratorController {
 	private interactionStats: Map<ConversationId, ConversationMetrics> = new Map();
@@ -47,6 +47,7 @@ class OrchestratorController {
 	public interactionManager: InteractionManager;
 	public primaryInteractionId: ConversationId | null = null;
 	private agentControllers: Map<string, AgentController> = new Map();
+	public fullConfig!: FullConfigSchema;
 	public promptManager!: PromptManager;
 	public toolManager: LLMToolManager;
 	public llmProvider: LLM;
@@ -72,11 +73,13 @@ class OrchestratorController {
 		this.interactionManager = interactionManager; //new InteractionManager();
 		this.llmProvider = LLMFactory.getProvider(this.getInteractionCallbacks());
 		this.toolManager = new LLMToolManager('coding'); // Assuming 'coding' is the default toolset
+		this.fullConfig = this.projectEditor.fullConfig;
 	}
 
 	async init(): Promise<OrchestratorController> {
 		this.eventManager = EventManager.getInstance();
 		this.promptManager = await new PromptManager().init(this.projectEditor.projectRoot);
+		//this.fullConfig = await ConfigManager.fullConfig(this.projectEditor.projectRoot);
 
 		return this;
 	}
@@ -229,7 +232,7 @@ class OrchestratorController {
 		);
 		const systemPrompt = await this.promptManager.getPrompt('system', {
 			userDefinedContent: 'You are an AI assistant helping with code and project management.',
-			projectConfig: this.projectEditor.projectConfig,
+			fullConfig: this.projectEditor.fullConfig,
 		});
 		interaction.baseSystem = systemPrompt;
 		//logger.info(`OrchestratorController: set system prompt for: ${typeof interaction}`, interaction.baseSystem);
@@ -268,7 +271,7 @@ class OrchestratorController {
 			await persistence.saveConversation(interaction);
 
 			// Save system prompt and project info if running in local development
-			if (globalConfig.api?.environment === 'localdev') {
+			if (this.fullConfig.api?.environment === 'localdev') {
 				await persistence.saveSystemPrompt(currentResponse.messageMeta.system);
 				await persistence.saveProjectInfo(this.projectEditor.projectInfo);
 			}
@@ -294,7 +297,7 @@ class OrchestratorController {
 			await persistence.saveConversation(interaction);
 
 			// Save system prompt and project info if running in local development
-			if (globalConfig.api?.environment === 'localdev') {
+			if (this.fullConfig.api?.environment === 'localdev') {
 				await persistence.saveSystemPrompt(currentResponse.messageMeta.system);
 				await persistence.saveProjectInfo(this.projectEditor.projectInfo);
 			}
@@ -374,6 +377,7 @@ class OrchestratorController {
 			PROJECT_EDITOR: () => this.projectEditor,
 			PROJECT_ROOT: () => this.projectEditor.projectRoot,
 			PROJECT_INFO: () => this.projectEditor.projectInfo,
+			PROJECT_CONFIG: () => this.projectEditor.fullConfig,
 			PROJECT_FILE_CONTENT: async (filePath: string): Promise<string> =>
 				await readProjectFileContent(this.projectEditor.projectRoot, filePath),
 			LOG_ENTRY_HANDLER: async (
@@ -798,7 +802,7 @@ class OrchestratorController {
 	async logPatchAndCommit(interaction: LLMConversationInteraction, filePath: string, patch: string): Promise<void> {
 		this.projectEditor.patchedFiles.add(filePath);
 		this.projectEditor.patchContents.set(filePath, patch);
-		if (this.projectEditor.projectConfig.project.type === 'git') {
+		if (this.projectEditor.fullConfig.project.type === 'git') {
 			await stageAndCommitAfterPatching(
 				interaction,
 				this.projectEditor.projectRoot,

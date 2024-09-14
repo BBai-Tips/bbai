@@ -7,7 +7,7 @@ import globToRegExp from 'npm:glob-to-regexp';
 import { countTokens } from 'anthropic-tokenizer';
 import { contentType } from '@std/media-types';
 
-import { ConfigManager, type GlobalConfigSchema } from 'shared/configManager.ts';
+import { ConfigManager } from 'shared/configManager.ts';
 import { logger } from 'shared/logger.ts';
 import type { FileHandlingErrorOptions } from '../errors/error.ts';
 import { createError, ErrorType } from '../utils/error.utils.ts';
@@ -22,9 +22,8 @@ export const FILE_LISTING_TIERS = [
 ];
 
 export async function generateFileListing(projectRoot: string): Promise<string | null> {
-	const configManager = await ConfigManager.getInstance();
-	const config: GlobalConfigSchema = await configManager.loadGlobalConfig(projectRoot);
-	const repoInfoConfig = config.repoInfo;
+	const projectConfig = await ConfigManager.projectConfig(projectRoot);
+	const repoInfoConfig = projectConfig.repoInfo;
 	const tokenLimit = repoInfoConfig?.tokenLimit || 1024;
 
 	const excludeOptions = await getExcludeOptions(projectRoot);

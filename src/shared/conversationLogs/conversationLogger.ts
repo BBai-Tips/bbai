@@ -8,7 +8,7 @@ import ConversationLogFormatter from 'shared/conversationLogFormatter.ts';
 import { ConversationId, ConversationMetrics, ConversationTokenUsage, TokenUsage } from 'shared/types.ts';
 import { getBbaiDataDir } from 'shared/dataDir.ts';
 import { logger } from 'shared/logger.ts';
-import { globalConfig } from 'shared/configManager.ts';
+import { ConfigManager } from 'shared/configManager.ts';
 import {
 	LLMMessageContentPart,
 	LLMMessageContentPartImageBlock,
@@ -23,6 +23,8 @@ export interface ConversationLogEntry {
 	content: string | LLMToolInputSchema | LLMToolRunResultContent;
 	toolName?: string;
 }
+
+const globalConfig = await ConfigManager.globalConfig();
 
 export default class ConversationLogger {
 	private logFileRaw!: string;
@@ -57,6 +59,11 @@ export default class ConversationLogger {
 	async init(): Promise<ConversationLogger> {
 		this.logFileRaw = await ConversationLogger.getLogFileRawPath(this.startDir, this.conversationId);
 		this.logFileJson = await ConversationLogger.getLogFileJsonPath(this.startDir, this.conversationId);
+
+		const fullConfig = await ConfigManager.fullConfig(this.startDir);
+		ConversationLogger.entryTypeLabels.user = fullConfig.myPersonsName || 'Person';
+		ConversationLogger.entryTypeLabels.assistant = fullConfig.myAssistantsName || 'Assistant';
+
 		return this;
 	}
 
