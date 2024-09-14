@@ -131,7 +131,10 @@ BBai is continuously evolving. Future plans include:
 
 - Implementation of RAG and embedding capabilities for enhanced project understanding
 - Integration of `ctags` and embeddings for comprehensive project visibility
-- Browser-based interface for increased accessibility
+- Agent Orchestrator: A powerful feature that allows the LLM to break down complex tasks into smaller chunks managed by sub-agents. This enables:
+  - Faster and more cost-effective processing for simple tasks using smaller models
+  - Reduced context window size and costs for multiple conversations
+  - Synchronous task completion for improved overall operation speed
 - Support for additional LLM providers
 - Expanded tool ecosystem for more specialized tasks
 
