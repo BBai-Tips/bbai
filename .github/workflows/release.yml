@@ -40,6 +40,10 @@ jobs:
         with:
           deno-version: v1.x
 
+      - name: Get version
+        id: get_version
+        run: echo "VERSION=$(deno eval 'import { VERSION } from "./version.ts"; console.log(VERSION);')" >> $GITHUB_OUTPUT
+
       - name: Build CLI for ${{ matrix.target }}
         run: |
           cd cli
@@ -67,9 +71,9 @@ jobs:
           echo 'copy bbai-api.exe %USERPROFILE%\AppData\Local\Microsoft\WindowsApps\' >> build/install.bat
 
       - name: Upload artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
-          name: bbai-${{ matrix.target }}
+          name: bbai-${{ matrix.target }}-v${{ steps.get_version.outputs.VERSION }}
           path: build/*
 
   release:
@@ -100,15 +104,15 @@ jobs:
           prerelease: false
 
       - name: Download all artifacts
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
 
       - name: Upload Release Assets
         run: |
           for target in x86_64-unknown-linux-gnu aarch64-unknown-linux-gnu x86_64-pc-windows-msvc x86_64-apple-darwin aarch64-apple-darwin; do
-            cd bbai-$target
-            zip -r ../bbai-$target.zip .
+            cd bbai-$target-v${{ steps.get_version.outputs.VERSION }}
+            zip -r ../bbai-$target-v${{ steps.get_version.outputs.VERSION }}.zip .
             cd ..
-            gh release upload v${{ steps.get_version.outputs.VERSION }} bbai-$target.zip
+            gh release upload v${{ steps.get_version.outputs.VERSION }} bbai-$target-v${{ steps.get_version.outputs.VERSION }}.zip
           done
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
