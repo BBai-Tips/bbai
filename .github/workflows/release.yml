@@ -1,16 +1,16 @@
 name: Release
 
 on:
-  push:
-    branches:
-      - main
-      - staging
   workflow_dispatch:
     inputs:
       version:
         description: 'Version to release'
         required: true
         default: '0.0.0'
+  push:
+    branches:
+      - main
+      - release-build-testing
 
 permissions:
   contents: write   # This is required to create a release
@@ -92,16 +92,16 @@ jobs:
         id: get_version
         run: echo "VERSION=$(deno eval 'import { VERSION } from "./version.ts"; console.log(VERSION);')" >> $GITHUB_OUTPUT
 
-      - name: Create Release
-        id: create_release
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: v${{ steps.get_version.outputs.VERSION }}
-          release_name: Release v${{ steps.get_version.outputs.VERSION }}
-          draft: false
-          prerelease: false
+#       - name: Create Release
+#         id: create_release
+#         uses: actions/create-release@v1
+#         env:
+#           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+#         with:
+#           tag_name: v${{ steps.get_version.outputs.VERSION }}
+#           release_name: Release v${{ steps.get_version.outputs.VERSION }}
+#           draft: false
+#           prerelease: false
 
       - name: Download all artifacts
         uses: actions/download-artifact@v4
