@@ -94,6 +94,26 @@ bbai-api --help
 
 These commands should display the help information for BBai and its API.
 
+## Usage
+
+After installation, you can start using BBai in two main ways:
+
+1. Browser Interface:
+   To launch the API and open a browser window to start using BBai, run:
+   ```
+   bbai start
+   ```
+   This will start the BBai API server and open your default web browser to the BBai interface.
+
+2. Command Line Interface:
+   To launch the API and start the CLI for BBai, run:
+   ```
+   bbai chat
+   ```
+   This will start the BBai API server and initiate a chat session in your terminal.
+
+Both methods provide access to BBai's features, allowing you to interact with your projects and leverage BBai's capabilities.
+
 ## Troubleshooting
 
 If you encounter any issues during installation or use:
