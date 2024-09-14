@@ -20,9 +20,9 @@ export const system: Prompt = {
 		description: 'Default system prompt for bbai',
 		version: '1.0.0',
 	},
-	getContent: async ({ userDefinedContent = '', projectConfig }) => {
+	getContent: async ({ userDefinedContent = '', fullConfig }) => {
 		let guidelines;
-		const guidelinesPath = projectConfig.project.llmGuidelinesFile;
+		const guidelinesPath = fullConfig.project.llmGuidelinesFile;
 		if (guidelinesPath) {
 			try {
 				const resolvedPath = await resolveFilePath(guidelinesPath);
@@ -32,8 +32,8 @@ export const system: Prompt = {
 			}
 		}
 
-		const myPersonsName = projectConfig.myPersonsName;
-		const myAssistantsName = projectConfig.myAssistantsName;
+		const myPersonsName = fullConfig.myPersonsName;
+		const myAssistantsName = fullConfig.myAssistantsName;
 
 		return stripIndents`
 		  You are an AI assistant named ${myAssistantsName}, an expert at a variety of coding and writing tasks. Your capabilities include:

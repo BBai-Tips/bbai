@@ -34,13 +34,13 @@ The main component of the BUI is the `Chat.tsx` file located in
 3. A greeting message is sent automatically when the WebSocket connection is
    established.
 4. The default `startDir` is set to `/Users/cng/working/bbai/`.
-5. The WebSocket server is expected to be running on `localhost:3002`.
+5. The WebSocket server is expected to be running on `localhost:3000`.
 
 ## WebSocket Implementation
 
 - The WebSocket connection is established using the browser's native WebSocket
   API.
-- The connection URL is constructed using `localhost:3002` as the host and the
+- The connection URL is constructed using `localhost:3000` as the host and the
   generated conversation ID.
 - Reconnection attempts use exponential backoff with jitter to avoid
   overwhelming the server.
@@ -67,7 +67,7 @@ When testing the BUI, focus on:
 3. Testing the conversation flow by sending and receiving messages.
 4. Checking the reconnection mechanism by intentionally disconnecting.
 5. Ensure the WebSocket connection is properly established with the server at
-   `localhost:3002`.
+   `localhost:3000`.
 
 ## Development Guidelines
 

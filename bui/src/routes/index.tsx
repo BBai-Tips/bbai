@@ -1,15 +1,15 @@
 import { PageProps } from '$fresh/server.ts';
 import Chat from '../islands/Chat.tsx';
-// Removed import for ConversationsList
 
 interface HomeProps {
+	//apiHostname: string;
 	//apiPort: number;
 }
 
 export default function Home(props: PageProps<HomeProps>) {
 	//console.log("index.tsx: props =", props);
-	//const { apiPort } = props.state;
-	//console.log("index.tsx: apiPort =", apiPort);
+	//const { apiHostname, apiPort } = props.state;
+	//console.log("index.tsx: apiHostname:apiPort =", apiHostname, apiPort);
 	return (
 		<div class='h-screen bg-gray-100'>
 			<Chat />

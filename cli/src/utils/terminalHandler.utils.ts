@@ -261,9 +261,12 @@ export class TerminalHandler {
 		}
 
 		try {
-			const formatterResponse = await this.apiClient.post(`/api/v1/format_log_entry/console/${logEntry.entryType}`, {
-				...logEntry,
-			});
+			const formatterResponse = await this.apiClient.post(
+				`/api/v1/format_log_entry/console/${logEntry.entryType}`,
+				{
+					...logEntry,
+				},
+			);
 
 			if (!formatterResponse.ok) {
 				throw new Error(`Failed to fetch formatted response: ${formatterResponse.statusText}`);

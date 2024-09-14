@@ -92,9 +92,8 @@ export async function removeFromBbaiDataDir(startDir: string, filename: string):
 }
 
 /*
-export async function loadConfig(): Promise<Record<string, any>> {
-	const configManager = await ConfigManager.getInstance();
-	return configManager.getConfig();
+export async function loadConfig(startDir?: string): Promise<Record<string, any>> {
+	return await ConfigManager.fullConfig(startDir);
 }
  */
 

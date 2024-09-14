@@ -1,9 +1,9 @@
-import { join, relative } from '@std/path';
-import { ensureDir, exists, walk } from '@std/fs';
+import { join } from '@std/path';
+import { exists } from '@std/fs';
 import { ConfigManager } from 'shared/configManager.ts';
 import { logger } from 'shared/logger.ts';
 import { countTokens } from 'anthropic-tokenizer';
-import { contentType } from '@std/media-types';
+//import { contentType } from '@std/media-types';
 
 const TIERS = [
 	{ args: ['-R', '--fields=+l', '--languages=all'] },
@@ -52,6 +52,7 @@ const TIERS = [
 	},
 ];
 
+/*
 const FILE_LISTING_TIERS = [
 	{ depth: Infinity, includeMetadata: true },
 	{ depth: Infinity, includeMetadata: false },
@@ -60,6 +61,7 @@ const FILE_LISTING_TIERS = [
 	{ depth: 2, includeMetadata: false },
 	{ depth: 1, includeMetadata: false },
 ];
+ */
 
 async function generateCtagsTier(
 	projectRoot: string,
@@ -113,8 +115,7 @@ async function getExcludeOptions(projectRoot: string): Promise<string[]> {
 }
 
 export async function generateCtags(bbaiDir: string, projectRoot: string): Promise<string | null> {
-	const config = await ConfigManager.getInstance();
-	const repoInfoConfig = config.getConfig().repoInfo;
+	const repoInfoConfig = (await ConfigManager.projectConfig(projectRoot)).repoInfo;
 
 	if (repoInfoConfig?.ctagsAutoGenerate === false) {
 		logger.info('Ctags auto-generation is disabled');
@@ -138,8 +139,7 @@ export async function generateCtags(bbaiDir: string, projectRoot: string): Promi
 }
 
 export async function readCtagsFile(bbaiDir: string): Promise<string | null> {
-	const config = await ConfigManager.getInstance();
-	const repoInfoConfig = config.getConfig().repoInfo;
+	const repoInfoConfig = (await ConfigManager.projectConfig(bbaiDir)).repoInfo;
 
 	const ctagsFilePath = repoInfoConfig?.ctagsFilePath
 		? join(bbaiDir, repoInfoConfig.ctagsFilePath)

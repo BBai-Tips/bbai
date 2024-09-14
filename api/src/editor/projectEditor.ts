@@ -10,7 +10,7 @@ export interface ProjectInfo extends BaseProjectInfo {
 }
 import OrchestratorController from '../controllers/orchestratorController.ts';
 import { logger } from 'shared/logger.ts';
-import { ConfigManager, type ConfigSchema } from 'shared/configManager.ts';
+import { ConfigManager, type FullConfigSchema } from 'shared/configManager.ts';
 import type { ConversationId, ConversationResponse } from 'shared/types.ts';
 import type { LLMToolManagerToolSetType } from '../llms/llmToolManager.ts';
 import {
@@ -25,7 +25,7 @@ import EventManager from 'shared/eventManager.ts';
 
 class ProjectEditor {
 	public orchestratorController!: OrchestratorController;
-	public projectConfig!: ConfigSchema;
+	public fullConfig!: FullConfigSchema;
 	public eventManager!: EventManager;
 	public startDir: string;
 	public projectRoot: string;
@@ -49,12 +49,10 @@ class ProjectEditor {
 	public async init(): Promise<ProjectEditor> {
 		try {
 			this.projectRoot = await this.getProjectRoot();
+			this.fullConfig = await ConfigManager.fullConfig(this.projectRoot);
+			logger.info(`ProjectEditor config for ${this.fullConfig.api.apiHostname}:${this.fullConfig.api.apiPort}`);
 			this.eventManager = EventManager.getInstance();
 			this.orchestratorController = await new OrchestratorController(this).init();
-
-			// Load project config
-			const configManager = await ConfigManager.getInstance();
-			this.projectConfig = await configManager.getProjectConfig(this.startDir);
 
 			logger.info(`ProjectEditor initialized for ${this.startDir}`);
 		} catch (error) {

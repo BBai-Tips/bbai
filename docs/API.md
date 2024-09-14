@@ -4,7 +4,7 @@ This document provides details about the endpoints available in the BBai API.
 
 ## Base URL
 
-All endpoints are relative to: `http://localhost:<port>/api/v1`
+All endpoints are relative to: `http://<hostname>:<port>/api/v1`
 
 ## Endpoints
 
