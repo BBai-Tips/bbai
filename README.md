@@ -84,9 +84,22 @@ BBai can be installed on various platforms. For detailed installation instructio
    - On Unix-like systems (Linux, macOS): `sudo ./install.sh`
    - On Windows: Run `install.bat` as administrator
 
-After installation, you can start using BBai by running `bbai init` in your project directory.
+After installation, you can start using BBai as follows:
 
-For more detailed instructions and alternative installation methods, please see the [Installation Guide](INSTALL.md).
+1. Initialize BBai in your project directory:
+   ```
+   bbai init
+   ```
+2. Start the BBai API and open the browser interface:
+   ```
+   bbai start
+   ```
+3. Or, start the BBai API and use the command-line interface:
+   ```
+   bbai chat
+   ```
+
+For more detailed instructions on installation, usage, and alternative methods, please see the [Installation Guide](INSTALL.md).
 
 ## Documentation
 
