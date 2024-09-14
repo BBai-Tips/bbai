@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 
 
+## [0.0.14-beta] - 2024-09-14
+
+### Changed
+
+- Release builds for each platform
+- Updated docs for INSTALL and README
+
+
 ## [0.0.13-beta] - 2024-09-14
 
 ### Changed
@@ -18,8 +26,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Changed BUI to also load apiHostname and startDir from URL
 - Fixes for init wizard
 - Changed tests to create configured project for each unit
-- Release builds for each platform
-- Updated docs for INSTALL and README
 
 
 ## [0.0.12b-beta] - 2024-09-08
