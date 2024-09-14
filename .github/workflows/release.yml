@@ -126,8 +126,14 @@ jobs:
             fi
             cd bbai-$target
             zip -r ../bbai-$target-v${{ steps.get_version.outputs.VERSION }}.zip .
+            if [ "$target" != "x86_64-pc-windows-msvc" ]; then
+              tar czf ../bbai-$target-v${{ steps.get_version.outputs.VERSION }}.tar.gz .
+            fi
             cd ..
-            gh release upload v${{ steps.get_version.outputs.VERSION }} bbai-$target-v${{ steps.get_version.outputs.VERSION }}.zip || echo "Failed to upload asset for $target"
+            gh release upload v${{ steps.get_version.outputs.VERSION }} bbai-$target-v${{ steps.get_version.outputs.VERSION }}.zip || echo "Failed to upload ZIP for $target"
+            if [ "$target" != "x86_64-pc-windows-msvc" ]; then
+              gh release upload v${{ steps.get_version.outputs.VERSION }} bbai-$target-v${{ steps.get_version.outputs.VERSION }}.tar.gz || echo "Failed to upload tar.gz for $target"
+            fi
           done
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
