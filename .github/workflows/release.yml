@@ -1,22 +1,95 @@
 name: Release
 
 on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release'
+        required: true
+        default: '0.0.0'
   push:
     branches:
       - main
+      - release-build-testing
 
 permissions:
   contents: write   # This is required to create a release
 
 jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+          - os: ubuntu-latest
+            target: aarch64-unknown-linux-gnu
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+          - os: macos-latest
+            target: x86_64-apple-darwin
+          - os: macos-latest
+            target: aarch64-apple-darwin
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Deno
+        uses: denoland/setup-deno@61fe2df320078202e33d7d5ad347e7dcfa0e8f31  # v1.1.2
+        with:
+          deno-version: v1.x
+
+      - name: Build CLI for ${{ matrix.target }}
+        run: |
+          cd cli
+          deno compile --allow-env --allow-net --allow-read --allow-run --allow-write --target ${{ matrix.target }} --output ../build/bbai${{ matrix.target == 'x86_64-pc-windows-msvc' && '.exe' || '' }} src/main.ts
+
+      - name: Build API for ${{ matrix.target }}
+        run: |
+          cd api
+          deno compile --allow-env --allow-net --allow-read --allow-run --allow-write --target ${{ matrix.target }} --output ../build/bbai-api${{ matrix.target == 'x86_64-pc-windows-msvc' && '.exe' || '' }} src/main.ts
+
+      - name: Create install script (Unix)
+        if: matrix.target != 'x86_64-pc-windows-msvc'
+        run: |
+          echo '#!/bin/sh' > build/install.sh
+          echo 'cp bbai /usr/local/bin/' >> build/install.sh
+          echo 'cp bbai-api /usr/local/bin/' >> build/install.sh
+          echo 'chmod +x /usr/local/bin/bbai /usr/local/bin/bbai-api' >> build/install.sh
+          chmod 755 build/install.sh
+
+      - name: Create install script (Windows)
+        if: matrix.target == 'x86_64-pc-windows-msvc'
+        run: |
+          echo '@echo off' > build/install.bat
+          echo 'copy bbai.exe %USERPROFILE%\AppData\Local\Microsoft\WindowsApps\' >> build/install.bat
+          echo 'copy bbai-api.exe %USERPROFILE%\AppData\Local\Microsoft\WindowsApps\' >> build/install.bat
+
+      - name: Copy README and INSTALL
+        shell: bash
+        run: |
+          if [[ "${{ runner.os }}" == "Windows" ]]; then
+            cp README.md build/README.txt
+            cp INSTALL.md build/INSTALL.txt
+          else
+            cp README.md INSTALL.md build/
+          fi
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: bbai-${{ matrix.target }}
+          path: build/*
+
   release:
+    needs: build
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
       - name: Setup Deno
-        # uses: denoland/setup-deno@v1
         uses: denoland/setup-deno@61fe2df320078202e33d7d5ad347e7dcfa0e8f31  # v1.1.2
         with:
           deno-version: v1.x
@@ -35,6 +108,37 @@ jobs:
           release_name: Release v${{ steps.get_version.outputs.VERSION }}
           draft: false
           prerelease: false
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+
+#       - name: List directory contents
+#         run: ls -R
+#         shell: bash
+
+      - name: Upload Release Assets
+        run: |
+          set -e
+          for target in x86_64-unknown-linux-gnu aarch64-unknown-linux-gnu x86_64-pc-windows-msvc x86_64-apple-darwin aarch64-apple-darwin; do
+            echo "Processing target: $target"
+            if [ ! -d "bbai-$target" ]; then
+              echo "Error: Directory bbai-$target not found"
+              continue
+            fi
+            cd bbai-$target
+            zip -r ../bbai-$target-v${{ steps.get_version.outputs.VERSION }}.zip .
+            if [ "$target" != "x86_64-pc-windows-msvc" ]; then
+              chmod 755 install.sh bbai bbai-api
+              tar czf ../bbai-$target-v${{ steps.get_version.outputs.VERSION }}.tar.gz .
+            fi
+            cd ..
+            gh release upload v${{ steps.get_version.outputs.VERSION }} bbai-$target-v${{ steps.get_version.outputs.VERSION }}.zip || echo "Failed to upload ZIP for $target"
+            if [ "$target" != "x86_64-pc-windows-msvc" ]; then
+              gh release upload v${{ steps.get_version.outputs.VERSION }} bbai-$target-v${{ steps.get_version.outputs.VERSION }}.tar.gz || echo "Failed to upload tar.gz for $target"
+            fi
+          done
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
 ## disabled until homebrew formula has been accepted
 #       - name: Update Homebrew formula

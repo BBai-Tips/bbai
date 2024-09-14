@@ -7,19 +7,18 @@ import { basename } from '@std/path';
 import { GitUtils } from 'shared/git.ts';
 import type { ProjectType, WizardAnswers } from 'shared/configManager.ts';
 import { ConfigManager } from 'shared/configManager.ts';
-//import { validateAnthropicApiKey } from '../utils/api.utils.ts';
 
 async function runWizard(startDir: string): Promise<WizardAnswers> {
 	const configManager = await ConfigManager.getInstance();
 	const existingProjectConfig = await configManager.getExistingProjectConfig(startDir);
-	const userConfig = await configManager.loadUserConfig();
+	const globalConfig = await configManager.loadGlobalConfig();
 
 	const defaultProjectName = existingProjectConfig.project?.name || basename(startDir);
 	const defaultPersonName = existingProjectConfig.myPersonsName || Deno.env.get('USER') || Deno.env.get('USERNAME') ||
 		'';
 	const defaultAssistantName = existingProjectConfig.myAssistantsName || 'Claude';
 	const existingApiKey = existingProjectConfig.api?.anthropicApiKey || '';
-	const isApiKeyRequired = !userConfig.api?.anthropicApiKey;
+	const isApiKeyRequired = !globalConfig.api?.anthropicApiKey;
 
 	const answers = await prompt([
 		{
@@ -93,7 +92,7 @@ async function runWizard(startDir: string): Promise<WizardAnswers> {
 	if (answers.myAssistantsName && answers.myAssistantsName.trim() !== '') {
 		filteredAnswers.myAssistantsName = answers.myAssistantsName.trim();
 	}
-	console.log(filteredAnswers);
+	//console.log(filteredAnswers);
 
 	return filteredAnswers;
 }
@@ -133,7 +132,7 @@ function printProjectDetails(projectName: string, projectType: string, wizardAns
 
 //async function validateAnthropicApiKey(key: string): Promise<{ isValid: boolean; message: string }> {
 function validateAnthropicApiKey(key: string): { isValid: boolean; message: string } {
-	//logger.debug('Validating Anthropic API key...');
+	//console.log(`Validating Anthropic API key: ${key}`);
 
 	// Basic format check (this is a placeholder and may not reflect actual Anthropic API key format)
 	const keyRegex = /^sk-[-_a-zA-Z0-9]{48,}$/;
@@ -169,13 +168,14 @@ export const init = new Command()
 
 			// Create or update config with wizard answers and project info
 			const configManager = await ConfigManager.getInstance();
-			await configManager.ensureUserConfig();
+			await configManager.ensureGlobalConfig();
 			await configManager.ensureProjectConfig(startDir, wizardAnswers);
 
 			// Verify that API key is set either in user config or project config
-			const finalUserConfig = await configManager.loadUserConfig();
+			const finalGlobalConfig = await configManager.loadGlobalConfig();
 			const finalProjectConfig = await configManager.getExistingProjectConfig(startDir);
-			if (!finalUserConfig.api?.anthropicApiKey && !finalProjectConfig.api?.anthropicApiKey) {
+
+			if (!finalGlobalConfig.api?.anthropicApiKey && !finalProjectConfig.api?.anthropicApiKey) {
 				throw new Error(
 					'Anthropic API key is required. Please set it in either user or project configuration.',
 				);
@@ -184,9 +184,7 @@ export const init = new Command()
 			// Create .bbai/ignore file
 			await createBbaiIgnore(startDir);
 
-			logger.debug('Printing project details...');
-
-			// Print project details and instructions
+			//logger.debug('Printing project details...');
 			printProjectDetails(wizardAnswers.project.name, wizardAnswers.project.type, wizardAnswers);
 
 			//logger.info('bbai initialization complete');

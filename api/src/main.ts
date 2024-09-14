@@ -3,21 +3,20 @@ import oak_logger from 'oak_logger';
 import { parseArgs } from '@std/cli';
 import { oakCors } from 'cors';
 
-import { ConfigManager, type GlobalConfigSchema } from 'shared/configManager.ts';
+import { ConfigManager } from 'shared/configManager.ts';
 import router from './routes/routes.ts';
 import { logger } from 'shared/logger.ts';
 import type { BbAiState } from 'api/types.ts';
 
-const configManager = await ConfigManager.getInstance();
-const globalConfig: GlobalConfigSchema = await configManager.loadGlobalConfig(Deno.cwd());
-const redactedGlobalConfig: GlobalConfigSchema = await configManager.getRedactedGlobalConfig(Deno.cwd());
-const { environment, apiPort } = globalConfig.api || {};
+const fullConfig = await ConfigManager.fullConfig(Deno.cwd());
+const redactedFullConfig = await ConfigManager.redactedFullConfig(Deno.cwd());
+const { environment, apiHostname, apiPort } = fullConfig.api || {};
 
 // Parse command line arguments
 const args = parseArgs(Deno.args, {
-	string: ['log-file', 'port'],
+	string: ['log-file', 'port', 'hostname'],
 	boolean: ['help', 'version'],
-	alias: { h: 'help', V: 'version', v: 'version', p: 'port', l: 'log-file' },
+	alias: { h: 'help', V: 'version', v: 'version', p: 'port', H: 'hostname', l: 'log-file' },
 });
 
 if (args.help) {
@@ -27,6 +26,7 @@ Usage: bbai-api [options]
 Options:
   -h, --help                Show this help message
   -V, --version             Show version information
+  -H, --hostname <string>   Specify the hostname to run the API server (default: ${apiHostname})
   -p, --port <number>       Specify the port to run the API server (default: ${apiPort})
   -l, --log-file <file>     Specify a log file to write output
   `);
@@ -34,12 +34,14 @@ Options:
 }
 
 if (args.version) {
-	console.log('BBai API version 0.1.0'); // Replace with actual version
+	console.log(`BBai API version ${fullConfig.version}`);
 	Deno.exit(0);
 }
 
 const apiLogFile = args['log-file'];
+const customHostname = args.hostname ? args.hostname : apiHostname;
 const customPort = args.port ? parseInt(args.port, 10) : apiPort;
+//console.debug(`BBai API starting at ${customHostname}:${customPort}`);
 
 if (apiLogFile) {
 	// Redirect console.log and console.error to the log file
@@ -81,8 +83,8 @@ app.use(router.routes());
 app.use(router.allowedMethods());
 
 app.addEventListener('listen', ({ hostname, port, secure }: { hostname: string; port: number; secure: boolean }) => {
-	logger.info(`Starting API with config:`, redactedGlobalConfig);
-	if (globalConfig.api?.ignoreLLMRequestCache) {
+	logger.info(`Starting API with config:`, redactedFullConfig);
+	if (fullConfig.api?.ignoreLLMRequestCache) {
 		logger.warn('Cache for LLM requests is disabled!');
 	}
 	logger.info(`Environment: ${environment}`);
@@ -94,7 +96,7 @@ app.addEventListener('error', (evt: ErrorEvent) => {
 
 if (import.meta.main) {
 	try {
-		await app.listen({ port: customPort });
+		await app.listen({ hostname: customHostname, port: customPort });
 	} catch (error) {
 		logger.error(`Failed to start server: ${error.message}`);
 		logger.error(`Stack trace: ${error.stack}`);

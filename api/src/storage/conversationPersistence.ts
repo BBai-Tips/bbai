@@ -13,7 +13,7 @@ import {
 } from 'shared/types.ts';
 import { LLMMessageContentPartToolUseBlock } from 'api/llms/llmMessage.ts';
 import { logger } from 'shared/logger.ts';
-import { globalConfig } from 'shared/configManager.ts';
+import { ConfigManager } from 'shared/configManager.ts';
 import { createError, ErrorType } from '../utils/error.utils.ts';
 import { FileHandlingErrorOptions } from '../errors/error.ts';
 import ProjectEditor from '../editor/projectEditor.ts';
@@ -159,6 +159,7 @@ class ConversationPersistence {
 				projectInfoContent: this.projectEditor.projectInfo.content,
 			};
 			// projectInfoContent is only included for 'localdev' environment
+			const globalConfig = await ConfigManager.globalConfig();
 			if (globalConfig.api?.environment === 'localdev') {
 				detailedMetadata.projectInfoContent = this.projectEditor.projectInfo.content;
 			}

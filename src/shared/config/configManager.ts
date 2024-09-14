@@ -4,8 +4,17 @@ import { join } from '@std/path';
 import { stripIndent } from 'common-tags';
 
 import { getProjectRoot } from 'shared/dataDir.ts';
-import { ConfigSchema, GlobalConfigSchema, mergeConfigs, ProjectConfigSchema } from './configSchema.ts';
+import {
+	defaultGlobalConfig,
+	defaultProjectConfig,
+	FullConfigSchema,
+	GlobalConfigSchema,
+	mergeConfigs,
+	ProjectConfigSchema,
+	ProjectDataConfigSchema,
+} from './configSchema.ts';
 import { VERSION } from '../../../version.ts';
+
 // IMPORTANT note to LLM and humans - importing logger causes circular import - so we can't use logger here - logger needs config logLevel
 // Either re-implment a simple logger here, or rely on throwing errors
 //import { logger } from 'shared/logger.ts';
@@ -20,51 +29,65 @@ export interface WizardAnswers {
 	myPersonsName?: string;
 	myAssistantsName?: string;
 }
-export type { ConfigSchema, GlobalConfigSchema, ProjectConfigSchema };
+export type { FullConfigSchema, GlobalConfigSchema, ProjectConfigSchema };
 
 export class ConfigManager {
 	private static instance: ConfigManager;
-	private globalConfig: GlobalConfigSchema;
+	private defaultGlobalConfig: GlobalConfigSchema = defaultGlobalConfig;
+	private globalConfig!: GlobalConfigSchema;
 	private projectConfigs: Map<string, ProjectConfigSchema> = new Map();
 	private projectRoots: Map<string, string> = new Map();
 
 	private constructor() {
-		this.globalConfig = {
-			api: {
-				environment: 'local',
-				apiPort: 3000,
-				logLevel: 'info',
-			},
-			cli: {},
-			repoInfo: {
-				ctagsAutoGenerate: true,
-			},
-			version: VERSION,
-		};
+		this.defaultGlobalConfig.version = VERSION;
 	}
 
 	public static async getInstance(): Promise<ConfigManager> {
 		if (!ConfigManager.instance) {
 			ConfigManager.instance = new ConfigManager();
-			await ConfigManager.instance.initialize();
+			//await ConfigManager.instance.initialize();
 		}
 		return ConfigManager.instance;
 	}
 
-	private async initialize(): Promise<void> {
-		await this.ensureUserConfig();
-		this.globalConfig = await this.loadGlobalConfig();
+	//private async initialize(): Promise<void> {
+	//	await this.ensureGlobalConfig();
+	//	this.globalConfig = await this.loadGlobalConfig();
+	//}
+
+	public static async fullConfig(startDir?: string): Promise<FullConfigSchema> {
+		const configManager = await ConfigManager.getInstance();
+		const fullConfig = await configManager.getFullConfig(startDir);
+		return fullConfig;
 	}
 
-	public async ensureUserConfig(): Promise<void> {
-		const userConfigDir = join(Deno.env.get('HOME') || '', '.config', 'bbai');
-		const userConfigPath = join(userConfigDir, 'config.yaml');
+	public static async redactedFullConfig(startDir?: string): Promise<FullConfigSchema> {
+		const configManager = await ConfigManager.getInstance();
+		const redactedFullConfig = await configManager.getRedactedFullConfig(startDir);
+		return redactedFullConfig;
+	}
+
+	public static async globalConfig(): Promise<GlobalConfigSchema> {
+		const configManager = await ConfigManager.getInstance();
+		const globalConfig = await configManager.getGlobalConfig();
+		return globalConfig;
+	}
+
+	public static async projectConfig(startDir: string): Promise<ProjectConfigSchema> {
+		const configManager = await ConfigManager.getInstance();
+		const projectConfig = await configManager.getProjectConfig(startDir);
+		return projectConfig;
+	}
+
+	public async ensureGlobalConfig(): Promise<void> {
+		const globalConfigDir = join(Deno.env.get('HOME') || '', '.config', 'bbai');
+		const globalConfigPath = join(globalConfigDir, 'config.yaml');
 
 		try {
-			await Deno.stat(userConfigPath);
+			await Deno.stat(globalConfigPath);
 		} catch (error) {
 			if (error instanceof Deno.errors.NotFound) {
-				await ensureDir(userConfigDir);
+				await ensureDir(globalConfigDir);
 				const defaultConfig = stripIndent`
                     # bbai Configuration File
                     
@@ -84,6 +107,9 @@ export class ConfigManager {
                       # The environment the application is running in. Options: local, remote
                       environment: "local"
                     
+                      # The hostname for the API to listen on
+                      apiHostname: localhost
+                    
                       # The port number for the API to listen on
                       apiPort: 3000
                     
@@ -96,7 +122,7 @@ export class ConfigManager {
                     # Add any CLI-specific configuration options here
                     cli: {}
                     `;
-				await Deno.writeTextFile(userConfigPath, defaultConfig);
+				await Deno.writeTextFile(globalConfigPath, defaultConfig);
 			} else {
 				throw error;
 			}
@@ -108,23 +134,27 @@ export class ConfigManager {
 
 		try {
 			await ensureDir(join(startDir, '.bbai'));
-			let existingConfig: Record<string, unknown> = {};
+			let existingConfig: ProjectConfigSchema = defaultProjectConfig;
 			try {
 				const content = await Deno.readTextFile(projectConfigPath);
-				existingConfig = parseYaml(content) as Record<string, unknown>;
+				existingConfig = parseYaml(content) as ProjectConfigSchema;
 			} catch (_) {
 				// If the file doesn't exist, we'll start with an empty config
 			}
 
-			const projectConfig: Record<string, unknown> = {
+			const projectConfig: ProjectConfigSchema = {
 				...existingConfig,
 				project: {
-					...existingConfig.project as Record<string, unknown>,
+					...existingConfig.project as ProjectDataConfigSchema,
 					name: wizardAnswers.project.name,
 					type: wizardAnswers.project.type,
 				},
 			};
 
+			if (wizardAnswers.anthropicApiKey) {
+				if (!projectConfig.api) projectConfig.api = { logLevel: 'error' };
+				projectConfig.api.anthropicApiKey = wizardAnswers.anthropicApiKey;
+			}
 			if (wizardAnswers.myPersonsName) {
 				projectConfig.myPersonsName = wizardAnswers.myPersonsName;
 			}
@@ -139,28 +169,91 @@ export class ConfigManager {
 		}
 	}
 
-	public async loadGlobalConfig(startDir?: string): Promise<GlobalConfigSchema> {
-		const userConfig = await this.loadUserConfig();
+	public async loadFullConfig(startDir?: string): Promise<FullConfigSchema> {
+		const globalConfig = await this.loadGlobalConfig();
+		const projectConfig = startDir ? await this.getProjectConfig(startDir) : {};
 		const envConfig = this.loadEnvConfig();
 
-		const projectConfig = startDir ? await this.getProjectConfig(startDir) : {};
+		const mergedConfig = mergeConfigs(globalConfig, projectConfig, envConfig) as FullConfigSchema;
 
-		const mergedConfig = mergeConfigs(userConfig, projectConfig, envConfig) as GlobalConfigSchema;
-
-		if (!this.validateGlobalConfig(mergedConfig)) {
-			throw new Error('Invalid global configuration');
+		if (!this.validateFullConfig(mergedConfig)) {
+			throw new Error('Invalid full configuration');
 		}
 
 		return mergedConfig;
 	}
 
-	public async loadUserConfig(): Promise<Partial<GlobalConfigSchema>> {
-		const userConfigPath = join(Deno.env.get('HOME') || '', '.config', 'bbai', 'config.yaml');
+	public async loadGlobalConfig(): Promise<GlobalConfigSchema> {
+		const globalConfigPath = join(Deno.env.get('HOME') || '', '.config', 'bbai', 'config.yaml');
 		try {
-			const content = await Deno.readTextFile(userConfigPath);
-			return parseYaml(content) as Partial<GlobalConfigSchema>;
+			const content = await Deno.readTextFile(globalConfigPath);
+			const globalConfig = parseYaml(content) as GlobalConfigSchema;
+			globalConfig.version = VERSION;
+
+			if (!this.validateGlobalConfig(globalConfig)) {
+				throw new Error('Invalid global configuration');
+			}
+
+			return globalConfig;
 		} catch (error) {
 			//logger.error(`Failed to load user config: ${error.message}`);
+			return this.defaultGlobalConfig;
+		}
+	}
+
+	public async loadProjectConfig(startDir: string): Promise<ProjectConfigSchema> {
+		const projectRoot = await this.getProjectRoot(startDir);
+
+		if (this.projectConfigs.has(projectRoot)) {
+			return this.projectConfigs.get(projectRoot)!;
+		}
+
+		const projectConfigPath = join(projectRoot, '.bbai', 'config.yaml');
+		try {
+			const content = await Deno.readTextFile(projectConfigPath);
+			const projectConfig = parseYaml(content) as ProjectConfigSchema;
+
+			if (!this.validateProjectConfig(projectConfig)) {
+				throw new Error('Invalid project configuration');
+			}
+
+			this.projectConfigs.set(projectRoot, projectConfig);
+			this.projectConfigs.set(projectConfig.project.name, projectConfig);
+			return projectConfig;
+		} catch (error) {
+			//logger.error(`Failed to load project config for ${startDir}: ${error.message}`);
+			throw new Error(`Failed to load project config for ${startDir}: ${error.message}`);
+		}
+	}
+
+	public async getFullConfig(startDir?: string): Promise<FullConfigSchema> {
+		return await this.loadFullConfig(startDir);
+	}
+
+	public async getGlobalConfig(): Promise<GlobalConfigSchema> {
+		if (this.globalConfig) return this.globalConfig;
+		this.globalConfig = await this.loadGlobalConfig();
+		return this.globalConfig;
+	}
+
+	public async getProjectConfig(startDir: string): Promise<ProjectConfigSchema> {
+		return await this.loadProjectConfig(startDir);
+	}
+
+	public async getProjectConfigByName(projectName: string): Promise<ProjectConfigSchema | null> {
+		if (this.projectConfigs.has(projectName)) {
+			return this.projectConfigs.get(projectName)!;
+		}
+		//logger.warn(`Project config not found for project name: ${projectName}`);
+		return null;
+	}
+
+	public async getExistingProjectConfig(startDir: string): Promise<Partial<ProjectConfigSchema>> {
+		const projectConfigPath = join(startDir, '.bbai', 'config.yaml');
+		try {
+			const content = await Deno.readTextFile(projectConfigPath);
+			return parseYaml(content) as ProjectConfigSchema;
+		} catch (_) {
 			return {};
 		}
 	}
@@ -178,69 +271,19 @@ export class ConfigManager {
 		return this.projectRoots.get(startDir)!;
 	}
 
-	public async loadProjectConfig(startDir: string): Promise<ProjectConfigSchema> {
-		const projectRoot = await this.getProjectRoot(startDir);
-
-		if (this.projectConfigs.has(projectRoot)) {
-			return this.projectConfigs.get(projectRoot)!;
-		}
-
-		const projectConfigPath = join(projectRoot, '.bbai', 'config.yaml');
-		try {
-			const content = await Deno.readTextFile(projectConfigPath);
-			const config = parseYaml(content) as ProjectConfigSchema;
-
-			if (!this.validateProjectConfig(config)) {
-				throw new Error('Invalid project configuration');
-			}
-
-			this.projectConfigs.set(projectRoot, config);
-			this.projectConfigs.set(config.project.name, config);
-			return config;
-		} catch (error) {
-			//logger.error(`Failed to load project config for ${startDir}: ${error.message}`);
-			throw new Error(`Failed to load project config for ${startDir}: ${error.message}`);
-		}
-	}
-
-	public async getProjectConfig(startDir: string): Promise<ConfigSchema> {
-		try {
-			const projectConfig = await this.loadProjectConfig(startDir);
-			return mergeConfigs(this.globalConfig, projectConfig);
-		} catch (error) {
-			//logger.error(`Failed to get project config for ${startDir}: ${error.message}`);
-			throw error;
-		}
-	}
-
-	public async getProjectConfigByName(projectName: string): Promise<ConfigSchema | null> {
-		if (this.projectConfigs.has(projectName)) {
-			return mergeConfigs(this.globalConfig, this.projectConfigs.get(projectName)!);
-		}
-		//logger.warn(`Project config not found for project name: ${projectName}`);
-		return null;
-	}
-
-	public async getExistingProjectConfig(startDir: string): Promise<Partial<ConfigSchema>> {
-		const projectConfigPath = join(startDir, '.bbai', 'config.yaml');
-		try {
-			const content = await Deno.readTextFile(projectConfigPath);
-			return parseYaml(content) as Partial<ConfigSchema>;
-		} catch (_) {
-			return {};
-		}
-	}
-
-	private loadEnvConfig(): Partial<GlobalConfigSchema> {
-		const config: Partial<GlobalConfigSchema> = {};
-		const apiConfig: GlobalConfigSchema['api'] = { logLevel: 'info' };
-		const cliConfig: Partial<GlobalConfigSchema['cli']> = {};
+	private loadEnvConfig(): Partial<FullConfigSchema> {
+		const envConfig: Partial<FullConfigSchema> = {};
+		const apiConfig: FullConfigSchema['api'] = { logLevel: 'info' };
+		const cliConfig: Partial<FullConfigSchema['cli']> = {};
 
 		const anthropicApiKey = Deno.env.get('ANTHROPIC_API_KEY');
 		if (anthropicApiKey) apiConfig.anthropicApiKey = anthropicApiKey;
 
 		const environment = Deno.env.get('BBAI_ENVIRONMENT');
 		if (environment) apiConfig.environment = environment;
+
+		const apiHostname = Deno.env.get('BBAI_API_HOSTNAME');
+		if (apiHostname) apiConfig.apiHostname = apiHostname;
 
 		const apiPort = Deno.env.get('BBAI_API_PORT');
 		if (apiPort) apiConfig.apiPort = parseInt(apiPort, 10);
@@ -255,48 +298,45 @@ export class ConfigManager {
 		if (apiLogLevel) apiConfig.logLevel = apiLogLevel as 'debug' | 'info' | 'warn' | 'error';
 
 		if (Object.keys(apiConfig).length > 0) {
-			config.api = apiConfig;
+			envConfig.api = apiConfig;
 		}
 
 		if (Object.keys(cliConfig).length > 0) {
-			config.cli = cliConfig;
+			envConfig.cli = cliConfig;
 		}
 
-		return config;
+		return envConfig;
 	}
 
-	public getGlobalConfig(): GlobalConfigSchema {
-		return this.globalConfig;
-	}
+	public async getRedactedFullConfig(startDir?: string): Promise<FullConfigSchema> {
+		const redactedFullConfig = JSON.parse(JSON.stringify(await this.loadFullConfig(startDir)));
 
-	public async getRedactedGlobalConfig(startDir?: string): Promise<GlobalConfigSchema> {
-		//const redactedGlobalConfig = JSON.parse(JSON.stringify(this.globalConfig));
-		const redactedGlobalConfig = JSON.parse(JSON.stringify(await this.loadGlobalConfig(startDir)));
-		if (redactedGlobalConfig.api?.anthropicApiKey) redactedGlobalConfig.api.anthropicApiKey = '[REDACTED]';
-		if (redactedGlobalConfig.api?.openaiApiKey) redactedGlobalConfig.api.openaiApiKey = '[REDACTED]';
-		if (redactedGlobalConfig.api?.voyageaiApiKey) redactedGlobalConfig.api.voyageaiApiKey = '[REDACTED]';
-		return redactedGlobalConfig;
+		if (redactedFullConfig.api?.anthropicApiKey) redactedFullConfig.api.anthropicApiKey = '[REDACTED]';
+		if (redactedFullConfig.api?.openaiApiKey) redactedFullConfig.api.openaiApiKey = '[REDACTED]';
+		if (redactedFullConfig.api?.voyageaiApiKey) redactedFullConfig.api.voyageaiApiKey = '[REDACTED]';
+
+		return redactedFullConfig;
 	}
 
 	public async setGlobalConfigValue(key: string, value: string): Promise<void> {
 		const keys = key.split('.');
-		let current: any = this.globalConfig;
+		let current: any = await this.loadGlobalConfig();
 		for (let i = 0; i < keys.length - 1; i++) {
 			if (!current[keys[i]]) current[keys[i]] = {};
 			current = current[keys[i]];
 		}
 		current[keys[keys.length - 1]] = value;
 
-		if (!this.validateGlobalConfig(this.globalConfig)) {
+		if (!this.validateGlobalConfig(current)) {
 			throw new Error('Invalid global configuration after setting value');
 		}
 
-		await this.saveGlobalConfig();
+		await this.saveGlobalConfig(current);
 	}
 
-	public getGlobalConfigValue(key: string): string | undefined {
+	public async getGlobalConfigValue(key: string): Promise<string | undefined> {
 		const keys = key.split('.');
-		let current: any = this.globalConfig;
+		let current: any = await this.loadGlobalConfig();
 		for (const k of keys) {
 			if (current[k] === undefined) return undefined;
 			current = current[k];
@@ -304,36 +344,33 @@ export class ConfigManager {
 		return current;
 	}
 
-	private async saveGlobalConfig(): Promise<void> {
-		const userConfigPath = join(Deno.env.get('HOME') || '', '.config', 'bbai', 'config.yaml');
+	private async saveGlobalConfig(fullConfig: GlobalConfigSchema): Promise<void> {
+		const globalConfigPath = join(Deno.env.get('HOME') || '', '.config', 'bbai', 'config.yaml');
 		try {
-			await Deno.writeTextFile(userConfigPath, stringifyYaml(this.globalConfig));
+			await Deno.writeTextFile(globalConfigPath, stringifyYaml(fullConfig));
 		} catch (error) {
 			//logger.error(`Failed to save global config: ${error.message}`);
 			throw error;
 		}
 	}
 
-	private validateGlobalConfig(config: Partial<GlobalConfigSchema>): boolean {
-		// Implement validation logic here
-		// This is a basic example, expand as needed
-		if (!config.api || typeof config.api !== 'object') return false;
-		if (!config.cli || typeof config.cli !== 'object') return false;
-		if (!config.repoInfo || typeof config.repoInfo !== 'object') return false;
-		if (typeof config.version !== 'string') return false;
+	private validateFullConfig(config: Partial<FullConfigSchema>): boolean {
+		if (!this.validateGlobalConfig(config)) return false;
+		if (!this.validateProjectConfig(config)) return false;
 		return true;
 	}
 
-	private validateProjectConfig(config: Partial<ProjectConfigSchema>): boolean {
-		// Implement validation logic here
-		// This is a basic example, expand as needed
-		if (!config.project || typeof config.project !== 'object') return false;
-		if (typeof config.project.name !== 'string') return false;
-		if (config.project.type !== 'git' && config.project.type !== 'local') return false;
+	private validateGlobalConfig(globalConfig: Partial<GlobalConfigSchema>): boolean {
+		if (!globalConfig.api || typeof globalConfig.api !== 'object') return false;
+		if (!globalConfig.cli || typeof globalConfig.cli !== 'object') return false;
+		if (typeof globalConfig.version !== 'string') return false;
+		return true;
+	}
+
+	private validateProjectConfig(projectConfig: Partial<ProjectConfigSchema>): boolean {
+		if (!projectConfig.project || typeof projectConfig.project !== 'object') return false;
+		if (typeof projectConfig.project.name !== 'string') return false;
+		if (projectConfig.project.type !== 'git' && projectConfig.project.type !== 'local') return false;
 		return true;
 	}
 }
-
-const configManager = await ConfigManager.getInstance();
-export const globalConfig = configManager.getGlobalConfig();
-export const redactedGlobalConfig = await configManager.getRedactedGlobalConfig();

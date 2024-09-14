@@ -1,4 +1,4 @@
-import { ConfigManager, type GlobalConfigSchema } from 'shared/configManager.ts';
+import { ConfigManager } from 'shared/configManager.ts';
 import { logger } from 'shared/logger.ts';
 
 export default class ApiClient {
@@ -10,12 +10,12 @@ export default class ApiClient {
 		this.wsUrl = wsUrl;
 	}
 
-	static async create(startDir: string = Deno.cwd()): Promise<ApiClient> {
-		const configManager = await ConfigManager.getInstance();
-		const globalConfig: GlobalConfigSchema = await configManager.loadGlobalConfig(startDir);
-		const apiPort = globalConfig.api.apiPort || 3000;
-		const baseUrl = `http://localhost:${apiPort}`;
-		const wsUrl = `ws://localhost:${apiPort}`;
+	static async create(startDir: string = Deno.cwd(), hostname?: string, port?: number): Promise<ApiClient> {
+		const fullConfig = await ConfigManager.fullConfig(startDir);
+		const apiHostname = hostname || fullConfig.api.apiHostname || 'localhost';
+		const apiPort = port || fullConfig.api.apiPort || 3000;
+		const baseUrl = `http://${apiHostname}:${apiPort}`;
+		const wsUrl = `ws://${apiHostname}:${apiPort}`;
 		logger.debug(`APIClient: client created with baseUrl: ${baseUrl}, wsUrl: ${wsUrl}`);
 		return new ApiClient(baseUrl, wsUrl);
 	}
@@ -64,12 +64,16 @@ export default class ApiClient {
 				//logger.info('APIClient: WebSocket connection opened');
 				resolve(ws);
 			};
-			ws.onerror = (error) => {
-				logger.error('APIClient: WebSocket connection error:', error);
+			ws.onerror = (error: Event) => {
+				//logger.error('APIClient: WebSocket connection error:', error);
+				const errorEvent = error as ErrorEvent;
+				logger.error(
+					`APIClient: WebSocket connection error: ${errorEvent.message} - ${
+						(errorEvent.target as WebSocket).url
+					}`,
+				);
 				reject(error);
 			};
 		});
 	}
 }
-
-//export const apiClient = await ApiClient.create();

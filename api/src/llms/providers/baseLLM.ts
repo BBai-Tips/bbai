@@ -16,7 +16,7 @@ import type { LLMMessageContentPart } from '../llmMessage.ts';
 import type { LLMToolInputSchema } from '../llmTool.ts';
 import LLMInteraction from '../interactions/baseInteraction.ts';
 import { logger } from 'shared/logger.ts';
-import { globalConfig } from 'shared/configManager.ts';
+import { type FullConfigSchema } from 'shared/configManager.ts';
 import { ErrorType, LLMErrorOptions } from '../../errors/error.ts';
 import { createError } from '../../utils/error.utils.ts';
 //import { metricsService } from '../../services/metrics.service.ts';
@@ -30,9 +30,11 @@ class LLM {
 	public maxSpeakRetries: number = 3;
 	public requestCacheExpiry: number = 3 * (1000 * 60 * 60 * 24); // 3 days in milliseconds
 	private callbacks: LLMCallbacks;
+	public fullConfig!: FullConfigSchema;
 
 	constructor(callbacks: LLMCallbacks) {
 		this.callbacks = callbacks;
+		this.fullConfig = this.invokeSync(LLMCallbackType.PROJECT_CONFIG);
 	}
 
 	async invoke<K extends LLMCallbackType>(
@@ -41,6 +43,13 @@ class LLM {
 	): Promise<Awaited<ReturnType<LLMCallbacks[K]>>> {
 		const result = this.callbacks[event](...args);
 		return result instanceof Promise ? await result : result;
+	}
+	invokeSync<K extends LLMCallbackType>(
+		event: K,
+		...args: Parameters<LLMCallbacks[K]>
+	): ReturnType<LLMCallbacks[K]> {
+		const result = this.callbacks[event](...args);
+		return result;
 	}
 
 	async prepareMessageParams(
@@ -89,10 +98,10 @@ class LLM {
 
 		let llmSpeakWithResponse!: LLMSpeakWithResponse;
 
-		const cacheKey = !globalConfig.api?.ignoreLLMRequestCache
+		const cacheKey = !this.fullConfig.api?.ignoreLLMRequestCache
 			? this.createRequestCacheKey(llmProviderMessageRequest)
 			: [];
-		if (!globalConfig.api?.ignoreLLMRequestCache) {
+		if (!this.fullConfig.api?.ignoreLLMRequestCache) {
 			const cachedResponse = await kv.get<LLMSpeakWithResponse>(cacheKey);
 
 			if (cachedResponse && cachedResponse.value) {
@@ -202,7 +211,7 @@ class LLM {
 
 			llmSpeakWithResponse.messageResponse.fromCache = false;
 
-			if (!globalConfig.api?.ignoreLLMRequestCache) {
+			if (!this.fullConfig.api?.ignoreLLMRequestCache) {
 				await kv.set(cacheKey, llmSpeakWithResponse, { expireIn: this.requestCacheExpiry });
 				//await metricsService.recordCacheMetrics({ operation: 'set' });
 			}

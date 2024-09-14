@@ -3,7 +3,7 @@ import type { EventName, EventPayloadMap } from 'shared/eventManager.ts';
 import type { ConversationId } from 'shared/types.ts';
 import ApiClient from 'cli/apiClient.ts';
 
-export class WebsocketManager {
+export default class WebsocketManager {
 	private cancellationRequested: boolean = false;
 	public ws: WebSocket | null = null;
 	private MAX_RETRIES = 5;
@@ -11,12 +11,17 @@ export class WebsocketManager {
 	private retryCount = 0;
 	private currentConversationId?: ConversationId;
 
-	async setupWebsocket(conversationId?: ConversationId): Promise<void> {
+	async setupWebsocket(
+		conversationId?: ConversationId,
+		startDir?: string,
+		hostname?: string,
+		port?: number,
+	): Promise<void> {
 		this.currentConversationId = conversationId;
 		const connectWebSocket = async (): Promise<WebSocket> => {
 			//console.log(`WebsocketManager: Connecting websocket for conversation: ${conversationId}`);
 			try {
-				const apiClient = await ApiClient.create();
+				const apiClient = await ApiClient.create(startDir, hostname, port);
 				// apiClient.connectWebSocket returns a promise, so we return that promise rather than awaiting
 				return apiClient.connectWebSocket(`/api/v1/ws/conversation/${conversationId}`);
 			} catch (error) {
@@ -44,7 +49,6 @@ export class WebsocketManager {
 		}
 	}
 
-	//private async setupEventListeners(): Promise<void> {
 	private setupEventListeners(): void {
 		if (!this.ws) {
 			throw new Error('WebSocket is not initialized');

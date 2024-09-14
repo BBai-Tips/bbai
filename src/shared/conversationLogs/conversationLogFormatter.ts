@@ -10,7 +10,10 @@ import ConversationLogger from 'shared/conversationLogger.ts';
 import type { ConversationLogEntry, ConversationLoggerEntryType } from 'shared/conversationLogger.ts';
 import { getBbaiDataDir } from 'shared/dataDir.ts';
 import { ConversationId, ConversationMetrics, ConversationTokenUsage, TokenUsage } from 'shared/types.ts';
-import { globalConfig } from 'shared/configManager.ts';
+import { ConfigManager } from 'shared/configManager.ts';
+
+// [TODO] this needs to be projectConfig (or fullConfig), which means startDir needs to get passed in
+const globalConfig = await ConfigManager.globalConfig();
 
 // Define theme colors.
 //const colorError = colors.bold.red;

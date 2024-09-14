@@ -12,7 +12,9 @@ import { ApiClient } from '../utils/apiClient.utils.ts';
 import { useSignal } from '@preact/signals';
 
 interface ChatProps {
+	//apiHostname: string;
 	//apiPort: number;
+	//startDir: string;
 }
 
 export default function Chat() {
@@ -44,6 +46,15 @@ export default function Chat() {
 		setInput('');
 	};
 	const messagesEndRef = useRef<HTMLDivElement>(null);
+	const [apiHostname, setApiHostname] = useState(() => {
+		if (IS_BROWSER) {
+			const hash = window.location.hash.slice(1); // Remove the '#'
+			const params = new URLSearchParams(hash);
+			console.log('Chat component: Received apiHostname:', params.get('apiHostname'));
+			return params.get('apiHostname');
+		}
+		return null;
+	});
 	const [apiPort, setApiPort] = useState(() => {
 		if (IS_BROWSER) {
 			const hash = window.location.hash.slice(1); // Remove the '#'
@@ -54,10 +65,17 @@ export default function Chat() {
 		return null;
 	});
 	const [startDir, setStartDir] = useState(() => {
-		if (typeof window !== 'undefined') {
-			return localStorage.getItem('startDir') || '';
+		let startDirFromHash = '';
+		if (IS_BROWSER) {
+			const hash = window.location.hash.slice(1); // Remove the '#'
+			const params = new URLSearchParams(hash);
+			console.log('Chat component: Received startDir:', params.get('startDir'));
+			startDirFromHash = params.get('startDir') || '';
 		}
-		return '';
+		if (typeof window !== 'undefined') {
+			return localStorage.getItem('startDir') || startDirFromHash;
+		}
+		return startDirFromHash;
 	});
 	const [conversationId, setConversationId] = useState<string | null>(null);
 	const wsManager = useSignal<ReturnType<typeof createWebSocketManager> | null>(
@@ -134,21 +152,26 @@ export default function Chat() {
 	};
 
 	useEffect(() => {
+		console.log('Chat component useEffect. apiHostname:', apiHostname);
 		console.log('Chat component useEffect. apiPort:', apiPort);
 		console.debug(
 			'Chat component mounted. IS_BROWSER:',
 			IS_BROWSER,
+			'apiHostname:',
+			apiHostname,
 			'apiPort:',
 			apiPort,
 			'startDir:',
 			startDir,
 		);
-		console.log(`Initializing API client with baseUrl: http://localhost:${apiPort}`);
-		if (IS_BROWSER && !wsManager.value && apiPort && startDir) {
+		console.log(`Initializing API client with baseUrl: http://${apiHostname}:${apiPort} in ${startDir}`);
+		if (IS_BROWSER && !wsManager.value && apiHostname && apiPort && startDir) {
+			console.log('Initializing chat with apiHostname:', apiHostname);
 			console.log('Initializing chat with apiPort:', apiPort);
+			console.log('Initializing chat with startDir:', startDir);
 			const initializeChat = async () => {
-				const baseUrl = `http://localhost:${apiPort}`;
-				console.log('Chat component: Initializing API client with baseUrl:', baseUrl);
+				const baseUrl = `http://${apiHostname}:${apiPort}`;
+				console.log('Chat component: Initializing API client with baseUrl in startDir:', baseUrl, startDir);
 				apiClient.value = new ApiClient(baseUrl);
 				await fetchConversations();
 			};
@@ -156,7 +179,7 @@ export default function Chat() {
 			const newConversationId = generateConversationId();
 			setConversationId(newConversationId);
 
-			const manager = createWebSocketManager(parseInt(apiPort), startDir);
+			const manager = createWebSocketManager(apiHostname, parseInt(apiPort), startDir);
 			manager.setConversationId(newConversationId);
 			wsManager.value = manager;
 			manager.connect();
@@ -165,7 +188,7 @@ export default function Chat() {
 				manager.disconnect();
 			};
 		}
-	}, [apiPort, startDir]);
+	}, [apiHostname, apiPort, startDir]);
 
 	useEffect(() => {
 		if (wsManager.value) {
