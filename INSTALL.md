@@ -10,7 +10,7 @@ BBai can run on any system that supports Deno. While it has been primarily teste
 
 Before using BBai, ensure you have the following:
 
-1. An Anthropic API key
+1. An Anthropic API key (Note: This is different from your Anthropic chat console login. You can create an API key at https://console.anthropic.com/settings/keys)
 2. [Git](https://git-scm.com/) (latest stable version, recommended but optional)
 3. [ctags](https://github.com/universal-ctags/ctags) (optional, enhances project understanding)
 
@@ -78,12 +78,15 @@ This will create a `.bbai/config.yaml` file in your project directory.
 
 ## Obtaining an Anthropic API Key
 
-To use BBai, you'll need an Anthropic API key. Follow these steps:
+To use BBai, you'll need an Anthropic API key. This is different from your Anthropic chat console login. Follow these steps:
 
 1. Go to the [Anthropic API Console](https://console.anthropic.com/settings/keys)
 2. Sign in or create an account if you don't have one
-3. Generate a new API key
-4. Copy the API key and add it to your `.bbai/config.yaml` file
+3. Click on 'Create Key' to generate a new API key
+4. Copy the API key (make sure to save it securely, as you won't be able to view it again)
+5. Add the API key to your `.bbai/config.yaml` file
+
+Remember to keep your API key confidential and never share it publicly.
 
 ## Verifying Installation
 
