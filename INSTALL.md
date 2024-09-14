@@ -1,6 +1,6 @@
 # Installing BBai
 
-BBai is an AI-powered assistant for text-based projects. This guide will walk you through the installation process.
+BBai _(pronounced b-b-aye)_ is an AI-powered assistant for text-based projects. This guide will walk you through the installation process.
 
 ## System Requirements
 
@@ -137,7 +137,7 @@ If you encounter any issues during installation or use:
 2. Check the API logs: `bbai logs --api`
 3. Inspect the JSON files under `.bbai/data/conversations` for more detailed information
 
-As BBai is still in alpha, please take necessary precautions when using it with important projects. If you encounter any problems, please create an issue on the [BBai GitHub repository](https://github.com/BBai-Tips/bbai).
+As BBai is still in beta, please take necessary precautions when using it with important projects. If you encounter any problems, please create an issue on the [BBai GitHub repository](https://github.com/BBai-Tips/bbai).
 
 ## Getting Help
 
