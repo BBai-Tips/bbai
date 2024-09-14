@@ -40,10 +40,6 @@ jobs:
         with:
           deno-version: v1.x
 
-      - name: Get version
-        id: get_version
-        run: echo "VERSION=$(deno eval 'import { VERSION } from "./version.ts"; console.log(VERSION);')" >> $GITHUB_OUTPUT
-
       - name: Build CLI for ${{ matrix.target }}
         run: |
           cd cli
@@ -73,7 +69,7 @@ jobs:
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: bbai-${{ matrix.target }}-v${{ steps.get_version.outputs.VERSION }}
+          name: bbai-${{ matrix.target }}
           path: build/*
 
   release:
@@ -115,11 +111,11 @@ jobs:
           set -e
           for target in x86_64-unknown-linux-gnu aarch64-unknown-linux-gnu x86_64-pc-windows-msvc x86_64-apple-darwin aarch64-apple-darwin; do
             echo "Processing target: $target"
-            if [ ! -d "bbai-$target-v${{ steps.get_version.outputs.VERSION }}" ]; then
-              echo "Error: Directory bbai-$target-v${{ steps.get_version.outputs.VERSION }} not found"
+            if [ ! -d "bbai-$target" ]; then
+              echo "Error: Directory bbai-$target not found"
               continue
             fi
-            cd bbai-$target-v${{ steps.get_version.outputs.VERSION }}
+            cd bbai-$target
             zip -r ../bbai-$target-v${{ steps.get_version.outputs.VERSION }}.zip .
             cd ..
             gh release upload v${{ steps.get_version.outputs.VERSION }} bbai-$target-v${{ steps.get_version.outputs.VERSION }}.zip || echo "Failed to upload asset for $target"
