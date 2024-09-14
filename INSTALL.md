@@ -51,14 +51,13 @@ These dependencies can be easily installed using package managers like Homebrew 
 
 2. Build the project:
    ```
-   deno task -c ./cli/deno.jsonc build
-   deno task -c ./api/deno.jsonc build
+   deno task build
    ```
 
 3. Move the built executables to a directory in your PATH:
    - For Linux and macOS:
      ```
-     sudo mv ./cli/build/bbai ./api/build/bbai-api /usr/local/bin/
+     sudo mv ./build/bbai ./build/bbai-api /usr/local/bin/
      ```
    - For Windows:
      Move `bbai.exe` and `bbai-api.exe` to a directory in your PATH, such as `C:\Windows\System32\`
