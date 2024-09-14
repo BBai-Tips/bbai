@@ -67,8 +67,9 @@ jobs:
           echo 'copy bbai-api.exe %USERPROFILE%\AppData\Local\Microsoft\WindowsApps\' >> build/install.bat
 
       - name: Copy README and INSTALL
+        shell: bash
         run: |
-          if [ "${{ matrix.target }}" = "x86_64-pc-windows-msvc" ]; then
+          if [[ "${{ runner.os }}" == "Windows" ]]; then
             cp README.md build/README.txt
             cp INSTALL.md build/INSTALL.txt
           else
