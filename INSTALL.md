@@ -8,14 +8,17 @@ BBai can run on any system that supports Deno. While it has been primarily teste
 
 ## Prerequisites
 
-Before installing BBai, ensure you have the following:
+Before using BBai, ensure you have the following:
 
-1. [Deno](https://deno.com/) (latest stable version)
-2. [Git](https://git-scm.com/) (latest stable version)
-3. [ctags](https://github.com/universal-ctags/ctags) (optional)
-4. An Anthropic API key
+1. An Anthropic API key
+2. [Git](https://git-scm.com/) (latest stable version, recommended but optional)
+3. [ctags](https://github.com/universal-ctags/ctags) (optional, enhances project understanding)
 
-These dependencies can be easily installed using package managers like Homebrew on macOS.
+For manual installation from source, you'll also need:
+
+4. [Deno](https://deno.com/) (latest stable version)
+
+Git and ctags can be easily installed using package managers like Homebrew on macOS or apt on Linux. While Git is optional, it's highly recommended for optimal use of BBai.
 
 ## Installation Methods
 
