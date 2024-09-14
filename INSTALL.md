@@ -76,15 +76,25 @@ bbai init
 
 This will create a `.bbai/config.yaml` file in your project directory.
 
-## Obtaining an Anthropic API Key
+## Setting Up Your Anthropic API Key
 
-To use BBai, you'll need an Anthropic API key. This is different from your Anthropic chat console login. Follow these steps:
+To use BBai, you'll need an Anthropic API key. This is different from your Anthropic chat console login. Here's how to set it up:
 
-1. Go to the [Anthropic API Console](https://console.anthropic.com/settings/keys)
-2. Sign in or create an account if you don't have one
-3. Click on 'Create Key' to generate a new API key
-4. Copy the API key (make sure to save it securely, as you won't be able to view it again)
-5. Add the API key to your `.bbai/config.yaml` file
+1. Obtain an API key:
+   - Go to the [Anthropic API Console](https://console.anthropic.com/settings/keys)
+   - Sign in or create an account if you don't have one
+   - Click on 'Create Key' to generate a new API key
+   - Copy the API key (make sure to save it securely, as you won't be able to view it again)
+
+2. Set up BBai and add your API key:
+   - Run the following command in your project directory:
+     ```
+     bbai init
+     ```
+   - Follow the prompt wizard, which will ask for your API key and other configuration options
+   - The wizard will automatically add your API key to the `.bbai/config.yaml` file
+
+Alternatively, if you prefer to manually edit the config file, you can add the API key to your `.bbai/config.yaml` file directly.
 
 Remember to keep your API key confidential and never share it publicly.
 
