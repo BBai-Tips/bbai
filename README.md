@@ -74,11 +74,19 @@ BBai excels in various scenarios:
 
 ### Installation
 
-For detailed installation instructions, please refer to our [Installation Guide](INSTALL.md).
+BBai can be installed on various platforms. For detailed installation instructions, please refer to our [Installation Guide](INSTALL.md).
 
-### Quick Start
+#### Quick Start
 
-After installation, you can start using BBai by running `bbai init` in your project directory. For more detailed instructions, check our [Installation Guide](INSTALL.md).
+1. Download the appropriate release package for your platform from the [Releases page](https://github.com/BBai-Tips/bbai/releases).
+2. Extract the package contents.
+3. Run the installation script:
+   - On Unix-like systems (Linux, macOS): `sudo ./install.sh`
+   - On Windows: Run `install.bat` as administrator
+
+After installation, you can start using BBai by running `bbai init` in your project directory.
+
+For more detailed instructions and alternative installation methods, please see the [Installation Guide](INSTALL.md).
 
 ## Documentation
 
