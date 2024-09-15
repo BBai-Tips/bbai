@@ -1,15 +1,16 @@
 name: Release
 
 on:
-  push:
-    branches:
-      - main
   workflow_dispatch:
     inputs:
       version:
         description: 'Version to release'
         required: true
         default: '0.0.0'
+  push:
+    branches:
+      - main
+      - release-build-testing
 
 permissions:
   contents: write   # This is required to create a release
@@ -65,8 +66,18 @@ jobs:
           echo 'copy bbai.exe %USERPROFILE%\AppData\Local\Microsoft\WindowsApps\' >> build/install.bat
           echo 'copy bbai-api.exe %USERPROFILE%\AppData\Local\Microsoft\WindowsApps\' >> build/install.bat
 
+      - name: Copy README and INSTALL
+        shell: bash
+        run: |
+          if [[ "${{ runner.os }}" == "Windows" ]]; then
+            cp README.md build/README.txt
+            cp INSTALL.md build/INSTALL.txt
+          else
+            cp README.md INSTALL.md build/
+          fi
+
       - name: Upload artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: bbai-${{ matrix.target }}
           path: build/*
@@ -99,15 +110,32 @@ jobs:
           prerelease: false
 
       - name: Download all artifacts
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
+
+#       - name: List directory contents
+#         run: ls -R
+#         shell: bash
 
       - name: Upload Release Assets
         run: |
+          set -e
           for target in x86_64-unknown-linux-gnu aarch64-unknown-linux-gnu x86_64-pc-windows-msvc x86_64-apple-darwin aarch64-apple-darwin; do
+            echo "Processing target: $target"
+            if [ ! -d "bbai-$target" ]; then
+              echo "Error: Directory bbai-$target not found"
+              continue
+            fi
             cd bbai-$target
-            zip -r ../bbai-$target.zip .
+            zip -r ../bbai-$target-v${{ steps.get_version.outputs.VERSION }}.zip .
+            if [ "$target" != "x86_64-pc-windows-msvc" ]; then
+              chmod 755 install.sh bbai bbai-api
+              tar czf ../bbai-$target-v${{ steps.get_version.outputs.VERSION }}.tar.gz .
+            fi
             cd ..
-            gh release upload v${{ steps.get_version.outputs.VERSION }} bbai-$target.zip
+            gh release upload v${{ steps.get_version.outputs.VERSION }} bbai-$target-v${{ steps.get_version.outputs.VERSION }}.zip || echo "Failed to upload ZIP for $target"
+            if [ "$target" != "x86_64-pc-windows-msvc" ]; then
+              gh release upload v${{ steps.get_version.outputs.VERSION }} bbai-$target-v${{ steps.get_version.outputs.VERSION }}.tar.gz || echo "Failed to upload tar.gz for $target"
+            fi
           done
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
