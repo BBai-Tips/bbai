@@ -1,10 +1,11 @@
-import { JSX } from 'preact';
-import LLMTool, { LLMToolInputSchema, LLMToolRunResult } from 'api/llms/llmTool.ts';
-import LLMConversationInteraction from '../interactions/conversationInteraction.ts';
-import { LLMAnswerToolUse } from 'api/llms/llmMessage.ts';
-import ProjectEditor from '../../editor/projectEditor.ts';
+//import type { JSX } from 'preact';
+import LLMTool from 'api/llms/llmTool.ts';
+import type { LLMToolInputSchema, LLMToolRunResult } from 'api/llms/llmTool.ts';
+import type LLMConversationInteraction from '../interactions/conversationInteraction.ts';
+import type { LLMAnswerToolUse } from 'api/llms/llmMessage.ts';
+import type ProjectEditor from '../../editor/projectEditor.ts';
 import { createError, ErrorType } from '../../utils/error.utils.ts';
-import { FileHandlingErrorOptions } from '../../errors/error.ts';
+import type { FileHandlingErrorOptions } from '../../errors/error.ts';
 import { isPathWithinProject } from '../../utils/fileHandling.utils.ts';
 import { logger } from 'shared/logger.ts';
 import { dirname, join } from '@std/path';

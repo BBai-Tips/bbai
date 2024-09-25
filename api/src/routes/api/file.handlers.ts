@@ -1,4 +1,4 @@
-import { Context } from '@oak/oak';
+import type { Context } from '@oak/oak';
 import { join, resolve } from '@std/path';
 
 export const addFile = async (

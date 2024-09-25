@@ -1,7 +1,7 @@
-import { Resource } from '../types.ts';
+import type { Resource } from 'api/types.ts';
 
 export class ResourceManager {
-	async loadResource(resource: Resource): Promise<string> {
+	async loadResource(resource: Resource): Promise<string | Uint8Array> {
 		switch (resource.type) {
 			case 'url':
 				return this.loadUrlResource(resource.location);
@@ -28,9 +28,13 @@ export class ResourceManager {
 		return await response.text();
 	}
 
-	private async loadFileResource(path: string): Promise<string> {
+	private async loadFileResource(path: string): Promise<string | Uint8Array> {
 		try {
-			return await Deno.readTextFile(path);
+			if (path.toLowerCase().match(/\.(jpg|jpeg|png|gif|bmp|webp|svg)$/)) {
+				return await Deno.readFile(path);
+			} else {
+				return await Deno.readTextFile(path);
+			}
 		} catch (error) {
 			throw new Error(`Failed to read file: ${path}. ${error.message}`);
 		}

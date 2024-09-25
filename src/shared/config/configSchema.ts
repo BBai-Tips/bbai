@@ -8,6 +8,7 @@ export interface ApiConfigSchema {
 	apiHostname?: string;
 	apiPort?: number;
 	ignoreLLMRequestCache?: boolean;
+	usePromptCaching?: boolean;
 	logFile?: string;
 	logLevel: 'debug' | 'info' | 'warn' | 'error';
 }
@@ -28,6 +29,7 @@ export interface GlobalConfigSchema {
 	noBrowser?: boolean;
 	api: ApiConfigSchema;
 	cli: Record<string, unknown>;
+	project: ProjectDataConfigSchema;
 	repoInfo: RepoInfoConfigSchema;
 	version: string;
 }
@@ -53,6 +55,7 @@ export const defaultGlobalConfig: GlobalConfigSchema = {
 		apiHostname: 'localhost',
 		apiPort: 3000,
 		ignoreLLMRequestCache: false,
+		usePromptCaching: true,
 		logFile: 'api.log',
 		logLevel: 'info',
 	},
@@ -60,6 +63,10 @@ export const defaultGlobalConfig: GlobalConfigSchema = {
 	repoInfo: {
 		ctagsAutoGenerate: true,
 		tokenLimit: 1024,
+	},
+	project: {
+		name: Deno.cwd(),
+		type: 'local',
 	},
 	version: 'unknown', // This will be overwritten by the actual version from version.ts
 };
@@ -73,6 +80,7 @@ export const defaultProjectConfig: ProjectConfigSchema = {
 		apiHostname: 'localhost',
 		apiPort: 3000,
 		ignoreLLMRequestCache: false,
+		usePromptCaching: true,
 		logFile: 'api.log',
 		logLevel: 'info',
 	},

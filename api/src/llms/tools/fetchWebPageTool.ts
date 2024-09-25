@@ -1,5 +1,6 @@
-import { JSX } from 'preact';
-import LLMTool, { LLMToolInputSchema, LLMToolRunResult, LLMToolRunResultContent } from 'api/llms/llmTool.ts';
+import type { JSX } from 'preact';
+import LLMTool from 'api/llms/llmTool.ts';
+import type { LLMToolInputSchema, LLMToolRunResult, LLMToolRunResultContent } from 'api/llms/llmTool.ts';
 import {
 	formatToolResult as formatToolResultBrowser,
 	formatToolUse as formatToolUseBrowser,
@@ -8,10 +9,10 @@ import {
 	formatToolResult as formatToolResultConsole,
 	formatToolUse as formatToolUseConsole,
 } from './formatters/fetchWebPageTool.console.ts';
-import LLMConversationInteraction from '../interactions/conversationInteraction.ts';
-import { LLMAnswerToolUse } from 'api/llms/llmMessage.ts';
+import type LLMConversationInteraction from '../interactions/conversationInteraction.ts';
+import type { LLMAnswerToolUse } from 'api/llms/llmMessage.ts';
 import FetchManager from 'shared/fetchManager.ts';
-import ProjectEditor from '../../editor/projectEditor.ts';
+import type ProjectEditor from '../../editor/projectEditor.ts';
 //import { logger } from 'shared/logger.ts';
 import { createError, ErrorType } from '../../utils/error.utils.ts';
 //import { getContentFromToolResult } from '../../utils/llms.utils.ts';

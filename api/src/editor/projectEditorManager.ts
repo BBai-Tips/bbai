@@ -1,5 +1,5 @@
 import ProjectEditor from './projectEditor.ts';
-import { ConversationId } from 'shared/types.ts';
+import type { ConversationId } from 'shared/types.ts';
 
 class ProjectEditorManager {
 	private projectEditors: Map<string, ProjectEditor> = new Map();

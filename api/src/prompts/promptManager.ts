@@ -43,7 +43,7 @@ class PromptManager {
 		return await readFileContent(resolvedPath);
 	}
 
-	async getPrompt(promptName: string, variables: Record<string, any> = {}): Promise<string> {
+	async getPrompt(promptName: string, variables: Record<string, unknown> = {}): Promise<string> {
 		const userPrompt = await this.loadUserPrompt(promptName);
 		const defaultPrompt = defaultPrompts[promptName as keyof typeof defaultPrompts];
 
@@ -78,7 +78,7 @@ class PromptManager {
 		};
 	}
 
-	applyTemplate(template: string, variables: Record<string, any>): string {
+	applyTemplate(template: string, variables: Record<string, unknown>): string {
 		return stripIndents(template).replace(
 			/\${(.*?)}/g,
 			(_, expr) => {
