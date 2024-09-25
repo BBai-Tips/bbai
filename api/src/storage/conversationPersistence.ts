@@ -596,7 +596,6 @@ class ConversationPersistence {
 		await this.ensureInitialized();
 		const revisionFileName = `${fileName}_rev_${revisionId}`;
 		const revisionFileDir = join(this.fileRevisionsDir, dirname(revisionFileName));
-		logger.info(`ConversationPersistence: Creating directory for: ${revisionFileDir}`);
 		ensureDir(revisionFileDir);
 		const revisionFilePath = join(this.fileRevisionsDir, revisionFileName);
 		logger.info(`ConversationPersistence: Writing revision file: ${revisionFilePath}`);
@@ -622,7 +621,6 @@ class ConversationPersistence {
 				}
 			}
 		}
-		//return undefined;
 		throw new Error(`Could not read file contents for file revision ${revisionFilePath}`);
 	}
 

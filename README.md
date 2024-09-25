@@ -1,5 +1,28 @@
 # BBai - Your Intelligent Project Assistant
 
+## Be Better At … Everything You Do With Text
+
+BBai _(pronounced b-b-aye)_ is an advanced AI-powered assistant designed to revolutionize how you work with text-based projects. Whether you're coding, writing, or managing complex documentation, BBai is here to help you "be better" at every step.
+
+_(The name BBai is also a respectful nod to [BBEdit](https://www.barebones.com/products/bbedit/index.html), my beloved text editor by Bare Bones Software)_
+
+## Table of Contents
+
+- [Project Status: Beta](#project-status-beta)
+- [Why BBai?](#why-bbai)
+  - [Key Features](#key-features)
+- [Who Can Benefit from BBai?](#who-can-benefit-from-bbai)
+- [Use Cases](#use-cases)
+- [How BBai Works](#how-bbai-works)
+- [Getting Started](#getting-started)
+  - [Prerequisites](#prerequisites)
+  - [Installation](#installation)
+- [Documentation](#documentation)
+- [Why Choose BBai?](#why-choose-bbai)
+- [Roadmap](#roadmap)
+- [Join the BBai Community](#join-the-bbai-community)
+- [Project Links](#project-links)
+
 ## Project Status: Beta
 
 BBai is currently in beta stage of development. While we're excited about its potential, please be aware that you may encounter bugs or incomplete features. We're actively working on improvements and new functionalities.
@@ -10,13 +33,6 @@ If you're interested in being part of the BBai journey, we'd love to hear from y
 To get involved, please submit an issue, or contact me directly.
 
 ---
-
-## Be Better at ... Everything You Do with Text
-
-BBai _(pronounced b-b-aye)_ is an advanced AI-powered assistant designed to revolutionize how you work with text-based projects. Whether you're coding, writing, or managing complex documentation, BBai is here to help you "be better" at every step.
-
-_(The name is also a respectful nod to [BBEdit](https://www.barebones.com/products/bbedit/index.html), my beloved text editor by Bare Bones Software)_
-
 
 ## Why BBai?
 
@@ -68,26 +84,25 @@ BBai excels in various scenarios:
 Before using BBai, ensure you have the following:
 
 1. An Anthropic API key (Note: This is different from your Anthropic chat console login. You'll need to create an API key at https://console.anthropic.com/settings/keys)
-2. Git (latest stable version, recommended but optional)
-3. ctags (optional, enhances project understanding)
-
-For manual installation from source, you'll also need:
-
-4. Deno (latest stable version)
+2. [Git](https://git-scm.com/downloads) (latest stable version, recommended but optional)
+3. [ctags](https://github.com/universal-ctags/ctags) (optional, enhances project understanding)
 
 Git and ctags can be easily installed using package managers like Homebrew on macOS or apt on Linux. While Git is optional, it's highly recommended for optimal use of BBai.
 
 ### Installation
 
-BBai can be installed on various platforms. For detailed installation instructions, please refer to our [Installation Guide](INSTALL.md).
+BBai can be installed on various platforms:
 
-#### Quick Start
+- **macOS and Linux**: Use our one-line installation script:
+  ```sh
+  curl -sSL https://raw.githubusercontent.com/BBai-Tips/bbai/main/install.sh | sh
+  ```
 
-1. Download the appropriate release package for your platform from the [Releases page](https://github.com/BBai-Tips/bbai/releases).
-2. Extract the package contents.
-3. Run the installation script:
-   - On Unix-like systems (Linux, macOS): `sudo ./install.sh`
-   - On Windows: Run `install.bat` as administrator
+- **Windows**: Download and run the `bbai-installer.msi` from our [Releases page](https://github.com/BBai-Tips/bbai/releases). For detailed instructions, see our [Windows User Guide](docs/WINDOWS_GUIDE.md).
+
+- **Manual Installation**: For advanced users, we provide options to install from release packages or build from source.
+
+For detailed installation instructions, please refer to our [Installation Guide](INSTALL.md).
 
 After installation, you can start using BBai as follows:
 
@@ -103,8 +118,6 @@ After installation, you can start using BBai as follows:
    ```
    bbai chat
    ```
-
-For more detailed instructions on installation, usage, and alternative methods, please see the [Installation Guide](INSTALL.md).
 
 ## Documentation
 
@@ -127,15 +140,26 @@ These guides provide comprehensive information on BBai's features, usage pattern
 
 ## Roadmap
 
-BBai is continuously evolving. Future plans include:
+BBai is continuously evolving. Here's an overview of our planned features and approximate timelines:
+
+1. Short-term (Next 3-6 months):
 
 - Implementation of RAG and embedding capabilities for enhanced project understanding and comprehensive project visibility
+- Initial support for additional LLM providers
+
+2. Medium-term (6-12 months):
 - Agent Orchestrator: A powerful feature that allows the LLM to break down complex tasks into smaller chunks managed by sub-agents. This enables:
 	- Faster and more cost-effective processing for simple tasks using smaller models
 	- Reduced context window size and costs for multiple conversations
 	- Synchronous task completion for improved overall operation speed
-- Support for additional LLM providers
 - Expanded tool ecosystem for more specialized tasks
+
+3. Long-term (Beyond 12 months):
+- Advanced integration with version control systems
+- Collaborative features for team-based projects
+- AI-driven project optimization suggestions
+
+Please note that these timelines are approximate and subject to change based on development progress and community feedback.
 
 ## Join the BBai Community
 
@@ -144,6 +168,25 @@ BBai is more than just a tool; it's a growing community of professionals pushing
 Start your journey with BBai today and transform the way you work with text!
 
 *BBai: Be Better at ... Everything You Do with Text*
+
+## Compatibility
+
+BBai is designed to work on the following operating systems:
+- macOS (10.15 Catalina and later)
+- Linux (major distributions like Ubuntu, Fedora, CentOS)
+- Windows 10 and later
+
+It's compatible with projects using various programming languages and text-based formats.
+
+## Feedback and Support
+
+We value your input and are here to help you get the most out of BBai:
+
+- For bug reports or feature requests, please [open an issue](https://github.com/BBai-Tips/bbai/issues) on our GitHub repository.
+- For general questions or discussions, join our [community forum](https://github.com/BBai-Tips/bbai/discussions) (link to be updated).
+- For more immediate support, reach out to us via email at support@bbai.tips (to be set up).
+
+Your feedback is crucial in shaping the future of BBai!
 
 ## Project Links
 

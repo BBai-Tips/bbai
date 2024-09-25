@@ -4,7 +4,7 @@ BBai _(pronounced b-b-aye)_ is an AI-powered assistant for text-based projects. 
 
 ## System Requirements
 
-BBai can run on any system that supports Deno. While it has been primarily tested on macOS, it should work on other platforms as well.
+BBai can run on macOS, Linux, and Windows systems.
 
 ## Prerequisites
 
@@ -14,15 +14,52 @@ Before using BBai, ensure you have the following:
 2. [Git](https://git-scm.com/) (latest stable version, recommended but optional)
 3. [ctags](https://github.com/universal-ctags/ctags) (optional, enhances project understanding)
 
-For manual installation from source, you'll also need:
-
-4. [Deno](https://deno.com/) (latest stable version)
-
 Git and ctags can be easily installed using package managers like Homebrew on macOS or apt on Linux. While Git is optional, it's highly recommended for optimal use of BBai.
 
 ## Installation Methods
 
-### Option 1: Installing from Release Packages (Recommended)
+### Option 1: One-Line Installation Script (macOS and Linux)
+
+For macOS and Linux users, the easiest way to install BBai is using our one-line installation script:
+
+```sh
+curl -sSL https://raw.githubusercontent.com/BBai-Tips/bbai/main/install.sh | sh
+```
+
+This script will:
+1. Detect your system's architecture and OS
+2. Download the latest version of BBai
+3. Install both `bbai` and `bbai-api` binaries to `/usr/local/bin`
+
+Note: You may be prompted for your password to install the binaries in `/usr/local/bin`. This is necessary to make BBai accessible system-wide.
+
+The installation process uses color-coded output for better readability:
+- Yellow: Information and progress messages
+- Red: Important notes or warnings
+- Green: Success messages
+
+### Option 2: Windows Installer
+
+For Windows users, we provide an MSI installer for easy installation:
+
+1. Go to the [BBai Releases page](https://github.com/BBai-Tips/bbai/releases) on GitHub.
+2. Download the `bbai-installer.msi` file.
+3. Double-click the downloaded file to run the installer.
+4. Follow the on-screen instructions to complete the installation.
+
+The installer will place two batch files on your desktop:
+- `bbai_init.bat`: Use this to initialize BBai in your project directory.
+- `bbai_start.bat`: Use this to start BBai and open the browser interface.
+
+To use BBai:
+1. Navigate to your project directory in File Explorer.
+2. Copy the `bbai_init.bat` file into your project directory.
+3. Double-click `bbai_init.bat` to initialize BBai for your project.
+4. Use `bbai_start.bat` to start BBai whenever you want to work on your project.
+
+### Option 3: Manual Installation from Release Packages
+
+For advanced users who prefer manual installation:
 
 1. Go to the [BBai Releases page](https://github.com/BBai-Tips/bbai/releases) on GitHub.
 2. Download the appropriate package for your operating system and architecture:
@@ -44,27 +81,27 @@ Git and ctags can be easily installed using package managers like Homebrew on ma
    - For Windows:
      Run `install.bat` as administrator
 
-### Option 2: Manual Installation from Source
+### Option 4: Manual Installation from Source
 
-1. Clone the BBai repository:
+For developers or those who want to build from source:
+
+1. Ensure you have [Deno](https://deno.com/) (latest stable version) installed.
+2. Clone the BBai repository:
    ```
    git clone https://github.com/BBai-Tips/bbai.git
    cd bbai
    ```
-
-2. Build the project:
+3. Build the project:
    ```
    deno task build
    ```
-
-3. Move the built executables to a directory in your PATH:
+4. Move the built executables to a directory in your PATH:
    - For Linux and macOS:
      ```
      sudo mv ./build/bbai ./build/bbai-api /usr/local/bin/
      ```
    - For Windows:
      Move `bbai.exe` and `bbai-api.exe` to a directory in your PATH, such as `C:\Windows\System32\`
-
 
 ## Configuration
 

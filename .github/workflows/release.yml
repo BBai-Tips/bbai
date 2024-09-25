@@ -59,12 +59,80 @@ jobs:
           echo 'chmod +x /usr/local/bin/bbai /usr/local/bin/bbai-api' >> build/install.sh
           chmod +x build/install.sh
 
-      - name: Create install script (Windows)
+      - name: Create batch files (Windows)
         if: matrix.target == 'x86_64-pc-windows-msvc'
         run: |
-          echo '@echo off' > build/install.bat
-          echo 'copy bbai.exe %USERPROFILE%\AppData\Local\Microsoft\WindowsApps\' >> build/install.bat
-          echo 'copy bbai-api.exe %USERPROFILE%\AppData\Local\Microsoft\WindowsApps\' >> build/install.bat
+          echo '@echo off' > build/bbai_init.bat
+          echo 'echo Initializing BBai in the current directory...' >> build/bbai_init.bat
+          echo 'bbai init' >> build/bbai_init.bat
+          echo 'echo.' >> build/bbai_init.bat
+          echo 'echo Initialization complete. Press any key to exit.' >> build/bbai_init.bat
+          echo 'pause >nul' >> build/bbai_init.bat
+
+          echo '@echo off' > build/bbai_start.bat
+          echo 'echo Starting BBai...' >> build/bbai_start.bat
+          echo 'start "" bbai start' >> build/bbai_start.bat
+          echo 'echo.' >> build/bbai_start.bat
+          echo 'echo BBai has been started in your default web browser.' >> build/bbai_start.bat
+          echo 'echo You can close this window.' >> build/bbai_start.bat
+
+      - name: Create MSI installer (Windows)
+        if: matrix.target == 'x86_64-pc-windows-msvc'
+        run: |
+          choco install wixtoolset -y
+          $env:PATH += ";C:\Program Files (x86)\WiX Toolset v3.11\bin"
+          
+          # Create a temporary directory for the installer files
+          mkdir installer_files
+          cp build/bbai.exe installer_files/
+          cp build/bbai-api.exe installer_files/
+          cp build/bbai_init.bat installer_files/
+          cp build/bbai_start.bat installer_files/
+          
+          # Create a WiX source file
+          @"
+          <?xml version="1.0" encoding="UTF-8"?>
+          <Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+            <Product Id="*" Name="BBai" Language="1033" Version="1.0.0.0" Manufacturer="BBai-Tips" UpgradeCode="12345678-1234-1234-1234-123456789012">
+              <Package InstallerVersion="200" Compressed="yes" InstallScope="perMachine" />
+              <MajorUpgrade DowngradeErrorMessage="A newer version of [ProductName] is already installed." />
+              <MediaTemplate EmbedCab="yes" />
+              <Feature Id="ProductFeature" Title="BBai" Level="1">
+                <ComponentGroupRef Id="ProductComponents" />
+              </Feature>
+            </Product>
+            <Fragment>
+              <Directory Id="TARGETDIR" Name="SourceDir">
+                <Directory Id="ProgramFilesFolder">
+                  <Directory Id="INSTALLFOLDER" Name="BBai" />
+                </Directory>
+              </Directory>
+            </Fragment>
+            <Fragment>
+              <ComponentGroup Id="ProductComponents" Directory="INSTALLFOLDER">
+                <Component Id="bbai.exe" Guid="*">
+                  <File Id="bbai.exe" Name="bbai.exe" Source="installer_files\bbai.exe" KeyPath="yes" />
+                </Component>
+                <Component Id="bbai_api.exe" Guid="*">
+                  <File Id="bbai_api.exe" Name="bbai-api.exe" Source="installer_files\bbai-api.exe" KeyPath="yes" />
+                </Component>
+                <Component Id="bbai_init.bat" Guid="*">
+                  <File Id="bbai_init.bat" Name="bbai_init.bat" Source="installer_files\bbai_init.bat" KeyPath="yes" />
+                </Component>
+                <Component Id="bbai_start.bat" Guid="*">
+                  <File Id="bbai_start.bat" Name="bbai_start.bat" Source="installer_files\bbai_start.bat" KeyPath="yes" />
+                </Component>
+              </ComponentGroup>
+            </Fragment>
+          </Wix>
+          "@ | Out-File -Encoding utf8 bbai.wxs
+          
+          # Compile and link the installer
+          candle bbai.wxs
+          light -ext WixUIExtension bbai.wixobj
+          
+          # Move the created MSI to the build directory
+          mv bbai.msi build/bbai-installer.msi
 
       - name: Copy README and INSTALL
         shell: bash
@@ -126,8 +194,11 @@ jobs:
               continue
             fi
             cd bbai-$target
-            zip -r ../bbai-$target-v${{ steps.get_version.outputs.VERSION }}.zip .
-            if [ "$target" != "x86_64-pc-windows-msvc" ]; then
+            if [ "$target" = "x86_64-pc-windows-msvc" ]; then
+              zip -r ../bbai-$target-v${{ steps.get_version.outputs.VERSION }}.zip .
+              gh release upload v${{ steps.get_version.outputs.VERSION }} bbai-installer.msi || echo "Failed to upload MSI for $target"
+            else
+              zip -r ../bbai-$target-v${{ steps.get_version.outputs.VERSION }}.zip .
               chmod 755 install.sh bbai bbai-api
               tar czf ../bbai-$target-v${{ steps.get_version.outputs.VERSION }}.tar.gz .
             fi
