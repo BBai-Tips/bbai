@@ -1,33 +1,43 @@
 import { join } from '@std/path';
 
 import type { LLMSpeakWithOptions, LLMSpeakWithResponse } from 'api/types.ts';
-import { ConversationId, ConversationMetrics, ConversationTokenUsage, TokenUsage } from 'shared/types.ts';
+import type {
+	ConversationId,
+	ConversationMetrics,
+	ConversationTokenUsage,
+	FileMetadata,
+	TokenUsage,
+} from 'shared/types.ts';
 import LLMInteraction from './baseInteraction.ts';
-import LLM from '../providers/baseLLM.ts';
+import type LLM from '../providers/baseLLM.ts';
 import { LLMCallbackType } from 'api/types.ts';
-import type { LLMMessageContentPart, LLMMessageContentPartTextBlock } from 'api/llms/llmMessage.ts';
+import type {
+	LLMMessageContentPart,
+	LLMMessageContentPartImageBlock,
+	LLMMessageContentPartImageBlockSourceMediaType,
+	LLMMessageContentParts,
+	LLMMessageContentPartTextBlock,
+} from 'api/llms/llmMessage.ts';
+import { encodeBase64 } from '@std/encoding';
 import LLMMessage from 'api/llms/llmMessage.ts';
-import LLMTool from 'api/llms/llmTool.ts';
+import type LLMTool from 'api/llms/llmTool.ts';
 import { logger } from 'shared/logger.ts';
 //import { readFileContent } from 'shared/dataDir.ts';
 import { ResourceManager } from '../resourceManager.ts';
 //import { GitUtils } from 'shared/git.ts';
 
-export interface FileMetadata {
-	path: string;
-	size: number;
-	lastModified: Date;
-	inSystemPrompt: boolean;
-	messageId?: string;
-	toolUseId?: string;
-	lastCommit?: string;
-	error?: string | null;
-}
+export type { FileMetadata };
 export interface ProjectInfo {
 	type: 'empty' | 'ctags' | 'file-listing';
 	content: string;
 	tier: number | null;
 }
+
+// const imageExtensions = ['.png', '.jpg', '.jpeg', '.gif', '.bmp', '.webp'];
+// function isImageFile(fileName: string): boolean {
+// 	const ext = fileName.toLowerCase().split('.').pop();
+// 	return imageExtensions.includes(`.${ext}`);
+// }
 
 class LLMConversationInteraction extends LLMInteraction {
 	private _files: Map<string, FileMetadata> = new Map();
@@ -54,18 +64,24 @@ class LLMConversationInteraction extends LLMInteraction {
 			throw new Error('ConversationPersistence not initialized');
 		}
 		// First, try to get the system prompt from storage
-		let preparedSystemPrompt = await this.conversationPersistence.getPreparedSystemPrompt();
+		let preparedSystemPrompt = await this.conversationPersistence
+			.getPreparedSystemPrompt();
 
 		if (!preparedSystemPrompt) {
 			// If not found in storage, generate a new system prompt
 			const projectInfo = await this.llm.invoke(LLMCallbackType.PROJECT_INFO);
-			preparedSystemPrompt = this.appendProjectInfoToSystem(baseSystem, projectInfo);
+			preparedSystemPrompt = this.appendProjectInfoToSystem(
+				baseSystem,
+				projectInfo,
+			);
 
 			// We're not currently adding files to system prompt, only in messages
 			//preparedSystemPrompt = await this.appendFilesToSystem(preparedSystemPrompt);
 
 			// Save the generated system prompt
-			await this.conversationPersistence.savePreparedSystemPrompt(preparedSystemPrompt);
+			await this.conversationPersistence.savePreparedSystemPrompt(
+				preparedSystemPrompt,
+			);
 			//logger.info('ConversationInteraction: Created system prompt', preparedSystemPrompt);
 		}
 
@@ -75,7 +91,9 @@ class LLMConversationInteraction extends LLMInteraction {
 
 	public async prepareTools(tools: Map<string, LLMTool>): Promise<LLMTool[]> {
 		if (!this.conversationPersistence) {
-			throw new Error('ConversationInteraction: ConversationPersistence not initialized');
+			throw new Error(
+				'ConversationInteraction: ConversationPersistence not initialized',
+			);
 		}
 
 		// First, try to get the prepared tools from storage
@@ -102,30 +120,25 @@ class LLMConversationInteraction extends LLMInteraction {
 		return await this.hydrateMessages(messages);
 	}
 
-	//private async getCurrentGitCommit(): Promise<string | null> {
-	//	const projectRoot = await this.llm.invoke(LLMCallbackType.PROJECT_ROOT);
-	//	return GitUtils.getCurrentCommit(projectRoot);
-	//}
-
-	//private async appendGitCommitToSystem(system: string): Promise<string> {
-	//	this.currentCommit = await this.getCurrentGitCommit();
-	//	if (this.currentCommit) {
-	//		system += `\n\n<git-commit>${this.currentCommit}</git-commit>`;
-	//	}
-	//	return system;
-	//}
-
-	protected async createFileXmlString(filePath: string): Promise<string | null> {
+	protected async createFileXmlString(
+		filePath: string,
+		revisionId: string,
+	): Promise<string | null> {
 		try {
-			logger.info('ConversationInteraction: createFileXmlString - filePath', filePath);
-			const content = await this.readProjectFileContent(filePath);
-			const metadata = {
-				size: new TextEncoder().encode(content).length,
-				lastModified: new Date(),
-			};
-			return `<file path="${filePath}" size="${metadata.size}" last_modified="${metadata.lastModified.toISOString()}">\n${content}\n</file>`;
+			logger.info(
+				'ConversationInteraction: createFileXmlString - filePath',
+				filePath,
+			);
+			const content = await this.readProjectFileContent(filePath, revisionId);
+			const fileMetadata = this.getFileMetadata(filePath, revisionId);
+			if (!fileMetadata) {
+				throw new Error(`File has not been added to conversation: ${filePath}`);
+			}
+			return `<file path="${filePath}" size="${fileMetadata.size}" last_modified="${fileMetadata.lastModified}">\n${content}\n</file>`;
 		} catch (error) {
-			logger.error(`ConversationInteraction: Error creating XML string for ${filePath}: ${error.message}`);
+			logger.error(
+				`ConversationInteraction: Error creating XML string for ${filePath}: ${error.message}`,
+			);
 			//throw createError(ErrorType.FileHandling, `Failed to create xmlString for ${filePath}`, {
 			//	filePath,
 			//	operation: 'write',
@@ -134,15 +147,64 @@ class LLMConversationInteraction extends LLMInteraction {
 		return null;
 	}
 
-	public async readProjectFileContent(filePath: string): Promise<string> {
-		const projectRoot = await this.llm.invoke(LLMCallbackType.PROJECT_ROOT);
-		const fullFilePath = join(projectRoot, filePath);
-		logger.info(`ConversationInteraction: Reading contents of File ${fullFilePath}`);
+	// 	public async readProjectFileContent(
+	// 		filePath: string,
+	// 		revisionId: string,
+	// 	): Promise<string | Uint8Array | undefined> {
+	// 		const content = this.getFileRevision(filePath, revisionId);
+	// 		if (content) {
+	// 			logger.info(`ConversationInteraction: Returning contents of File Revision ${filePath} (${revisionId})`);
+	// 			return content;
+	// 		} else {
+	// 			const projectRoot = await this.llm.invoke(LLMCallbackType.PROJECT_ROOT);
+	// 			const fullFilePath = join(projectRoot, filePath);
+	// 			logger.info(`ConversationInteraction: Reading contents of File ${fullFilePath}`);
+	// 			try {
+	// 				const content = await this.resourceManager.loadResource({
+	// 					type: 'file',
+	// 					location: fullFilePath,
+	// 				});
+	// 				this.storeFileRevision(filePath, revisionId, content);
+	// 				return content;
+	// 			} catch (error) {
+	// 				throw new Error(`Failed to read file: ${fullFilePath}`);
+	// 			}
+	// 		}
+	// 	}
+
+	public async readProjectFileContent(
+		filePath: string,
+		revisionId: string,
+	): Promise<string | Uint8Array> {
 		try {
-			return await this.resourceManager.loadResource({ type: 'file', location: fullFilePath });
-		} catch (error) {
-			throw new Error(`Failed to read file: ${fullFilePath}`);
+			const content = await this.getFileRevision(filePath, revisionId);
+			logger.info(`ConversationInteraction: Returning contents of File Revision ${filePath} (${revisionId})`);
+			return content;
+		} catch (_) {
+			const projectRoot = await this.llm.invoke(LLMCallbackType.PROJECT_ROOT);
+			const fullFilePath = join(projectRoot, filePath);
+			logger.info(`ConversationInteraction: Reading contents of File ${fullFilePath}`);
+			try {
+				const content = await this.resourceManager.loadResource({
+					type: 'file',
+					location: fullFilePath,
+				});
+				await this.storeFileRevision(filePath, revisionId, content);
+				return content;
+			} catch (error) {
+				throw new Error(`Failed to read file: ${filePath} (${revisionId}) - Error: ${error}`);
+			}
 		}
+	}
+
+	async storeFileRevision(filePath: string, revisionId: string, content: string | Uint8Array): Promise<void> {
+		logger.info(`ConversationInteraction: Storing file revision: ${filePath} Revision: (${revisionId})`);
+		await this.conversationPersistence.storeFileRevision(filePath, revisionId, content);
+	}
+
+	async getFileRevision(filePath: string, revisionId: string): Promise<string | Uint8Array> {
+		logger.info(`ConversationInteraction: Getting file revision: ${filePath} Revision: (${revisionId})`);
+		return await this.conversationPersistence.getFileRevision(filePath, revisionId);
 	}
 
 	protected appendProjectInfoToSystem(
@@ -160,7 +222,7 @@ class LLMConversationInteraction extends LLMInteraction {
 
 	protected async appendFilesToSystem(system: string): Promise<string> {
 		for (const filePath of this.getSystemPromptFiles()) {
-			const fileXml = await this.createFileXmlString(filePath);
+			const fileXml = await this.createFileXmlString(filePath, '');
 			if (fileXml) {
 				system += `\n\n${fileXml}`;
 			}
@@ -171,22 +233,60 @@ class LLMConversationInteraction extends LLMInteraction {
 	async hydrateMessages(messages: LLMMessage[]): Promise<LLMMessage[]> {
 		const hydratedFiles = new Map<string, number>();
 
-		const processContentPart = async <T extends LLMMessageContentPart>(
-			contentPart: T,
+		const processContentPart = async (
+			contentPart: LLMMessageContentPart,
 			messageId: string,
 			turnIndex: number,
-		): Promise<T> => {
-			if (contentPart.type === 'text' && contentPart.text.startsWith('File added:')) {
+		): Promise<LLMMessageContentPart | LLMMessageContentParts> => {
+			if (
+				contentPart.type === 'text' &&
+				contentPart.text.startsWith('File added:')
+			) {
 				const filePath = contentPart.text.split(': ')[1].trim();
-
-				if (!hydratedFiles.has(filePath)) {
-					logger.info(
-						`ConversationInteraction: Hydrating message for file: ${filePath} - Turn: ${turnIndex}`,
+				const fileMetadata = this.getFileMetadata(filePath, messageId);
+				if (!fileMetadata) {
+					logger.warn(
+						`ConversationInteraction: File metadata not found for ${filePath} Revision:(${messageId})`,
 					);
-					const fileXml = await this.createFileXmlString(filePath);
-					if (fileXml) {
+					return contentPart;
+				}
+
+				// if prompt caching is enabled then add file for each message
+				// if prompt caching is NOT enabled then only add file once (to last message)
+				if (this.fullConfig.api.usePromptCaching || !hydratedFiles.has(filePath)) {
+					logger.info(
+						`ConversationInteraction: Hydrating message for file: ${filePath} - Revision:(${messageId}) - Turn: ${turnIndex}`,
+					);
+
+					if (fileMetadata.type === 'image') {
+						// For image files, we'll create both an LLMMessageContentPartImageBlock and a text block
+						const imageData = await this.readProjectFileContent(filePath, messageId) as Uint8Array;
+						const base64Data = encodeBase64(imageData);
+						const imageBlock: LLMMessageContentPartImageBlock = {
+							messageId,
+							type: 'image',
+							source: {
+								type: 'base64',
+								media_type: fileMetadata.mimeType as LLMMessageContentPartImageBlockSourceMediaType,
+								data: base64Data,
+							},
+						};
+						const textBlock: LLMMessageContentPartTextBlock = {
+							messageId,
+							type: 'text',
+							text:
+								`<bbaiFile path="${filePath}" type="image" size="${fileMetadata.size}" last_modified="${fileMetadata.lastModified}" mime_type="${fileMetadata.mimeType}" revision="${messageId}"></bbaiFile>`,
+						};
 						hydratedFiles.set(filePath, turnIndex);
-						return { ...contentPart, text: fileXml } as T;
+						return [imageBlock, textBlock] as LLMMessageContentParts;
+					} else {
+						const fileContent = await this.readProjectFileContent(filePath, messageId);
+						const fileXml =
+							`<bbaiFile path="${filePath}" size="${fileMetadata.size}" last_modified="${fileMetadata.lastModified}" revision="${messageId}">
+${fileContent}
+</bbaiFile>`;
+						hydratedFiles.set(filePath, turnIndex);
+						return { ...contentPart, text: fileXml };
 					}
 				} else {
 					const lastHydratedTurn = hydratedFiles.get(filePath)!;
@@ -196,28 +296,45 @@ class LLMConversationInteraction extends LLMInteraction {
 					return {
 						...contentPart,
 						text: `Note: File ${filePath} content is up-to-date as of turn ${lastHydratedTurn}.`,
-					} as T;
+					};
 				}
 			}
-			if (contentPart.type === 'tool_result' && Array.isArray(contentPart.content)) {
+			if (
+				contentPart.type === 'tool_result' && Array.isArray(contentPart.content)
+			) {
 				const updatedContent = await Promise.all(
 					contentPart.content.map((part) => processContentPart(part, messageId, turnIndex)),
 				);
-				return { ...contentPart, content: updatedContent } as T;
+				return {
+					...contentPart,
+					content: updatedContent,
+				} as LLMMessageContentPart;
 			}
 			return contentPart;
 		};
 
-		const processMessage = async (message: LLMMessage, index: number): Promise<LLMMessage> => {
+		const processMessage = async (
+			message: LLMMessage,
+			index: number,
+		): Promise<LLMMessage> => {
 			if (!message || typeof message !== 'object') {
 				logger.error(`ConversationInteraction: Invalid message encountered: ${JSON.stringify(message)}`);
 				return message;
 			}
 			if (message.role === 'user') {
-				const updatedContent = [];
+				logger.error(`ConversationInteraction: Hydrating message: ${JSON.stringify(message)}`);
+				const updatedContent: LLMMessageContentPart[] = [];
 				for (const part of message.content) {
-					const processedPart = await processContentPart(part, message.id || '', index);
-					updatedContent.push(processedPart);
+					const processedPart = await processContentPart(
+						part,
+						message.id || '',
+						index,
+					);
+					if (Array.isArray(processedPart)) {
+						updatedContent.push(...processedPart);
+					} else {
+						updatedContent.push(processedPart);
+					}
 				}
 				const updatedMessage = new LLMMessage(
 					message.role,
@@ -255,13 +372,18 @@ class LLMConversationInteraction extends LLMInteraction {
 		};
 
 		if (!fileMetadata.error) {
-			this._files.set(filePath, fileMetadata);
+			this.setFileMetadata(filePath, messageId, fileMetadata);
 		}
 		return { filePath, fileMetadata };
 	}
 
 	addFilesForMessage(
-		filesToAdd: Array<{ fileName: string; metadata: Omit<FileMetadata, 'path' | 'inSystemPrompt'> }>,
+		filesToAdd: Array<
+			{
+				fileName: string;
+				metadata: Omit<FileMetadata, 'path' | 'inSystemPrompt'>;
+			}
+		>,
 		messageId: string,
 		toolUseId?: string,
 	): Array<{ filePath: string; fileMetadata: FileMetadata }> {
@@ -284,7 +406,7 @@ class LLMConversationInteraction extends LLMInteraction {
 
 		for (const fileToAdd of conversationFiles) {
 			if (!fileToAdd.fileMetadata.error) {
-				this._files.set(fileToAdd.filePath, fileToAdd.fileMetadata);
+				this.setFileMetadata(fileToAdd.filePath, messageId, fileToAdd.fileMetadata);
 			}
 		}
 		return conversationFiles;
@@ -299,12 +421,12 @@ class LLMConversationInteraction extends LLMInteraction {
 			path: filePath,
 			inSystemPrompt: true,
 		};
-		this._files.set(filePath, fileMetadata);
+		this.setFileMetadata(filePath, '', fileMetadata);
 		this.systemPromptFiles.push(filePath);
 	}
 
-	removeFile(filePath: string): boolean {
-		const fileMetadata = this._files.get(filePath);
+	removeFile(filePath: string, revisionId: string): boolean {
+		const fileMetadata = this.getFileMetadata(filePath, revisionId);
 		if (fileMetadata) {
 			if (!fileMetadata.inSystemPrompt && fileMetadata.messageId) {
 				this.messages = this.messages.filter((message) => message.id !== fileMetadata.messageId);
@@ -312,13 +434,18 @@ class LLMConversationInteraction extends LLMInteraction {
 			if (fileMetadata.inSystemPrompt) {
 				this.systemPromptFiles = this.systemPromptFiles.filter((path) => path !== filePath);
 			}
-			return this._files.delete(filePath);
+			const fileKey = `${filePath}_rev_${revisionId}`;
+			return this._files.delete(fileKey);
 		}
 		return false;
 	}
-
-	getFile(filePath: string): FileMetadata | undefined {
-		return this._files.get(filePath);
+	getFileMetadata(filePath: string, revisionId: string): FileMetadata | undefined {
+		const fileKey = `${filePath}_rev_${revisionId}`;
+		return this._files.get(fileKey);
+	}
+	setFileMetadata(filePath: string, revisionId: string, fileMetadata: FileMetadata): void {
+		const fileKey = `${filePath}_rev_${revisionId}`;
+		this._files.set(fileKey, fileMetadata);
 	}
 
 	getFiles(): Map<string, FileMetadata> {
@@ -373,7 +500,10 @@ class LLMConversationInteraction extends LLMInteraction {
 
 		//logger.debug(`ConversationInteraction: converse - calling addMessageForUserRole for turn ${this._statementTurnCount}` );
 		this.addMessageForUserRole({ type: 'text', text: prompt });
-		this.conversationLogger?.logUserMessage(prompt, this.getConversationStats());
+		this.conversationLogger?.logUserMessage(
+			prompt,
+			this.getConversationStats(),
+		);
 
 		logger.debug(`ConversationInteraction: converse - calling llm.speakWithRetry`);
 		const response = await this.llm.speakWithRetry(this, speakOptions);

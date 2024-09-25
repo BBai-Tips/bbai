@@ -1,7 +1,7 @@
-import InteractionManager from '../llms/interactions/interactionManager.ts';
-import LLMConversationInteraction from '../llms/interactions/conversationInteraction.ts';
-import LLM from '../llms/providers/baseLLM.ts';
-import { ConversationId } from 'shared/types.ts';
+import type InteractionManager from '../llms/interactions/interactionManager.ts';
+import type LLMConversationInteraction from '../llms/interactions/conversationInteraction.ts';
+import type LLM from '../llms/providers/baseLLM.ts';
+import type { ConversationId } from 'shared/types.ts';
 import { generateConversationId } from 'shared/conversationManagement.ts';
 
 class AgentController {

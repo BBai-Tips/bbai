@@ -9,6 +9,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 
 
+## [0.0.15-beta] - 2024-09-25
+
+### Changed
+
+- Refactored Split config handling; global, project, full
+- Added config for apiHostname
+- Changed BUI to also load apiHostname and startDir from URL
+- Fixes for init wizard
+- Added support for image files to request_files tool 
+- Added support for prompt caching to full message history
+- Easy install; Windows MSI and one-liner for macOS and Linux
+
+
 ## [0.0.14a-beta] - 2024-09-14
 
 ### Changed

@@ -3,16 +3,17 @@ import { ms } from 'ms';
 
 import { LLMProvider, OpenAIModel } from 'api/types.ts';
 import LLM from './baseLLM.ts';
-import LLMInteraction from '../interactions/baseInteraction.ts';
-import LLMMessage, {
+import type LLMInteraction from '../interactions/baseInteraction.ts';
+import type LLMMessage from 'api/llms/llmMessage.ts';
+import type {
 	LLMMessageContentPart,
 	LLMMessageContentParts,
 	LLMMessageContentPartTextBlock,
 	LLMMessageContentPartToolUseBlock,
 } from 'api/llms/llmMessage.ts';
-import LLMTool from 'api/llms/llmTool.ts';
+import type LLMTool from 'api/llms/llmTool.ts';
 import { createError } from '../../utils/error.utils.ts';
-import { ErrorType, LLMErrorOptions } from '../../errors/error.ts';
+import { ErrorType, type LLMErrorOptions } from '../../errors/error.ts';
 import { logger } from 'shared/logger.ts';
 import type {
 	LLMCallbacks,

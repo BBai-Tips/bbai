@@ -1,9 +1,11 @@
 import LLMInteraction from './baseInteraction.ts';
-import LLM from '../providers/baseLLM.ts';
-import { AnthropicModel, LLMMessageContentPart, LLMSpeakWithOptions, LLMSpeakWithResponse } from 'api/types.ts';
-import { ConversationId } from 'shared/types.ts';
-import LLMMessage, { LLMMessageContentPartTextBlock } from 'api/llms/llmMessage.ts';
-import LLMTool from 'api/llms/llmTool.ts';
+import type LLM from '../providers/baseLLM.ts';
+import { AnthropicModel } from 'api/types.ts';
+import type { LLMMessageContentPart, LLMSpeakWithOptions, LLMSpeakWithResponse } from 'api/types.ts';
+import type { ConversationId } from 'shared/types.ts';
+import type LLMMessage from 'api/llms/llmMessage.ts';
+import type { LLMMessageContentPartTextBlock } from 'api/llms/llmMessage.ts';
+import type LLMTool from 'api/llms/llmTool.ts';
 //import { logger } from 'shared/logger.ts';
 
 class LLMChatInteraction extends LLMInteraction {

@@ -116,6 +116,9 @@ export class ConfigManager {
                       # Set to true to ignore the LLM request cache (useful for development)
                       ignoreLLMRequestCache: false
                     
+                      # Set to true to enable prompt caching (default: true)
+                      usePromptCaching: true
+                    
                       # Add any shared configuration options here
                       logLevel: info
 
@@ -273,7 +276,7 @@ export class ConfigManager {
 
 	private loadEnvConfig(): Partial<FullConfigSchema> {
 		const envConfig: Partial<FullConfigSchema> = {};
-		const apiConfig: FullConfigSchema['api'] = { logLevel: 'info' };
+		const apiConfig: FullConfigSchema['api'] = { logLevel: 'info', usePromptCaching: true };
 		const cliConfig: Partial<FullConfigSchema['cli']> = {};
 
 		const anthropicApiKey = Deno.env.get('ANTHROPIC_API_KEY');
@@ -296,6 +299,9 @@ export class ConfigManager {
 
 		const apiLogLevel = Deno.env.get('BBAI_API_LOG_LEVEL');
 		if (apiLogLevel) apiConfig.logLevel = apiLogLevel as 'debug' | 'info' | 'warn' | 'error';
+
+		const usePromptCaching = Deno.env.get('BBAI_USE_PROMPT_CACHING');
+		if (usePromptCaching) apiConfig.usePromptCaching = usePromptCaching === 'true';
 
 		if (Object.keys(apiConfig).length > 0) {
 			envConfig.api = apiConfig;
@@ -364,6 +370,9 @@ export class ConfigManager {
 		if (!globalConfig.api || typeof globalConfig.api !== 'object') return false;
 		if (!globalConfig.cli || typeof globalConfig.cli !== 'object') return false;
 		if (typeof globalConfig.version !== 'string') return false;
+		if (globalConfig.api.usePromptCaching !== undefined && typeof globalConfig.api.usePromptCaching !== 'boolean') {
+			return false;
+		}
 		return true;
 	}
 

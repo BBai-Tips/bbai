@@ -1,4 +1,5 @@
-import { Context, Router } from '@oak/oak';
+import { Router } from '@oak/oak';
+import type { Context } from '@oak/oak';
 import { errorHandler } from '../middlewares/error.middleware.ts';
 import apiRouter from './apiRouter.ts';
 import swaggerRouter from './swaggerRouter.ts';

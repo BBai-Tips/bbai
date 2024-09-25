@@ -14,10 +14,10 @@ import type {
 import type { LLMMessageContentPart } from '../llmMessage.ts';
 //import LLMTool from '../llmTool.ts';
 import type { LLMToolInputSchema } from '../llmTool.ts';
-import LLMInteraction from '../interactions/baseInteraction.ts';
+import type LLMInteraction from '../interactions/baseInteraction.ts';
 import { logger } from 'shared/logger.ts';
-import { type FullConfigSchema } from 'shared/configManager.ts';
-import { ErrorType, LLMErrorOptions } from '../../errors/error.ts';
+import type { FullConfigSchema } from 'shared/configManager.ts';
+import { ErrorType, type LLMErrorOptions } from '../../errors/error.ts';
 import { createError } from '../../utils/error.utils.ts';
 //import { metricsService } from '../../services/metrics.service.ts';
 import kv from '../../utils/kv.utils.ts';

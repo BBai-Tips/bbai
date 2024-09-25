@@ -1,5 +1,6 @@
-import { JSX } from 'preact';
-import LLMTool, { LLMToolInputSchema, LLMToolRunResult, LLMToolRunResultContent } from 'api/llms/llmTool.ts';
+import type { JSX } from 'preact';
+import LLMTool from 'api/llms/llmTool.ts';
+import type { LLMToolInputSchema, LLMToolRunResult, LLMToolRunResultContent } from 'api/llms/llmTool.ts';
 import {
 	formatToolResult as formatToolResultBrowser,
 	formatToolUse as formatToolUseBrowser,
@@ -8,10 +9,10 @@ import {
 	formatToolResult as formatToolResultConsole,
 	formatToolUse as formatToolUseConsole,
 } from './formatters/requestFilesTool.console.ts';
-import LLMConversationInteraction from '../interactions/conversationInteraction.ts';
+import type LLMConversationInteraction from '../interactions/conversationInteraction.ts';
 import { logger } from 'shared/logger.ts';
-import { LLMAnswerToolUse, LLMMessageContentPartTextBlock } from 'api/llms/llmMessage.ts';
-import ProjectEditor from '../../editor/projectEditor.ts';
+import type { LLMAnswerToolUse, LLMMessageContentPartTextBlock } from 'api/llms/llmMessage.ts';
+import type ProjectEditor from '../../editor/projectEditor.ts';
 import { createError, ErrorType } from '../../utils/error.utils.ts';
 
 export default class LLMToolRequestFiles extends LLMTool {
@@ -37,11 +38,17 @@ export default class LLMToolRequestFiles extends LLMTool {
 		};
 	}
 
-	formatToolUse(toolInput: LLMToolInputSchema, format: 'console' | 'browser'): string | JSX.Element {
+	formatToolUse(
+		toolInput: LLMToolInputSchema,
+		format: 'console' | 'browser',
+	): string | JSX.Element {
 		return format === 'console' ? formatToolUseConsole(toolInput) : formatToolUseBrowser(toolInput);
 	}
 
-	formatToolResult(toolResult: LLMToolRunResultContent, format: 'console' | 'browser'): string | JSX.Element {
+	formatToolResult(
+		toolResult: LLMToolRunResultContent,
+		format: 'console' | 'browser',
+	): string | JSX.Element {
 		return format === 'console' ? formatToolResultConsole(toolResult) : formatToolResultBrowser(toolResult);
 	}
 
@@ -67,7 +74,10 @@ export default class LLMToolRequestFiles extends LLMTool {
 						'type': 'text',
 						'text': `Error adding file ${fileToAdd.fileName}: ${fileToAdd.metadata.error}`,
 					} as LLMMessageContentPartTextBlock);
-					filesError.push({ name: fileToAdd.fileName, error: fileToAdd.metadata.error });
+					filesError.push({
+						name: fileToAdd.fileName,
+						error: fileToAdd.metadata.error,
+					});
 				} else {
 					toolResultContentParts.push({
 						'type': 'text',
@@ -102,15 +112,10 @@ export default class LLMToolRequestFiles extends LLMTool {
 			}
 
 			const toolResults = toolResultContentParts;
-			const toolResponse = (allFilesFailed ? 'No files added\n' : '') + toolResponses.join('\n\n');
-			const bbaiResponse = bbaiResponses.join('\n\n');
 
-			// const storageLocation = this.determineStorageLocation(fullFilePath, content, source);
-			// if (storageLocation === 'system') {
-			// 	this.conversation.addFileForSystemPrompt(fileName, metadata, messageId, toolUse.toolUseId);
-			// } else {
-			// 	this.conversation.addFileForMessage(fileName, metadata, messageId, toolUse.toolUseId);
-			// }
+			const toolResponse = (allFilesFailed ? 'No files added\n' : '') +
+				toolResponses.join('\n\n');
+			const bbaiResponse = bbaiResponses.join('\n\n');
 
 			return {
 				toolResults,
@@ -127,11 +132,15 @@ export default class LLMToolRequestFiles extends LLMTool {
 		} catch (error) {
 			logger.error(`Error adding files to conversation: ${error.message}`);
 
-			throw createError(ErrorType.FileHandling, `Error adding files to conversation: ${error.message}`, {
-				name: 'request-files',
-				filePath: projectEditor.projectRoot,
-				operation: 'request-files',
-			});
+			throw createError(
+				ErrorType.FileHandling,
+				`Error adding files to conversation: ${error.message}`,
+				{
+					name: 'request-files',
+					filePath: projectEditor.projectRoot,
+					operation: 'request-files',
+				},
+			);
 		}
 	}
 }

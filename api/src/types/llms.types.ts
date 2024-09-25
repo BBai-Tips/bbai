@@ -1,10 +1,10 @@
-import LLMInteraction from '../llms/interactions/baseInteraction.ts';
-import { TokenUsage } from 'shared/types.ts';
+import type LLMInteraction from '../llms/interactions/baseInteraction.ts';
+import type { TokenUsage } from 'shared/types.ts';
 
-import LLMTool from 'api/llms/llmTool.ts';
+import type LLMTool from 'api/llms/llmTool.ts';
 export type { LLMToolInputSchema } from '../llms/llmTool.ts';
 
-import LLMMessage from 'api/llms/llmMessage.ts';
+import type LLMMessage from 'api/llms/llmMessage.ts';
 import type { LLMAnswerToolUse, LLMMessageContentParts } from '../llms/llmMessage.ts';
 export type { LLMMessageContentPart, LLMMessageContentParts } from '../llms/llmMessage.ts';
 
@@ -236,7 +236,7 @@ export enum LLMCallbackType {
 	PREPARE_MESSAGES = 'PREPARE_MESSAGES',
 	PREPARE_TOOLS = 'PREPARE_TOOLS',
 }
-export type LLMCallbackResult<T> = T extends (...args: any[]) => Promise<infer R> ? R : T;
+export type LLMCallbackResult<T> = T extends (...args: unknown[]) => Promise<infer R> ? R : T;
 export type LLMCallbacks = {
 	[K in LLMCallbackType]: (...args: any[]) => Promise<any> | any;
 };

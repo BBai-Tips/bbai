@@ -2,6 +2,7 @@ import { stripIndents } from 'common-tags';
 
 import { readFileContent, resolveFilePath } from 'shared/dataDir.ts';
 import { logger } from 'shared/logger.ts';
+import type { GlobalConfigSchema } from 'shared/configSchema.ts';
 
 interface PromptMetadata {
 	name: string;
@@ -11,7 +12,7 @@ interface PromptMetadata {
 
 interface Prompt {
 	metadata: PromptMetadata;
-	getContent: (variables: Record<string, any>) => Promise<string>;
+	getContent: (variables: Record<string, unknown>) => Promise<string>;
 }
 
 export const system: Prompt = {
@@ -22,7 +23,7 @@ export const system: Prompt = {
 	},
 	getContent: async ({ userDefinedContent = '', fullConfig }) => {
 		let guidelines;
-		const guidelinesPath = fullConfig.project.llmGuidelinesFile;
+		const guidelinesPath = (fullConfig as GlobalConfigSchema).project.llmGuidelinesFile;
 		if (guidelinesPath) {
 			try {
 				const resolvedPath = await resolveFilePath(guidelinesPath);
@@ -32,8 +33,8 @@ export const system: Prompt = {
 			}
 		}
 
-		const myPersonsName = fullConfig.myPersonsName;
-		const myAssistantsName = fullConfig.myAssistantsName;
+		const myPersonsName = (fullConfig as GlobalConfigSchema).myPersonsName;
+		const myAssistantsName = (fullConfig as GlobalConfigSchema).myAssistantsName;
 
 		return stripIndents`
 		  You are an AI assistant named ${myAssistantsName}, an expert at a variety of coding and writing tasks. Your capabilities include:
@@ -71,7 +72,7 @@ export const addFiles: Prompt = {
 		stripIndents`
 		  The following files have been added to the conversation:
 	  
-		  ${fileList.map((file: string) => `- ${file}`).join('\n')}
+		  ${(fileList as string[]).map((file: string) => `- ${file}`).join('\n')}
 	  
 		  Please review these files and provide any relevant insights or suggestions based on their content.
 		`,
@@ -88,7 +89,7 @@ export const gitCommitMessage: Prompt = {
 		  Generate a concise, single-line git commit message in past tense describing the purpose of the changes in the provided diffs. If necessary, add a blank line followed by a brief detailed explanation. Respond with only the commit message, without any additional text.
 	  
 		  <patched-files>
-		  ${patchedFiles.join('\n')}
+		  ${(patchedFiles as string[]).join('\n')}
 		  </patched-files>
 		`;
 	},

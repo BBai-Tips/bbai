@@ -3,11 +3,12 @@ import type { ClientOptions } from 'anthropic';
 
 import { AnthropicModel, LLMCallbackType, LLMProvider } from 'api/types.ts';
 import LLM from './baseLLM.ts';
-import LLMInteraction from '../interactions/baseInteraction.ts';
-import LLMMessage, { LLMMessageContentParts, LLMMessageContentPartTextBlock } from 'api/llms/llmMessage.ts';
-import LLMTool from 'api/llms/llmTool.ts';
+import type LLMInteraction from '../interactions/baseInteraction.ts';
+import type LLMMessage from 'api/llms/llmMessage.ts';
+import type { LLMMessageContentParts, LLMMessageContentPartTextBlock } from 'api/llms/llmMessage.ts';
+import type LLMTool from 'api/llms/llmTool.ts';
 import { createError } from '../../utils/error.utils.ts';
-import { ErrorType, LLMErrorOptions } from '../../errors/error.ts';
+import { ErrorType, type LLMErrorOptions } from '../../errors/error.ts';
 import { logger } from 'shared/logger.ts';
 import type {
 	LLMCallbacks,
@@ -17,6 +18,18 @@ import type {
 	LLMSpeakWithResponse,
 } from '../../types.ts';
 
+type AnthropicBlockParam =
+	| string
+	| Anthropic.Beta.PromptCaching.PromptCachingBetaTextBlockParam
+	| Anthropic.Beta.PromptCaching.PromptCachingBetaImageBlockParam
+	| Anthropic.Beta.PromptCaching.PromptCachingBetaToolUseBlockParam
+	| Anthropic.Beta.PromptCaching.PromptCachingBetaToolResultBlockParam
+	| Array<
+		| Anthropic.Beta.PromptCaching.PromptCachingBetaTextBlockParam
+		| Anthropic.Beta.PromptCaching.PromptCachingBetaImageBlockParam
+		| Anthropic.Beta.PromptCaching.PromptCachingBetaToolUseBlockParam
+		| Anthropic.Beta.PromptCaching.PromptCachingBetaToolResultBlockParam
+	>;
 class AnthropicLLM extends LLM {
 	private anthropic!: Anthropic;
 
@@ -34,11 +47,40 @@ class AnthropicLLM extends LLM {
 		this.anthropic = new Anthropic(clientOptions);
 	}
 
-	private asProviderMessageType(messages: LLMMessage[]): Anthropic.MessageParam[] {
-		return messages.map((message) => ({
-			role: message.role,
-			content: message.content,
-		} as Anthropic.MessageParam));
+	//private asProviderMessageType(messages: LLMMessage[]): Anthropic.MessageParam[] {
+	private asProviderMessageType(
+		messages: LLMMessage[],
+	): Anthropic.Beta.PromptCaching.PromptCachingBetaMessageParam[] {
+		const usePromptCaching = this.fullConfig.api?.usePromptCaching ?? true;
+		const firstAssistantToolUseIndex = messages.findIndex((m) =>
+			m.role === 'assistant' && Array.isArray(m.content) && m.content.some((block) => block.type === 'tool_use')
+		);
+		return messages.map((m, index) => {
+			const prevContent: AnthropicBlockParam = m.content as AnthropicBlockParam;
+			let content: AnthropicBlockParam;
+			if (m.role === 'assistant' && usePromptCaching && index === firstAssistantToolUseIndex) {
+				if (Array.isArray(prevContent)) {
+					content = prevContent.map((block) => {
+						if (block.type === 'tool_use') {
+							return { ...block, cache_control: { type: 'ephemeral' } };
+						}
+						return block;
+					});
+				} else if (typeof prevContent === 'string') {
+					content = [{ type: 'text', text: prevContent, cache_control: { type: 'ephemeral' } }];
+				} else {
+					content = [{ ...prevContent, cache_control: { type: 'ephemeral' } }];
+				}
+			} else {
+				content = (Array.isArray(prevContent)
+					? prevContent
+					: [prevContent]) as Anthropic.Beta.PromptCaching.PromptCachingBetaTextBlockParam[];
+			}
+			return {
+				role: m.role,
+				content: content,
+			} as Anthropic.Beta.PromptCaching.PromptCachingBetaMessageParam;
+		});
 	}
 
 	private asProviderToolType(tools: LLMTool[]): Anthropic.Beta.PromptCaching.PromptCachingBetaTool[] {
@@ -55,6 +97,7 @@ class AnthropicLLM extends LLM {
 		speakOptions?: LLMSpeakWithOptions,
 	): Promise<Anthropic.MessageCreateParams> {
 		//logger.debug('llms-anthropic-prepareMessageParams-systemPrompt', interaction.baseSystem);
+		const usePromptCaching = this.fullConfig.api?.usePromptCaching ?? true;
 		const systemPrompt = await this.invoke(
 			LLMCallbackType.PREPARE_SYSTEM_PROMPT,
 			speakOptions?.system || interaction.baseSystem,
@@ -65,7 +108,7 @@ class AnthropicLLM extends LLM {
 				{
 					type: 'text',
 					text: systemPrompt,
-					cache_control: { type: 'ephemeral' },
+					...(usePromptCaching ? { cache_control: { type: 'ephemeral' } } : {}),
 				} as Anthropic.Beta.PromptCaching.PromptCachingBetaTextBlockParam,
 			]
 			: '';
@@ -78,7 +121,7 @@ class AnthropicLLM extends LLM {
 				interaction.id,
 			),
 		);
-		if (tools.length > 0) {
+		if (tools.length > 0 && usePromptCaching) {
 			tools[tools.length - 1].cache_control = { type: 'ephemeral' };
 		}
 

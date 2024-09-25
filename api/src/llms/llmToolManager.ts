@@ -76,7 +76,7 @@ class LLMToolManager {
 	> {
 		const tool = this.tools.get(toolUse.toolName);
 		if (!tool) {
-			logger.warn(`Unknown tool used: ${toolUse.toolName}`);
+			logger.warn(`llmToolManager: Unknown tool used: ${toolUse.toolName}`);
 			throw new Error(`Unknown tool used: ${toolUse.toolName}`);
 		}
 		try {
@@ -88,7 +88,7 @@ class LLMToolManager {
 				} as LLMValidationErrorOptions);
 			} else {
 				logger.info(
-					`handleToolUse - Tool ${toolUse.toolName} is already validated with results: ${toolUse.toolValidation.results}`,
+					`llmToolManager: handleToolUse - Tool ${toolUse.toolName} validated with results: ${toolUse.toolValidation.results}`,
 				);
 			}
 
@@ -106,6 +106,9 @@ class LLMToolManager {
 			);
 
 			if (finalize) {
+				logger.info(
+					`llmToolManager: handleToolUse - Tool ${toolUse.toolName} is being finalized for messageId: ${messageId}`,
+				);
 				finalize(messageId);
 			}
 
@@ -117,7 +120,7 @@ class LLMToolManager {
 				isError: false,
 			};
 		} catch (error) {
-			logger.error(`Error executing tool ${toolUse.toolName}: ${error.message}`);
+			logger.error(`llmToolManager: Error executing tool ${toolUse.toolName}: ${error.message}`);
 			const { messageId } = tool.finalizeToolUse(
 				interaction,
 				toolUse,

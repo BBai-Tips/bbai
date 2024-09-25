@@ -2,7 +2,9 @@ import { join } from '@std/path';
 
 import { FILE_LISTING_TIERS, generateFileListing, isPathWithinProject } from '../utils/fileHandling.utils.ts';
 import type LLMConversationInteraction from '../llms/interactions/conversationInteraction.ts';
-import type { FileMetadata, ProjectInfo as BaseProjectInfo } from '../llms/interactions/conversationInteraction.ts';
+import type { ProjectInfo as BaseProjectInfo } from '../llms/interactions/conversationInteraction.ts';
+import type { FileMetadata } from 'shared/types.ts';
+import type { LLMMessageContentPartImageBlockSourceMediaType } from 'api/llms/llmMessage.ts';
 
 // Extend ProjectInfo to include startDir
 export interface ProjectInfo extends BaseProjectInfo {
@@ -24,6 +26,7 @@ import {
 import EventManager from 'shared/eventManager.ts';
 
 class ProjectEditor {
+	//private fileRevisions: Map<string, string[]> = new Map();
 	public orchestratorController!: OrchestratorController;
 	public fullConfig!: FullConfigSchema;
 	public eventManager!: EventManager;
@@ -50,13 +53,19 @@ class ProjectEditor {
 		try {
 			this.projectRoot = await this.getProjectRoot();
 			this.fullConfig = await ConfigManager.fullConfig(this.projectRoot);
-			logger.info(`ProjectEditor config for ${this.fullConfig.api.apiHostname}:${this.fullConfig.api.apiPort}`);
+			logger.info(
+				`ProjectEditor config for ${this.fullConfig.api.apiHostname}:${this.fullConfig.api.apiPort}`,
+			);
 			this.eventManager = EventManager.getInstance();
-			this.orchestratorController = await new OrchestratorController(this).init();
+			this.orchestratorController = await new OrchestratorController(this)
+				.init();
 
 			logger.info(`ProjectEditor initialized for ${this.startDir}`);
 		} catch (error) {
-			logger.error(`Failed to initialize ProjectEditor in ${this.startDir}:`, error);
+			logger.error(
+				`Failed to initialize ProjectEditor in ${this.startDir}:`,
+				error,
+			);
 			throw error;
 		}
 		return this;
@@ -74,7 +83,10 @@ class ProjectEditor {
 		return await getBbaiDataDir(this.startDir);
 	}
 
-	public async writeToBbaiDir(filename: string, content: string): Promise<void> {
+	public async writeToBbaiDir(
+		filename: string,
+		content: string,
+	): Promise<void> {
 		return await writeToBbaiDir(this.startDir, filename, content);
 	}
 
@@ -96,7 +108,12 @@ class ProjectEditor {
 	}
 
 	public async updateProjectInfo(): Promise<void> {
-		const projectInfo: ProjectInfo = { startDir: this.startDir, type: 'empty', content: '', tier: null };
+		const projectInfo: ProjectInfo = {
+			startDir: this.startDir,
+			type: 'empty',
+			content: '',
+			tier: null,
+		};
 
 		if (projectInfo.type === 'empty') {
 			const projectRoot = await this.getProjectRoot();
@@ -106,9 +123,9 @@ class ProjectEditor {
 				projectInfo.type = 'file-listing';
 				projectInfo.content = fileListingContent;
 				// Determine which tier was used for file listing
-				const tier = FILE_LISTING_TIERS.findIndex((t: { depth: number; includeMetadata: boolean }) =>
-					t.depth === Infinity && t.includeMetadata === true
-				);
+				const tier = FILE_LISTING_TIERS.findIndex((
+					t: { depth: number; includeMetadata: boolean },
+				) => t.depth === Infinity && t.includeMetadata === true);
 				projectInfo.tier = tier !== -1 ? tier : null;
 			}
 		}
@@ -116,23 +133,50 @@ class ProjectEditor {
 		this.projectInfo = { ...projectInfo, startDir: this.startDir };
 	}
 
-	public async initConversation(conversationId: ConversationId): Promise<LLMConversationInteraction> {
-		logger.info(`ProjectEditor: Initializing a conversation with ID: ${conversationId}`);
-		return await this.orchestratorController.initializePrimaryInteraction(conversationId);
+	public async initConversation(
+		conversationId: ConversationId,
+	): Promise<LLMConversationInteraction> {
+		logger.info(
+			`ProjectEditor: Initializing a conversation with ID: ${conversationId}`,
+		);
+		return await this.orchestratorController.initializePrimaryInteraction(
+			conversationId,
+		);
 	}
 
-	async handleStatement(statement: string, conversationId: ConversationId): Promise<ConversationResponse> {
+	async handleStatement(
+		statement: string,
+		conversationId: ConversationId,
+	): Promise<ConversationResponse> {
 		await this.initConversation(conversationId);
-		logger.info(`ProjectEditor: Initialized conversation with ID: ${conversationId}, handling statement`);
-		const statementAnswer = await this.orchestratorController.handleStatement(statement, conversationId);
+		logger.info(
+			`ProjectEditor: Initialized conversation with ID: ${conversationId}, handling statement`,
+		);
+		const statementAnswer = await this.orchestratorController.handleStatement(
+			statement,
+			conversationId,
+		);
 		return statementAnswer;
 	}
 
 	// prepareFilesForConversation is called by request_files tool and by add_file handler for user requests
 	async prepareFilesForConversation(
 		fileNames: string[],
-	): Promise<Array<{ fileName: string; metadata: Omit<FileMetadata, 'path' | 'inSystemPrompt'> }>> {
-		const filesAdded: Array<{ fileName: string; metadata: Omit<FileMetadata, 'path' | 'inSystemPrompt'> }> = [];
+	): Promise<
+		Array<
+			{
+				fileName: string;
+				metadata: Omit<FileMetadata, 'path' | 'inSystemPrompt'>;
+			}
+		>
+	> {
+		const imageExtensions = ['.png', '.jpg', '.jpeg', '.gif', '.bmp', '.webp'];
+		const filesAdded: Array<
+			{
+				fileName: string;
+				metadata: Omit<FileMetadata, 'path' | 'inSystemPrompt'>;
+			}
+		> = [];
 
 		for (const fileName of fileNames) {
 			try {
@@ -141,23 +185,30 @@ class ProjectEditor {
 				}
 
 				const fullFilePath = join(this.projectRoot, fileName);
-				const content = await Deno.readTextFile(fullFilePath);
+
+				const isImage = imageExtensions.some((ext) => fileName.toLowerCase().endsWith(ext));
+				const mimeType = `image/${fileName.split('.').pop()}` as LLMMessageContentPartImageBlockSourceMediaType;
+				const { size } = await Deno.stat(fullFilePath).catch((_) => ({ size: 0 }));
+
 				const metadata: Omit<FileMetadata, 'path' | 'inSystemPrompt'> = {
-					size: new TextEncoder().encode(content).length,
+					type: isImage ? 'image' : 'text',
+					mimeType: mimeType,
 					lastModified: new Date(),
+					size,
 					error: null,
 				};
 				filesAdded.push({ fileName, metadata });
 
-				logger.info(`ProjectEditor has prepared file ${fileName}`);
+				logger.info(`ProjectEditor: Prepared file ${fileName}`);
 			} catch (error) {
 				logger.error(`ProjectEditor: Error adding file ${fileName}: ${error.message}`);
 				const errorMessage = error.message;
 				filesAdded.push({
 					fileName,
 					metadata: {
-						size: 0,
+						type: 'text',
 						lastModified: new Date(),
+						size: 0,
 						error: errorMessage,
 					},
 				});

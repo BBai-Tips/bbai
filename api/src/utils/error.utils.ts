@@ -1,6 +1,6 @@
 import {
 	APIError,
-	CommandExecutionErrorOptions,
+	type CommandExecutionErrorOptions,
 	ErrorType,
 	ErrorTypes,
 	FileHandlingError,
@@ -51,7 +51,7 @@ export const createError = (
 			return new RateLimitError(message, options as LLMRateLimitErrorOptions);
 		case ErrorType.LLMValidation:
 			return new ValidationError(message, options as LLMValidationErrorOptions);
-		case ErrorType.FileHandling:
+		case ErrorType.FileHandling: {
 			const fileOptions = options as FileHandlingErrorOptions;
 			switch (fileOptions.operation) {
 				case 'patch':
@@ -65,11 +65,11 @@ export const createError = (
 				default:
 					return new FileHandlingError(message, fileOptions);
 			}
+		}
 		case ErrorType.VectorSearch:
 			return new VectorSearchError(message, options as VectorSearchErrorOptions);
 		case ErrorType.CommandExecution:
 			return new Error(message); // You might want to create a specific CommandExecutionError class
-			return new VectorSearchError(message, options as VectorSearchErrorOptions);
 		default:
 			return new Error(`Unknown error type: ${errorType} - ${message}`);
 	}
