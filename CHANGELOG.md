@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+
+
+## [0.0.15-beta] - 2024-09-25
+
+### Changed
+
 - Refactored Split config handling; global, project, full
 - Added config for apiHostname
 - Changed BUI to also load apiHostname and startDir from URL
