@@ -48,11 +48,11 @@ It supports vector embeddings for code and text chunks from local repositories, 
 
 ## Glossary of Terms
 
-- **Conversation**: An ongoing interaction between a user and the bbai system, which may include multiple statements and turns.
-- **Statement**: A single request or input from the user to the bbai system.
-- **Turn**: A single request-response cycle between bbai and the LLM.
-- **Session**: The entire duration of a user's interaction with bbai, which may include multiple conversations.
-- **Project**: The collection of files and resources that bbai is working with.
+- **Conversation**: An ongoing interaction between a user and the BBai system, which may include multiple statements and turns.
+- **Statement**: A single request or input from the user to the BBai system.
+- **Turn**: A single request-response cycle between BBai and the LLM.
+- **Session**: The entire duration of a user's interaction with BBai, which may include multiple conversations.
+- **Project**: The collection of files and resources that BBai is working with.
 - **Tool**: A specific function or capability that the LLM can use to perform actions or retrieve information.
 - **Patch**: A set of changes to be applied to a file.
 - **Commit**: A saved state of the project in the version control system.
@@ -102,7 +102,7 @@ Key API Endpoints:
 - Ensure cross-platform compatibility
 - Use descriptive names for CLI-specific components
 - Prefix CLI-specific types with `CLI`
-- The CLI tool is named `bbai` (lowercase)
+- The CLI tool is named `bbai` (lowercase) (`bbai.exe` for Windows)
 - The API server is referred to as 'api'
 - The Browser User Interface is referred to as 'bui'
 - The future Desktop User Interface will be referred to as 'dui'

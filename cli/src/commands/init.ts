@@ -126,7 +126,7 @@ function printProjectDetails(projectName: string, projectType: string, wizardAns
 		} Your Anthropic API key is stored in configuration. Ensure to keep your config files secure.`,
 	);
 	console.log(
-		`\nTo start using BBai, try running: ${colors.bold.green('bbai start')} or ${colors.bold.green('bbai chat')}`,
+		`\nTo start using BBai, try running: ${colors.bold.green('${fullConfig.bbaiExeName} start')} or ${colors.bold.green('${fullConfig.bbaiExeName} chat')}`,
 	);
 }
 
@@ -156,7 +156,7 @@ function validateAnthropicApiKey(key: string): { isValid: boolean; message: stri
 
 export const init = new Command()
 	.name('init')
-	.description('Initialize bbai in the current directory')
+	.description('Initialize BBai in the current directory')
 	.action(async () => {
 		const startDir = Deno.cwd();
 
@@ -187,9 +187,9 @@ export const init = new Command()
 			//logger.debug('Printing project details...');
 			printProjectDetails(wizardAnswers.project.name, wizardAnswers.project.type, wizardAnswers);
 
-			//logger.info('bbai initialization complete');
+			//logger.info('BBai initialization complete');
 		} catch (error) {
-			logger.error(`Error during bbai initialization: ${error.message}`);
+			logger.error(`Error during BBai initialization: ${error.message}`);
 			if (error instanceof Deno.errors.PermissionDenied) {
 				console.error('Error: Permission denied. Please check your file system permissions and try again.');
 			} else if (error instanceof Deno.errors.NotFound) {

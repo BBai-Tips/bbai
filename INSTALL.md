@@ -33,11 +33,6 @@ This script will:
 
 Note: You may be prompted for your password to install the binaries in `/usr/local/bin`. This is necessary to make BBai accessible system-wide.
 
-The installation process uses color-coded output for better readability:
-- Yellow: Information and progress messages
-- Red: Important notes or warnings
-- Green: Success messages
-
 ### Option 2: Windows Installer
 
 For Windows users, we provide an MSI installer for easy installation:
@@ -63,8 +58,8 @@ For advanced users who prefer manual installation:
 
 1. Go to the [BBai Releases page](https://github.com/BBai-Tips/bbai/releases) on GitHub.
 2. Download the appropriate package for your operating system and architecture:
-   - For Linux: `bbai-x86_64-unknown-linux-gnu.tar.gz` or `bbai-aarch64-unknown-linux-gnu.tar.gz`
    - For macOS: `bbai-x86_64-apple-darwin.tar.gz` or `bbai-aarch64-apple-darwin.tar.gz`
+   - For Linux: `bbai-x86_64-unknown-linux-gnu.tar.gz` or `bbai-aarch64-unknown-linux-gnu.tar.gz`
    - For Windows: `bbai-x86_64-pc-windows-msvc.zip`
 3. Extract the downloaded package:
    - For .tar.gz files (Linux and macOS):
@@ -111,6 +106,12 @@ After installation, navigate to the project directory where you want to use BBai
 bbai init
 ```
 
+On Windows:
+
+```
+bbai.exe init
+```
+
 This will create a `.bbai/config.yaml` file in your project directory.
 
 ## Setting Up Your Anthropic API Key
@@ -142,6 +143,13 @@ To verify that BBai has been installed correctly, run:
 ```
 bbai --help
 bbai-api --help
+```
+
+On Windows:
+
+```
+bbai.exe --help
+bbai-api.exe --help
 ```
 
 These commands should display the help information for BBai and its API.

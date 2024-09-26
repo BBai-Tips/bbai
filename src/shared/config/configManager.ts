@@ -40,6 +40,8 @@ export class ConfigManager {
 
 	private constructor() {
 		this.defaultGlobalConfig.version = VERSION;
+		this.defaultGlobalConfig.bbaiExeName = Deno.build.os === 'windows' ? 'bbai.exe' : 'bbai';
+		this.defaultGlobalConfig.bbaiApiExeName = Deno.build.os === 'windows' ? 'bbai-api.exe' : 'bbai-api';
 	}
 
 	public static async getInstance(): Promise<ConfigManager> {
@@ -89,7 +91,7 @@ export class ConfigManager {
 			if (error instanceof Deno.errors.NotFound) {
 				await ensureDir(globalConfigDir);
 				const defaultConfig = stripIndent`
-                    # bbai Configuration File
+                    # BBai Configuration File
                     
                     repoInfo: 
                       tokenLimit: 1024
@@ -192,6 +194,8 @@ export class ConfigManager {
 			const content = await Deno.readTextFile(globalConfigPath);
 			const globalConfig = parseYaml(content) as GlobalConfigSchema;
 			globalConfig.version = VERSION;
+			globalConfig.bbaiExeName = Deno.build.os === 'windows' ? 'bbai.exe' : 'bbai';
+			globalConfig.bbaiApiExeName = Deno.build.os === 'windows' ? 'bbai-api.exe' : 'bbai-api';
 
 			if (!this.validateGlobalConfig(globalConfig)) {
 				throw new Error('Invalid global configuration');

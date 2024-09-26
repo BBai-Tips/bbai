@@ -18,7 +18,7 @@ export async function startApiServer(
 ): Promise<{ pid: number; apiLogFilePath: string; listen: string }> {
 	const fullConfig = await ConfigManager.fullConfig(startDir);
 	if (await isApiRunning(startDir)) {
-		logger.info('bbai API server is already running.');
+		logger.info('BBai API server is already running.');
 		const pid = await getPid(startDir);
 		const bbaiDir = await getBbaiDir(startDir);
 		const apiLogFileName = apiLogFile || fullConfig.api?.logFile || 'api.log';
@@ -38,14 +38,14 @@ export async function startApiServer(
 	const apiHostnameArgs = apiHostname ? ['--hostname', apiHostname] : [];
 	const apiPortArgs = apiPort ? ['--port', apiPort] : [];
 
-	logger.debug(`Starting bbai API server on ${apiHostname}:${apiPort}, logging to ${apiLogFilePath}`);
+	logger.debug(`Starting BBai API server on ${apiHostname}:${apiPort}, logging to ${apiLogFilePath}`);
 
 	let command: Deno.Command;
 
 	if (isCompiledBinary()) {
-		const bbaiExecFile = await Deno.realPath(join(dirname(Deno.execPath()), 'bbai-api'));
-		logger.debug(`Starting bbai API as compiled binary using ${bbaiExecFile}`);
-		command = new Deno.Command(bbaiExecFile, {
+		const bbaiApiExecFile = await Deno.realPath(join(dirname(Deno.execPath()), fullConfig.bbaiApiExeName));
+		logger.debug(`Starting BBai API as compiled binary using ${bbaiApiExecFile}`);
+		command = new Deno.Command(bbaiApiExecFile, {
 			args: ['--log-file', apiLogFilePath, ...apiHostnameArgs, ...apiPortArgs],
 			cwd: startDir,
 			stdout: 'null',
@@ -57,7 +57,7 @@ export async function startApiServer(
 			},
 		});
 	} else {
-		logger.debug(`Starting bbai API as script using ${projectRoot}/api/src/main.ts`);
+		logger.debug(`Starting BBai API as script using ${projectRoot}/api/src/main.ts`);
 		const cmdArgs = [
 			'run',
 			'--allow-read',
@@ -98,7 +98,7 @@ export async function startApiServer(
 	if (!follow) {
 		// Unref the child process to allow the parent to exit
 		process.unref();
-		logger.debug(`Detached from bbai API and returning with PID ${pid}`);
+		logger.debug(`Detached from BBai API and returning with PID ${pid}`);
 	}
 
 	return { pid, apiLogFilePath, listen: `${apiHostname}:${apiPort}` };
@@ -106,11 +106,11 @@ export async function startApiServer(
 
 export async function stopApiServer(startDir: string): Promise<void> {
 	if (!(await isApiRunning(startDir))) {
-		logger.info('bbai API server is not running.');
+		logger.info('BBai API server is not running.');
 		return;
 	}
 
-	logger.info('Stopping bbai API server...');
+	logger.info('Stopping BBai API server...');
 
 	const pid = await getPid(startDir);
 	if (pid === null) {
@@ -121,9 +121,9 @@ export async function stopApiServer(startDir: string): Promise<void> {
 	try {
 		Deno.kill(pid, 'SIGTERM');
 		await removePid(startDir);
-		logger.info('bbai API server stopped successfully.');
+		logger.info('BBai API server stopped successfully.');
 	} catch (error) {
-		logger.error(`Error stopping bbai API server: ${error.message}`);
+		logger.error(`Error stopping BBai API server: ${error.message}`);
 	}
 }
 

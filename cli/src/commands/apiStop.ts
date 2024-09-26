@@ -3,7 +3,7 @@ import { stopApiServer } from '../utils/apiControl.utils.ts';
 
 export const apiStop = new Command()
 	.name('stop')
-	.description('Stop the bbai API server')
+	.description('Stop the BBai API server')
 	.action(async () => {
 		const startDir = Deno.cwd();
 		await stopApiServer(startDir);

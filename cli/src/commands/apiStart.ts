@@ -6,7 +6,7 @@ import { followApiLogs, getApiStatus, startApiServer } from '../utils/apiControl
 
 export const apiStart = new Command()
 	.name('start')
-	.description('Start the bbai API server')
+	.description('Start the BBai API server')
 	.option('--log-level <level:string>', 'Set the log level for the API server', { default: undefined })
 	.option('--log-file <file:string>', 'Specify a log file to write output', { default: undefined })
 	.option('--hostname <string>', 'Specify the hostname for API to listen on', { default: undefined })
@@ -71,7 +71,7 @@ export const apiStart = new Command()
 			console.log(`\nAPI server started with PID: ${pid}`);
 			console.log(`Logs are being written to: ${colors.green(apiLogFilePath)}`);
 			console.log(`Chat URL: ${colors.bold.cyan(chatUrl)}`);
-			console.log(`Use ${colors.bold.green('bbai stop')} to stop the server.`);
+			console.log(`Use ${colors.bold.green('${fullConfig.bbaiExeName} stop')} to stop the server.`);
 			if (!fullConfig.noBrowser) console.log('\nAttempting to open the chat in your default browser...');
 			Deno.exit(0);
 		}

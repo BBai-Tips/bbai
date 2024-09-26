@@ -19,15 +19,15 @@
 2. Implement a way to "end" conversation which merges branch back to original
 
 ## Task Management
-1. Create an 'add task' tool allowing Claude to give bbai a list of tasks to complete
+1. Create an 'add task' tool allowing Claude to give BBai a list of tasks to complete
 2. Implement each task as a new conversation to complete the task
 
 ## System Prompt and Project Info
 1. Update system prompt to give a clear explanation about using project-info to choose files rather than search_files
 2. Move project-info towards the beginning of the system prompt
 3. Create a high-level system prompt template to combine baseSystem with project info and files added
-4. Update system prompt to further clarify that assistant is talking to both bbai and user:
-   - Responses to tool use (e.g., "Patch applied successfully") should be directed to bbai and wrapped in tags for parsing
+4. Update system prompt to further clarify that assistant is talking to both BBai and user:
+   - Responses to tool use (e.g., "Patch applied successfully") should be directed to BBai and wrapped in tags for parsing
    - Everything not inside <bbai> tags will be shown to user as part of the conversation
    - 'User' message showing 'tool result' should be clearly separate from rest of the conversation
 
@@ -66,7 +66,7 @@
 
 ## For CHANGELOG
 - Implement a repoInfo persistence solution
-- Create an 'add task' tool allowing Claude to give bbai a list of tasks to complete
+- Create an 'add task' tool allowing Claude to give BBai a list of tasks to complete
 
 ## Completed Tasks
 1. ✓ `searchFiles` is now using exclude patterns read from the file instead of file names for exclude pattern
@@ -98,7 +98,7 @@
     - Allow users to tail the chat log directly for as-is viewing
     - Use `bbai logs` for fancy formatting
     - Make `bbai logs` check the TERM width and use that for max width
-22. ✓ Add 'bbai restart' command for API (can just do a stop/start)
+22. ✓ Add `bbai restart` command for API (can just do a stop/start)
 23. ✓ Implement tool manager class
 24. ✓ Add websocket mode to get live updates between terminal and API
 25. ✓ Fix exclude args not being respected for file listing in `fileHandling.utils.ts`

@@ -119,6 +119,8 @@ After installation, you can start using BBai as follows:
    bbai chat
    ```
 
+On Windows, use `bbai.exe` instead of `bbai`.
+
 ## Documentation
 
 For detailed information on how to use BBai, please refer to our documentation:
@@ -183,8 +185,8 @@ It's compatible with projects using various programming languages and text-based
 We value your input and are here to help you get the most out of BBai:
 
 - For bug reports or feature requests, please [open an issue](https://github.com/BBai-Tips/bbai/issues) on our GitHub repository.
-- For general questions or discussions, join our [community forum](https://github.com/BBai-Tips/bbai/discussions) (link to be updated).
-- For more immediate support, reach out to us via email at support@bbai.tips (to be set up).
+- For general questions or discussions, join our [community forum](https://github.com/BBai-Tips/bbai/discussions).
+- For more immediate support, reach out to us via email at support@bbai.tips.
 
 Your feedback is crucial in shaping the future of BBai!
 

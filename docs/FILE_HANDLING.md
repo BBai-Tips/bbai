@@ -1,6 +1,6 @@
-# File Handling in bbai Conversations
+# File Handling in BBai Conversations
 
-This document outlines the conventions and strategies for handling files within bbai conversations.
+This document outlines the conventions and strategies for handling files within BBai conversations.
 
 ## File Storage Strategy
 
@@ -67,13 +67,13 @@ When proposing changes to files, use the diff patch format:
 ## File Handling Workflow
 
 1. Assistant requests files using the provided tool
-2. bbai agent adds requested files to the conversation
+2. BBai agent adds requested files to the conversation
 3. Assistant proposes changes using the diff patch format
-4. bbai agent applies changes and updates the conversation state
+4. BBai agent applies changes and updates the conversation state
 
 ## Permissions and Error Handling
 
-- Assume bbai has necessary permissions to read/write files
+- Assume BBai has necessary permissions to read/write files
 - If permission issues occur, treat as a conversation-ending error and notify the user
 
 ## Multiple Conversations Warning
@@ -104,4 +104,4 @@ As an AI assistant for the BBai project, I should be aware of and use the follow
 
 When referencing these links in conversations or documentation, I should use the exact URLs provided above to ensure consistency and accuracy.
 
-By following these conventions and using the correct links, we ensure consistent and efficient file handling and communication throughout bbai conversations and documentation.
+By following these conventions and using the correct links, we ensure consistent and efficient file handling and communication throughout BBai conversations and documentation.

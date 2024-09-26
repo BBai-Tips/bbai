@@ -21,7 +21,7 @@ const args = parseArgs(Deno.args, {
 
 if (args.help) {
 	console.log(`
-Usage: bbai-api [options]
+Usage: ${fullConfig.bbaiApiExeName} [options]
 
 Options:
   -h, --help                Show this help message

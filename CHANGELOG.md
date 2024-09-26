@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Fixed 'git not found' error when running init
+- Updated `bbai` strings to `bbai.exe` for Windows
 
 
 ## [0.0.15-beta] - 2024-09-25
