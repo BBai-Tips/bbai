@@ -102,7 +102,9 @@ async function detectProjectType(startDir: string): Promise<ProjectType> {
 	return gitRoot ? 'git' : 'local';
 }
 
-function printProjectDetails(projectName: string, projectType: string, wizardAnswers: WizardAnswers) {
+async function printProjectDetails(projectName: string, projectType: string, wizardAnswers: WizardAnswers) {
+	const configManager = await ConfigManager.getInstance();
+	const globalConfig = await configManager.loadGlobalConfig();
 	console.log(`\n${colors.bold.blue.underline('BBai Project Details:')}`);
 	console.log(`  ${colors.bold('Name:')} ${colors.green(projectName)}`);
 	console.log(`  ${colors.bold('Type:')} ${colors.green(projectType)}`);
@@ -126,7 +128,7 @@ function printProjectDetails(projectName: string, projectType: string, wizardAns
 		} Your Anthropic API key is stored in configuration. Ensure to keep your config files secure.`,
 	);
 	console.log(
-		`\nTo start using BBai, try running: ${colors.bold.green('${fullConfig.bbaiExeName} start')} or ${colors.bold.green('${fullConfig.bbaiExeName} chat')}`,
+		`\nTo start using BBai, try running: ${colors.bold.green(`'${globalConfig.bbaiExeName} start'`)} or ${colors.bold.green(`'${globalConfig.bbaiExeName} chat'`)}`,
 	);
 }
 
@@ -185,7 +187,7 @@ export const init = new Command()
 			await createBbaiIgnore(startDir);
 
 			//logger.debug('Printing project details...');
-			printProjectDetails(wizardAnswers.project.name, wizardAnswers.project.type, wizardAnswers);
+			await printProjectDetails(wizardAnswers.project.name, wizardAnswers.project.type, wizardAnswers);
 
 			//logger.info('BBai initialization complete');
 		} catch (error) {

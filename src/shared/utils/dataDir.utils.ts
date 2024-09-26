@@ -5,12 +5,18 @@ import { ConfigManager } from 'shared/configManager.ts';
 
 export async function getProjectRoot(startDir: string): Promise<string> {
 	let currentDir = resolve(startDir);
-	while (currentDir !== '/') {
+	while (true) {
+		//console.log(`Looking for .bbai in: ${currentDir}`);
 		const bbaiDir = join(currentDir, '.bbai');
 		if (await exists(bbaiDir)) {
 			return currentDir;
 		}
-		currentDir = resolve(currentDir, '..');
+		const parentDir = resolve(currentDir, '..');
+		if (parentDir === currentDir) { // if current is same as parent, then must be at top, nowhere else to go.
+			break; // Reached root without finding .bbai
+		}
+		//console.log(`Moving up to parent: ${parentDir}`);
+		currentDir = parentDir;
 	}
 	throw new Error('No .bbai directory found in project hierarchy');
 }
