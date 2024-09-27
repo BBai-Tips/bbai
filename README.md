@@ -86,8 +86,16 @@ Before using BBai, ensure you have the following:
 1. An Anthropic API key (Note: This is different from your Anthropic chat console login. You'll need to create an API key at https://console.anthropic.com/settings/keys)
 2. [Git](https://git-scm.com/downloads) (latest stable version, recommended but optional)
 3. [ctags](https://github.com/universal-ctags/ctags) (optional, enhances project understanding)
+4. Either `mkcert` or `openssl` for TLS certificate generation (required for proper operation)
 
-Git and ctags can be easily installed using package managers like Homebrew on macOS or apt on Linux. While Git is optional, it's highly recommended for optimal use of BBai.
+To install `mkcert`:
+- On Windows: `choco install mkcert`
+- On macOS: `brew install mkcert`
+- On Linux: Follow the instructions at https://github.com/FiloSottile/mkcert#linux
+
+Note for technical users: Any valid TLS certificate can be used. BBai provides four config options for custom certificates: `api.tlsKeyFile`, `tlsKeyPem`, `tlsCertFile`, `tlsCertPem`. Use either file paths or inlined PEM content, not both.
+
+Git, ctags, and mkcert can be easily installed using package managers like Homebrew on macOS, Chocolatey on Windows, or apt on Linux. While Git is optional, it's highly recommended for optimal use of BBai. TLS certificates are required for proper operation, and will be automatically generated during the initialization process if not provided.
 
 ### Installation
 
