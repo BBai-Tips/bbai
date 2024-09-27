@@ -19,9 +19,9 @@ const { environment, apiHostname, apiPort, apiUseTls } = fullConfig.api;
 
 // Parse command line arguments
 const args = parseArgs(Deno.args, {
-	string: ['log-file', 'port', 'hostname'],
+	string: ['log-file', 'port', 'hostname', 'use-tls'],
 	boolean: ['help', 'version'],
-	alias: { h: 'help', V: 'version', v: 'version', p: 'port', H: 'hostname', t: 'useTls', l: 'log-file' },
+	alias: { h: 'help', V: 'version', v: 'version', p: 'port', H: 'hostname', t: 'use-tls', l: 'log-file' },
 });
 
 if (args.help) {
@@ -33,7 +33,7 @@ Options:
   -V, --version             Show version information
   -H, --hostname <string>   Specify the hostname to run the API server (default: ${apiHostname})
   -p, --port <number>       Specify the port to run the API server (default: ${apiPort})
-  -t, --useTls <boolean>    Specify whether the API server should use TLS (default: ${apiUseTls})
+  -t, --use-tls <boolean>    Specify whether the API server should use TLS (default: ${apiUseTls})
   -l, --log-file <file>     Specify a log file to write output
   `);
 	Deno.exit(0);
@@ -50,8 +50,8 @@ if (apiLogFile) await apiFileLogger(apiLogFile);
 
 const customHostname = args.hostname ? args.hostname : apiHostname;
 const customPort: number = args.port ? parseInt(args.port, 10) : apiPort as number;
-const customUseTls: boolean = typeof args.useTls !== 'undefined'
-	? (args.useTls === 'true' ? true : false)
+const customUseTls: boolean = typeof args['use-tls'] !== 'undefined'
+	? (args['use-tls'] === 'true' ? true : false)
 	: !!apiUseTls;
 //console.debug(`BBai API starting at ${customHostname}:${customPort}`);
 
