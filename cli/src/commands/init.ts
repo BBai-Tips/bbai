@@ -7,6 +7,7 @@ import { basename } from '@std/path';
 import { GitUtils } from 'shared/git.ts';
 import type { ProjectType, WizardAnswers } from 'shared/configManager.ts';
 import { ConfigManager } from 'shared/configManager.ts';
+import { certificateFileExists, generateCertificate } from 'shared/tlsCerts.ts';
 
 async function runWizard(startDir: string): Promise<WizardAnswers> {
 	const configManager = await ConfigManager.getInstance();
@@ -102,7 +103,9 @@ async function detectProjectType(startDir: string): Promise<ProjectType> {
 	return gitRoot ? 'git' : 'local';
 }
 
-function printProjectDetails(projectName: string, projectType: string, wizardAnswers: WizardAnswers) {
+async function printProjectDetails(projectName: string, projectType: string, wizardAnswers: WizardAnswers) {
+	const configManager = await ConfigManager.getInstance();
+	const globalConfig = await configManager.loadGlobalConfig();
 	console.log(`\n${colors.bold.blue.underline('BBai Project Details:')}`);
 	console.log(`  ${colors.bold('Name:')} ${colors.green(projectName)}`);
 	console.log(`  ${colors.bold('Type:')} ${colors.green(projectType)}`);
@@ -126,7 +129,9 @@ function printProjectDetails(projectName: string, projectType: string, wizardAns
 		} Your Anthropic API key is stored in configuration. Ensure to keep your config files secure.`,
 	);
 	console.log(
-		`\nTo start using BBai, try running: ${colors.bold.green('bbai start')} or ${colors.bold.green('bbai chat')}`,
+		`\nTo start using BBai, try running: ${colors.bold.green(`'${globalConfig.bbaiExeName} start'`)} or ${
+			colors.bold.green(`'${globalConfig.bbaiExeName} chat'`)
+		}`,
 	);
 }
 
@@ -156,7 +161,7 @@ function validateAnthropicApiKey(key: string): { isValid: boolean; message: stri
 
 export const init = new Command()
 	.name('init')
-	.description('Initialize bbai in the current directory')
+	.description('Initialize BBai in the current directory')
 	.action(async () => {
 		const startDir = Deno.cwd();
 
@@ -184,12 +189,25 @@ export const init = new Command()
 			// Create .bbai/ignore file
 			await createBbaiIgnore(startDir);
 
-			//logger.debug('Printing project details...');
-			printProjectDetails(wizardAnswers.project.name, wizardAnswers.project.type, wizardAnswers);
+			const certFileName = finalGlobalConfig.api.tlsCertFile || 'localhost.pem';
+			if (!certificateFileExists(certFileName)) {
+				const domain = finalGlobalConfig.api.apiHostname || 'localhost';
+				const validityDays = 365;
+				const certCreated = await generateCertificate(domain, validityDays);
+				if (!certCreated) {
+					//console.log(`  ${colors.bold.read('No TLS certificate exists and could not be created.')}`);
+					throw new Error(
+						'No TLS certificate exists and could not be created.',
+					);
+				}
+			}
 
-			//logger.info('bbai initialization complete');
+			//logger.debug('Printing project details...');
+			await printProjectDetails(wizardAnswers.project.name, wizardAnswers.project.type, wizardAnswers);
+
+			//logger.info('BBai initialization complete');
 		} catch (error) {
-			logger.error(`Error during bbai initialization: ${error.message}`);
+			logger.error(`Error during BBai initialization: ${error.message}`);
 			if (error instanceof Deno.errors.PermissionDenied) {
 				console.error('Error: Permission denied. Please check your file system permissions and try again.');
 			} else if (error instanceof Deno.errors.NotFound) {
@@ -198,6 +216,8 @@ export const init = new Command()
 				);
 			} else if (error instanceof Error && error.message.includes('API key')) {
 				console.error('Error: Invalid API key. Please check your Anthropic API key and try again.');
+			} else if (error instanceof Error && error.message.includes('No TLS certificate')) {
+				console.error('Error: No TLS certificate exists and could not be created.');
 			} else {
 				console.error('An unexpected error occurred. Please check the logs for more information.');
 			}

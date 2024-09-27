@@ -1,5 +1,6 @@
-import { JSX } from 'preact';
-import LLMTool, { LLMToolInputSchema, LLMToolRunResult, LLMToolRunResultContent } from 'api/llms/llmTool.ts';
+import type { JSX } from 'preact';
+import LLMTool from 'api/llms/llmTool.ts';
+import type { LLMToolInputSchema, LLMToolRunResult, LLMToolRunResultContent } from 'api/llms/llmTool.ts';
 import {
 	formatToolResult as formatToolResultBrowser,
 	formatToolUse as formatToolUseBrowser,
@@ -8,10 +9,10 @@ import {
 	formatToolResult as formatToolResultConsole,
 	formatToolUse as formatToolUseConsole,
 } from './formatters/forgetFilesTool.console.ts';
-import LLMConversationInteraction from '../interactions/conversationInteraction.ts';
+import type LLMConversationInteraction from '../interactions/conversationInteraction.ts';
 import { logger } from 'shared/logger.ts';
-import { LLMAnswerToolUse, LLMMessageContentPartTextBlock } from 'api/llms/llmMessage.ts';
-import ProjectEditor from '../../editor/projectEditor.ts';
+import type { LLMAnswerToolUse, LLMMessageContentPartTextBlock } from 'api/llms/llmMessage.ts';
+import type ProjectEditor from '../../editor/projectEditor.ts';
 import { createError, ErrorType } from '../../utils/error.utils.ts';
 
 export default class LLMToolForgetFiles extends LLMTool {
@@ -28,13 +29,26 @@ export default class LLMToolForgetFiles extends LLMTool {
 		return {
 			type: 'object',
 			properties: {
-				fileNames: {
+				files: {
 					type: 'array',
-					items: { type: 'string' },
-					description: 'Array of file names to be removed from the chat',
+					items: {
+						type: 'object',
+						properties: {
+							filePath: {
+								type: 'string',
+								description: 'The path of the file to be removed from the chat',
+							},
+							revision: {
+								type: 'string',
+								description: 'The revision of the file to be removed from the chat',
+							},
+						},
+						required: ['filePath', 'revision'],
+					},
+					description: 'Array of files to be removed from the chat',
 				},
 			},
-			required: ['fileNames'],
+			required: ['files'],
 		};
 	}
 
@@ -52,29 +66,29 @@ export default class LLMToolForgetFiles extends LLMTool {
 		projectEditor: ProjectEditor,
 	): Promise<LLMToolRunResult> {
 		const { toolUseId: _toolUseId, toolInput } = toolUse;
-		const { fileNames } = toolInput as { fileNames: string[] };
+		const { files } = toolInput as { files: Array<{ filePath: string; revision: string }> };
 
 		try {
 			const toolResultContentParts = [];
-			const filesSuccess: Array<{ name: string }> = [];
-			const filesError: Array<{ name: string; error: string }> = [];
+			const filesSuccess: Array<{ filePath: string; revision: string }> = [];
+			const filesError: Array<{ filePath: string; revision: string; error: string }> = [];
 			let allFilesFailed = true;
 
-			for (const fileName of fileNames) {
-				if (interaction.getFile(fileName)) {
-					interaction.removeFile(fileName);
+			for (const { filePath, revision } of files) {
+				if (interaction.getFileMetadata(filePath, revision)) {
+					interaction.removeFile(filePath, revision);
 					toolResultContentParts.push({
 						'type': 'text',
-						'text': `File removed: ${fileName}`,
+						'text': `File removed: ${filePath} (Revision: ${revision})`,
 					} as LLMMessageContentPartTextBlock);
-					filesSuccess.push({ name: fileName });
+					filesSuccess.push({ filePath, revision });
 					allFilesFailed = false;
 				} else {
 					toolResultContentParts.push({
 						'type': 'text',
-						'text': `Error removing file ${fileName}: File is not in the conversation history`,
+						'text': `Error removing file ${filePath}: File is not in the conversation history`,
 					} as LLMMessageContentPartTextBlock);
-					filesError.push({ name: fileName, error: 'File is not in the conversation history' });
+					filesError.push({ filePath, revision, error: 'File is not in the conversation history' });
 				}
 			}
 
@@ -82,21 +96,25 @@ export default class LLMToolForgetFiles extends LLMTool {
 			const toolResponses = [];
 			if (filesSuccess.length > 0) {
 				bbaiResponses.push(
-					`BBai has removed these files from the conversation: ${filesSuccess.map((f) => f.name).join(', ')}`,
+					`BBai has removed these files from the conversation: ${
+						filesSuccess.map((f) => `${f.filePath} (Revision: ${f.revision})`).join(', ')
+					}`,
 				);
 				toolResponses.push(
-					`Removed files from the conversation:\n${filesSuccess.map((f) => `- ${f.name}`).join('\n')}`,
+					`Removed files from the conversation:\n${
+						filesSuccess.map((f) => `- ${f.filePath} (Revision: ${f.revision})`).join('\n')
+					}`,
 				);
 			}
 			if (filesError.length > 0) {
 				bbaiResponses.push(
 					`BBai failed to remove these files from the conversation:\n${
-						filesError.map((f) => `- ${f.name}: ${f.error}`).join('\n')
+						filesError.map((f) => `- ${f.filePath} (${f.revision}): ${f.error}`).join('\n')
 					}`,
 				);
 				toolResponses.push(
 					`Failed to remove files from the conversation:\n${
-						filesError.map((f) => `- ${f.name}: ${f.error}`).join('\n')
+						filesError.map((f) => `- ${f.filePath} (${f.revision}): ${f.error}`).join('\n')
 					}`,
 				);
 			}

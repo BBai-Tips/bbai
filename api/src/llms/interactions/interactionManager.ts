@@ -1,13 +1,13 @@
-import LLMInteraction from './baseInteraction.ts';
+import type LLMInteraction from './baseInteraction.ts';
 import LLMConversationInteraction from './conversationInteraction.ts';
-import LLM from '../providers/baseLLM.ts';
+import type LLM from '../providers/baseLLM.ts';
 import LLMChatInteraction from './chatInteraction.ts';
 //import { generateConversationId } from 'shared/conversationManagement.ts';
-import { ConversationId } from 'shared/types.ts';
+import type { ConversationId } from 'shared/types.ts';
 import { logger } from 'shared/logger.ts';
 
 class InteractionManager {
-	private interactionResults: Map<string, any>;
+	private interactionResults: Map<string, unknown>;
 	private interactions: Map<string, LLMInteraction>;
 	private interactionHierarchy: Map<string, string>; // child ID to parent ID
 
@@ -116,11 +116,11 @@ class InteractionManager {
 		return descendants;
 	}
 
-	setInteractionResult(interactionId: string, result: any): void {
+	setInteractionResult(interactionId: string, result: unknown): void {
 		this.interactionResults.set(interactionId, result);
 	}
 
-	getInteractionResult(interactionId: string): any {
+	getInteractionResult(interactionId: string): unknown {
 		return this.interactionResults.get(interactionId);
 	}
 

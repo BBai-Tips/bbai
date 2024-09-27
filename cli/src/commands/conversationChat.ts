@@ -29,7 +29,8 @@ export const conversationChat = new Command()
 
 		const apiHostname = fullConfig.api?.apiHostname || 'localhost';
 		const apiPort = fullConfig.api?.apiPort || 3000; // cast as string
-		const apiClient = await ApiClient.create(startDir, apiHostname, apiPort);
+		const apiUseTls = typeof fullConfig.api.apiUseTls !== 'undefined' ? fullConfig.api.apiUseTls : true;
+		const apiClient = await ApiClient.create(startDir, apiHostname, apiPort, apiUseTls);
 		const websocketManager = new WebsocketManager();
 
 		let terminalHandler: TerminalHandler | null = null;

@@ -7,8 +7,10 @@ import EventManager from 'shared/eventManager.ts';
 import type { EventMap, EventName } from 'shared/eventManager.ts';
 
 class WebSocketHandler {
-	private listeners: Map<ConversationId, Array<{ event: EventName<keyof EventMap>; callback: (data: any) => void }>> =
-		new Map();
+	private listeners: Map<
+		ConversationId,
+		Array<{ event: EventName<keyof EventMap>; callback: (data: unknown) => void }>
+	> = new Map();
 	private activeConnections: Map<ConversationId, WebSocket> = new Map();
 
 	constructor(private eventManager: EventManager) {
@@ -61,7 +63,10 @@ class WebSocketHandler {
 		}
 	}
 
-	private async handleMessage(conversationId: ConversationId, message: any) {
+	private async handleMessage(
+		conversationId: ConversationId,
+		message: { task: string; statement: string; startDir: string },
+	) {
 		try {
 			const { task, statement, startDir } = message;
 			//this.connections.set(ws, conversationId);
@@ -178,7 +183,7 @@ class WebSocketHandler {
 		// Remove any existing listeners for this conversation ID
 		this.removeEventListeners(conversationId);
 
-		const listeners: Array<{ event: EventName<keyof EventMap>; callback: (data: any) => void }> = [
+		const listeners: Array<{ event: EventName<keyof EventMap>; callback: (data: unknown) => void }> = [
 			{
 				event: 'projectEditor:conversationReady',
 				callback: (data) => this.sendMessage(ws, 'conversationReady', data),
@@ -231,7 +236,7 @@ class WebSocketHandler {
 	}
 
 	// Method to send messages back to the client
-	private sendMessage = (ws: WebSocket, type: string, data: any) => {
+	private sendMessage = (ws: WebSocket, type: string, data: unknown) => {
 		//logger.debug(`WebSocketHandler: Sending message for conversationId: ${conversationId}: type=${type}, data=${JSON.stringify(data)}`);
 		logger.info(`WebSocketHandler: Sending message of type: ${type}`);
 		ws.send(JSON.stringify({ type, data }));

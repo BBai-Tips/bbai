@@ -1,22 +1,174 @@
 name: Release
 
 on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release'
+        required: true
+        default: '0.0.0'
   push:
     branches:
       - main
+      - release-build-testing
 
 permissions:
   contents: write   # This is required to create a release
 
 jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+          - os: ubuntu-latest
+            target: aarch64-unknown-linux-gnu
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+          - os: macos-latest
+            target: x86_64-apple-darwin
+          - os: macos-latest
+            target: aarch64-apple-darwin
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Deno
+        uses: denoland/setup-deno@61fe2df320078202e33d7d5ad347e7dcfa0e8f31  # v1.1.2
+        with:
+          deno-version: v1.x
+
+      - name: Build CLI for ${{ matrix.target }}
+        run: |
+          cd cli
+          deno compile --allow-env --allow-net --allow-read --allow-run --allow-write --target ${{ matrix.target }} --output ../build/bbai${{ matrix.target == 'x86_64-pc-windows-msvc' && '.exe' || '' }} src/main.ts
+
+      - name: Build API for ${{ matrix.target }}
+        run: |
+          cd api
+          deno compile --allow-env --allow-net --allow-read --allow-run --allow-write --target ${{ matrix.target }} --output ../build/bbai-api${{ matrix.target == 'x86_64-pc-windows-msvc' && '.exe' || '' }} src/main.ts
+
+      - name: Create install script (Unix)
+        if: matrix.target != 'x86_64-pc-windows-msvc'
+        run: |
+          echo '#!/bin/sh' > build/install.sh
+          echo 'cp bbai /usr/local/bin/' >> build/install.sh
+          echo 'cp bbai-api /usr/local/bin/' >> build/install.sh
+          echo 'chmod +x /usr/local/bin/bbai /usr/local/bin/bbai-api' >> build/install.sh
+          chmod +x build/install.sh
+
+      - name: Create batch files (Windows)
+        if: matrix.target == 'x86_64-pc-windows-msvc'
+        run: |
+          echo '@echo off' > build/bbai_init.bat
+          echo 'echo Initializing BBai in the current directory...' >> build/bbai_init.bat
+          echo 'bbai init' >> build/bbai_init.bat
+          echo 'echo.' >> build/bbai_init.bat
+          echo 'echo Initialization complete. Press any key to exit.' >> build/bbai_init.bat
+          echo 'pause >nul' >> build/bbai_init.bat
+
+          echo '@echo off' > build/bbai_start.bat
+          echo 'echo Starting BBai...' >> build/bbai_start.bat
+          echo 'start "" bbai start' >> build/bbai_start.bat
+          echo 'echo.' >> build/bbai_start.bat
+          echo 'echo BBai has been started in your default web browser.' >> build/bbai_start.bat
+          echo 'echo You can close this window.' >> build/bbai_start.bat
+
+          echo '@echo off' > build/bbai_stop.bat
+          echo 'echo Stopping BBai...' >> build/bbai_stop.bat
+          echo 'start "" bbai stop' >> build/bbai_stop.bat
+          echo 'echo.' >> build/bbai_stop.bat
+          echo 'echo BBai has been stopped.' >> build/bbai_stop.bat
+          echo 'echo You can close this window.' >> build/bbai_stop.bat
+
+      - name: Create MSI installer (Windows)
+        if: matrix.target == 'x86_64-pc-windows-msvc'
+        run: |
+          choco install wixtoolset -y
+          $env:PATH += ";C:\Program Files (x86)\WiX Toolset v3.11\bin"
+          
+          # Create a temporary directory for the installer files
+          mkdir installer_files
+          cp build/bbai.exe installer_files/
+          cp build/bbai-api.exe installer_files/
+          cp build/bbai_init.bat installer_files/
+          cp build/bbai_start.bat installer_files/
+          cp build/bbai_stop.bat installer_files/
+          
+          # Create a WiX source file
+          @"
+          <?xml version="1.0" encoding="UTF-8"?>
+          <Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+            <Product Id="*" Name="BBai" Language="1033" Version="1.0.0.0" Manufacturer="BBai-Tips" UpgradeCode="12345678-1234-1234-1234-123456789012">
+              <Package InstallerVersion="200" Compressed="yes" InstallScope="perMachine" />
+              <MajorUpgrade DowngradeErrorMessage="A newer version of [ProductName] is already installed." />
+              <MediaTemplate EmbedCab="yes" />
+              <Feature Id="ProductFeature" Title="BBai" Level="1">
+                <ComponentGroupRef Id="ProductComponents" />
+              </Feature>
+            </Product>
+            <Fragment>
+              <Directory Id="TARGETDIR" Name="SourceDir">
+                <Directory Id="ProgramFilesFolder">
+                  <Directory Id="INSTALLFOLDER" Name="BBai" />
+                </Directory>
+              </Directory>
+            </Fragment>
+            <Fragment>
+              <ComponentGroup Id="ProductComponents" Directory="INSTALLFOLDER">
+                <Component Id="bbai.exe" Guid="*">
+                  <File Id="bbai.exe" Name="bbai.exe" Source="installer_files\bbai.exe" KeyPath="yes" />
+                </Component>
+                <Component Id="bbai_api.exe" Guid="*">
+                  <File Id="bbai_api.exe" Name="bbai-api.exe" Source="installer_files\bbai-api.exe" KeyPath="yes" />
+                </Component>
+                <Component Id="bbai_init.bat" Guid="*">
+                  <File Id="bbai_init.bat" Name="bbai_init.bat" Source="installer_files\bbai_init.bat" KeyPath="yes" />
+                </Component>
+                <Component Id="bbai_start.bat" Guid="*">
+                  <File Id="bbai_start.bat" Name="bbai_start.bat" Source="installer_files\bbai_start.bat" KeyPath="yes" />
+                </Component>
+                <Component Id="bbai_stop.bat" Guid="*">
+                  <File Id="bbai_stop.bat" Name="bbai_stop.bat" Source="installer_files\bbai_stop.bat" KeyPath="yes" />
+                </Component>
+              </ComponentGroup>
+            </Fragment>
+          </Wix>
+          "@ | Out-File -Encoding utf8 bbai.wxs
+          
+          # Compile and link the installer
+          candle bbai.wxs
+          light -ext WixUIExtension bbai.wixobj
+          
+          # Move the created MSI to the build directory
+          mv bbai.msi build/bbai-installer.msi
+
+      - name: Copy README and INSTALL
+        shell: bash
+        run: |
+          if [[ "${{ runner.os }}" == "Windows" ]]; then
+            cp README.md build/README.txt
+            cp INSTALL.md build/INSTALL.txt
+          else
+            cp README.md INSTALL.md build/
+          fi
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: bbai-${{ matrix.target }}
+          path: build/*
+
   release:
+    needs: build
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
       - name: Setup Deno
-        # uses: denoland/setup-deno@v1
         uses: denoland/setup-deno@61fe2df320078202e33d7d5ad347e7dcfa0e8f31  # v1.1.2
         with:
           deno-version: v1.x
@@ -35,6 +187,40 @@ jobs:
           release_name: Release v${{ steps.get_version.outputs.VERSION }}
           draft: false
           prerelease: false
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+
+#       - name: List directory contents
+#         run: ls -R
+#         shell: bash
+
+      - name: Upload Release Assets
+        run: |
+          set -e
+          for target in x86_64-unknown-linux-gnu aarch64-unknown-linux-gnu x86_64-pc-windows-msvc x86_64-apple-darwin aarch64-apple-darwin; do
+            echo "Processing target: $target"
+            if [ ! -d "bbai-$target" ]; then
+              echo "Error: Directory bbai-$target not found"
+              continue
+            fi
+            cd bbai-$target
+            if [ "$target" = "x86_64-pc-windows-msvc" ]; then
+              zip -r ../bbai-$target-v${{ steps.get_version.outputs.VERSION }}.zip .
+              gh release upload v${{ steps.get_version.outputs.VERSION }} bbai-installer.msi || echo "Failed to upload MSI for $target"
+            else
+              zip -r ../bbai-$target-v${{ steps.get_version.outputs.VERSION }}.zip .
+              chmod 755 install.sh bbai bbai-api
+              tar czf ../bbai-$target-v${{ steps.get_version.outputs.VERSION }}.tar.gz .
+            fi
+            cd ..
+            gh release upload v${{ steps.get_version.outputs.VERSION }} bbai-$target-v${{ steps.get_version.outputs.VERSION }}.zip || echo "Failed to upload ZIP for $target"
+            if [ "$target" != "x86_64-pc-windows-msvc" ]; then
+              gh release upload v${{ steps.get_version.outputs.VERSION }} bbai-$target-v${{ steps.get_version.outputs.VERSION }}.tar.gz || echo "Failed to upload tar.gz for $target"
+            fi
+          done
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
 ## disabled until homebrew formula has been accepted
 #       - name: Update Homebrew formula

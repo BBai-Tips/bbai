@@ -7,10 +7,58 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Fixed 'git not found' error when running init
+- Updated `bbai` strings to `bbai.exe` for Windows
+- Fixes for Windows compat
+- Added config option for API and BUI to listen with TLS
+- Updated CLI and BUI to initiate TLS connections if useTls is set
+- Added certificate generation to init process
+- Updated docs
+
+
+## [0.0.16-beta] - 2024-09-27
+
+### Changed
+
+- Fixed 'git not found' error when running init
+- Updated `bbai` strings to `bbai.exe` for Windows
+- Fixes for Windows compat
+- Added config option for API and BUI to listen with TLS
+- Updated CLI and BUI to initiate TLS connections if useTls is set
+- Added certificate generation to init process
+- Updated docs
+
+
+## [0.0.15-beta] - 2024-09-25
+
+### Changed
+
 - Refactored Split config handling; global, project, full
 - Added config for apiHostname
 - Changed BUI to also load apiHostname and startDir from URL
 - Fixes for init wizard
+- Added support for image files to request_files tool 
+- Added support for prompt caching to full message history
+- Easy install; Windows MSI and one-liner for macOS and Linux
+
+
+## [0.0.14a-beta] - 2024-09-14
+
+### Changed
+
+- Release builds for each platform
+- Updated docs for INSTALL and README
+
+
+## [0.0.13-beta] - 2024-09-14
+
+### Changed
+
+- Refactored Split config handling; global, project, full
+- Added config for apiHostname
+- Changed BUI to also load apiHostname and startDir from URL
+- Fixes for init wizard
+- Changed tests to create configured project for each unit
 
 
 ## [0.0.12b-beta] - 2024-09-08

@@ -38,7 +38,7 @@ import { generateConversationTitle } from '../utils/conversation.utils.ts';
 import { generateConversationId } from 'shared/conversationManagement.ts';
 //import { runFormatCommand } from '../utils/project.utils.ts';
 import { stageAndCommitAfterPatching } from '../utils/git.utils.ts';
-import { type FullConfigSchema } from 'shared/configManager.ts';
+import type { FullConfigSchema } from 'shared/configManager.ts';
 
 class OrchestratorController {
 	private interactionStats: Map<ConversationId, ConversationMetrics> = new Map();

@@ -1,5 +1,6 @@
-import { JSX } from 'preact';
-import LLMTool, { LLMToolInputSchema, LLMToolRunResult, LLMToolRunResultContent } from 'api/llms/llmTool.ts';
+import type { JSX } from 'preact';
+import LLMTool from 'api/llms/llmTool.ts';
+import type { LLMToolInputSchema, LLMToolRunResult, LLMToolRunResultContent } from 'api/llms/llmTool.ts';
 import {
 	formatToolResult as formatToolResultBrowser,
 	formatToolUse as formatToolUseBrowser,
@@ -8,16 +9,16 @@ import {
 	formatToolResult as formatToolResultConsole,
 	formatToolUse as formatToolUseConsole,
 } from './formatters/delegateTasksTool.console.ts';
-import LLMConversationInteraction from '../interactions/conversationInteraction.ts';
+import type LLMConversationInteraction from '../interactions/conversationInteraction.ts';
 import { logger } from 'shared/logger.ts';
-import { LLMAnswerToolUse } from 'api/llms/llmMessage.ts';
-import ProjectEditor from '../../editor/projectEditor.ts';
+import type { LLMAnswerToolUse } from 'api/llms/llmMessage.ts';
+import type ProjectEditor from '../../editor/projectEditor.ts';
 import { createError, ErrorType } from '../../utils/error.utils.ts';
-import InteractionManager from '../interactions/interactionManager.ts';
-import { ResourceManager } from '../resourceManager.ts';
-import { CapabilityManager } from '../capabilityManager.ts';
-import { ErrorHandler } from '../errorHandler.ts';
-import { TaskQueue } from '../taskQueue.ts';
+import type InteractionManager from '../interactions/interactionManager.ts';
+import type { ResourceManager } from '../resourceManager.ts';
+import type { CapabilityManager } from '../capabilityManager.ts';
+import type { ErrorHandler } from '../errorHandler.ts';
+import type { TaskQueue } from '../taskQueue.ts';
 
 interface Task {
 	title: string;

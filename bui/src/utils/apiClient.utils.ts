@@ -17,7 +17,7 @@ export class ApiClient {
 			baseUrl = window.location.origin;
 		} else {
 			// Fallback for non-browser environments (e.g., during SSR)
-			baseUrl = 'http://localhost:3000';
+			baseUrl = 'https://localhost:3000';
 		}
 		logger.info(`APIClient: client created with baseUrl: ${baseUrl}`);
 		return new ApiClient(baseUrl);

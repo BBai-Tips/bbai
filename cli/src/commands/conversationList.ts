@@ -2,6 +2,7 @@ import { Command } from 'cliffy/command/mod.ts';
 import type { ConversationMetadata } from 'shared/types.ts';
 import { resolve } from '@std/path';
 import ApiClient from 'cli/apiClient.ts';
+import { ConfigManager } from 'shared/configManager.ts';
 // import { createSpinner, startSpinner, stopSpinner } from '../utils/terminalHandler.utils.ts';
 
 export const conversationList = new Command()
@@ -15,6 +16,7 @@ export const conversationList = new Command()
 
 		try {
 			const startDir = resolve(directory);
+			const fullConfig = await ConfigManager.fullConfig(startDir);
 			const apiClient = await ApiClient.create(startDir);
 			const response = await apiClient.get(
 				`/api/v1/conversation?startDir=${encodeURIComponent(startDir)}&page=${page}&limit=${limit}`,
@@ -47,21 +49,21 @@ export const conversationList = new Command()
 					console.log('\nPagination instructions:');
 					if (pagination.page < pagination.totalPages) {
 						console.log(
-							`To view the next page, use: bbai conversation list --page ${
+							`To view the next page, use: ${fullConfig.bbaiExeName} conversation list --page ${
 								pagination.page + 1
 							} --limit ${limit}`,
 						);
 					}
 					if (pagination.page > 1) {
 						console.log(
-							`To view the previous page, use: bbai conversation list --page ${
+							`To view the previous page, use: ${fullConfig.bbaiExeName} conversation list --page ${
 								pagination.page - 1
 							} --limit ${limit}`,
 						);
 					}
 					console.log(`Current items per page: ${limit}`);
 					console.log(`To change the number of items per page, use the --limit option. For example:`);
-					console.log(`bbai conversation list --page ${pagination.page} --limit 20`);
+					console.log(`${fullConfig.bbaiExeName} conversation list --page ${pagination.page} --limit 20`);
 				}
 			} else {
 				console.error('Failed to fetch saved conversations:', response.statusText);

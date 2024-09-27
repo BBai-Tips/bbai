@@ -1,6 +1,7 @@
 import type { ConversationLogEntry, ConversationLoggerEntryType } from 'shared/conversationLogger.ts';
 import type { LLMProviderMessageMeta, LLMProviderMessageResponse } from 'api/types/llms.ts';
 import type { LLMToolInputSchema, LLMToolRunResultContent } from 'api/llms/llmTool.ts';
+import type { LLMMessageContentPartImageBlockSourceMediaType } from 'api/llms/llmMessage.ts';
 
 export type ConversationId = string;
 
@@ -37,6 +38,24 @@ export interface ConversationDetailedMetadata extends ConversationMetadata {
 
 	//tools?: Array<{ name: string; description: string }>;
 }
+
+export interface FileMetadata {
+	type: 'text' | 'image';
+	mimeType?: LLMMessageContentPartImageBlockSourceMediaType;
+	path: string;
+	size: number;
+	lastModified: Date;
+	inSystemPrompt: boolean;
+	messageId?: string; // also used as revisionId
+	toolUseId?: string;
+	lastCommit?: string;
+	error?: string | null;
+}
+
+export type ConversationFilesMetadata = Record<string, FileMetadata>;
+// export interface ConversationFilesMetadata {
+// 	files: Map<string, FileMetadata>;
+// }
 
 export interface TokenUsage {
 	inputTokens: number;

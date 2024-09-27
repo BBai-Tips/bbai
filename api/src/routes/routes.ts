@@ -1,4 +1,5 @@
-import { Context, Router } from '@oak/oak';
+import { Router } from '@oak/oak';
+import type { Context } from '@oak/oak';
 import { errorHandler } from '../middlewares/error.middleware.ts';
 import apiRouter from './apiRouter.ts';
 import swaggerRouter from './swaggerRouter.ts';
@@ -11,7 +12,7 @@ router
 	 * /:
 	 *   get:
 	 *     summary: API root
-	 *     description: Returns a welcome message for the bbai API and provides a link to the API documentation
+	 *     description: Returns a welcome message for the BBai API and provides a link to the API documentation
 	 *     responses:
 	 *       200:
 	 *         description: Successful response with welcome message and documentation link

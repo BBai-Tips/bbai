@@ -2,6 +2,7 @@ import { stripIndents } from 'common-tags';
 
 import { readFileContent, resolveFilePath } from 'shared/dataDir.ts';
 import { logger } from 'shared/logger.ts';
+import type { GlobalConfigSchema } from 'shared/configSchema.ts';
 
 interface PromptMetadata {
 	name: string;
@@ -11,18 +12,18 @@ interface PromptMetadata {
 
 interface Prompt {
 	metadata: PromptMetadata;
-	getContent: (variables: Record<string, any>) => Promise<string>;
+	getContent: (variables: Record<string, unknown>) => Promise<string>;
 }
 
 export const system: Prompt = {
 	metadata: {
 		name: 'System Prompt',
-		description: 'Default system prompt for bbai',
+		description: 'Default system prompt for BBai',
 		version: '1.0.0',
 	},
 	getContent: async ({ userDefinedContent = '', fullConfig }) => {
 		let guidelines;
-		const guidelinesPath = fullConfig.project.llmGuidelinesFile;
+		const guidelinesPath = (fullConfig as GlobalConfigSchema).project.llmGuidelinesFile;
 		if (guidelinesPath) {
 			try {
 				const resolvedPath = await resolveFilePath(guidelinesPath);
@@ -32,8 +33,8 @@ export const system: Prompt = {
 			}
 		}
 
-		const myPersonsName = fullConfig.myPersonsName;
-		const myAssistantsName = fullConfig.myAssistantsName;
+		const myPersonsName = (fullConfig as GlobalConfigSchema).myPersonsName;
+		const myAssistantsName = (fullConfig as GlobalConfigSchema).myAssistantsName;
 
 		return stripIndents`
 		  You are an AI assistant named ${myAssistantsName}, an expert at a variety of coding and writing tasks. Your capabilities include:
@@ -45,7 +46,7 @@ export const system: Prompt = {
 		  5. Working with HTML, SVG, and various markup languages
 		  6. Handling configuration files and data formats (JSON, YAML, etc.)
 	
-		  You are facilitating a conversation between "bbai" (an AI-powered writing assistant) and the user named "${myPersonsName}". All conversation messages will be labeled as either 'assistant' or 'user'. The 'user' messages will contain instructions from both "bbai" and "${myPersonsName}". You should respect instructions from both "bbai" and "${myPersonsName}" but always prioritize instructions or comments from ${myPersonsName}. When addressing the user, refer to them as "${myPersonsName}". When providing instructions for the writing assistant, refer to it as "bbai". Wrap instructions for "bbai" with <bbai> XML tags. Always prefer using a tool rather than writing instructions to "bbai".
+		  You are facilitating a conversation between "BBai" (an AI-powered writing assistant) and the user named "${myPersonsName}". All conversation messages will be labeled as either 'assistant' or 'user'. The 'user' messages will contain instructions from both "BBai" and "${myPersonsName}". You should respect instructions from both "BBai" and "${myPersonsName}" but always prioritize instructions or comments from ${myPersonsName}. When addressing the user, refer to them as "${myPersonsName}". When providing instructions for the writing assistant, refer to it as "BBai". Wrap instructions for "BBai" with <bbai> XML tags. Always prefer using a tool rather than writing instructions to "BBai".
 	
 		  In each conversational turn, you will begin by thinking about your response. Once you're done, you will write a user-facing response for "${myPersonsName}". It's important to place all user-facing conversational responses in <reply></reply> XML tags to make them easy to parse.
 	
@@ -71,7 +72,7 @@ export const addFiles: Prompt = {
 		stripIndents`
 		  The following files have been added to the conversation:
 	  
-		  ${fileList.map((file: string) => `- ${file}`).join('\n')}
+		  ${(fileList as string[]).map((file: string) => `- ${file}`).join('\n')}
 	  
 		  Please review these files and provide any relevant insights or suggestions based on their content.
 		`,
@@ -88,7 +89,7 @@ export const gitCommitMessage: Prompt = {
 		  Generate a concise, single-line git commit message in past tense describing the purpose of the changes in the provided diffs. If necessary, add a blank line followed by a brief detailed explanation. Respond with only the commit message, without any additional text.
 	  
 		  <patched-files>
-		  ${patchedFiles.join('\n')}
+		  ${(patchedFiles as string[]).join('\n')}
 		  </patched-files>
 		`;
 	},

@@ -6,11 +6,19 @@
 
 For detailed installation instructions, please refer to the [INSTALL.md](../INSTALL.md) file.
 
+For Windows users, we provide an MSI installer and batch files for easy setup and usage. Please see our [Windows User Guide](WINDOWS_GUIDE.md) for more information.
+
 ## Usage
 
 ```
 bbai [command] [options]
 ```
+
+On Windows, use `bbai.exe` instead of `bbai` for all CLI commands.
+
+On Windows, you can also use the provided batch files:
+- `bbai_init.bat`: Initialize BBai in your project directory.
+- `bbai_start.bat`: Start BBai and open the browser interface.
 
 ## Available Commands
 
@@ -22,10 +30,12 @@ bbai [command] [options]
 ### Project Initialization
 
 - `bbai init`: Initialize BBai in the current directory.
+  - On Windows, you can also double-click `bbai_init.bat` in your project directory.
 
 ### API Management
 
-- `bbai start`: Start the BBai API server.
+- `bbai start`: Start the BBai API server and open the browser interface.
+  - On Windows, you can also double-click `bbai_start.bat` in your project directory.
   - Options:
     - `--log-level <level>`: Set the log level for the API server.
     - `--log-file <file>`: Specify a log file to write output.
@@ -78,11 +88,13 @@ bbai [command] [options]
    ```
    bbai init
    ```
+   On Windows, double-click `bbai_init.bat` in your project directory.
 
-2. Start the BBai API server:
+2. Start the BBai API server and open the browser interface:
    ```
    bbai start
    ```
+   On Windows, double-click `bbai_start.bat` in your project directory.
 
 3. Start a new conversation:
    ```
@@ -120,3 +132,9 @@ bbai [command] [options]
    ```
 
 Note: Many commands are currently not implemented and will be added in future updates.
+
+## Windows-Specific Usage
+
+For detailed instructions on using BBai on Windows, including how to use the provided batch files and the importance of project-specific usage, please refer to our [Windows User Guide](WINDOWS_GUIDE.md).
+
+Remember that the `init` and `start` commands (and their corresponding batch files) are project-specific. Always ensure you're in the correct project directory when running these commands or using the batch files.

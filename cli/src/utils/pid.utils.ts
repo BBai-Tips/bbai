@@ -21,7 +21,7 @@ export async function isApiRunning(startDir: string): Promise<boolean> {
 	if (pid === null) return false;
 
 	try {
-		Deno.kill(pid, 'SIGCONT');
+		if (Deno.build.os !== 'windows') Deno.kill(pid, 'SIGCONT');
 		return true;
 	} catch {
 		await removePid(startDir);

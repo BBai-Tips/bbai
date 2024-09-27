@@ -1,4 +1,4 @@
-import LLMChatInteraction from '../llms/interactions/chatInteraction.ts';
+import type LLMChatInteraction from '../llms/interactions/chatInteraction.ts';
 import { stripIndents } from 'common-tags';
 
 export async function generateConversationTitle(chat: LLMChatInteraction, prompt: string): Promise<string> {

@@ -1,5 +1,5 @@
-import { Task } from 'api/types.ts';
-import { ErrorHandler } from './errorHandler.ts';
+import type { Task } from 'api/types.ts';
+import type { ErrorHandler } from './errorHandler.ts';
 import { logger } from 'shared/logger.ts';
 
 export class TaskQueue {

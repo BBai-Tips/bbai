@@ -14,6 +14,7 @@ import LLMMessage from 'api/llms/llmMessage.ts';
 import type LLMTool from 'api/llms/llmTool.ts';
 import type { LLMToolRunResultContent } from 'api/llms/llmTool.ts';
 import ConversationPersistence from '../../storage/conversationPersistence.ts';
+import type { FullConfigSchema } from 'shared/configManager.ts';
 import ConversationLogger from 'shared/conversationLogger.ts';
 import type { ConversationLogEntry } from 'shared/conversationLogger.ts';
 import { logger } from 'shared/logger.ts';
@@ -48,6 +49,7 @@ class LLMInteraction {
 	protected _baseSystem: string = '';
 	protected conversationPersistence!: ConversationPersistence;
 	public conversationLogger!: ConversationLogger;
+	protected fullConfig!: FullConfigSchema;
 
 	private _model: string = '';
 
@@ -84,8 +86,9 @@ class LLMInteraction {
 			const projectEditor = await this.llm.invoke(LLMCallbackType.PROJECT_EDITOR);
 			this.conversationPersistence = await new ConversationPersistence(this.id, projectEditor).init();
 			this.conversationLogger = await new ConversationLogger(projectRoot, this.id, logEntryHandler).init();
+			this.fullConfig = projectEditor.fullConfig;
 		} catch (error) {
-			logger.error('Failed to initialize LLMConversationInteraction:', error);
+			logger.error('Failed to initialize LLMInteraction:', error);
 			throw error;
 		}
 		return this;
@@ -239,7 +242,7 @@ class LLMInteraction {
 		//logger.debug('lastMessage for assistant', lastMessage);
 
 		if (lastMessage && lastMessage.role === 'assistant') {
-			logger.error('Why are we adding another assistant message - SOMETHING IS WRONG!');
+			logger.error('LLMInteraction: Why are we adding another assistant message - SOMETHING IS WRONG!');
 			// Append content to the content array of the last assistant message
 			//logger.debug('Adding content to existing assistant message', JSON.stringify(content, null, 2));
 			if (Array.isArray(content)) {
@@ -311,17 +314,23 @@ class LLMInteraction {
 						: [];
 				}
 				existingToolResult.is_error = existingToolResult.is_error || isError;
-				logger.debug('Updating existing tool result', JSON.stringify(toolResult, null, 2));
+				logger.debug('LLMInteraction: Updating existing tool result', JSON.stringify(toolResult, null, 2));
 				return lastMessage.id ?? '';
 			} else {
 				// Add new tool result to existing user message
-				logger.debug('Adding new tool result to existing user message', JSON.stringify(toolResult, null, 2));
+				logger.debug(
+					'LLMInteraction: Adding new tool result to existing user message',
+					JSON.stringify(toolResult, null, 2),
+				);
 				lastMessage.content.push(toolResult);
 				return lastMessage.id ?? '';
 			}
 		} else {
 			// Add a new user message with the tool result
-			logger.debug('Adding new user message with tool result', JSON.stringify(toolResult, null, 2));
+			logger.debug(
+				'LLMInteraction: Adding new user message with tool result',
+				JSON.stringify(toolResult, null, 2),
+			);
 			const newMessage = new LLMMessage('user', [toolResult]);
 			this.addMessage(newMessage);
 			return newMessage.id ?? '';
