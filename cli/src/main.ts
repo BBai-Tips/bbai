@@ -16,7 +16,7 @@ const globalConfig = await ConfigManager.globalConfig();
 //logger.debug('CLI Config:', globalConfig.cli);
 
 const cli = new Command()
-	.name('bbai')
+	.name(globalConfig.bbaiExeName) // 'bbai' or 'bbai.exe'
 	.version(globalConfig.version as string)
 	.description('CLI tool for BBai')
 	.command('init', init)

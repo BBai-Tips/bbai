@@ -20,6 +20,7 @@
 		"test-all": "deno task -c ./cli/deno.jsonc test && deno task -c ./bui/deno.jsonc test && deno task -c ./api/deno.jsonc test",
 		"update-deps": "deno task -c ./cli/deno.jsonc update-deps && deno task -c ./bui/deno.jsonc update-deps && deno task -c ./api/deno.jsonc update-deps",
 		"update-version": "deno run --allow-read --allow-write --allow-run ./scripts/update_version.ts"
+		"mkcert": "deno run --allow-read --allow-write --allow-env --allow-run ./scripts/mkcert.ts"
 	},
 	"importMap": "./import_map.json",
 	"fmt": {

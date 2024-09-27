@@ -10,12 +10,22 @@ export default class ApiClient {
 		this.wsUrl = wsUrl;
 	}
 
-	static async create(startDir: string = Deno.cwd(), hostname?: string, port?: number): Promise<ApiClient> {
+	static async create(
+		startDir: string = Deno.cwd(),
+		hostname?: string,
+		port?: number,
+		useTls?: boolean,
+	): Promise<ApiClient> {
 		const fullConfig = await ConfigManager.fullConfig(startDir);
 		const apiHostname = hostname || fullConfig.api.apiHostname || 'localhost';
 		const apiPort = port || fullConfig.api.apiPort || 3000;
-		const baseUrl = `http://${apiHostname}:${apiPort}`;
-		const wsUrl = `ws://${apiHostname}:${apiPort}`;
+		const apiUseTls = typeof useTls !== 'undefined'
+			? useTls
+			: typeof fullConfig.api.apiUseTls !== 'undefined'
+			? fullConfig.api.apiUseTls
+			: true;
+		const baseUrl = `${apiUseTls ? 'https' : 'http'}://${apiHostname}:${apiPort}`;
+		const wsUrl = `${apiUseTls ? 'wss' : 'ws'}://${apiHostname}:${apiPort}`;
 		logger.debug(`APIClient: client created with baseUrl: ${baseUrl}, wsUrl: ${wsUrl}`);
 		return new ApiClient(baseUrl, wsUrl);
 	}

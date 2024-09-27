@@ -64,6 +64,17 @@ export default function Chat() {
 		}
 		return null;
 	});
+	const [apiUseTls, setApiUseTls] = useState(() => {
+		if (IS_BROWSER) {
+			const hash = window.location.hash.slice(1); // Remove the '#'
+			const params = new URLSearchParams(hash);
+			// if blank, set to true - otherwise check for string 'true'
+			const useTls = params.get('apiUseTls') === '' ? true : params.get('apiUseTls') === 'true' ? true : false;
+			console.log('Chat component: Received apiUseTls:', useTls);
+			return useTls;
+		}
+		return true;
+	});
 	const [startDir, setStartDir] = useState(() => {
 		let startDirFromHash = '';
 		if (IS_BROWSER) {
@@ -161,16 +172,23 @@ export default function Chat() {
 			apiHostname,
 			'apiPort:',
 			apiPort,
+			'apiUseTls:',
+			apiUseTls,
 			'startDir:',
 			startDir,
 		);
-		console.log(`Initializing API client with baseUrl: http://${apiHostname}:${apiPort} in ${startDir}`);
+		console.log(
+			`Initializing API client with baseUrl: ${
+				apiUseTls ? 'https' : 'http'
+			}://${apiHostname}:${apiPort} in ${startDir}`,
+		);
 		if (IS_BROWSER && !wsManager.value && apiHostname && apiPort && startDir) {
 			console.log('Initializing chat with apiHostname:', apiHostname);
 			console.log('Initializing chat with apiPort:', apiPort);
+			console.log('Initializing chat with apiUseTls:', apiUseTls);
 			console.log('Initializing chat with startDir:', startDir);
 			const initializeChat = async () => {
-				const baseUrl = `http://${apiHostname}:${apiPort}`;
+				const baseUrl = `${apiUseTls ? 'https' : 'http'}://${apiHostname}:${apiPort}`;
 				console.log('Chat component: Initializing API client with baseUrl in startDir:', baseUrl, startDir);
 				apiClient.value = new ApiClient(baseUrl);
 				await fetchConversations();
@@ -179,7 +197,7 @@ export default function Chat() {
 			const newConversationId = generateConversationId();
 			setConversationId(newConversationId);
 
-			const manager = createWebSocketManager(apiHostname, parseInt(apiPort), startDir);
+			const manager = createWebSocketManager(apiHostname, parseInt(apiPort), apiUseTls, startDir);
 			manager.setConversationId(newConversationId);
 			wsManager.value = manager;
 			manager.connect();
@@ -188,7 +206,7 @@ export default function Chat() {
 				manager.disconnect();
 			};
 		}
-	}, [apiHostname, apiPort, startDir]);
+	}, [apiHostname, apiPort, apiUseTls, startDir]);
 
 	useEffect(() => {
 		if (wsManager.value) {

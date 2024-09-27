@@ -6,7 +6,12 @@ import { normalize, resolve } from '@std/path';
 export class GitUtils {
 	private static gitInstances: SimpleGit[] = [];
 
-	private static getGit(path: string): SimpleGit {
+	private static async getGit(path: string): Promise<SimpleGit> {
+		//logger.info(`Creating simpleGit in ${path}`);
+		const { installed } = await simpleGit().version();
+		if (!installed) {
+			throw new Error(`Exit: "git" not available.`);
+		}
 		const git = simpleGit(path);
 		this.gitInstances.push(git);
 		return git;
@@ -19,9 +24,9 @@ export class GitUtils {
 		this.gitInstances = [];
 	}
 	static async findGitRoot(startPath: string = Deno.cwd()): Promise<string | null> {
-		const git: SimpleGit = this.getGit(startPath);
-
+		//logger.info(`Checking for git repo in ${startPath}`);
 		try {
+			const git: SimpleGit = await this.getGit(startPath);
 			const result = await git.revparse(['--show-toplevel']);
 			const normalizedPath = normalize(result.trim());
 			const resolvedGitRoot = await Deno.realPath(resolve(normalizedPath));
@@ -32,9 +37,8 @@ export class GitUtils {
 	}
 
 	static async initGit(repoPath: string): Promise<void> {
-		const git: SimpleGit = this.getGit(repoPath);
-
 		try {
+			const git: SimpleGit = await this.getGit(repoPath);
 			await git.init();
 		} catch (error) {
 			throw new Error(`Failed to init git repo: ${error.message}`);
@@ -42,9 +46,8 @@ export class GitUtils {
 	}
 
 	static async stageAndCommit(repoPath: string, files: string[], commitMessage: string): Promise<string> {
-		const git: SimpleGit = this.getGit(repoPath);
-
 		try {
+			const git: SimpleGit = await this.getGit(repoPath);
 			// Stage the specified files
 			await git.add(files);
 
@@ -58,9 +61,8 @@ export class GitUtils {
 	}
 
 	static async getCurrentCommit(repoPath: string): Promise<string | null> {
-		const git: SimpleGit = this.getGit(repoPath);
-
 		try {
+			const git: SimpleGit = await this.getGit(repoPath);
 			const result = await git.revparse(['HEAD']);
 			return result.trim();
 		} catch (error) {
@@ -69,9 +71,8 @@ export class GitUtils {
 	}
 
 	static async getLastCommitForFile(repoPath: string, filePath: string): Promise<string | null> {
-		const git: SimpleGit = this.getGit(repoPath);
-
 		try {
+			const git: SimpleGit = await this.getGit(repoPath);
 			const result = await git.log({ file: filePath, maxCount: 1 });
 			if (result.latest) {
 				return result.latest.hash;

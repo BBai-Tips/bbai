@@ -5,12 +5,18 @@ import { ConfigManager } from 'shared/configManager.ts';
 
 export async function getProjectRoot(startDir: string): Promise<string> {
 	let currentDir = resolve(startDir);
-	while (currentDir !== '/') {
+	while (true) {
+		//console.log(`Looking for .bbai in: ${currentDir}`);
 		const bbaiDir = join(currentDir, '.bbai');
 		if (await exists(bbaiDir)) {
 			return currentDir;
 		}
-		currentDir = resolve(currentDir, '..');
+		const parentDir = resolve(currentDir, '..');
+		if (parentDir === currentDir) { // if current is same as parent, then must be at top, nowhere else to go.
+			break; // Reached root without finding .bbai
+		}
+		//console.log(`Moving up to parent: ${parentDir}`);
+		currentDir = parentDir;
 	}
 	throw new Error('No .bbai directory found in project hierarchy');
 }
@@ -20,6 +26,13 @@ export async function getBbaiDir(startDir: string): Promise<string> {
 	const bbaiDir = join(projectRoot, '.bbai');
 	await ensureDir(bbaiDir);
 	return bbaiDir;
+}
+export async function getGlobalConfigDir(): Promise<string> {
+	const globalConfigDir = Deno.build.os === 'windows' ? (join(Deno.env.get('APPDATA') || '', 'bbai')) : (
+		join(Deno.env.get('HOME') || '', '.config', 'bbai')
+	);
+	await ensureDir(globalConfigDir);
+	return globalConfigDir;
 }
 
 export async function getBbaiDataDir(startDir: string): Promise<string> {
@@ -50,6 +63,37 @@ export async function readFromBbaiDir(startDir: string, filename: string): Promi
 
 export async function removeFromBbaiDir(startDir: string, filename: string): Promise<void> {
 	const bbaiDir = await getBbaiDir(startDir);
+	const filePath = join(bbaiDir, filename);
+	try {
+		await Deno.remove(filePath);
+	} catch (error) {
+		if (!(error instanceof Deno.errors.NotFound)) {
+			throw error;
+		}
+	}
+}
+
+export async function writeToGlobalConfigDir(filename: string, content: string): Promise<void> {
+	const bbaiDir = await getGlobalConfigDir();
+	const filePath = join(bbaiDir, filename);
+	await Deno.writeTextFile(filePath, content);
+}
+
+export async function readFromGlobalConfigDir(filename: string): Promise<string | null> {
+	const bbaiDir = await getGlobalConfigDir();
+	const filePath = join(bbaiDir, filename);
+	try {
+		return await Deno.readTextFile(filePath);
+	} catch (error) {
+		if (error instanceof Deno.errors.NotFound) {
+			return null;
+		}
+		throw error;
+	}
+}
+
+export async function removeFromGlobalConfigDir(filename: string): Promise<void> {
+	const bbaiDir = await getGlobalConfigDir();
 	const filePath = join(bbaiDir, filename);
 	try {
 		await Deno.remove(filePath);

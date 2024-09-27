@@ -41,8 +41,8 @@ export async function createBbaiIgnore(startDir: string): Promise<void> {
 
 export function getDefaultBbaiIgnore(): string {
 	return `
-# Ignore patterns for bbai
-# Add files and directories that should be ignored by bbai here
+# Ignore patterns for BBai
+# Add files and directories that should be ignored by BBai here
 
 # Ignore node_modules directory
 node_modules/
@@ -69,7 +69,7 @@ Thumbs.db
 *.swp
 *.swo
 
-# Ignore bbai's own directory
+# Ignore BBai's own directory
 .bbai/
 
 # Add your custom ignore patterns below

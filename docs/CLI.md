@@ -14,6 +14,8 @@ For Windows users, we provide an MSI installer and batch files for easy setup an
 bbai [command] [options]
 ```
 
+On Windows, use `bbai.exe` instead of `bbai` for all CLI commands.
+
 On Windows, you can also use the provided batch files:
 - `bbai_init.bat`: Initialize BBai in your project directory.
 - `bbai_start.bat`: Start BBai and open the browser interface.
