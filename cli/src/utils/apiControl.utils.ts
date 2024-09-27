@@ -42,7 +42,7 @@ export async function startApiServer(
 	}
 	const apiHostnameArgs = apiHostname ? ['--hostname', apiHostname] : [];
 	const apiPortArgs = apiPort ? ['--port', apiPort] : [];
-	const apiUseTlsArgs = typeof apiUseTls !== 'undefined' ? ['--useTls', apiUseTls ? 'true' : 'false'] : [];
+	const apiUseTlsArgs = typeof apiUseTls !== 'undefined' ? ['--use-tls', apiUseTls ? 'true' : 'false'] : [];
 
 	logger.debug(`Starting BBai API server on ${apiHostname}:${apiPort}, logging to ${apiLogFilePath}`);
 
