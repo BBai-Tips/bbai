@@ -1,6 +1,6 @@
 {
 	"name": "bbai",
-	"version": "0.0.15-beta",
+	"version": "0.0.16-beta",
 	"exports": "./cli/src/main.ts",
 	"tasks": {
 		"tool:check-types-project": "deno task -c ./cli/deno.jsonc check-types && deno task -c ./bui/deno.jsonc check-types && deno task -c ./api/deno.jsonc check-types",
@@ -19,7 +19,7 @@
 		"test": "deno task -c ./cli/deno.jsonc test && deno task -c ./api/deno.jsonc test",
 		"test-all": "deno task -c ./cli/deno.jsonc test && deno task -c ./bui/deno.jsonc test && deno task -c ./api/deno.jsonc test",
 		"update-deps": "deno task -c ./cli/deno.jsonc update-deps && deno task -c ./bui/deno.jsonc update-deps && deno task -c ./api/deno.jsonc update-deps",
-		"update-version": "deno run --allow-read --allow-write --allow-run ./scripts/update_version.ts"
+		"update-version": "deno run --allow-read --allow-write --allow-run ./scripts/update_version.ts",
 		"mkcert": "deno run --allow-read --allow-write --allow-env --allow-run ./scripts/mkcert.ts"
 	},
 	"importMap": "./import_map.json",
