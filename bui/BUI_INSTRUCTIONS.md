@@ -33,7 +33,7 @@ The main component of the BUI is the `Chat.tsx` file located in
    must be sent with each message.
 3. A greeting message is sent automatically when the WebSocket connection is
    established.
-4. The default `startDir` is set to `/Users/cng/working/bbai/`.
+4. The default `startDir` is set to `~/bbai/`.
 5. The WebSocket server is expected to be running on `localhost:3000`.
 
 ## WebSocket Implementation

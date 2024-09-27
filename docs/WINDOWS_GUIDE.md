@@ -45,8 +45,8 @@ If you prefer using the command line:
    ```
 3. Run BBai commands directly:
    ```
-   bbai init
-   bbai start
+   bbai.exe init
+   bbai.exe start
    ```
 
 ## Troubleshooting
@@ -54,7 +54,7 @@ If you prefer using the command line:
 If you encounter any issues:
 
 1. Ensure you're running the batch files from your project directory.
-2. Check that BBai was installed correctly by running `bbai --version` in Command Prompt.
+2. Check that BBai was installed correctly by running `bbai.exe --version` in Command Prompt.
 3. If you get a "command not found" error, you may need to add BBai to your system PATH.
 
 For more help, refer to the [full documentation](https://github.com/BBai-Tips/bbai/blob/main/README.md) or [open an issue](https://github.com/BBai-Tips/bbai/issues) on our GitHub repository.

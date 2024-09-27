@@ -5,6 +5,7 @@ class WebSocketManager {
 	private socket: WebSocket | null = null;
 	private apiHostname: string;
 	private apiPort: number;
+	private apiUseTls: boolean;
 	private conversationId: string | null = null;
 	private startDir: string;
 	private reconnectAttempts = 0;
@@ -19,9 +20,10 @@ class WebSocketManager {
 	public isReady = signal<boolean>(false);
 	public error = signal<string | null>(null);
 
-	constructor(apiHostname: string, apiPort: number, startDir: string) {
+	constructor(apiHostname: string, apiPort: number, apiUseTls: boolean, startDir: string) {
 		this.apiHostname = apiHostname;
 		this.apiPort = apiPort;
+		this.apiUseTls = apiUseTls;
 		this.startDir = startDir;
 	}
 
@@ -47,7 +49,11 @@ class WebSocketManager {
 		}
 
 		this.socket = new WebSocket(
-			`ws://${this.apiHostname}:${this.apiPort}/api/v1/ws/conversation/${this.conversationId}`,
+			`${
+				this.apiUseTls
+					? 'wss'
+					: 'ws'
+			}://${this.apiHostname}:${this.apiPort}/api/v1/ws/conversation/${this.conversationId}`,
 		);
 
 		this.socket.onopen = () => {
@@ -147,5 +153,5 @@ class WebSocketManager {
 	}
 }
 
-export const createWebSocketManager = (apiHostname: string, apiPort: number, startDir: string) =>
-	new WebSocketManager(apiHostname, apiPort, startDir);
+export const createWebSocketManager = (apiHostname: string, apiPort: number, apiUseTls: boolean, startDir: string) =>
+	new WebSocketManager(apiHostname, apiPort, apiUseTls, startDir);

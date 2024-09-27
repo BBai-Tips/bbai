@@ -86,8 +86,16 @@ Before using BBai, ensure you have the following:
 1. An Anthropic API key (Note: This is different from your Anthropic chat console login. You'll need to create an API key at https://console.anthropic.com/settings/keys)
 2. [Git](https://git-scm.com/downloads) (latest stable version, recommended but optional)
 3. [ctags](https://github.com/universal-ctags/ctags) (optional, enhances project understanding)
+4. Either `mkcert` or `openssl` for TLS certificate generation (required for proper operation)
 
-Git and ctags can be easily installed using package managers like Homebrew on macOS or apt on Linux. While Git is optional, it's highly recommended for optimal use of BBai.
+To install `mkcert`:
+- On Windows: `choco install mkcert`
+- On macOS: `brew install mkcert`
+- On Linux: Follow the instructions at https://github.com/FiloSottile/mkcert#linux
+
+Note for technical users: Any valid TLS certificate can be used. BBai provides four config options for custom certificates: `api.tlsKeyFile`, `api.tlsCertFile`, `api.tlsKeyPem`, `api.tlsCertPem`. Use either file paths or inlined PEM content, not both.
+
+Git, ctags, and mkcert can be easily installed using package managers like Homebrew on macOS, Chocolatey on Windows, or apt on Linux. While Git is optional, it's highly recommended for optimal use of BBai. TLS certificates are required for proper operation, and will be automatically generated during the initialization process if not provided.
 
 ### Installation
 
@@ -118,6 +126,8 @@ After installation, you can start using BBai as follows:
    ```
    bbai chat
    ```
+
+On Windows, use `bbai.exe` instead of `bbai`.
 
 ## Documentation
 
@@ -183,8 +193,8 @@ It's compatible with projects using various programming languages and text-based
 We value your input and are here to help you get the most out of BBai:
 
 - For bug reports or feature requests, please [open an issue](https://github.com/BBai-Tips/bbai/issues) on our GitHub repository.
-- For general questions or discussions, join our [community forum](https://github.com/BBai-Tips/bbai/discussions) (link to be updated).
-- For more immediate support, reach out to us via email at support@bbai.tips (to be set up).
+- For general questions or discussions, join our [community forum](https://github.com/BBai-Tips/bbai/discussions).
+- For more immediate support, reach out to us via email at support@bbai.tips.
 
 Your feedback is crucial in shaping the future of BBai!
 

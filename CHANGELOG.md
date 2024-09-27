@@ -9,6 +9,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 
 
+## [0.0.16-beta] - 2024-09-27
+
+### Changed
+
+- Fixed 'git not found' error when running init
+- Updated `bbai` strings to `bbai.exe` for Windows
+- Fixes for Windows compat
+- Added config option for API and BUI to listen with TLS
+- Updated CLI and BUI to initiate TLS connections if useTls is set
+- Added certificate generation to init process
+- Updated docs
+
+
 ## [0.0.15-beta] - 2024-09-25
 
 ### Changed

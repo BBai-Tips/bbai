@@ -29,5 +29,15 @@ While using BBai:
 2. Do not expose the BBai API to the public internet.
 3. Be cautious when using BBai with sensitive data or codebases.
 4. Regularly check for and apply updates.
+5. Ensure that TLS certificates are properly configured and up-to-date.
+
+## TLS Security
+
+BBai requires TLS for secure operation. Here are some important points regarding TLS security:
+
+1. TLS certificates are automatically generated during the initialization process using either `mkcert` or `openssl`.
+2. If you're using custom certificates, ensure they are from a trusted source and kept up-to-date.
+3. The TLS configuration options (`api.tlsKeyFile`, `tlsKeyPem`, `tlsCertFile`, `tlsCertPem`) should be handled with care, and the key files should be properly secured.
+4. Regularly update your TLS certificates to maintain security standards.
 
 Thank you for helping keep BBai and our users safe!

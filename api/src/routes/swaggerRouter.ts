@@ -30,7 +30,7 @@ const swaggerSpec = swaggerJsdoc(options);
  * /api-docs/openapi.json:
  *   get:
  *     summary: Get OpenAPI specification
- *     description: Returns the OpenAPI specification for the bbai API in JSON format
+ *     description: Returns the OpenAPI specification for the BBai API in JSON format
  *     responses:
  *       200:
  *         description: Successful response with OpenAPI specification
@@ -45,7 +45,7 @@ const swaggerSpec = swaggerJsdoc(options);
  * /api-docs/swagger.json:
  *   get:
  *     summary: Get Swagger specification
- *     description: Returns the Swagger specification for the bbai API in JSON format
+ *     description: Returns the Swagger specification for the BBai API in JSON format
  *     responses:
  *       200:
  *         description: Successful response with Swagger specification

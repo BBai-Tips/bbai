@@ -7,10 +7,25 @@ export interface ApiConfigSchema {
 	environment?: string;
 	apiHostname?: string;
 	apiPort?: number;
+	apiUseTls?: boolean;
+	tlsKeyFile?: string;
+	tlsCertFile?: string;
+	tlsKeyPem?: string;
+	tlsCertPem?: string;
 	ignoreLLMRequestCache?: boolean;
 	usePromptCaching?: boolean;
 	logFile?: string;
 	logLevel: 'debug' | 'info' | 'warn' | 'error';
+}
+export interface BuiConfigSchema {
+	environment?: string;
+	buiHostname?: string;
+	buiPort?: number;
+	buiUseTls?: boolean;
+	tlsKeyFile?: string;
+	tlsCertFile?: string;
+	tlsKeyPem?: string;
+	tlsCertPem?: string;
 }
 export interface RepoInfoConfigSchema {
 	ctagsAutoGenerate: boolean;
@@ -28,10 +43,13 @@ export interface GlobalConfigSchema {
 	myAssistantsName?: string;
 	noBrowser?: boolean;
 	api: ApiConfigSchema;
+	bui: BuiConfigSchema;
 	cli: Record<string, unknown>;
 	project: ProjectDataConfigSchema;
 	repoInfo: RepoInfoConfigSchema;
 	version: string;
+	bbaiExeName: string;
+	bbaiApiExeName: string;
 }
 
 export interface ProjectConfigSchema {
@@ -41,6 +59,7 @@ export interface ProjectConfigSchema {
 	project: ProjectDataConfigSchema;
 	repoInfo: RepoInfoConfigSchema;
 	api: ApiConfigSchema;
+	bui: BuiConfigSchema;
 	cli: Record<string, unknown>;
 }
 
@@ -54,10 +73,17 @@ export const defaultGlobalConfig: GlobalConfigSchema = {
 		environment: 'local',
 		apiHostname: 'localhost',
 		apiPort: 3000,
+		apiUseTls: true,
 		ignoreLLMRequestCache: false,
 		usePromptCaching: true,
 		logFile: 'api.log',
 		logLevel: 'info',
+	},
+	bui: {
+		environment: 'local',
+		buiHostname: 'localhost',
+		buiPort: 8000,
+		buiUseTls: true,
 	},
 	cli: {},
 	repoInfo: {
@@ -69,6 +95,8 @@ export const defaultGlobalConfig: GlobalConfigSchema = {
 		type: 'local',
 	},
 	version: 'unknown', // This will be overwritten by the actual version from version.ts
+	bbaiExeName: 'bbai', // This will be overwritten by the correct exe name when creating globalConfig
+	bbaiApiExeName: 'bbai-api', // This will be overwritten by the correct exe name when creating globalConfig
 };
 
 export const defaultProjectConfig: ProjectConfigSchema = {
@@ -79,10 +107,17 @@ export const defaultProjectConfig: ProjectConfigSchema = {
 		environment: 'local',
 		apiHostname: 'localhost',
 		apiPort: 3000,
+		apiUseTls: true,
 		ignoreLLMRequestCache: false,
 		usePromptCaching: true,
 		logFile: 'api.log',
 		logLevel: 'info',
+	},
+	bui: {
+		environment: 'local',
+		buiHostname: 'localhost',
+		buiPort: 8000,
+		buiUseTls: true,
 	},
 	cli: {},
 	repoInfo: {
