@@ -11,16 +11,23 @@ export const apiStart = new Command()
 	.option('--log-file <file:string>', 'Specify a log file to write output', { default: undefined })
 	.option('--hostname <string>', 'Specify the hostname for API to listen on', { default: undefined })
 	.option('--port <string>', 'Specify the port for API to listen on', { default: undefined })
+	.option('--useTls <boolean>', 'Specify whether API should listen with TLS', { default: undefined })
 	.option('--follow', 'Do not detach and follow the API logs', { default: false })
-	.action(async ({ logLevel: apiLogLevel, logFile: apiLogFile, hostname, port, follow }) => {
+	.action(async ({ logLevel: apiLogLevel, logFile: apiLogFile, hostname, port, useTls, follow }) => {
 		const startDir = Deno.cwd();
 		const fullConfig = await ConfigManager.fullConfig(startDir);
-		const apiHostname = `${hostname || fullConfig.api?.apiHostname || 'localhost'}`;
-		const apiPort = `${port || fullConfig.api?.apiPort || 3000}`; // cast as string
+		const apiHostname = `${hostname || fullConfig.api.apiHostname || 'localhost'}`;
+		const apiPort = `${port || fullConfig.api.apiPort || 3000}`; // cast as string
+		const apiUseTls = typeof useTls !== 'undefined'
+			? !!useTls
+			: typeof fullConfig.api.apiUseTls !== 'undefined'
+			? fullConfig.api.apiUseTls
+			: true;
 		const { pid, apiLogFilePath } = await startApiServer(
 			startDir,
 			apiHostname,
 			apiPort,
+			apiUseTls,
 			apiLogLevel,
 			apiLogFile,
 			follow,
@@ -28,7 +35,7 @@ export const apiStart = new Command()
 
 		const chatUrl = `https://chat.bbai.tips/#apiHostname=${
 			encodeURIComponent(apiHostname)
-		}&apiPort=${apiPort}&startDir=${encodeURIComponent(startDir)}`;
+		}&apiPort=${apiPort}&apiUseTls=${apiUseTls ? 'true' : 'false'}&startDir=${encodeURIComponent(startDir)}`;
 
 		// Check if the API is running
 		let apiRunning = false;
@@ -71,7 +78,7 @@ export const apiStart = new Command()
 			console.log(`\nAPI server started with PID: ${pid}`);
 			console.log(`Logs are being written to: ${colors.green(apiLogFilePath)}`);
 			console.log(`Chat URL: ${colors.bold.cyan(chatUrl)}`);
-			console.log(`Use ${colors.bold.green('${fullConfig.bbaiExeName} stop')} to stop the server.`);
+			console.log(`Use ${colors.bold.green(`'${fullConfig.bbaiExeName} stop'`)} to stop the server.`);
 			if (!fullConfig.noBrowser) console.log('\nAttempting to open the chat in your default browser...');
 			Deno.exit(0);
 		}

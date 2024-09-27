@@ -26,9 +26,9 @@ Note: TLS certificates are required for proper operation of BBai. The initializa
 
 For technical users: Any valid TLS certificate can be used. BBai provides four config options for custom certificates:
 - `api.tlsKeyFile`: File path to the TLS key
-- `tlsKeyPem`: Inlined PEM content of the TLS key
-- `tlsCertFile`: File path to the TLS certificate
-- `tlsCertPem`: Inlined PEM content of the TLS certificate
+- `api.tlsCertFile`: File path to the TLS certificate
+- `api.tlsKeyPem`: Inlined PEM content of the TLS key
+- `api.tlsCertPem`: Inlined PEM content of the TLS certificate
 
 Use either file paths or inlined PEM content, not both.
 

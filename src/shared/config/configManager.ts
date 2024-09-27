@@ -82,7 +82,9 @@ export class ConfigManager {
 	}
 
 	public async ensureGlobalConfig(): Promise<void> {
-		const globalConfigDir = join(Deno.env.get('HOME') || '', '.config', 'bbai');
+		const globalConfigDir = Deno.build.os === 'windows' ? (join(Deno.env.get('APPDATA') || '', 'bbai')) : (
+			join(Deno.env.get('HOME') || '', '.config', 'bbai')
+		);
 		const globalConfigPath = join(globalConfigDir, 'config.yaml');
 
 		try {
@@ -114,6 +116,9 @@ export class ConfigManager {
                     
                       # The port number for the API to listen on
                       apiPort: 3000
+
+                      # Whether the API listens with TLS
+                      apiUseTls: true
                     
                       # Set to true to ignore the LLM request cache (useful for development)
                       ignoreLLMRequestCache: false
@@ -189,7 +194,11 @@ export class ConfigManager {
 	}
 
 	public async loadGlobalConfig(): Promise<GlobalConfigSchema> {
-		const globalConfigPath = join(Deno.env.get('HOME') || '', '.config', 'bbai', 'config.yaml');
+		const globalConfigPath = Deno.build.os === 'windows'
+			? (join(Deno.env.get('APPDATA') || '', 'bbai', 'config.yaml'))
+			: (
+				join(Deno.env.get('HOME') || '', '.config', 'bbai', 'config.yaml')
+			);
 		try {
 			const content = await Deno.readTextFile(globalConfigPath);
 			const globalConfig = parseYaml(content) as GlobalConfigSchema;
@@ -281,19 +290,24 @@ export class ConfigManager {
 	private loadEnvConfig(): Partial<FullConfigSchema> {
 		const envConfig: Partial<FullConfigSchema> = {};
 		const apiConfig: FullConfigSchema['api'] = { logLevel: 'info', usePromptCaching: true };
+		const buiConfig: FullConfigSchema['bui'] = {};
 		const cliConfig: Partial<FullConfigSchema['cli']> = {};
+
+		// API config options
+		const environment = Deno.env.get('BBAI_ENVIRONMENT');
+		if (environment) apiConfig.environment = environment;
 
 		const anthropicApiKey = Deno.env.get('ANTHROPIC_API_KEY');
 		if (anthropicApiKey) apiConfig.anthropicApiKey = anthropicApiKey;
-
-		const environment = Deno.env.get('BBAI_ENVIRONMENT');
-		if (environment) apiConfig.environment = environment;
 
 		const apiHostname = Deno.env.get('BBAI_API_HOSTNAME');
 		if (apiHostname) apiConfig.apiHostname = apiHostname;
 
 		const apiPort = Deno.env.get('BBAI_API_PORT');
 		if (apiPort) apiConfig.apiPort = parseInt(apiPort, 10);
+
+		const apiUseTls = Deno.env.get('BBAI_API_USE_TLS');
+		if (apiUseTls) apiConfig.apiUseTls = !!apiUseTls;
 
 		const ignoreLLMRequestCache = Deno.env.get('BBAI_IGNORE_LLM_REQUEST_CACHE');
 		if (ignoreLLMRequestCache) apiConfig.ignoreLLMRequestCache = ignoreLLMRequestCache === 'true';
@@ -307,8 +321,27 @@ export class ConfigManager {
 		const usePromptCaching = Deno.env.get('BBAI_USE_PROMPT_CACHING');
 		if (usePromptCaching) apiConfig.usePromptCaching = usePromptCaching === 'true';
 
+		// BUI config options
+		if (environment) buiConfig.environment = environment;
+
+		const buiHostname = Deno.env.get('BBAI_BUI_HOSTNAME');
+		if (buiHostname) buiConfig.buiHostname = buiHostname;
+
+		const buiPort = Deno.env.get('BBAI_BUI_PORT');
+		if (buiPort) buiConfig.buiPort = parseInt(buiPort, 10);
+
+		const buiUseTls = Deno.env.get('BBAI_BUI_USE_TLS');
+		if (buiUseTls) buiConfig.buiUseTls = !!buiUseTls;
+
+		// CLI config options
+		if (environment) cliConfig.environment = environment;
+
 		if (Object.keys(apiConfig).length > 0) {
 			envConfig.api = apiConfig;
+		}
+
+		if (Object.keys(buiConfig).length > 0) {
+			envConfig.bui = buiConfig;
 		}
 
 		if (Object.keys(cliConfig).length > 0) {

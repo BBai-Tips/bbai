@@ -93,7 +93,7 @@ To install `mkcert`:
 - On macOS: `brew install mkcert`
 - On Linux: Follow the instructions at https://github.com/FiloSottile/mkcert#linux
 
-Note for technical users: Any valid TLS certificate can be used. BBai provides four config options for custom certificates: `api.tlsKeyFile`, `tlsKeyPem`, `tlsCertFile`, `tlsCertPem`. Use either file paths or inlined PEM content, not both.
+Note for technical users: Any valid TLS certificate can be used. BBai provides four config options for custom certificates: `api.tlsKeyFile`, `api.tlsCertFile`, `api.tlsKeyPem`, `api.tlsCertPem`. Use either file paths or inlined PEM content, not both.
 
 Git, ctags, and mkcert can be easily installed using package managers like Homebrew on macOS, Chocolatey on Windows, or apt on Linux. While Git is optional, it's highly recommended for optimal use of BBai. TLS certificates are required for proper operation, and will be automatically generated during the initialization process if not provided.
 

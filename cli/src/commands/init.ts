@@ -7,6 +7,7 @@ import { basename } from '@std/path';
 import { GitUtils } from 'shared/git.ts';
 import type { ProjectType, WizardAnswers } from 'shared/configManager.ts';
 import { ConfigManager } from 'shared/configManager.ts';
+import { certificateFileExists, generateCertificate } from 'shared/tlsCerts.ts';
 
 async function runWizard(startDir: string): Promise<WizardAnswers> {
 	const configManager = await ConfigManager.getInstance();
@@ -128,7 +129,9 @@ async function printProjectDetails(projectName: string, projectType: string, wiz
 		} Your Anthropic API key is stored in configuration. Ensure to keep your config files secure.`,
 	);
 	console.log(
-		`\nTo start using BBai, try running: ${colors.bold.green(`'${globalConfig.bbaiExeName} start'`)} or ${colors.bold.green(`'${globalConfig.bbaiExeName} chat'`)}`,
+		`\nTo start using BBai, try running: ${colors.bold.green(`'${globalConfig.bbaiExeName} start'`)} or ${
+			colors.bold.green(`'${globalConfig.bbaiExeName} chat'`)
+		}`,
 	);
 }
 
@@ -186,6 +189,19 @@ export const init = new Command()
 			// Create .bbai/ignore file
 			await createBbaiIgnore(startDir);
 
+			const certFileName = finalGlobalConfig.api.tlsCertFile || 'localhost.pem';
+			if (!certificateFileExists(certFileName)) {
+				const domain = finalGlobalConfig.api.apiHostname || 'localhost';
+				const validityDays = 365;
+				const certCreated = await generateCertificate(domain, validityDays);
+				if (!certCreated) {
+					//console.log(`  ${colors.bold.read('No TLS certificate exists and could not be created.')}`);
+					throw new Error(
+						'No TLS certificate exists and could not be created.',
+					);
+				}
+			}
+
 			//logger.debug('Printing project details...');
 			await printProjectDetails(wizardAnswers.project.name, wizardAnswers.project.type, wizardAnswers);
 
@@ -200,6 +216,8 @@ export const init = new Command()
 				);
 			} else if (error instanceof Error && error.message.includes('API key')) {
 				console.error('Error: Invalid API key. Please check your Anthropic API key and try again.');
+			} else if (error instanceof Error && error.message.includes('No TLS certificate')) {
+				console.error('Error: No TLS certificate exists and could not be created.');
 			} else {
 				console.error('An unexpected error occurred. Please check the logs for more information.');
 			}

@@ -6,6 +6,7 @@ set -e
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[0;33m'
+BOLD='\033[1m'
 NC='\033[0m' # No Color
 
 # Determine architecture
@@ -71,5 +72,7 @@ echo "${YELLOW}Installing 'bbai' and 'bbai-api' to /usr/local/bin...${NC}"
 echo "${RED}Note: This step requires sudo access. You may be prompted for your password.${NC}"
 sudo mv "$temp_dir/bbai" "$temp_dir/bbai-api" /usr/local/bin/
 
-echo "${GREEN}'bbai' and 'bbai-api' have been successfully installed to /usr/local/bin/${NC}"
-echo "${GREEN}You can now run 'bbai' and 'bbai-api' from anywhere in your terminal.${NC}"
+echo "${YELLOW}'bbai' and 'bbai-api' have been successfully installed to /usr/local/bin/${NC}"
+echo "${GREEN}You can now run '${BOLD}bbai init${NC}${GREEN}' from a project directory, and then run '${BOLD}bbai start${NC}${GREEN}' (or '${BOLD}bbai chat${NC}${GREEN}').${NC}"
+
+

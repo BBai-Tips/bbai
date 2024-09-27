@@ -61,15 +61,15 @@ export default class WebsocketManager {
 		this.ws!.onclose = this.handleClose.bind(this);
 		this.ws!.onerror = this.handleError.bind(this);
 		this.ws!.onopen = this.handleOpen.bind(this);
-		// 		return new Promise<void>((resolve) => {
-		// 			this.ws!.onmessage = this.handleMessage.bind(this);
-		// 			this.ws!.onclose = this.handleClose.bind(this);
-		// 			this.ws!.onerror = this.handleError.bind(this);
-		// 			this.ws!.onopen = ((event: Event) => {
-		// 				this.handleOpen(event);
-		// 				resolve();
-		// 			}).bind(this);
-		// 		});
+		// return new Promise<void>((resolve) => {
+		// 	this.ws!.onmessage = this.handleMessage.bind(this);
+		// 	this.ws!.onclose = this.handleClose.bind(this);
+		// 	this.ws!.onerror = this.handleError.bind(this);
+		// 	this.ws!.onopen = ((event: Event) => {
+		// 		this.handleOpen(event);
+		// 		resolve();
+		// 	}).bind(this);
+		// });
 	}
 
 	private handleOpen(_event: Event): void {
