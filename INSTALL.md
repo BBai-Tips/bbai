@@ -13,8 +13,24 @@ Before using BBai, ensure you have the following:
 1. An Anthropic API key (Note: This is different from your Anthropic chat console login. You can create an API key at https://console.anthropic.com/settings/keys)
 2. [Git](https://git-scm.com/) (latest stable version, recommended but optional)
 3. [ctags](https://github.com/universal-ctags/ctags) (optional, enhances project understanding)
+4. Either `mkcert` or `openssl` for TLS certificate generation (required for proper operation)
 
-Git and ctags can be easily installed using package managers like Homebrew on macOS or apt on Linux. While Git is optional, it's highly recommended for optimal use of BBai.
+Git, ctags, and mkcert can be easily installed using package managers like Homebrew on macOS, Chocolatey on Windows, or apt on Linux. While Git is optional, it's highly recommended for optimal use of BBai.
+
+To install `mkcert`:
+- On Windows: `choco install mkcert`
+- On macOS: `brew install mkcert`
+- On Linux: Follow the instructions at https://github.com/FiloSottile/mkcert#linux
+
+Note: TLS certificates are required for proper operation of BBai. The initialization process will automatically generate the necessary certificates using either `mkcert` or `openssl` if they are installed. If neither is available, an error will be generated explaining how to install them.
+
+For technical users: Any valid TLS certificate can be used. BBai provides four config options for custom certificates:
+- `api.tlsKeyFile`: File path to the TLS key
+- `tlsKeyPem`: Inlined PEM content of the TLS key
+- `tlsCertFile`: File path to the TLS certificate
+- `tlsCertPem`: Inlined PEM content of the TLS certificate
+
+Use either file paths or inlined PEM content, not both.
 
 ## Installation Methods
 
@@ -112,7 +128,7 @@ On Windows:
 bbai.exe init
 ```
 
-This will create a `.bbai/config.yaml` file in your project directory.
+This will create a `.bbai/config.yaml` file in your project directory and generate the necessary TLS certificates for secure operation. If `mkcert` or `openssl` is not available, you will receive an error message with instructions on how to install them.
 
 ## Setting Up Your Anthropic API Key
 
