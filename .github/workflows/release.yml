@@ -76,6 +76,13 @@ jobs:
           echo 'echo BBai has been started in your default web browser.' >> build/bbai_start.bat
           echo 'echo You can close this window.' >> build/bbai_start.bat
 
+          echo '@echo off' > build/bbai_stop.bat
+          echo 'echo Stopping BBai...' >> build/bbai_stop.bat
+          echo 'start "" bbai stop' >> build/bbai_stop.bat
+          echo 'echo.' >> build/bbai_stop.bat
+          echo 'echo BBai has been stopped.' >> build/bbai_stop.bat
+          echo 'echo You can close this window.' >> build/bbai_stop.bat
+
       - name: Create MSI installer (Windows)
         if: matrix.target == 'x86_64-pc-windows-msvc'
         run: |
@@ -88,6 +95,7 @@ jobs:
           cp build/bbai-api.exe installer_files/
           cp build/bbai_init.bat installer_files/
           cp build/bbai_start.bat installer_files/
+          cp build/bbai_stop.bat installer_files/
           
           # Create a WiX source file
           @"
@@ -121,6 +129,9 @@ jobs:
                 </Component>
                 <Component Id="bbai_start.bat" Guid="*">
                   <File Id="bbai_start.bat" Name="bbai_start.bat" Source="installer_files\bbai_start.bat" KeyPath="yes" />
+                </Component>
+                <Component Id="bbai_stop.bat" Guid="*">
+                  <File Id="bbai_stop.bat" Name="bbai_stop.bat" Source="installer_files\bbai_stop.bat" KeyPath="yes" />
                 </Component>
               </ComponentGroup>
             </Fragment>

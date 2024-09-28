@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 
 
+## [0.0.17-beta] - 2024-09-28
+
+### Changed
+
+- Refactored search_project tool to use native stream reader with buffer and native regex, rather than external grep
+
+
 ## [0.0.16-beta] - 2024-09-27
 
 ### Changed

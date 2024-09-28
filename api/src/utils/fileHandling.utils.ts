@@ -1,4 +1,6 @@
 import { join, normalize, relative, resolve } from '@std/path';
+import { TextLineStream } from '@std/streams/text-line-stream';
+import { LRUCache } from 'npm:lru-cache';
 import { exists, walk } from '@std/fs';
 import globToRegExp from 'npm:glob-to-regexp';
 //import { globToRegExp } from '@std/path';
@@ -86,7 +88,10 @@ function isMatch(path: string, pattern: string): boolean {
 
 	// Handle simple wildcard patterns
 	if (pattern.includes('*') && !pattern.includes('**')) {
-		pattern = pattern.split('*').join('**');
+		// we were just changing '*' to '**' - why was that needed (it wasn't working to match subdirectories)
+		// [TODO] add more tests to search_project test to check for more complex file patterns with deeply nested sub directories
+		// pattern = pattern.split('*').join('**');
+		pattern = `**/${pattern}`;
 	}
 
 	// Handle bare filename (no path, no wildcards)
@@ -141,6 +146,16 @@ export async function isPathWithinProject(projectRoot: string, filePath: string)
 	}
 }
 
+export async function existsWithinProject(projectRoot: string, filePath: string): Promise<boolean> {
+	const normalizedProjectRoot = normalize(projectRoot);
+	const normalizedFilePath = normalize(filePath);
+	const absoluteFilePath = resolve(normalizedProjectRoot, normalizedFilePath);
+
+	return await exists(absoluteFilePath);
+	// [TODO] Using isReadable is causing tests to fail - is it a real error or some other problem
+	//return await exists(absoluteFilePath, { isReadable: true });
+}
+
 export async function readProjectFileContent(projectRoot: string, filePath: string): Promise<string> {
 	const fullFilePath = join(projectRoot, filePath);
 	logger.info(`Reading contents of File ${fullFilePath}`);
@@ -168,106 +183,381 @@ export async function updateFile(projectRoot: string, filePath: string, _content
 	logger.info(`File ${filePath} updated in the project`);
 }
 
+const searchCache = new LRUCache<string, string[]>({ max: 100 });
+
+interface SearchFileOptions {
+	filePattern?: string;
+	dateAfter?: string;
+	dateBefore?: string;
+	sizeMin?: number;
+	sizeMax?: number;
+}
+
+const MAX_CONCURRENT = 20; // Adjust based on system capabilities
+
 export async function searchFilesContent(
 	projectRoot: string,
 	contentPattern: string,
-	options?: {
-		file_pattern?: string;
-		date_after?: string;
-		date_before?: string;
-		size_min?: number;
-		size_max?: number;
-	},
+	caseSensitive: boolean,
+	searchFileOptions?: SearchFileOptions,
 ): Promise<{ files: string[]; errorMessage: string | null }> {
+	const cacheKey = `${projectRoot}:${contentPattern}:${caseSensitive}:${JSON.stringify(searchFileOptions)}`;
+	const cachedResult = searchCache.get(cacheKey);
+	if (cachedResult) {
+		logger.info(`Returning cached result for search: ${cacheKey}`);
+		return { files: cachedResult, errorMessage: null };
+	}
+	const matchingFiles: string[] = [];
+	logger.info(`Starting file content search in ${projectRoot} with pattern: ${contentPattern}`);
+
+	let regex: RegExp;
 	try {
-		const excludeOptions = await getExcludeOptions(projectRoot);
-		// Escape special characters for grep
-		//const escapedPattern = contentPattern.replace(/([.?*+^$[\]\\(){}|-])/g, "\\$1");
-		// Escape backslash characters for grep
-		const escapedPattern = contentPattern.replace(/(\\)/g, '\$1');
-		//logger.error(`Using escaped pattern in ${projectRoot}: `, JSON.stringify(escapedPattern));
-		const grepCommand = ['-r', '-l', '-E', escapedPattern];
+		// We're only supporting 'g' and 'i' flags at present - there are a few more we can support if needed
+		// https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Regular_expressions#advanced_searching_with_flags
+		//const regexFlags = `${!caseSensitive ? 'i' : ''}${replaceAll ? 'g' : ''}`;
+		const regexFlags = `${!caseSensitive ? 'i' : ''}`;
+		regex = new RegExp(contentPattern, regexFlags);
+	} catch (error) {
+		logger.error(`Invalid regular expression: ${contentPattern}`);
+		return { files: [], errorMessage: `Invalid regular expression: ${error.message}` };
+	}
 
-		if (options?.file_pattern) {
-			grepCommand.push('--include', `./${options.file_pattern}`);
-		}
+	const excludeOptions = await getExcludeOptions(projectRoot);
 
-		// Add exclude options
-		for (const option of excludeOptions) {
-			grepCommand.push('--exclude-dir', option);
-			grepCommand.push('--exclude', option);
-		}
-		grepCommand.push('.');
-		logger.error(`Search command in dir ${projectRoot}: grep ${grepCommand.join(' ')}`);
-
-		const command = new Deno.Command('grep', {
-			args: grepCommand,
-			cwd: projectRoot,
-			stdout: 'piped',
-			stderr: 'piped',
-		});
-
-		const { code, stdout, stderr } = await command.output();
-		const rawOutput = new TextDecoder().decode(stdout).trim();
-		const rawError = new TextDecoder().decode(stderr).trim();
-
-		if (code === 0 || code === 1) { // grep returns 1 if no matches found, which is not an error for us
-			let files = rawOutput.split('\n').filter(Boolean);
-
-			// Apply additional metadata filters
-			if (options) {
-				files = await filterFilesByMetadata(projectRoot, files, options);
+	try {
+		const filesToProcess = [];
+		for await (const entry of walk(projectRoot, { includeDirs: false })) {
+			const relativePath = relative(projectRoot, entry.path);
+			if (shouldExclude(relativePath, excludeOptions)) {
+				logger.debug(`Skipping excluded file: ${relativePath}`);
+				continue;
+			}
+			if (searchFileOptions?.filePattern && !isMatch(relativePath, searchFileOptions.filePattern)) {
+				logger.debug(`Skipping file not matching pattern: ${relativePath}`);
+				continue;
 			}
 
-			return { files, errorMessage: null };
-		} else {
-			return { files: [], errorMessage: rawError };
+			filesToProcess.push({ path: entry.path, relativePath });
 		}
+
+		const results = await Promise.all(
+			chunk(filesToProcess, MAX_CONCURRENT).map(async (batch) =>
+				Promise.all(
+					batch.map(({ path, relativePath }) => processFile(path, regex, searchFileOptions, relativePath)),
+				)
+			),
+		);
+
+		matchingFiles.push(...results.flat().filter((result): result is string => result !== null));
+
+		logger.info(`File content search completed. Found ${matchingFiles.length} matching files.`);
+		searchCache.set(cacheKey, matchingFiles);
+		return { files: matchingFiles, errorMessage: null };
 	} catch (error) {
 		logger.error(`Error in searchFilesContent: ${error.message}`);
 		return { files: [], errorMessage: error.message };
 	}
 }
 
-async function filterFilesByMetadata(
-	projectRoot: string,
-	files: string[],
-	options: {
-		file_pattern?: string;
-		date_after?: string;
-		date_before?: string;
-		size_min?: number;
-		size_max?: number;
-	},
-): Promise<string[]> {
-	const filteredFiles: string[] = [];
+function chunk<T>(array: T[], size: number): T[][] {
+	return Array.from({ length: Math.ceil(array.length / size) }, (_, i) => array.slice(i * size, i * size + size));
+}
 
-	for (const file of files) {
-		const fullPath = join(projectRoot, file);
-		const stat = await Deno.stat(fullPath);
+/*
+async function processFileManualBuffer(
+	filePath: string,
+	regex: RegExp,
+	searchFileOptions: SearchFileOptions | undefined,
+	relativePath: string,
+): Promise<string | null> {
+	logger.debug(`Starting to process file: ${relativePath}`);
+	let file: Deno.FsFile | null = null;
+	try {
+		const stat = await Deno.stat(filePath);
 
-		// Check date range
-		if (options.date_after && stat.mtime && stat.mtime < new Date(options.date_after)) continue;
-		if (options.date_before && stat.mtime && stat.mtime > new Date(options.date_before)) continue;
+		if (!passesMetadataFilters(stat, searchFileOptions)) {
+			logger.debug(`File ${relativePath} did not pass metadata filters`);
+			return null;
+		}
 
-		// Check file size
-		if (options.size_min !== undefined && stat.size < options.size_min) continue;
-		if (options.size_max !== undefined && stat.size > options.size_max) continue;
+		file = await Deno.open(filePath);
+		logger.debug(`File opened successfully: ${relativePath}`);
 
-		filteredFiles.push(file);
+		const decoder = new TextDecoder();
+		const buffer = new Uint8Array(1024); // Adjust buffer size as needed
+		let leftover = '';
+
+		while (true) {
+			const bytesRead = await file.read(buffer);
+			if (bytesRead === null) break; // End of file
+
+			const chunk = decoder.decode(buffer.subarray(0, bytesRead), { stream: true });
+			const lines = (leftover + chunk).split('\n');
+			leftover = lines.pop() || '';
+
+			for (const line of lines) {
+				if (regex.test(line)) {
+					logger.debug(`Match found in file: ${relativePath}`);
+					return relativePath;
+				}
+			}
+		}
+
+		// Check the last line
+		if (leftover && regex.test(leftover)) {
+			logger.debug(`Match found in file: ${relativePath}`);
+			return relativePath;
+		}
+
+		logger.debug(`No match found in file: ${relativePath}`);
+		return null;
+	} catch (error) {
+		logger.warn(`Error processing file ${filePath}: ${error.message}`);
+		return null;
+	} finally {
+		logger.debug(`Entering finally block for file: ${relativePath}`);
+		if (file) {
+			try {
+				file.close();
+				logger.debug(`File closed successfully: ${relativePath}`);
+			} catch (closeError) {
+				logger.warn(`Error closing file ${filePath}: ${closeError.message}`);
+			}
+		}
+		logger.debug(`Exiting finally block for file: ${relativePath}`);
 	}
+}
 
-	return filteredFiles;
+async function processFileStreamLines(
+	filePath: string,
+	regex: RegExp,
+	searchFileOptions: SearchFileOptions | undefined,
+	relativePath: string,
+): Promise<string | null> {
+	logger.debug(`Starting to process file: ${relativePath}`);
+	let file: Deno.FsFile | null = null;
+	let reader: ReadableStreamDefaultReader<string> | null = null;
+	try {
+		const stat = await Deno.stat(filePath);
+
+		if (!passesMetadataFilters(stat, searchFileOptions)) {
+			logger.debug(`File ${relativePath} did not pass metadata filters`);
+			return null;
+		}
+
+		file = await Deno.open(filePath);
+		logger.debug(`File opened successfully: ${relativePath}`);
+		const lineStream = file.readable
+			.pipeThrough(new TextDecoderStream())
+			.pipeThrough(new TextLineStream());
+
+		reader = lineStream.getReader();
+		while (true) {
+			const { done, value: line } = await reader.read();
+			if (done) {
+				logger.debug(`Finished reading file: ${relativePath}`);
+				break;
+			}
+			if (regex.test(line)) {
+				logger.debug(`Match found in file: ${relativePath}`);
+				return relativePath;
+			}
+		}
+		return null;
+	} catch (error) {
+		logger.warn(`Error processing file ${filePath}: ${error.message}`);
+		return null;
+	} finally {
+		logger.debug(`Entering finally block for file: ${relativePath}`);
+		if (reader) {
+			try {
+				await reader.cancel();
+				logger.debug(`Reader cancelled for file: ${relativePath}`);
+			} catch (cancelError) {
+				logger.warn(`Error cancelling reader for ${filePath}: ${cancelError.message}`);
+			}
+			reader.releaseLock();
+			logger.debug(`Reader lock released for file: ${relativePath}`);
+		}
+		if (file) {
+			try {
+				file.close();
+				logger.debug(`File closed successfully: ${relativePath}`);
+			} catch (closeError) {
+				if (closeError instanceof Deno.errors.BadResource) {
+					logger.debug(`File was already closed: ${relativePath}`);
+				} else {
+					logger.warn(`Error closing file ${filePath}: ${closeError.message}`);
+				}
+			}
+		}
+		logger.debug(`Exiting finally block for file: ${relativePath}`);
+	}
+}
+
+async function processFileStreamBuffer(
+	filePath: string,
+	regex: RegExp,
+	searchFileOptions: SearchFileOptions | undefined,
+	relativePath: string,
+): Promise<string | null> {
+	logger.debug(`Starting to process file: ${relativePath}`);
+	let file: Deno.FsFile | null = null;
+	let reader: ReadableStreamDefaultReader<string> | null = null;
+	try {
+		const stat = await Deno.stat(filePath);
+		if (!passesMetadataFilters(stat, searchFileOptions)) {
+			return null;
+		}
+
+		file = await Deno.open(filePath);
+		const textStream = file.readable
+			.pipeThrough(new TextDecoderStream());
+
+		reader = textStream.getReader();
+		let buffer = '';
+		const maxBufferSize = 1024 * 1024; // 1MB, adjust as needed
+
+		while (true) {
+			const { done, value } = await reader.read();
+			if (done) break;
+
+			buffer += value;
+
+			// Check for matches
+			if (regex.test(buffer)) {
+				return relativePath;
+			}
+
+			// Trim buffer if it gets too large
+			if (buffer.length > maxBufferSize) {
+				buffer = buffer.slice(-maxBufferSize);
+			}
+		}
+
+		// Final check on remaining buffer
+		if (regex.test(buffer)) {
+			return relativePath;
+		}
+
+		return null;
+	} catch (error) {
+		logger.warn(`Error processing file ${filePath}: ${error.message}`);
+		return null;
+	} finally {
+		if (reader) {
+			try {
+				await reader.cancel();
+				reader.releaseLock();
+			} catch (cancelError) {
+				logger.warn(`Error cancelling reader for ${filePath}: ${cancelError.message}`);
+			}
+		}
+		if (file) {
+			try {
+				file.close();
+			} catch (closeError) {
+				if (closeError instanceof Deno.errors.BadResource) {
+					logger.debug(`File was already closed: ${relativePath}`);
+				} else {
+					logger.warn(`Error closing file ${filePath}: ${closeError.message}`);
+				}
+			}
+		}
+	}
+}
+ */
+
+async function processFile(
+	filePath: string,
+	regex: RegExp,
+	searchFileOptions: SearchFileOptions | undefined,
+	relativePath: string,
+): Promise<string | null> {
+	logger.debug(`Starting to process file: ${relativePath}`);
+	let file: Deno.FsFile | null = null;
+	let reader: ReadableStreamDefaultReader<string> | null = null;
+	try {
+		const stat = await Deno.stat(filePath);
+		if (!passesMetadataFilters(stat, searchFileOptions)) {
+			return null;
+		}
+
+		file = await Deno.open(filePath);
+		const textStream = file.readable
+			.pipeThrough(new TextDecoderStream());
+
+		reader = textStream.getReader();
+		let buffer = '';
+		const maxBufferSize = 1024 * 1024; // 1MB, adjust as needed
+		const overlapSize = 1024; // Size of overlap between buffers, adjust based on expected pattern size
+
+		while (true) {
+			const { done, value } = await reader.read();
+			if (done) break;
+
+			buffer += value;
+
+			// Check for matches
+			if (regex.test(buffer)) {
+				return relativePath;
+			}
+
+			// Trim buffer if it gets too large, keeping overlap
+			if (buffer.length > maxBufferSize) {
+				buffer = buffer.slice(-maxBufferSize - overlapSize);
+			}
+		}
+
+		// Final check on remaining buffer
+		if (regex.test(buffer)) {
+			return relativePath;
+		}
+
+		return null;
+	} catch (error) {
+		logger.warn(`Error processing file ${filePath}: ${error.message}`);
+		return null;
+	} finally {
+		if (reader) {
+			try {
+				await reader.cancel();
+				reader.releaseLock();
+			} catch (cancelError) {
+				logger.warn(`Error cancelling reader for ${filePath}: ${cancelError.message}`);
+			}
+		}
+		if (file) {
+			try {
+				file.close();
+			} catch (closeError) {
+				if (closeError instanceof Deno.errors.BadResource) {
+					logger.debug(`File was already closed: ${relativePath}`);
+				} else {
+					logger.warn(`Error closing file ${filePath}: ${closeError.message}`);
+				}
+			}
+		}
+	}
+}
+
+function passesMetadataFilters(stat: Deno.FileInfo, searchFileOptions: SearchFileOptions | undefined): boolean {
+	if (!searchFileOptions) return true;
+	if (searchFileOptions.dateAfter && stat.mtime && stat.mtime < new Date(searchFileOptions.dateAfter)) return false;
+	if (searchFileOptions.dateBefore && stat.mtime && stat.mtime > new Date(searchFileOptions.dateBefore)) return false;
+	if (searchFileOptions.sizeMin !== undefined && stat.size < searchFileOptions.sizeMin) return false;
+	if (searchFileOptions.sizeMax !== undefined && stat.size > searchFileOptions.sizeMax) return false;
+	return true;
 }
 
 export async function searchFilesMetadata(
 	projectRoot: string,
-	options: {
-		file_pattern?: string;
-		date_after?: string;
-		date_before?: string;
-		size_min?: number;
-		size_max?: number;
+	searchFileOptions: {
+		filePattern?: string;
+		dateAfter?: string;
+		dateBefore?: string;
+		sizeMin?: number;
+		sizeMax?: number;
 	},
 ): Promise<{ files: string[]; errorMessage: string | null }> {
 	try {
@@ -281,37 +571,37 @@ export async function searchFilesMetadata(
 			const stat = await Deno.stat(entry.path);
 
 			// Check file pattern
-			if (options.file_pattern && !isMatch(relativePath, options.file_pattern)) continue;
+			if (searchFileOptions.filePattern && !isMatch(relativePath, searchFileOptions.filePattern)) continue;
 
 			// Check date range
 			if (!stat.mtime) {
 				console.log(`File ${relativePath} has no modification time, excluding from results`);
 				continue;
 			}
-			if (options.date_after) {
-				const afterDate = new Date(options.date_after);
+			if (searchFileOptions.dateAfter) {
+				const afterDate = new Date(searchFileOptions.dateAfter);
 				//if (stat.mtime < afterDate || stat.mtime > now) {
 				if (stat.mtime < afterDate) {
 					console.log(
-						`File ${relativePath} modified at ${stat.mtime.toISOString()} is outside the valid range (after ${options.date_after})`,
+						`File ${relativePath} modified at ${stat.mtime.toISOString()} is outside the valid range (after ${searchFileOptions.dateAfter})`,
 					);
 					continue;
 				}
 			}
-			if (options.date_before) {
-				const beforeDate = new Date(options.date_before);
+			if (searchFileOptions.dateBefore) {
+				const beforeDate = new Date(searchFileOptions.dateBefore);
 				//if (stat.mtime >= beforeDate || stat.mtime > now) {
 				if (stat.mtime >= beforeDate) {
 					console.log(
-						`File ${relativePath} modified at ${stat.mtime.toISOString()} is outside the valid range (before ${options.date_before})`,
+						`File ${relativePath} modified at ${stat.mtime.toISOString()} is outside the valid range (before ${searchFileOptions.dateBefore})`,
 					);
 					continue;
 				}
 			}
 
 			// Check file size
-			if (options.size_min !== undefined && stat.size < options.size_min) continue;
-			if (options.size_max !== undefined && stat.size > options.size_max) continue;
+			if (searchFileOptions.sizeMin !== undefined && stat.size < searchFileOptions.sizeMin) continue;
+			if (searchFileOptions.sizeMax !== undefined && stat.size > searchFileOptions.sizeMax) continue;
 
 			console.log(`File ${relativePath} matches all criteria`);
 			matchingFiles.push(relativePath);

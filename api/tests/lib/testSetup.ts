@@ -17,9 +17,9 @@ export async function setupTestProject(): Promise<string> {
 	return testProjectRoot;
 }
 
-export function cleanupTestProject(testProjectRoot: string) {
+export async function cleanupTestProject(testProjectRoot: string) {
 	try {
-		Deno.removeSync(testProjectRoot, { recursive: true });
+		await Deno.remove(testProjectRoot, { recursive: true });
 	} catch (error) {
 		console.error(`Failed to clean up test directory: ${error}`);
 	}
@@ -52,6 +52,6 @@ export async function withTestProject<T>(
 	try {
 		return await testFn(testProjectRoot);
 	} finally {
-		cleanupTestProject(testProjectRoot);
+		await cleanupTestProject(testProjectRoot);
 	}
 }

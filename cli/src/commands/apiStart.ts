@@ -11,7 +11,7 @@ export const apiStart = new Command()
 	.option('--log-file <file:string>', 'Specify a log file to write output', { default: undefined })
 	.option('--hostname <string>', 'Specify the hostname for API to listen on', { default: undefined })
 	.option('--port <string>', 'Specify the port for API to listen on', { default: undefined })
-	.option('--useTls <boolean>', 'Specify whether API should listen with TLS', { default: undefined })
+	.option('--use-tls <boolean>', 'Specify whether API should listen with TLS', { default: undefined })
 	.option('--follow', 'Do not detach and follow the API logs', { default: false })
 	.action(async ({ logLevel: apiLogLevel, logFile: apiLogFile, hostname, port, useTls, follow }) => {
 		const startDir = Deno.cwd();
@@ -60,7 +60,7 @@ export const apiStart = new Command()
 		if (!fullConfig.noBrowser) {
 			try {
 				const command = Deno.build.os === 'windows'
-					? new Deno.Command('cmd', { args: ['/c', 'start', chatUrl] })
+					? new Deno.Command('cmd', { args: ['/c', 'start', `"${chatUrl}"`] })
 					: Deno.build.os === 'darwin'
 					? new Deno.Command('open', { args: [chatUrl] })
 					: new Deno.Command('xdg-open', { args: [chatUrl] });

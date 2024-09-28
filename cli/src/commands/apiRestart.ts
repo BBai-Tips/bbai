@@ -10,7 +10,7 @@ export const apiRestart = new Command()
 	.option('--log-file <file:string>', 'Specify a log file to write API output', { default: undefined })
 	.option('--hostname <string>', 'Specify the hostname for API to listen on', { default: undefined })
 	.option('--port <string>', 'Specify the port for API to listen on', { default: undefined })
-	.option('--useTls <boolean>', 'Specify whether API should listen with TLS', { default: undefined })
+	.option('--use-tls <boolean>', 'Specify whether API should listen with TLS', { default: undefined })
 	.action(async ({ logLevel: apiLogLevel, logFile: apiLogFile, hostname, port, useTls }) => {
 		const startDir = Deno.cwd();
 		const fullConfig = await ConfigManager.fullConfig(startDir);
