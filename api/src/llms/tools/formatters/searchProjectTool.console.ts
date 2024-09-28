@@ -5,22 +5,22 @@ import { stripIndents } from 'common-tags';
 import { getContentFromToolResult } from '../../../utils/llms.utils.ts';
 
 export const formatToolUse = (toolInput: LLMToolInputSchema): string => {
-	const { content_pattern, file_pattern, date_after, date_before, size_min, size_max } = toolInput as {
-		content_pattern?: string;
-		file_pattern?: string;
-		date_after?: string;
-		date_before?: string;
-		size_min?: number;
-		size_max?: number;
+	const { contentPattern, filePattern, dateAfter, dateBefore, sizeMin, sizeMax } = toolInput as {
+		contentPattern?: string;
+		filePattern?: string;
+		dateAfter?: string;
+		dateBefore?: string;
+		sizeMin?: number;
+		sizeMax?: number;
 	};
 	return stripIndents`
     ${colors.bold('Project Search Parameters:')}
-    ${content_pattern ? `${colors.cyan('Content pattern:')} ${content_pattern}` : ''}
-    ${file_pattern ? `${colors.cyan('File pattern:')} ${file_pattern}` : ''}
-    ${date_after ? `${colors.cyan('Modified after:')} ${date_after}` : ''}
-    ${date_before ? `${colors.cyan('Modified before:')} ${date_before}` : ''}
-    ${size_min ? `${colors.cyan('Minimum size:')} ${size_min.toString()} bytes` : ''}
-    ${size_max ? `${colors.cyan('Maximum size:')} ${size_max.toString()} bytes` : ''}
+    ${contentPattern ? `${colors.cyan('Content pattern:')} ${contentPattern}` : ''}
+    ${filePattern ? `${colors.cyan('File pattern:')} ${filePattern}` : ''}
+    ${dateAfter ? `${colors.cyan('Modified after:')} ${dateAfter}` : ''}
+    ${dateBefore ? `${colors.cyan('Modified before:')} ${dateBefore}` : ''}
+    ${sizeMin ? `${colors.cyan('Minimum size:')} ${sizeMin.toString()} bytes` : ''}
+    ${sizeMax ? `${colors.cyan('Maximum size:')} ${sizeMax.toString()} bytes` : ''}
   `.trim();
 };
 

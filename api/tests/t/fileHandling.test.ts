@@ -34,8 +34,8 @@ Deno.test({
 			await createTestFiles(testProjectRoot);
 
 			const result = await searchFilesMetadata(testProjectRoot, {
-				date_after: '2024-01-01',
-				date_before: '2026-01-01',
+				dateAfter: '2024-01-01',
+				dateBefore: '2026-01-01',
 			});
 			//console.log('Date-based search results:', result);
 			assertEquals(result.files.length, 3);
@@ -57,8 +57,8 @@ Deno.test({
 			await createTestFiles(testProjectRoot);
 
 			const result = await searchFilesMetadata(testProjectRoot, {
-				size_min: 5000,
-				size_max: 15000,
+				sizeMin: 5000,
+				sizeMax: 15000,
 			});
 			//console.log('Size-based search results:', result);
 			assertEquals(result.files.length, 1);
@@ -78,11 +78,11 @@ Deno.test({
 			await createTestFiles(testProjectRoot);
 
 			const result = await searchFilesMetadata(testProjectRoot, {
-				file_pattern: '*.txt',
-				date_after: '2022-01-01',
-				date_before: '2024-01-01',
-				size_min: 1,
-				size_max: 1000,
+				filePattern: '*.txt',
+				dateAfter: '2022-01-01',
+				dateBefore: '2024-01-01',
+				sizeMin: 1,
+				sizeMax: 1000,
 			});
 			console.log('Combined criteria search results:', result);
 			assertEquals(result.files.length, 2);
@@ -183,7 +183,7 @@ Deno.test({
 			Deno.writeTextFileSync(join(testProjectRoot, 'file2.md'), 'Hello, markdown!');
 
 			const result = await searchFilesContent(testProjectRoot, 'Hello', {
-				file_pattern: '*.md',
+				filePattern: '*.md',
 			});
 			assertEquals(result.files, ['./file2.md']);
 			assertEquals(result.errorMessage, null);

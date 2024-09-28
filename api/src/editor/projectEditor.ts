@@ -1,6 +1,11 @@
 import { join } from '@std/path';
 
-import { FILE_LISTING_TIERS, generateFileListing, isPathWithinProject } from '../utils/fileHandling.utils.ts';
+import {
+	existsWithinProject,
+	FILE_LISTING_TIERS,
+	generateFileListing,
+	isPathWithinProject,
+} from '../utils/fileHandling.utils.ts';
 import type LLMConversationInteraction from '../llms/interactions/conversationInteraction.ts';
 import type { ProjectInfo as BaseProjectInfo } from '../llms/interactions/conversationInteraction.ts';
 import type { FileMetadata } from 'shared/types.ts';
@@ -160,6 +165,7 @@ class ProjectEditor {
 	}
 
 	// prepareFilesForConversation is called by request_files tool and by add_file handler for user requests
+	// only existing files can be prepared and added, otherwise call rewrite_file tools with createIfMissing:true
 	async prepareFilesForConversation(
 		fileNames: string[],
 	): Promise<
@@ -182,6 +188,9 @@ class ProjectEditor {
 			try {
 				if (!await isPathWithinProject(this.projectRoot, fileName)) {
 					throw new Error(`Access denied: ${fileName} is outside the project directory`);
+				}
+				if (!await existsWithinProject(this.projectRoot, fileName)) {
+					throw new Error(`Access denied: ${fileName} does not exist in the project directory`);
 				}
 
 				const fullFilePath = join(this.projectRoot, fileName);

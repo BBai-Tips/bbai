@@ -19,10 +19,12 @@ Deno.test({
 			await Deno.writeTextFile(join(testProjectRoot, 'file2.txt'), 'Content of file2');
 			const initialConversation = await projectEditor.initConversation('test-conversation-id');
 			initialConversation.addFileForMessage('file1.txt', {
+				type: 'text',
 				size: 'Content of file1'.length,
 				lastModified: new Date(),
 			}, messageId);
 			initialConversation.addFileForMessage('file2.txt', {
+				type: 'text',
 				size: 'Content of file2'.length,
 				lastModified: new Date(),
 			}, messageId);
@@ -32,14 +34,23 @@ Deno.test({
 				toolUseId: 'test-id',
 				toolName: 'forget_files',
 				toolInput: {
-					fileNames: ['file1.txt', 'file2.txt'],
+					files: [{ filePath: 'file1.txt', revision: messageId }, {
+						filePath: 'file2.txt',
+						revision: messageId,
+					}],
 				},
 			};
 
 			const result = await tool.runTool(initialConversation, toolUse, projectEditor);
+			// console.log('Forget existing files from conversation - bbaiResponse:', result.bbaiResponse);
+			// console.log('Forget existing files from conversation - toolResponse:', result.toolResponse);
+			// console.log('Forget existing files from conversation - toolResults:', result.toolResults);
 
 			assertStringIncludes(result.bbaiResponse, 'BBai has removed these files from the conversation');
-			assertStringIncludes(result.toolResponse, 'Removed files from the conversation:\n- file1.txt\n- file2.txt');
+			assertStringIncludes(
+				result.toolResponse,
+				'Removed files from the conversation:\n- file1.txt (Revision: 1111-2222)\n- file2.txt (Revision: 1111-2222)',
+			);
 
 			// Check toolResults
 			assert(Array.isArray(result.toolResults), 'toolResults should be an array');
@@ -56,8 +67,8 @@ Deno.test({
 
 			// Check if files are removed from the conversation
 			const conversation = await projectEditor.initConversation('test-conversation-id');
-			const file1 = conversation.getFile('file1.txt');
-			const file2 = conversation.getFile('file2.txt');
+			const file1 = conversation.getFileMetadata('file1.txt', '1');
+			const file2 = conversation.getFileMetadata('file2.txt', '2');
 			assertEquals(file1, undefined, 'file1.txt should not exist in the conversation');
 			assertEquals(file2, undefined, 'file2.txt should not exist in the conversation');
 
@@ -79,20 +90,27 @@ Deno.test({
 
 			const tool = new LLMToolForgetFiles();
 
+			const messageId = '1111-2222';
 			const toolUse: LLMAnswerToolUse = {
 				toolValidation: { validated: true, results: '' },
 				toolUseId: 'test-id',
 				toolName: 'forget_files',
 				toolInput: {
-					fileNames: ['non_existent.txt'],
+					files: [{ filePath: 'non_existent.txt', revision: messageId }],
 				},
 			};
 
 			const conversation = await projectEditor.initConversation('test-conversation-id');
 			const result = await tool.runTool(conversation, toolUse, projectEditor);
+			// console.log('Attempt to forget non-existent file - bbaiResponse:', result.bbaiResponse);
+			// console.log('Attempt to forget non-existent file - toolResponse:', result.toolResponse);
+			// console.log('Attempt to forget non-existent file - toolResults:', result.toolResults);
 
 			assertStringIncludes(result.bbaiResponse, 'BBai failed to remove these files from the conversation');
-			assertStringIncludes(result.toolResponse, 'non_existent.txt: File is not in the conversation history');
+			assertStringIncludes(
+				result.toolResponse,
+				'non_existent.txt (1111-2222): File is not in the conversation history',
+			);
 
 			// Check toolResults
 			assert(Array.isArray(result.toolResults), 'toolResults should be an array');
@@ -129,6 +147,7 @@ Deno.test({
 			await Deno.writeTextFile(join(testProjectRoot, 'existing_file.txt'), 'Content of existing file');
 			const conversation = await projectEditor.initConversation('test-conversation-id');
 			conversation.addFileForMessage('existing_file.txt', {
+				type: 'text',
 				size: 'Content of existing file'.length,
 				lastModified: new Date(),
 			}, messageId);
@@ -138,25 +157,31 @@ Deno.test({
 				toolUseId: 'test-id',
 				toolName: 'forget_files',
 				toolInput: {
-					fileNames: ['existing_file.txt', 'non_existent_file.txt'],
+					files: [{ filePath: 'existing_file.txt', revision: messageId }, {
+						filePath: 'non_existent_file.txt',
+						revision: messageId,
+					}],
 				},
 			};
 
 			const result = await tool.runTool(conversation, toolUse, projectEditor);
+			// console.log('Forget mix of existing and non-existent files - bbaiResponse:', result.bbaiResponse);
+			// console.log('Forget mix of existing and non-existent files - toolResponse:', result.toolResponse);
+			// console.log('Forget mix of existing and non-existent files - toolResults:', result.toolResults);
 
 			assertStringIncludes(
 				result.bbaiResponse,
-				'BBai has removed these files from the conversation: existing_file.txt',
+				'BBai has removed these files from the conversation: existing_file.txt (Revision: 1111-2222)',
 			);
 			assertStringIncludes(
 				result.bbaiResponse,
-				'BBai failed to remove these files from the conversation:\n- non_existent_file.txt: File is not in the conversation history',
+				'BBai failed to remove these files from the conversation:\n- non_existent_file.txt (1111-2222): File is not in the conversation history',
 			);
 
 			assertStringIncludes(result.toolResponse, 'Removed files from the conversation:\n- existing_file.txt');
 			assertStringIncludes(
 				result.toolResponse,
-				'Failed to remove files from the conversation:\n- non_existent_file.txt: File is not in the conversation history',
+				'Failed to remove files from the conversation:\n- non_existent_file.txt (1111-2222): File is not in the conversation history',
 			);
 
 			// Check toolResults
@@ -166,7 +191,7 @@ Deno.test({
 
 			const firstResult = result.toolResults[0];
 			assert(firstResult.type === 'text', 'First result should be of type text');
-			assertStringIncludes(firstResult.text, 'File removed: existing_file.txt');
+			assertStringIncludes(firstResult.text, 'File removed: existing_file.txt (Revision: 1111-2222)');
 
 			const secondResult = result.toolResults[1];
 			assert(secondResult.type === 'text', 'Second result should be of type text');
@@ -176,7 +201,7 @@ Deno.test({
 			);
 
 			// Check if existing file is forgotten from the conversation
-			const existingFile = conversation.getFile('existing_file.txt');
+			const existingFile = conversation.getFileMetadata('existing_file.txt', '1');
 			assertEquals(existingFile, undefined, 'existing_file.txt should not exist in the conversation');
 
 			// Check that listFiles doesn't include either file

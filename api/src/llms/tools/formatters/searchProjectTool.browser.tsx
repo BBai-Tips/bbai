@@ -5,45 +5,45 @@ import type { LLMToolInputSchema, LLMToolRunResultContent } from 'api/llms/llmTo
 import { getContentFromToolResult } from '../../../utils/llms.utils.ts';
 
 export const formatToolUse = (toolInput: LLMToolInputSchema): JSX.Element => {
-	const { content_pattern, file_pattern, date_after, date_before, size_min, size_max } = toolInput as {
-		content_pattern?: string;
-		file_pattern?: string;
-		date_after?: string;
-		date_before?: string;
-		size_min?: number;
-		size_max?: number;
+	const { contentPattern, filePattern, dateAfter, dateBefore, sizeMin, sizeMax } = toolInput as {
+		contentPattern?: string;
+		filePattern?: string;
+		dateAfter?: string;
+		dateBefore?: string;
+		sizeMin?: number;
+		sizeMax?: number;
 	};
 	return (
 		<div className='tool-use'>
 			<h3>Project Search Parameters:</h3>
-			{content_pattern && (
+			{contentPattern && (
 				<p>
-					<strong>Content pattern:</strong> <span style='color: #DAA520;'>${content_pattern}</span>
+					<strong>Content pattern:</strong> <span style='color: #DAA520;'>${contentPattern}</span>
 				</p>
 			)}
-			{file_pattern && (
+			{filePattern && (
 				<p>
-					<strong>File pattern:</strong> <span style='color: #4169E1;'>${file_pattern}</span>
+					<strong>File pattern:</strong> <span style='color: #4169E1;'>${filePattern}</span>
 				</p>
 			)}
-			{date_after && (
+			{dateAfter && (
 				<p>
-					<strong>Modified after:</strong> <span style='color: #008000;'>${date_after}</span>
+					<strong>Modified after:</strong> <span style='color: #008000;'>${dateAfter}</span>
 				</p>
 			)}
-			{date_before && (
+			{dateBefore && (
 				<p>
-					<strong>Modified before:</strong> <span style='color: #008000;'>${date_before}</span>
+					<strong>Modified before:</strong> <span style='color: #008000;'>${dateBefore}</span>
 				</p>
 			)}
-			{size_min && (
+			{sizeMin && (
 				<p>
-					<strong>Minimum size:</strong> <span style='color: #FF00FF;'>${size_min.toString()} bytes</span>
+					<strong>Minimum size:</strong> <span style='color: #FF00FF;'>${sizeMin.toString()} bytes</span>
 				</p>
 			)}
-			{size_max && (
+			{sizeMax && (
 				<p>
-					<strong>Maximum size:</strong> <span style='color: #FF00FF;'>${size_max.toString()} bytes</span>
+					<strong>Maximum size:</strong> <span style='color: #FF00FF;'>${sizeMax.toString()} bytes</span>
 				</p>
 			)}
 		</div>

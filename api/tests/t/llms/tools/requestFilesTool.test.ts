@@ -28,6 +28,9 @@ Deno.test({
 
 			const initialConversation = await projectEditor.initConversation('test-conversation-id');
 			const result = await tool.runTool(initialConversation, toolUse, projectEditor);
+			console.log('Request existing files - bbaiResponse:', result.bbaiResponse);
+			console.log('Request existing files - toolResponse:', result.toolResponse);
+			console.log('Request existing files - toolResults:', result.toolResults);
 
 			assertStringIncludes(result.bbaiResponse, 'BBai has added these files to the conversation');
 			assertStringIncludes(result.toolResponse, 'Added files to the conversation:\n- file1.txt\n- file2.txt');
@@ -100,6 +103,9 @@ Deno.test({
 
 			const conversation = await projectEditor.initConversation('test-conversation-id');
 			const result = await tool.runTool(conversation, toolUse, projectEditor);
+			// console.log('Request non-existent file - bbaiResponse:', result.bbaiResponse);
+			// console.log('Request non-existent file - toolResponse:', result.toolResponse);
+			// console.log('Request non-existent file - toolResults:', result.toolResults);
 
 			assertStringIncludes(result.bbaiResponse, 'BBai failed to add these files to the conversation');
 			assertStringIncludes(result.toolResponse, 'No files added');
@@ -111,11 +117,14 @@ Deno.test({
 
 			const firstResult = result.toolResults[0];
 			assert(firstResult.type === 'text', 'First result should be of type text');
-			assertStringIncludes(firstResult.text, 'Error adding file non_existent.txt: No such file or directory');
+			assertStringIncludes(
+				firstResult.text,
+				'Error adding file non_existent.txt: Access denied: non_existent.txt does not exist in the project directory',
+			);
 			assertStringIncludes(firstResult.text, 'non_existent.txt');
 
 			// Check that the non-existent file is not in the conversation
-			const nonExistentFile = conversation.getFile('non_existent.txt');
+			const nonExistentFile = conversation.getFileMetadata('non_existent.txt', '1');
 			assertEquals(nonExistentFile, undefined, 'non_existent.txt should not be in the conversation');
 
 			// Check that listFiles doesn't include the non-existent file
@@ -149,6 +158,9 @@ Deno.test({
 			};
 			const conversation = await projectEditor.initConversation('test-conversation-id');
 			const result = await tool.runTool(conversation, toolUse, projectEditor);
+			// console.log('Request file outside project root - bbaiResponse:', result.bbaiResponse);
+			// console.log('Request file outside project root - toolResponse:', result.toolResponse);
+			// console.log('Request file outside project root - toolResults:', result.toolResults);
 
 			assertStringIncludes(result.bbaiResponse, 'BBai failed to add these files to the conversation');
 			assertStringIncludes(result.toolResponse, '../outside_project.txt: Access denied');
@@ -160,10 +172,13 @@ Deno.test({
 
 			const firstResult = result.toolResults[0];
 			assert(firstResult.type === 'text', 'First result should be of type text');
-			assertStringIncludes(firstResult.text, '../outside_project.txt: Access denied');
+			assertStringIncludes(
+				firstResult.text,
+				'../outside_project.txt: Access denied: ../outside_project.txt is outside the project directory',
+			);
 
 			// Check that the outside file is not in the conversation
-			const outsideFile = conversation.getFile('../outside_project.txt');
+			const outsideFile = conversation.getFileMetadata('../outside_project.txt', '1');
 			assertEquals(outsideFile, undefined, '../outside_project.txt should not be in the conversation');
 
 			// Check that listFiles doesn't include the outside file
