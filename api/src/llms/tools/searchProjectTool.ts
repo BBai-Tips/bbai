@@ -38,8 +38,8 @@ export default class LLMToolSearchProject extends LLMTool {
 				caseSensitive: {
 					type: 'boolean',
 					description:
-						'Whether the `contentPattern` is a case sensitive regex. The default is true, to use case sensitive regex.',
-					default: true,
+						'Whether the `contentPattern` is a case sensitive regex. The default is false, to use case insensitive regex.',
+					default: false,
 				},
 				filePattern: {
 					type: 'string',
@@ -79,7 +79,7 @@ export default class LLMToolSearchProject extends LLMTool {
 		projectEditor: ProjectEditor,
 	): Promise<LLMToolRunResult> {
 		const { toolInput } = toolUse;
-		const { contentPattern, caseSensitive = true, filePattern, dateAfter, dateBefore, sizeMin, sizeMax } =
+		const { contentPattern, caseSensitive = false, filePattern, dateAfter, dateBefore, sizeMin, sizeMax } =
 			toolInput as {
 				contentPattern?: string;
 				caseSensitive?: boolean;

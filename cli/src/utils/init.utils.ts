@@ -72,6 +72,9 @@ Thumbs.db
 # Ignore BBai's own directory
 .bbai/
 
+# Ignore git directory
+.git/
+
 # Add your custom ignore patterns below
 `;
 }
