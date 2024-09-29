@@ -27,24 +27,24 @@ export async function generateFileListing(projectRoot: string): Promise<string |
 	const tokenLimit = repoInfoConfig?.tokenLimit || 1024;
 
 	const excludeOptions = await getExcludeOptions(projectRoot);
-	logger.debug(`Exclude options for file listing: ${JSON.stringify(excludeOptions)}`);
+	logger.debug(`FileHandlingUtil: Exclude options for file listing: ${JSON.stringify(excludeOptions)}`);
 
 	let tierIdx = 0;
 	for (const tier of FILE_LISTING_TIERS) {
 		tierIdx++;
-		logger.debug(`Generating file listing for tier: ${JSON.stringify(tier)}`);
+		logger.debug(`FileHandlingUtil: Generating file listing for tier: ${JSON.stringify(tier)}`);
 		const listing = await generateFileListingTier(projectRoot, excludeOptions, tier.depth, tier.includeMetadata);
 		const tokenCount = countTokens(listing);
 		logger.info(
-			`Created file listing for tier ${tierIdx} using ${tokenCount} tokens - depth: ${tier.depth} - includeMetadata: ${tier.includeMetadata}`,
+			`FileHandlingUtil: Created file listing for tier ${tierIdx} using ${tokenCount} tokens - depth: ${tier.depth} - includeMetadata: ${tier.includeMetadata}`,
 		);
 		if (tokenCount <= tokenLimit) {
-			logger.info(`File listing generated successfully within token limit (${tokenLimit})`);
+			logger.info(`FileHandlingUtil: File listing generated successfully within token limit (${tokenLimit})`);
 			return listing;
 		}
 	}
 
-	logger.error(`Failed to generate file listing within token limit (${tokenLimit}) after all tiers`);
+	logger.error(`FileHandlingUtil: Failed to generate file listing within token limit (${tokenLimit}) after all tiers`);
 	return null;
 }
 
@@ -100,13 +100,15 @@ function isMatch(path: string, pattern: string): boolean {
 	}
 
 	const regex = globToRegExp(pattern, { extended: true, globstar: true });
-	return regex.test(path) || regex.test(join(path, ''));
+	//logger.debug(`FileHandlingUtil: Regex for pattern: ${pattern}`, regex);
+	return regex.test(path); // || regex.test(join(path, ''));
 }
 
 async function getExcludeOptions(projectRoot: string): Promise<string[]> {
 	const excludeFiles = [
 		join(projectRoot, 'tags.ignore'),
 		join(projectRoot, '.gitignore'),
+		join(projectRoot, '.bbai', 'ignore'),
 		join(projectRoot, '.bbai', 'tags.ignore'),
 	];
 
@@ -124,6 +126,7 @@ async function getExcludeOptions(projectRoot: string): Promise<string[]> {
 	}
 
 	const uniquePatterns = [...new Set(patterns)];
+	//logger.debug(`FileHandlingUtil: Exclude patterns for project: ${projectRoot}`, uniquePatterns);
 	return uniquePatterns;
 }
 
@@ -158,7 +161,7 @@ export async function existsWithinProject(projectRoot: string, filePath: string)
 
 export async function readProjectFileContent(projectRoot: string, filePath: string): Promise<string> {
 	const fullFilePath = join(projectRoot, filePath);
-	logger.info(`Reading contents of File ${fullFilePath}`);
+	logger.info(`FileHandlingUtil: Reading contents of File ${fullFilePath}`);
 	try {
 		const content = await Deno.readTextFile(fullFilePath);
 		return content;
@@ -180,7 +183,7 @@ export async function updateFile(projectRoot: string, filePath: string, _content
 	}
 
 	// TODO: Implement file update logic
-	logger.info(`File ${filePath} updated in the project`);
+	logger.info(`FileHandlingUtil: File ${filePath} updated in the project`);
 }
 
 const searchCache = new LRUCache<string, string[]>({ max: 100 });
@@ -201,24 +204,26 @@ export async function searchFilesContent(
 	caseSensitive: boolean,
 	searchFileOptions?: SearchFileOptions,
 ): Promise<{ files: string[]; errorMessage: string | null }> {
-	const cacheKey = `${projectRoot}:${contentPattern}:${caseSensitive}:${JSON.stringify(searchFileOptions)}`;
+	const cacheKey = `${projectRoot}:${contentPattern}:${caseSensitive ? 'caseSensitive' : 'caseInsensitive'}:${
+		JSON.stringify(searchFileOptions)
+	}`;
 	const cachedResult = searchCache.get(cacheKey);
 	if (cachedResult) {
-		logger.info(`Returning cached result for search: ${cacheKey}`);
+		logger.info(`FileHandlingUtil: Returning cached result for search: ${cacheKey}`);
 		return { files: cachedResult, errorMessage: null };
 	}
 	const matchingFiles: string[] = [];
-	logger.info(`Starting file content search in ${projectRoot} with pattern: ${contentPattern}`);
+	logger.info(`FileHandlingUtil: Starting file content search in ${projectRoot} with pattern: ${contentPattern}`);
 
 	let regex: RegExp;
 	try {
 		// We're only supporting 'g' and 'i' flags at present - there are a few more we can support if needed
 		// https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Regular_expressions#advanced_searching_with_flags
 		//const regexFlags = `${!caseSensitive ? 'i' : ''}${replaceAll ? 'g' : ''}`;
-		const regexFlags = `${!caseSensitive ? 'i' : ''}`;
+		const regexFlags = `${caseSensitive ? '' : 'i'}`;
 		regex = new RegExp(contentPattern, regexFlags);
 	} catch (error) {
-		logger.error(`Invalid regular expression: ${contentPattern}`);
+		logger.error(`FileHandlingUtil: Invalid regular expression: ${contentPattern}`);
 		return { files: [], errorMessage: `Invalid regular expression: ${error.message}` };
 	}
 
@@ -229,11 +234,11 @@ export async function searchFilesContent(
 		for await (const entry of walk(projectRoot, { includeDirs: false })) {
 			const relativePath = relative(projectRoot, entry.path);
 			if (shouldExclude(relativePath, excludeOptions)) {
-				logger.debug(`Skipping excluded file: ${relativePath}`);
+				logger.debug(`FileHandlingUtil: Skipping excluded file: ${relativePath}`);
 				continue;
 			}
 			if (searchFileOptions?.filePattern && !isMatch(relativePath, searchFileOptions.filePattern)) {
-				logger.debug(`Skipping file not matching pattern: ${relativePath}`);
+				logger.debug(`FileHandlingUtil: Skipping file not matching pattern: ${relativePath}`);
 				continue;
 			}
 
@@ -250,11 +255,11 @@ export async function searchFilesContent(
 
 		matchingFiles.push(...results.flat().filter((result): result is string => result !== null));
 
-		logger.info(`File content search completed. Found ${matchingFiles.length} matching files.`);
+		logger.info(`FileHandlingUtil: File content search completed. Found ${matchingFiles.length} matching files.`);
 		searchCache.set(cacheKey, matchingFiles);
 		return { files: matchingFiles, errorMessage: null };
 	} catch (error) {
-		logger.error(`Error in searchFilesContent: ${error.message}`);
+		logger.error(`FileHandlingUtil: Error in searchFilesContent: ${error.message}`);
 		return { files: [], errorMessage: error.message };
 	}
 }
@@ -270,18 +275,18 @@ async function processFileManualBuffer(
 	searchFileOptions: SearchFileOptions | undefined,
 	relativePath: string,
 ): Promise<string | null> {
-	logger.debug(`Starting to process file: ${relativePath}`);
+	logger.debug(`FileHandlingUtil: Starting to process file: ${relativePath}`);
 	let file: Deno.FsFile | null = null;
 	try {
 		const stat = await Deno.stat(filePath);
 
 		if (!passesMetadataFilters(stat, searchFileOptions)) {
-			logger.debug(`File ${relativePath} did not pass metadata filters`);
+			logger.debug(`FileHandlingUtil: File ${relativePath} did not pass metadata filters`);
 			return null;
 		}
 
 		file = await Deno.open(filePath);
-		logger.debug(`File opened successfully: ${relativePath}`);
+		logger.debug(`FileHandlingUtil: File opened successfully: ${relativePath}`);
 
 		const decoder = new TextDecoder();
 		const buffer = new Uint8Array(1024); // Adjust buffer size as needed
@@ -297,7 +302,7 @@ async function processFileManualBuffer(
 
 			for (const line of lines) {
 				if (regex.test(line)) {
-					logger.debug(`Match found in file: ${relativePath}`);
+					logger.debug(`FileHandlingUtil: Match found in file: ${relativePath}`);
 					return relativePath;
 				}
 			}
@@ -305,26 +310,26 @@ async function processFileManualBuffer(
 
 		// Check the last line
 		if (leftover && regex.test(leftover)) {
-			logger.debug(`Match found in file: ${relativePath}`);
+			logger.debug(`FileHandlingUtil: Match found in file: ${relativePath}`);
 			return relativePath;
 		}
 
-		logger.debug(`No match found in file: ${relativePath}`);
+		logger.debug(`FileHandlingUtil: No match found in file: ${relativePath}`);
 		return null;
 	} catch (error) {
-		logger.warn(`Error processing file ${filePath}: ${error.message}`);
+		logger.warn(`FileHandlingUtil: Error processing file ${filePath}: ${error.message}`);
 		return null;
 	} finally {
-		logger.debug(`Entering finally block for file: ${relativePath}`);
+		logger.debug(`FileHandlingUtil: Entering finally block for file: ${relativePath}`);
 		if (file) {
 			try {
 				file.close();
-				logger.debug(`File closed successfully: ${relativePath}`);
+				logger.debug(`FileHandlingUtil: File closed successfully: ${relativePath}`);
 			} catch (closeError) {
-				logger.warn(`Error closing file ${filePath}: ${closeError.message}`);
+				logger.warn(`FileHandlingUtil: Error closing file ${filePath}: ${closeError.message}`);
 			}
 		}
-		logger.debug(`Exiting finally block for file: ${relativePath}`);
+		logger.debug(`FileHandlingUtil: Exiting finally block for file: ${relativePath}`);
 	}
 }
 
@@ -334,19 +339,19 @@ async function processFileStreamLines(
 	searchFileOptions: SearchFileOptions | undefined,
 	relativePath: string,
 ): Promise<string | null> {
-	logger.debug(`Starting to process file: ${relativePath}`);
+	logger.debug(`FileHandlingUtil: Starting to process file: ${relativePath}`);
 	let file: Deno.FsFile | null = null;
 	let reader: ReadableStreamDefaultReader<string> | null = null;
 	try {
 		const stat = await Deno.stat(filePath);
 
 		if (!passesMetadataFilters(stat, searchFileOptions)) {
-			logger.debug(`File ${relativePath} did not pass metadata filters`);
+			logger.debug(`FileHandlingUtil: File ${relativePath} did not pass metadata filters`);
 			return null;
 		}
 
 		file = await Deno.open(filePath);
-		logger.debug(`File opened successfully: ${relativePath}`);
+		logger.debug(`FileHandlingUtil: File opened successfully: ${relativePath}`);
 		const lineStream = file.readable
 			.pipeThrough(new TextDecoderStream())
 			.pipeThrough(new TextLineStream());
@@ -355,43 +360,43 @@ async function processFileStreamLines(
 		while (true) {
 			const { done, value: line } = await reader.read();
 			if (done) {
-				logger.debug(`Finished reading file: ${relativePath}`);
+				logger.debug(`FileHandlingUtil: Finished reading file: ${relativePath}`);
 				break;
 			}
 			if (regex.test(line)) {
-				logger.debug(`Match found in file: ${relativePath}`);
+				logger.debug(`FileHandlingUtil: Match found in file: ${relativePath}`);
 				return relativePath;
 			}
 		}
 		return null;
 	} catch (error) {
-		logger.warn(`Error processing file ${filePath}: ${error.message}`);
+		logger.warn(`FileHandlingUtil: Error processing file ${filePath}: ${error.message}`);
 		return null;
 	} finally {
-		logger.debug(`Entering finally block for file: ${relativePath}`);
+		logger.debug(`FileHandlingUtil: Entering finally block for file: ${relativePath}`);
 		if (reader) {
 			try {
 				await reader.cancel();
-				logger.debug(`Reader cancelled for file: ${relativePath}`);
+				logger.debug(`FileHandlingUtil: Reader cancelled for file: ${relativePath}`);
 			} catch (cancelError) {
-				logger.warn(`Error cancelling reader for ${filePath}: ${cancelError.message}`);
+				logger.warn(`FileHandlingUtil: Error cancelling reader for ${filePath}: ${cancelError.message}`);
 			}
 			reader.releaseLock();
-			logger.debug(`Reader lock released for file: ${relativePath}`);
+			logger.debug(`FileHandlingUtil: Reader lock released for file: ${relativePath}`);
 		}
 		if (file) {
 			try {
 				file.close();
-				logger.debug(`File closed successfully: ${relativePath}`);
+				logger.debug(`FileHandlingUtil: File closed successfully: ${relativePath}`);
 			} catch (closeError) {
 				if (closeError instanceof Deno.errors.BadResource) {
-					logger.debug(`File was already closed: ${relativePath}`);
+					logger.debug(`FileHandlingUtil: File was already closed: ${relativePath}`);
 				} else {
-					logger.warn(`Error closing file ${filePath}: ${closeError.message}`);
+					logger.warn(`FileHandlingUtil: Error closing file ${filePath}: ${closeError.message}`);
 				}
 			}
 		}
-		logger.debug(`Exiting finally block for file: ${relativePath}`);
+		logger.debug(`FileHandlingUtil: Exiting finally block for file: ${relativePath}`);
 	}
 }
 
@@ -401,7 +406,7 @@ async function processFileStreamBuffer(
 	searchFileOptions: SearchFileOptions | undefined,
 	relativePath: string,
 ): Promise<string | null> {
-	logger.debug(`Starting to process file: ${relativePath}`);
+	logger.debug(`FileHandlingUtil: Starting to process file: ${relativePath}`);
 	let file: Deno.FsFile | null = null;
 	let reader: ReadableStreamDefaultReader<string> | null = null;
 	try {
@@ -442,7 +447,7 @@ async function processFileStreamBuffer(
 
 		return null;
 	} catch (error) {
-		logger.warn(`Error processing file ${filePath}: ${error.message}`);
+		logger.warn(`FileHandlingUtil: Error processing file ${filePath}: ${error.message}`);
 		return null;
 	} finally {
 		if (reader) {
@@ -450,7 +455,7 @@ async function processFileStreamBuffer(
 				await reader.cancel();
 				reader.releaseLock();
 			} catch (cancelError) {
-				logger.warn(`Error cancelling reader for ${filePath}: ${cancelError.message}`);
+				logger.warn(`FileHandlingUtil: Error cancelling reader for ${filePath}: ${cancelError.message}`);
 			}
 		}
 		if (file) {
@@ -458,9 +463,9 @@ async function processFileStreamBuffer(
 				file.close();
 			} catch (closeError) {
 				if (closeError instanceof Deno.errors.BadResource) {
-					logger.debug(`File was already closed: ${relativePath}`);
+					logger.debug(`FileHandlingUtil: File was already closed: ${relativePath}`);
 				} else {
-					logger.warn(`Error closing file ${filePath}: ${closeError.message}`);
+					logger.warn(`FileHandlingUtil: Error closing file ${filePath}: ${closeError.message}`);
 				}
 			}
 		}
@@ -474,7 +479,7 @@ async function processFile(
 	searchFileOptions: SearchFileOptions | undefined,
 	relativePath: string,
 ): Promise<string | null> {
-	logger.debug(`Starting to process file: ${relativePath}`);
+	logger.debug(`FileHandlingUtil: Starting to process file: ${relativePath}`);
 	let file: Deno.FsFile | null = null;
 	let reader: ReadableStreamDefaultReader<string> | null = null;
 	try {
@@ -516,7 +521,7 @@ async function processFile(
 
 		return null;
 	} catch (error) {
-		logger.warn(`Error processing file ${filePath}: ${error.message}`);
+		logger.warn(`FileHandlingUtil: Error processing file ${filePath}: ${error.message}`);
 		return null;
 	} finally {
 		if (reader) {
@@ -524,7 +529,7 @@ async function processFile(
 				await reader.cancel();
 				reader.releaseLock();
 			} catch (cancelError) {
-				logger.warn(`Error cancelling reader for ${filePath}: ${cancelError.message}`);
+				logger.warn(`FileHandlingUtil: Error cancelling reader for ${filePath}: ${cancelError.message}`);
 			}
 		}
 		if (file) {
@@ -532,9 +537,9 @@ async function processFile(
 				file.close();
 			} catch (closeError) {
 				if (closeError instanceof Deno.errors.BadResource) {
-					logger.debug(`File was already closed: ${relativePath}`);
+					logger.debug(`FileHandlingUtil: File was already closed: ${relativePath}`);
 				} else {
-					logger.warn(`Error closing file ${filePath}: ${closeError.message}`);
+					logger.warn(`FileHandlingUtil: Error closing file ${filePath}: ${closeError.message}`);
 				}
 			}
 		}
@@ -609,7 +614,7 @@ export async function searchFilesMetadata(
 
 		return { files: matchingFiles, errorMessage: null };
 	} catch (error) {
-		logger.error(`Error in searchFilesMetadata: ${error.message}`);
+		logger.error(`FileHandlingUtil: Error in searchFilesMetadata: ${error.message}`);
 		return { files: [], errorMessage: error.message };
 	}
 }
