@@ -44,7 +44,9 @@ export async function generateFileListing(projectRoot: string): Promise<string |
 		}
 	}
 
-	logger.error(`FileHandlingUtil: Failed to generate file listing within token limit (${tokenLimit}) after all tiers`);
+	logger.error(
+		`FileHandlingUtil: Failed to generate file listing within token limit (${tokenLimit}) after all tiers`,
+	);
 	return null;
 }
 
