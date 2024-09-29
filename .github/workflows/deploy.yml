@@ -84,16 +84,16 @@ jobs:
 
           ssh $USER@$HOST << EOF
             # Move files from temporary directory to final location
-            echo rsync -avz --delete $TEMP_DEPLOY_PATH/ $DEPLOY_PATH/
-            sudo rsync -avz --delete $TEMP_DEPLOY_PATH/ $DEPLOY_PATH/
+            echo /usr/bin/rsync -avz --delete $TEMP_DEPLOY_PATH/ $DEPLOY_PATH/
+            sudo /usr/bin/rsync -avz --delete $TEMP_DEPLOY_PATH/ $DEPLOY_PATH/
 
             # Set correct ownership and permissions
-            echo chown -R www-data:www-data $DEPLOY_PATH/
-            sudo chown -R www-data:www-data $DEPLOY_PATH/
-            echo find $DEPLOY_PATH/ -type d -exec chmod 755 {} \;
-            sudo find $DEPLOY_PATH/ -type d -exec chmod 755 {} \;
-            echo find $DEPLOY_PATH/ -type f -exec chmod 644 {} \;
-            sudo find $DEPLOY_PATH/ -type f -exec chmod 644 {} \;
+            echo /bin/chown -R www-data:www-data $DEPLOY_PATH/
+            sudo /bin/chown -R www-data:www-data $DEPLOY_PATH/
+            echo /usr/bin/find $DEPLOY_PATH/ -type d -exec /bin/chmod 755 {} \;
+            sudo /usr/bin/find $DEPLOY_PATH/ -type d -exec /bin/chmod 755 {} \;
+            echo /usr/bin/find $DEPLOY_PATH/ -type f -exec /bin/chmod 644 {} \;
+            sudo /usr/bin/find $DEPLOY_PATH/ -type f -exec /bin/chmod 644 {} \;
 
             # Clean up temporary directory
             rm -rf $TEMP_DEPLOY_PATH
