@@ -18,6 +18,38 @@ jobs:
         with:
           deno-version: v1.x # Use the latest Deno version
 
+      - name: Create .bbai directory and config.yaml
+        run: |
+          mkdir -p .bbai
+          cat << EOF > .bbai/config.yaml
+          myPersonsName: bbai
+          myAssistantsName: Claude
+          noBrowser: false
+          api:
+            environment: local
+            apiHostname: localhost
+            apiPort: 3000
+            apiUseTls: false
+            ignoreLLMRequestCache: false
+            usePromptCaching: true
+            logFile: api.log
+            logLevel: info
+            anthropicApiKey: >-
+              sk-not-a-valid-key-not-a-valid-key-not-a-valid-key-not-a-valid-key-not-a-valid-key
+          bui:
+            environment: local
+            buiHostname: localhost
+            buiPort: 8000
+            buiUseTls: false
+          cli: {}
+          repoInfo:
+            ctagsAutoGenerate: false
+            tokenLimit: 1024
+          project:
+            name: bbai
+            type: git
+          EOF
+
       - name: Build site
         run: |
           cd bui/src/
