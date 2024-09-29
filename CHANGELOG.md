@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 
 
+## [0.0.18-beta] - 2024-09-29
+
+### Changed
+
+- Changed BUI to prefer StartDir from URL
+- Changed search project tool to default to case-insensitive and ignore git when searching
+
+
 ## [0.0.17-beta] - 2024-09-28
 
 ### Changed
