@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 
 
+## [0.0.19-beta] - 2024-09-30
+
+### Changed
+
+- Added option for regex patterns to search and replace tool.
+
+
 ## [0.0.18-beta] - 2024-09-29
 
 ### Changed
