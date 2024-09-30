@@ -1186,9 +1186,9 @@ Deno.test({
 					toolInput: {
 						filePath: testFile,
 						operations: [
-							{ search: '(quick)', replace: 'fast', regexPattern: false },
-							{ search: '[fox]', replace: 'cat', regexPattern: false },
-							{ search: '{lazy}', replace: 'active', regexPattern: false },
+							{ search: String.raw`(quick)`, replace: 'fast', regexPattern: false, caseSensitive: true },
+							{ search: String.raw`[fox]`, replace: 'cat', regexPattern: false, caseSensitive: true },
+							{ search: String.raw`{lazy}`, replace: 'active', regexPattern: false, caseSensitive: true },
 						],
 					},
 				};
@@ -1238,9 +1238,9 @@ Deno.test({
 					toolInput: {
 						filePath: testFile,
 						operations: [
-							{ search: '(quick)', replace: 'fast', regexPattern: false, caseSensitive: false },
-							{ search: '[fox]', replace: 'cat', regexPattern: false, caseSensitive: false },
-							{ search: '{lazy}', replace: 'active', regexPattern: false, caseSensitive: false },
+							{ search: String.raw`(quick)`, replace: 'fast', regexPattern: false, caseSensitive: false },
+							{ search: String.raw`[fox]`, replace: 'cat', regexPattern: false, caseSensitive: false },
+							{ search: String.raw`{lazy}`, replace: 'active', regexPattern: false, caseSensitive: false },
 						],
 					},
 				};

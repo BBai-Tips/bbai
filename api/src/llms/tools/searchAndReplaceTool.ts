@@ -47,12 +47,18 @@ export default class LLMToolSearchAndReplace extends LLMTool {
 							search: {
 								type: 'string',
 								description:
-									'The exact literal text to search for, with all leading and trailing whitespace from the original file; prepare the search text with JSON encoding, such as escaping backslash characters',
+									'The exact literal text to search for with all leading and trailing whitespace from the original file; OR a JavaScript Regex search pattern. The `regexPattern` option must be set to `true` for patterns that are a Regex.',
 							},
 							replace: {
 								type: 'string',
 								description:
 									'The text to replace with, matching the same indent level as the original file',
+							},
+							regexPattern: {
+								type: 'boolean',
+								description:
+									'Whether the search pattern is a regex (true) or a literal pattern (false). This affects the usage of special characters. If regexPattern is false (default) then special characters will be a literal match',
+								default: false,
 							},
 							replaceAll: {
 								type: 'boolean',
@@ -97,7 +103,15 @@ export default class LLMToolSearchAndReplace extends LLMTool {
 		const { toolUseId: _toolUseId, toolInput } = toolUse;
 		const { filePath, operations, createIfMissing = true } = toolInput as {
 			filePath: string;
-			operations: Array<{ search: string; replace: string; replaceAll?: boolean; caseSensitive?: boolean }>;
+			operations: Array<
+				{
+					search: string;
+					replace: string;
+					regexPattern?: boolean;
+					replaceAll?: boolean;
+					caseSensitive?: boolean;
+				}
+			>;
 			createIfMissing?: boolean;
 		};
 
@@ -133,7 +147,7 @@ export default class LLMToolSearchAndReplace extends LLMTool {
 			const operationResults = [];
 			const successfulOperations = [];
 			for (const [index, operation] of operations.entries()) {
-				const { search, replace, replaceAll = false, caseSensitive = true } = operation;
+				const { search, replace, regexPattern = false, replaceAll = false, caseSensitive = true } = operation;
 				const operationWarnings = [];
 				let operationSuccess = false;
 
@@ -152,15 +166,24 @@ export default class LLMToolSearchAndReplace extends LLMTool {
 				}
 
 				const originalContent = content;
-				if (replaceAll) {
-					content = caseSensitive
-						? content.replaceAll(search, replace)
-						: content.replaceAll(new RegExp(search, 'gi'), replace);
+
+				let searchPattern: string | RegExp;
+
+				const escapeRegExp = (str: string) => str.replace(/[/\-\\^$*+?.()|[\]{}]/g, '\\$&');
+				const flags = `${replaceAll ? 'g' : ''}${caseSensitive ? '' : 'i'}`;
+
+				if (regexPattern) {
+					searchPattern = new RegExp(search, flags);
+				} else if (!caseSensitive) {
+					searchPattern = new RegExp(escapeRegExp(search), flags);
 				} else {
-					content = caseSensitive
-						? content.replace(search, replace)
-						: content.replace(new RegExp(search, 'i'), replace);
+					searchPattern = search;
 				}
+				//logger.info(`Searching for pattern: `, searchPattern);
+
+				content = replaceAll && searchPattern instanceof RegExp
+					? content.replaceAll(searchPattern, replace)
+					: content.replace(searchPattern, replace);
 
 				// Check if the content actually changed
 				if (content !== originalContent) {
