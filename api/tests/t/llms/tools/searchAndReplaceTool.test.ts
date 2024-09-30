@@ -998,4 +998,56 @@ Search and replace operations applied to file: regex_capture_test.txt. All opera
 	sanitizeOps: false,
 });
 
+Deno.test({
+	name: 'SearchAndReplaceTool - Regex pattern with quantifiers',
+	fn: async () => {
+		await withTestProject(async (testProjectRoot) => {
+			const projectEditor = await getProjectEditor(testProjectRoot);
+			const orchestratorControllerStubMaker = makeOrchestratorControllerStub(
+				projectEditor.orchestratorController,
+			);
+			const interaction = await createTestInteraction('test-conversation', projectEditor);
+
+			const tool = new LLMToolSearchAndReplace();
+			const logPatchAndCommitStub = orchestratorControllerStubMaker.logPatchAndCommitStub(() =>
+				Promise.resolve()
+			);
+			try {
+				const testFile = 'regex_quantifier_test.txt';
+				const testFilePath = getTestFilePath(testProjectRoot, testFile);
+				await Deno.writeTextFile(testFilePath, 'aaa bbb ccccc dddd');
+
+				const toolUse: LLMAnswerToolUse = {
+					toolValidation: { validated: true, results: '' },
+					toolUseId: 'test-id',
+					toolName: 'search_and_replace',
+					toolInput: {
+						filePath: testFile,
+						operations: [
+							{ search: '\w{3,}', replace: 'X', regexPattern: true, replaceAll: true },
+						],
+					},
+				};
+
+				const result = await tool.runTool(interaction, toolUse, projectEditor);
+
+				assertStringIncludes(
+					result.bbaiResponse,
+					'BBai applied search and replace operations.
+Search and replace operations applied to file: regex_quantifier_test.txt. All operations succeeded.
+✅   Operation 1: Operation 1 completed successfully',
+				);
+				assertStringIncludes(result.toolResponse, 'All operations succeeded');
+
+				const updatedContent = await Deno.readTextFile(testFilePath);
+				assertEquals(updatedContent, 'X X X X');
+			} finally {
+				logPatchAndCommitStub.restore();
+			}
+		});
+	},
+	sanitizeResources: false,
+	sanitizeOps: false,
+});
+
 //cleanupTestDirectory();
