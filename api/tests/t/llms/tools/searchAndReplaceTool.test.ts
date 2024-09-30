@@ -894,4 +894,56 @@ Deno.test({
 	sanitizeOps: false,
 });
 
+Deno.test({
+	name: 'SearchAndReplaceTool - Basic regex pattern',
+	fn: async () => {
+		await withTestProject(async (testProjectRoot) => {
+			const projectEditor = await getProjectEditor(testProjectRoot);
+			const orchestratorControllerStubMaker = makeOrchestratorControllerStub(
+				projectEditor.orchestratorController,
+			);
+			const interaction = await createTestInteraction('test-conversation', projectEditor);
+
+			const tool = new LLMToolSearchAndReplace();
+			const logPatchAndCommitStub = orchestratorControllerStubMaker.logPatchAndCommitStub(() =>
+				Promise.resolve()
+			);
+			try {
+				const testFile = 'regex_test.txt';
+				const testFilePath = getTestFilePath(testProjectRoot, testFile);
+				await Deno.writeTextFile(testFilePath, 'The quick brown fox jumps over the lazy dog');
+
+				const toolUse: LLMAnswerToolUse = {
+					toolValidation: { validated: true, results: '' },
+					toolUseId: 'test-id',
+					toolName: 'search_and_replace',
+					toolInput: {
+						filePath: testFile,
+						operations: [
+							{ search: 'qu\w+', replace: 'fast', regexPattern: true },
+						],
+					},
+				};
+
+				const result = await tool.runTool(interaction, toolUse, projectEditor);
+
+				assertStringIncludes(
+					result.bbaiResponse,
+					'BBai applied search and replace operations.
+Search and replace operations applied to file: regex_test.txt. All operations succeeded.
+✅   Operation 1: Operation 1 completed successfully',
+				);
+				assertStringIncludes(result.toolResponse, 'All operations succeeded');
+
+				const updatedContent = await Deno.readTextFile(testFilePath);
+				assertEquals(updatedContent, 'The fast brown fox jumps over the lazy dog');
+			} finally {
+				logPatchAndCommitStub.restore();
+			}
+		});
+	},
+	sanitizeResources: false,
+	sanitizeOps: false,
+});
+
 //cleanupTestDirectory();
