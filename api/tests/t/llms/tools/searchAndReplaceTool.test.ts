@@ -1212,4 +1212,56 @@ Deno.test({
 	sanitizeOps: false,
 });
 
+Deno.test({
+	name: 'SearchAndReplaceTool - Case-insensitive literal search with special regex characters',
+	fn: async () => {
+		await withTestProject(async (testProjectRoot) => {
+			const projectEditor = await getProjectEditor(testProjectRoot);
+			const orchestratorControllerStubMaker = makeOrchestratorControllerStub(
+				projectEditor.orchestratorController,
+			);
+			const interaction = await createTestInteraction('test-conversation', projectEditor);
+
+			const tool = new LLMToolSearchAndReplace();
+			const logPatchAndCommitStub = orchestratorControllerStubMaker.logPatchAndCommitStub(() =>
+				Promise.resolve()
+			);
+			try {
+				const testFile = 'literal_regex_case_insensitive_test.txt';
+				const testFilePath = getTestFilePath(testProjectRoot, testFile);
+				await Deno.writeTextFile(testFilePath, 'The (QUICK) brown [FOX] jumps over the {LAZY} dog.');
+
+				const toolUse: LLMAnswerToolUse = {
+					toolValidation: { validated: true, results: '' },
+					toolUseId: 'test-id',
+					toolName: 'search_and_replace',
+					toolInput: {
+						filePath: testFile,
+						operations: [
+							{ search: '(quick)', replace: 'fast', regexPattern: false, caseSensitive: false },
+							{ search: '[fox]', replace: 'cat', regexPattern: false, caseSensitive: false },
+							{ search: '{lazy}', replace: 'active', regexPattern: false, caseSensitive: false },
+						],
+					},
+				};
+
+				const result = await tool.runTool(interaction, toolUse, projectEditor);
+
+				assertStringIncludes(
+					result.bbaiResponse,
+					'BBai applied search and replace operations.\nSearch and replace operations applied to file: literal_regex_case_insensitive_test.txt. All operations succeeded.\n✅   Operation 1: Operation 1 completed successfully\n✅   Operation 2: Operation 2 completed successfully\n✅   Operation 3: Operation 3 completed successfully',
+				);
+				assertStringIncludes(result.toolResponse, 'All operations succeeded');
+
+				const updatedContent = await Deno.readTextFile(testFilePath);
+				assertEquals(updatedContent, 'The fast brown cat jumps over the active dog.');
+			} finally {
+				logPatchAndCommitStub.restore();
+			}
+		});
+	},
+	sanitizeResources: false,
+	sanitizeOps: false,
+});
+
 //cleanupTestDirectory();
