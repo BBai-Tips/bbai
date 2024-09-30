@@ -84,7 +84,7 @@ export default function Chat() {
 			startDirFromHash = params.get('startDir') || '';
 		}
 		if (typeof window !== 'undefined') {
-			return startDirFromHash !== '' ? startDirFromHash : localStorage.getItem('startDir');
+			return (startDirFromHash !== '' ? startDirFromHash : localStorage.getItem('startDir')) || '';
 		}
 		return startDirFromHash;
 	});
