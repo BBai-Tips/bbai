@@ -653,6 +653,9 @@ Deno.test({
 				};
 
 				const result = await tool.runTool(interaction, toolUse, projectEditor);
+				console.log('Case insensitive search - bbaiResponse:', result.bbaiResponse);
+				console.log('Case insensitive search - toolResponse:', result.toolResponse);
+				console.log('Case insensitive search - toolResults:', result.toolResults);
 
 				assertStringIncludes(
 					result.bbaiResponse,
@@ -920,18 +923,21 @@ Deno.test({
 					toolInput: {
 						filePath: testFile,
 						operations: [
-							{ search: 'qu\w+', replace: 'fast', regexPattern: true },
+							{ search: String.raw`qu\w+`, replace: 'fast', regexPattern: true },
 						],
 					},
 				};
 
 				const result = await tool.runTool(interaction, toolUse, projectEditor);
+				// console.log('Basic regex pattern - bbaiResponse:', result.bbaiResponse);
+				// console.log('Basic regex pattern - toolResponse:', result.toolResponse);
+				// console.log('Basic regex pattern - toolResults:', result.toolResults);
 
 				assertStringIncludes(
 					result.bbaiResponse,
-					'BBai applied search and replace operations.
+					`BBai applied search and replace operations.
 Search and replace operations applied to file: regex_test.txt. All operations succeeded.
-✅   Operation 1: Operation 1 completed successfully',
+✅   Operation 1: Operation 1 completed successfully`,
 				);
 				assertStringIncludes(result.toolResponse, 'All operations succeeded');
 
@@ -972,7 +978,7 @@ Deno.test({
 					toolInput: {
 						filePath: testFile,
 						operations: [
-							{ search: 'Hello, (\w+)!', replace: 'Hi, $1!', regexPattern: true, replaceAll: true },
+							{ search: String.raw`Hello, (\w+)!`, replace: 'Hi, $1!', regexPattern: true, replaceAll: true },
 						],
 					},
 				};
@@ -981,9 +987,9 @@ Deno.test({
 
 				assertStringIncludes(
 					result.bbaiResponse,
-					'BBai applied search and replace operations.
+					`BBai applied search and replace operations.
 Search and replace operations applied to file: regex_capture_test.txt. All operations succeeded.
-✅   Operation 1: Operation 1 completed successfully',
+✅   Operation 1: Operation 1 completed successfully`,
 				);
 				assertStringIncludes(result.toolResponse, 'All operations succeeded');
 
@@ -1024,7 +1030,7 @@ Deno.test({
 					toolInput: {
 						filePath: testFile,
 						operations: [
-							{ search: '\w{3,}', replace: 'X', regexPattern: true, replaceAll: true },
+							{ search: String.raw`\w{3,}`, replace: 'X', regexPattern: true, replaceAll: true },
 						],
 					},
 				};
@@ -1033,9 +1039,9 @@ Deno.test({
 
 				assertStringIncludes(
 					result.bbaiResponse,
-					'BBai applied search and replace operations.
+					`BBai applied search and replace operations.
 Search and replace operations applied to file: regex_quantifier_test.txt. All operations succeeded.
-✅   Operation 1: Operation 1 completed successfully',
+✅   Operation 1: Operation 1 completed successfully`,
 				);
 				assertStringIncludes(result.toolResponse, 'All operations succeeded');
 
@@ -1076,7 +1082,7 @@ Deno.test({
 					toolInput: {
 						filePath: testFile,
 						operations: [
-							{ search: '[a-c][1-3]', replace: 'X', regexPattern: true, replaceAll: true },
+							{ search: String.raw`[a-c][1-3]`, replace: 'X', regexPattern: true, replaceAll: true },
 						],
 					},
 				};
@@ -1085,9 +1091,9 @@ Deno.test({
 
 				assertStringIncludes(
 					result.bbaiResponse,
-					'BBai applied search and replace operations.
+					`BBai applied search and replace operations.
 Search and replace operations applied to file: regex_character_class_test.txt. All operations succeeded.
-✅   Operation 1: Operation 1 completed successfully',
+✅   Operation 1: Operation 1 completed successfully`,
 				);
 				assertStringIncludes(result.toolResponse, 'All operations succeeded');
 
@@ -1128,7 +1134,7 @@ Deno.test({
 					toolInput: {
 						filePath: testFile,
 						operations: [
-							{ search: '\\bcat\\b', replace: 'dog', regexPattern: true },
+							{ search: String.raw`\bcat\b`, replace: 'dog', regexPattern: true },
 						],
 					},
 				};
@@ -1137,14 +1143,66 @@ Deno.test({
 
 				assertStringIncludes(
 					result.bbaiResponse,
-					'BBai applied search and replace operations.
+					`BBai applied search and replace operations.
 Search and replace operations applied to file: regex_word_boundary_test.txt. All operations succeeded.
-✅   Operation 1: Operation 1 completed successfully',
+✅   Operation 1: Operation 1 completed successfully`,
 				);
 				assertStringIncludes(result.toolResponse, 'All operations succeeded');
 
 				const updatedContent = await Deno.readTextFile(testFilePath);
 				assertEquals(updatedContent, 'The dog is in the category');
+			} finally {
+				logPatchAndCommitStub.restore();
+			}
+		});
+	},
+	sanitizeResources: false,
+	sanitizeOps: false,
+});
+
+Deno.test({
+	name: 'SearchAndReplaceTool - Case-sensitive literal search with special regex characters',
+	fn: async () => {
+		await withTestProject(async (testProjectRoot) => {
+			const projectEditor = await getProjectEditor(testProjectRoot);
+			const orchestratorControllerStubMaker = makeOrchestratorControllerStub(
+				projectEditor.orchestratorController,
+			);
+			const interaction = await createTestInteraction('test-conversation', projectEditor);
+
+			const tool = new LLMToolSearchAndReplace();
+			const logPatchAndCommitStub = orchestratorControllerStubMaker.logPatchAndCommitStub(() =>
+				Promise.resolve()
+			);
+			try {
+				const testFile = 'literal_regex_test.txt';
+				const testFilePath = getTestFilePath(testProjectRoot, testFile);
+				await Deno.writeTextFile(testFilePath, 'The (quick) brown [fox] jumps over the {lazy} dog.');
+
+				const toolUse: LLMAnswerToolUse = {
+					toolValidation: { validated: true, results: '' },
+					toolUseId: 'test-id',
+					toolName: 'search_and_replace',
+					toolInput: {
+						filePath: testFile,
+						operations: [
+							{ search: '(quick)', replace: 'fast', regexPattern: false },
+							{ search: '[fox]', replace: 'cat', regexPattern: false },
+							{ search: '{lazy}', replace: 'active', regexPattern: false },
+						],
+					},
+				};
+
+				const result = await tool.runTool(interaction, toolUse, projectEditor);
+
+				assertStringIncludes(
+					result.bbaiResponse,
+					'BBai applied search and replace operations.\nSearch and replace operations applied to file: literal_regex_test.txt. All operations succeeded.\n✅   Operation 1: Operation 1 completed successfully\n✅   Operation 2: Operation 2 completed successfully\n✅   Operation 3: Operation 3 completed successfully',
+				);
+				assertStringIncludes(result.toolResponse, 'All operations succeeded');
+
+				const updatedContent = await Deno.readTextFile(testFilePath);
+				assertEquals(updatedContent, 'The fast brown cat jumps over the active dog.');
 			} finally {
 				logPatchAndCommitStub.restore();
 			}
