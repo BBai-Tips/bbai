@@ -1,4 +1,5 @@
 import { join } from '@std/path';
+import { copy } from '@std/fs';
 import { exists } from '@std/fs';
 //import { encodeBase64 } from '@std/encoding';
 //import { crypto } from '@std/crypto/crypto';
@@ -27,8 +28,10 @@ const isCommandAvailable = async (command: string): Promise<boolean> => {
 };
 
 export const certificateFileExists = async (certFileName: string = 'localhost.pem') => {
+	//console.debug(`${YELLOW}Checking for certificate file '${certFileName}'${NC}`);
 	const globalCertFile = join(globalDir, certFileName);
 	const bbaiCertFile = join(await getBbaiDir(Deno.cwd()), certFileName) || '';
+	//console.debug(`${YELLOW}Need to find either '${globalCertFile}' or '${bbaiCertFile}'${NC}`);
 	return (bbaiCertFile ? await exists(bbaiCertFile) : false) || await exists(globalCertFile);
 };
 
@@ -76,6 +79,7 @@ export const generateCertificate = async (
 export const generateCertificateMkcert = async (domain: string = 'localhost', validityDays: number = 365) => {
 	const certFile = join(globalDir, 'localhost.pem');
 	const keyFile = join(globalDir, 'localhost-key.pem');
+	const rootCaFile = join(globalDir, 'rootCA.pem');
 
 	const commandCaRoot = new Deno.Command('mkcert', {
 		args: [
@@ -88,6 +92,28 @@ export const generateCertificateMkcert = async (domain: string = 'localhost', va
 		throw new Error('Certificate root generation failed');
 	}
 	console.log(new TextDecoder().decode(stdoutCaRoot));
+
+	// Get the CAROOT directory
+	const commandCaRootDir = new Deno.Command('mkcert', {
+		args: [
+			'-CAROOT',
+		],
+	});
+	const { code: codeRootDir, stdout: stdoutRootDir } = await commandCaRootDir.output();
+	if (codeRootDir !== 0) {
+		throw new Error('Failed to get CAROOT directory');
+	}
+	const caRootDir = new TextDecoder().decode(stdoutRootDir).trim();
+
+	// Copy rootCA.pem to the specified rootCaFile path
+	const sourceRootCaFile = join(caRootDir, 'rootCA.pem');
+	try {
+		await copy(sourceRootCaFile, rootCaFile);
+		// Root CA file copy log moved to try-catch block
+	} catch (error) {
+		console.error(`Failed to copy Root CA file: ${error.message}`);
+		throw new Error('Failed to copy Root CA file');
+	}
 
 	const command = new Deno.Command('mkcert', {
 		args: [
@@ -107,6 +133,8 @@ export const generateCertificateMkcert = async (domain: string = 'localhost', va
 
 	const stdoutText = new TextDecoder().decode(stdout);
 	if (stdoutText.trim()) console.log(stdoutText);
+
+	console.log(`Root CA file copied to ${rootCaFile}`);
 };
 
 export const generateCertificateOpenssl = async (domain: string = 'localhost', validityDays: number = 365) => {

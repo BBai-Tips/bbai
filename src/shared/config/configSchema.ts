@@ -10,8 +10,10 @@ export interface ApiConfigSchema {
 	apiUseTls?: boolean;
 	tlsKeyFile?: string;
 	tlsCertFile?: string;
+	tlsRootCaFile?: string;
 	tlsKeyPem?: string;
 	tlsCertPem?: string;
+	tlsRootCaPem?: string;
 	ignoreLLMRequestCache?: boolean;
 	usePromptCaching?: boolean;
 	logFile?: string;
@@ -24,8 +26,10 @@ export interface BuiConfigSchema {
 	buiUseTls?: boolean;
 	tlsKeyFile?: string;
 	tlsCertFile?: string;
+	tlsRootCaFile?: string;
 	tlsKeyPem?: string;
 	tlsCertPem?: string;
+	tlsRootCaPem?: string;
 }
 export interface RepoInfoConfigSchema {
 	ctagsAutoGenerate: boolean;

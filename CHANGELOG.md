@@ -9,6 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 
 
+## [0.0.21-beta] - 2024-10-01
+
+### Changed
+
+- Copy rootCA.pem for deno's fetch custom http client
+- Fix for check of existing certs
+- Silenced file missing exception
+
+
 ## [0.0.20-beta] - 2024-10-01
 
 ### Changed
