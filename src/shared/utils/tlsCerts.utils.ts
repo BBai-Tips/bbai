@@ -28,8 +28,10 @@ const isCommandAvailable = async (command: string): Promise<boolean> => {
 };
 
 export const certificateFileExists = async (certFileName: string = 'localhost.pem') => {
+	//console.debug(`${YELLOW}Checking for certificate file '${certFileName}'${NC}`);
 	const globalCertFile = join(globalDir, certFileName);
 	const bbaiCertFile = join(await getBbaiDir(Deno.cwd()), certFileName) || '';
+	//console.debug(`${YELLOW}Need to find either '${globalCertFile}' or '${bbaiCertFile}'${NC}`);
 	return (bbaiCertFile ? await exists(bbaiCertFile) : false) || await exists(globalCertFile);
 };
 
