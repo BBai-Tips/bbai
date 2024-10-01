@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 
 
+## [0.0.21a-beta] - 2024-10-01
+
+### Changed
+
+- Hotfix for incorrect method name to create TLS cert
+
+
 ## [0.0.21-beta] - 2024-10-01
 
 ### Changed
