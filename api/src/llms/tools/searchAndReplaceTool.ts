@@ -175,8 +175,10 @@ export default class LLMToolSearchAndReplace extends LLMTool {
 				if (regexPattern) {
 					searchPattern = new RegExp(search, flags);
 				} else if (!caseSensitive) {
+					// literal search, but case insensitive so must use a regex - escape regex special characters
 					searchPattern = new RegExp(escapeRegExp(search), flags);
 				} else {
+					// literal search that is case sensitive
 					searchPattern = search;
 				}
 				//logger.info(`Searching for pattern: `, searchPattern);
