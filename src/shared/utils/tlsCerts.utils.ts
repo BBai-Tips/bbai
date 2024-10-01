@@ -49,7 +49,7 @@ export const generateCertificate = async (
 		console.error(`${GREEN}Cert created using 'mkcert' and saved to '${globalDir}'${NC}`);
 		return true;
 	} else if (opensslAvailable) {
-		generateCertificateMkcert(domain, validityDays);
+		generateCertificateOpenssl(domain, validityDays);
 		console.error(`${GREEN}Cert created using 'openssl' and saved to '${globalDir}'${NC}`);
 		return true;
 	} else {
