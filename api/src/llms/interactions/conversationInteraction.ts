@@ -255,7 +255,9 @@ class LLMConversationInteraction extends LLMInteraction {
 				// if prompt caching is NOT enabled then only add file once (to last message)
 				if (this.fullConfig.api.usePromptCaching || !hydratedFiles.has(filePath)) {
 					logger.info(
-						`ConversationInteraction: Hydrating message for file: ${filePath} - Revision:(${messageId}) - Turn: ${turnIndex}`,
+						`ConversationInteraction: Hydrating message for file: ${filePath} - Revision:(${messageId}) - Turn: ${turnIndex} - Metadata:  ${
+							JSON.stringify(fileMetadata)
+						}`,
 					);
 
 					if (fileMetadata.type === 'image') {
@@ -263,7 +265,6 @@ class LLMConversationInteraction extends LLMInteraction {
 						const imageData = await this.readProjectFileContent(filePath, messageId) as Uint8Array;
 						const base64Data = encodeBase64(imageData);
 						const imageBlock: LLMMessageContentPartImageBlock = {
-							messageId,
 							type: 'image',
 							source: {
 								type: 'base64',
@@ -272,7 +273,6 @@ class LLMConversationInteraction extends LLMInteraction {
 							},
 						};
 						const textBlock: LLMMessageContentPartTextBlock = {
-							messageId,
 							type: 'text',
 							text:
 								`<bbaiFile path="${filePath}" type="image" size="${fileMetadata.size}" last_modified="${fileMetadata.lastModified}" mime_type="${fileMetadata.mimeType}" revision="${messageId}"></bbaiFile>`,
@@ -302,9 +302,11 @@ ${fileContent}
 			if (
 				contentPart.type === 'tool_result' && Array.isArray(contentPart.content)
 			) {
-				const updatedContent = await Promise.all(
+				// processContentPart can return an array or an object, which can result in nested arrays
+				// use `flat()` to un-nest the array
+				const updatedContent = (await Promise.all(
 					contentPart.content.map((part) => processContentPart(part, messageId, turnIndex)),
-				);
+				)).flat();
 				return {
 					...contentPart,
 					content: updatedContent,

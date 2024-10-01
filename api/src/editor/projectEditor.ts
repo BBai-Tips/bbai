@@ -1,4 +1,6 @@
 import { join } from '@std/path';
+import { contentType } from '@std/media-types';
+import { extname } from "@std/path";
 
 import {
 	existsWithinProject,
@@ -176,7 +178,6 @@ class ProjectEditor {
 			}
 		>
 	> {
-		const imageExtensions = ['.png', '.jpg', '.jpeg', '.gif', '.bmp', '.webp'];
 		const filesAdded: Array<
 			{
 				fileName: string;
@@ -195,13 +196,14 @@ class ProjectEditor {
 
 				const fullFilePath = join(this.projectRoot, fileName);
 
-				const isImage = imageExtensions.some((ext) => fileName.toLowerCase().endsWith(ext));
-				const mimeType = `image/${fileName.split('.').pop()}` as LLMMessageContentPartImageBlockSourceMediaType;
+				const fileExtension = extname(fileName);
+				const mimeType = contentType(fileExtension) || 'application/octet-stream';
+				const isImage = mimeType.startsWith('image/');
 				const { size } = await Deno.stat(fullFilePath).catch((_) => ({ size: 0 }));
 
 				const metadata: Omit<FileMetadata, 'path' | 'inSystemPrompt'> = {
 					type: isImage ? 'image' : 'text',
-					mimeType: mimeType,
+					mimeType: mimeType as LLMMessageContentPartImageBlockSourceMediaType,
 					lastModified: new Date(),
 					size,
 					error: null,
