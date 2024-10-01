@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 
 
+## [0.0.20-beta] - 2024-10-01
+
+### Changed
+
+- Fix for nested array in tool results
+- Improved mime-type checking
+
+
 ## [0.0.19-beta] - 2024-09-30
 
 ### Changed
