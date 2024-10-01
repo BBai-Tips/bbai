@@ -978,7 +978,12 @@ Deno.test({
 					toolInput: {
 						filePath: testFile,
 						operations: [
-							{ search: String.raw`Hello, (\w+)!`, replace: 'Hi, $1!', regexPattern: true, replaceAll: true },
+							{
+								search: String.raw`Hello, (\w+)!`,
+								replace: 'Hi, $1!',
+								regexPattern: true,
+								replaceAll: true,
+							},
 						],
 					},
 				};
@@ -1240,7 +1245,12 @@ Deno.test({
 						operations: [
 							{ search: String.raw`(quick)`, replace: 'fast', regexPattern: false, caseSensitive: false },
 							{ search: String.raw`[fox]`, replace: 'cat', regexPattern: false, caseSensitive: false },
-							{ search: String.raw`{lazy}`, replace: 'active', regexPattern: false, caseSensitive: false },
+							{
+								search: String.raw`{lazy}`,
+								replace: 'active',
+								regexPattern: false,
+								caseSensitive: false,
+							},
 						],
 					},
 				};

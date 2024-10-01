@@ -192,7 +192,15 @@ class LLMConversationInteraction extends LLMInteraction {
 				await this.storeFileRevision(filePath, revisionId, content);
 				return content;
 			} catch (error) {
-				throw new Error(`Failed to read file: ${filePath} (${revisionId}) - Error: ${error}`);
+				if (error instanceof Deno.errors.NotFound) {
+					logger.info(`File not found: ${filePath} (${revisionId}) - ${error.message}`);
+					return '';
+				} else if (error instanceof Deno.errors.PermissionDenied) {
+					logger.info(`Permission denied: ${filePath} (${revisionId}) - ${error.message}`);
+					return '';
+				} else {
+					throw new Error(`Failed to read file: ${filePath} (${revisionId}) - Error: ${error}`);
+				}
 			}
 		}
 	}

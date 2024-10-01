@@ -1,6 +1,6 @@
 import { join } from '@std/path';
 import { contentType } from '@std/media-types';
-import { extname } from "@std/path";
+import { extname } from '@std/path';
 
 import {
 	existsWithinProject,

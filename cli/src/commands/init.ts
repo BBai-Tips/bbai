@@ -190,7 +190,7 @@ export const init = new Command()
 			await createBbaiIgnore(startDir);
 
 			const certFileName = finalGlobalConfig.api.tlsCertFile || 'localhost.pem';
-			if (!certificateFileExists(certFileName)) {
+			if (!await certificateFileExists(certFileName)) {
 				const domain = finalGlobalConfig.api.apiHostname || 'localhost';
 				const validityDays = 365;
 				const certCreated = await generateCertificate(domain, validityDays);

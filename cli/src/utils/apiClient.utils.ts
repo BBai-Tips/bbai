@@ -1,13 +1,16 @@
 import { ConfigManager } from 'shared/configManager.ts';
 import { logger } from 'shared/logger.ts';
+import { readFromBbaiDir, readFromGlobalConfigDir } from 'shared/dataDir.ts';
 
 export default class ApiClient {
 	private baseUrl: string;
 	private wsUrl: string;
+	private httpClient: Deno.HttpClient;
 
-	private constructor(baseUrl: string, wsUrl: string) {
+	private constructor(baseUrl: string, wsUrl: string, rootCert: string) {
 		this.baseUrl = baseUrl;
 		this.wsUrl = wsUrl;
+		this.httpClient = Deno.createHttpClient({ caCerts: [rootCert] });
 	}
 
 	static async create(
@@ -26,14 +29,18 @@ export default class ApiClient {
 			: true;
 		const baseUrl = `${apiUseTls ? 'https' : 'http'}://${apiHostname}:${apiPort}`;
 		const wsUrl = `${apiUseTls ? 'wss' : 'ws'}://${apiHostname}:${apiPort}`;
+		const rootCert = fullConfig.api.tlsRootCaPem ||
+			await readFromBbaiDir(startDir, fullConfig.api.tlsRootCaFile || 'rootCA.pem') ||
+			await readFromGlobalConfigDir(fullConfig.api.tlsRootCaFile || 'rootCA.pem') || '';
+
 		logger.debug(`APIClient: client created with baseUrl: ${baseUrl}, wsUrl: ${wsUrl}`);
-		return new ApiClient(baseUrl, wsUrl);
+		return new ApiClient(baseUrl, wsUrl, rootCert);
 	}
 
 	async get(endpoint: string) {
 		try {
 			//logger.info(`APIClient: GET request to: ${this.baseUrl}${endpoint}`);
-			const response = await fetch(`${this.baseUrl}${endpoint}`);
+			const response = await fetch(`${this.baseUrl}${endpoint}`, { client: this.httpClient });
 			if (!response.ok) {
 				throw new Error(`HTTP error! status: ${response.status}`);
 			}
@@ -53,6 +60,7 @@ export default class ApiClient {
 					'Content-Type': 'application/json',
 				},
 				body: JSON.stringify(data),
+				client: this.httpClient,
 			});
 			if (!response.ok) {
 				throw new Error(`HTTP error! status: ${response.status}`);
