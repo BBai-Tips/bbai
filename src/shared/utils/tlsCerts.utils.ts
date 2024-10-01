@@ -1,4 +1,5 @@
 import { join } from '@std/path';
+import { copy } from '@std/fs';
 import { exists } from '@std/fs';
 //import { encodeBase64 } from '@std/encoding';
 //import { crypto } from '@std/crypto/crypto';
@@ -104,7 +105,13 @@ export const generateCertificateMkcert = async (domain: string = 'localhost', va
 
 	// Copy rootCA.pem to the specified rootCaFile path
 	const sourceRootCaFile = join(caRootDir, 'rootCA.pem');
-	await Deno.copyFile(sourceRootCaFile, rootCaFile);
+	try {
+		await copy(sourceRootCaFile, rootCaFile);
+		// Root CA file copy log moved to try-catch block
+	} catch (error) {
+		console.error(`Failed to copy Root CA file: ${error.message}`);
+		throw new Error('Failed to copy Root CA file');
+	}
 
 	const command = new Deno.Command('mkcert', {
 		args: [
