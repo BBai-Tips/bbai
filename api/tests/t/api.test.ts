@@ -1,5 +1,4 @@
 import { assertEquals, delay } from '../deps.ts';
-import { app } from '../../src/main.ts';
 import { superoak } from 'superoak';
 import { withTestProject } from '../lib/testSetup.ts';
 //import { GitUtils } from 'shared/git.ts';
@@ -8,6 +7,7 @@ Deno.test({
 	name: 'API root endpoint returns correct message',
 	fn: async () => {
 		await withTestProject(async (_testProjectRoot) => {
+			const { app } = await import('../../src/main.ts');
 			const controller = new AbortController();
 			const { signal: _signal } = controller;
 
@@ -31,6 +31,7 @@ Deno.test({
 	name: 'API status endpoint returns OK',
 	fn: async () => {
 		await withTestProject(async (_testProjectRoot) => {
+			const { app } = await import('../../src/main.ts');
 			const request = await superoak(app);
 			const response = await request
 				.get('/api/v1/status')
@@ -51,6 +52,7 @@ Deno.test({
 /*
 Deno.test("Start conversation endpoint", async () => {
   await withTestProject(async (testProjectRoot) => {
+    const { app } = await import('../../src/main.ts');
     const request = await superoak(app);
     const response = await request
       .post("/api/v1/conversation")
@@ -86,6 +88,7 @@ Deno.test("Start conversation endpoint", async () => {
 
 Deno.test("File operations in conversation", async () => {
   await withTestProject(async (testProjectRoot) => {
+    const { app } = await import('../../src/main.ts');
     const request = await superoak(app);
 
     // Add file to conversation
