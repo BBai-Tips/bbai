@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 
 
+## [0.0.22-beta] - 2024-10-04
+
+### Changed
+
+- Upgrade deps to use latest Astral (fix for fetch screenshot tool)
+
+
 ## [0.0.21a-beta] - 2024-10-01
 
 ### Changed
