@@ -1,25 +1,30 @@
 import { assertEquals, delay } from '../deps.ts';
 import { superoak } from 'superoak';
 import { withTestProject } from '../lib/testSetup.ts';
-//import { GitUtils } from 'shared/git.ts';
 
 Deno.test({
 	name: 'API root endpoint returns correct message',
 	fn: async () => {
-		await withTestProject(async (_testProjectRoot) => {
-			const { app } = await import('../../src/main.ts');
-			const controller = new AbortController();
-			const { signal: _signal } = controller;
-
+		await withTestProject(async (testProjectRoot) => {
+			const originalCwd = Deno.cwd();
 			try {
-				const request = await superoak(app);
-				await request.get('/')
-					.expect(200)
-					.expect('Content-Type', /json/)
-					.expect({ message: 'Welcome to BBai API', docs: '/api-docs/openapi.json' });
+				Deno.chdir(testProjectRoot);
+				const { app } = await import('../../src/main.ts');
+				const controller = new AbortController();
+				const { signal: _signal } = controller;
+
+				try {
+					const request = await superoak(app);
+					await request.get('/')
+						.expect(200)
+						.expect('Content-Type', /json/)
+						.expect({ message: 'Welcome to BBai API', docs: '/api-docs/openapi.json' });
+				} finally {
+					controller.abort();
+					await delay(0); // Allow any pending microtasks to complete
+				}
 			} finally {
-				controller.abort();
-				await delay(0); // Allow any pending microtasks to complete
+				Deno.chdir(originalCwd);
 			}
 		});
 	},
@@ -30,16 +35,22 @@ Deno.test({
 Deno.test({
 	name: 'API status endpoint returns OK',
 	fn: async () => {
-		await withTestProject(async (_testProjectRoot) => {
-			const { app } = await import('../../src/main.ts');
-			const request = await superoak(app);
-			const response = await request
-				.get('/api/v1/status')
-				.expect(200)
-				.expect('Content-Type', /json/);
+		await withTestProject(async (testProjectRoot) => {
+			const originalCwd = Deno.cwd();
+			try {
+				Deno.chdir(testProjectRoot);
+				const { app } = await import('../../src/main.ts');
+				const request = await superoak(app);
+				const response = await request
+					.get('/api/v1/status')
+					.expect(200)
+					.expect('Content-Type', /json/);
 
-			assertEquals(response.body.status, 'OK');
-			assertEquals(response.body.message, 'API is running');
+				assertEquals(response.body.status, 'OK');
+				assertEquals(response.body.message, 'API is running');
+			} finally {
+				Deno.chdir(originalCwd);
+			}
 		});
 	},
 	sanitizeResources: false,
