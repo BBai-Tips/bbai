@@ -7,7 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+
+
+## [0.0.23-beta] - 2024-10-06
+
+### Changed
+
 - Overhaul of tool packaging and loading - each tool is self-contained for easier sharing
+- Improved conversation entry formatting, including inline images
 - Safely ignore cert warnings for localhost
 - New LLM tool: `move_files` for moving files and directories to a new directory within the project
 - New LLM tool: `rename_files` for renaming files and directories within the project
