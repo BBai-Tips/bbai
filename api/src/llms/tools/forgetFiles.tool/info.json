@@ -1,0 +1,8 @@
+{
+	"name": "forget_files",
+	"description": "Remove and forget specified files from the chat when they are no longer needed",
+	"version": "1.0.0",
+	"category": "FileManipulation",
+	"author": "BBai Team",
+	"license": "MIT"
+}

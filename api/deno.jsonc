@@ -1,12 +1,12 @@
 {
 	"name": "bbai-api",
-	"version": "0.0.22-beta",
+	"version": "0.0.23-beta",
 	"exports": "./src/main.ts",
 	"tasks": {
 		"start": "deno run --allow-read --allow-write --allow-run --allow-net --allow-env src/main.ts",
 		"dev": "deno run --watch --allow-read --allow-write --allow-run --allow-net --allow-env src/main.ts",
 		"debug": "LOG_LEVEL=debug deno run --allow-read --allow-write --allow-run --allow-net --allow-env src/main.ts",
-		"test": "deno test --allow-read --allow-write --allow-run --allow-net --allow-env tests/",
+		"test": "deno test --allow-read --allow-write --allow-run --allow-net --allow-env tests/  tests/t/llms/tools/index.ts",
 		"build": "deno compile --allow-env --allow-net --allow-read --allow-run --allow-write --output ../build/bbai-api src/main.ts",
 		"format": "deno fmt",
 		"check-format": "deno fmt --check",

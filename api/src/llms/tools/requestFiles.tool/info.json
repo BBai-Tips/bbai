@@ -1,0 +1,7 @@
+{
+	"name": "request_files",
+	"description": "Request one or more files within the project to be added to the conversation.",
+	"version": "1.0.0",
+	"author": "BBai Team",
+	"license": "MIT"
+}

@@ -5,7 +5,7 @@ import { BufReader } from '@std/io';
 import { colors } from 'cliffy/ansi/mod.ts';
 import { renderToString } from 'preact-render-to-string';
 
-import LogEntryFormatterManager from '../../../api/src/logEntries/logEntryFormatterManager.ts';
+//import LogEntryFormatterManager from '../../../api/src/logEntries/logEntryFormatterManager.ts';
 import ConversationLogger from 'shared/conversationLogger.ts';
 import type { ConversationLogEntry, ConversationLoggerEntryType } from 'shared/conversationLogger.ts';
 import { getBbaiDataDir } from 'shared/dataDir.ts';
@@ -31,7 +31,7 @@ const UNKNOWN_ICON = '❓';
 const CLOCK_ICON = '🕒'; // Clock emoji
 
 export default class ConversationLogFormatter {
-	private logEntryFormatterManager = new LogEntryFormatterManager();
+	//private logEntryFormatterManager!: LogEntryFormatterManager;
 	private _maxLineLength: number;
 
 	private static readonly iconColorMap: Record<
@@ -48,6 +48,11 @@ export default class ConversationLogFormatter {
 
 	constructor(maxLineLength?: number) {
 		this._maxLineLength = ConversationLogFormatter.getMaxLineLength(maxLineLength);
+	}
+
+	public async init(): Promise<ConversationLogFormatter> {
+		//this.logEntryFormatterManager = await new LogEntryFormatterManager().init();
+		return this;
 	}
 
 	static getMaxLineLength(userDefinedLength?: number): number {
@@ -115,7 +120,7 @@ export default class ConversationLogFormatter {
 		);
 	}
 
-	formatLogEntry(
+	async formatLogEntry(
 		type: ConversationLoggerEntryType,
 		timestamp: string,
 		//logEntry: ConversationLogEntry,
@@ -123,7 +128,7 @@ export default class ConversationLogFormatter {
 		conversationStats: ConversationMetrics,
 		tokenUsage: TokenUsage,
 		toolName?: string,
-	): string {
+	): Promise<string> {
 		const { icon, color, label } = ConversationLogFormatter.iconColorMap[type] ||
 			{ icon: UNKNOWN_ICON, color: colors.reset, label: 'Unknown' };
 		//const label = type === 'user' || type === 'assistant' ? rawLabel : rawLabel + ' Message';
@@ -148,7 +153,7 @@ export default class ConversationLogFormatter {
 		const footer = color(`╰${'─'.repeat(this._maxLineLength - 1)}`);
 
 		const formattedContent = content;
-		//const formattedContent = logEntryFormatterManager.formatLogEntry(
+		//const formattedContent = await logEntryFormatterManager.formatLogEntry(
 		//	'console' as LLMToolFormatterDestination,
 		//	logEntry,
 		//	{}, // metadata
@@ -163,7 +168,7 @@ export default class ConversationLogFormatter {
 			${footer}`;
 	}
 
-	formatRawLogEntry(entry: string): string {
+	async formatRawLogEntry(entry: string): Promise<string> {
 		const [header, ...messageLines] = entry.split('\n');
 		if (typeof header !== 'undefined' && typeof messageLines !== 'undefined') {
 			const [typeString, timestamp] = header.replace('## ', '').split(' [');
@@ -176,7 +181,7 @@ export default class ConversationLogFormatter {
 			const tokenUsage: TokenUsage = { inputTokens: 0, outputTokens: 0, totalTokens: 0 };
 			if (typeof typeString !== 'undefined' && typeof timestamp !== 'undefined') {
 				const type = typeString as ConversationLoggerEntryType;
-				return this.formatLogEntry(
+				return await this.formatLogEntry(
 					type,
 					timestamp.replace(']', ''),
 					messageLines.join('\n').trim(),
@@ -201,13 +206,13 @@ export async function displayFormattedLogs(
 	callback?: (formattedEntry: string) => void,
 	follow = false,
 ): Promise<void> {
-	const formatter = new ConversationLogFormatter();
+	const formatter = await new ConversationLogFormatter().init();
 	const rawLogFile = await ConversationLogger.getLogFileRawPath(Deno.cwd(), conversationId);
 
-	const processEntry = (entry: string) => {
+	const processEntry = async (entry: string) => {
 		//console.debug('Debug: Raw entry before processing:\n', entry.trimStart());
 		if (entry.trim() !== '') {
-			const formattedEntry = formatter.formatRawLogEntry(entry.trim());
+			const formattedEntry = await formatter.formatRawLogEntry(entry.trim());
 			if (callback) {
 				callback(formattedEntry);
 			} else {
@@ -229,7 +234,7 @@ export async function displayFormattedLogs(
 			while ((line = await bufReader.readString('\n')) !== null) {
 				//console.debug('Debug: Read line:', line.trimEnd());
 				if (line.includes(ConversationLogger.getEntrySeparator())) {
-					processEntry(entry);
+					await processEntry(entry);
 					entry = '';
 					//console.debug('Debug: Entry separator found, resetting entry');
 				} else {
@@ -237,7 +242,7 @@ export async function displayFormattedLogs(
 				}
 			}
 			if (entry.trim() !== '') {
-				processEntry(entry);
+				await processEntry(entry);
 			}
 			return file.seek(0, Deno.SeekMode.Current);
 		} finally {

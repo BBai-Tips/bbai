@@ -1,0 +1,7 @@
+{
+	"name": "fetch_web_page",
+	"description": "Fetches the content of a specified web page",
+	"version": "1.0.0",
+	"author": "BBai Team",
+	"license": "MIT"
+}

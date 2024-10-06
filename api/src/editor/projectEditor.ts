@@ -7,7 +7,7 @@ import {
 	FILE_LISTING_TIERS,
 	generateFileListing,
 	isPathWithinProject,
-} from '../utils/fileHandling.utils.ts';
+} from 'api/utils/fileHandling.ts';
 import type LLMConversationInteraction from '../llms/interactions/conversationInteraction.ts';
 import type { ProjectInfo as BaseProjectInfo } from '../llms/interactions/conversationInteraction.ts';
 import type { FileMetadata } from 'shared/types.ts';

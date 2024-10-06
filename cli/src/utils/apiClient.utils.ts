@@ -5,16 +5,20 @@ import { readFromBbaiDir, readFromGlobalConfigDir } from 'shared/dataDir.ts';
 export default class ApiClient {
 	private baseUrl: string;
 	private wsUrl: string;
-	private httpClient: Deno.HttpClient;
+	//private httpClient: Deno.HttpClient;
+	//private fetchArgs: RequestInit & {client: Deno.HttpClient};
 
-	private constructor(baseUrl: string, wsUrl: string, rootCert: string) {
+	private constructor(baseUrl: string, wsUrl: string, _rootCert: string) {
 		this.baseUrl = baseUrl;
 		this.wsUrl = wsUrl;
-		this.httpClient = Deno.createHttpClient({ caCerts: [rootCert] });
+		// [TODO] the custom httpClient doesn't solve websocket connections
+		// So using --unsafely-ignore-certificate-errors=localhost on cli instead
+		// It's set in `build` task in deno.jsonc and in scripts/bbai shebang
+		//this.httpClient = Deno.createHttpClient({ caCerts: [rootCert] });
 	}
 
 	static async create(
-		startDir: string = Deno.cwd(),
+		startDir: string,
 		hostname?: string,
 		port?: number,
 		useTls?: boolean,
@@ -40,7 +44,8 @@ export default class ApiClient {
 	async get(endpoint: string) {
 		try {
 			//logger.info(`APIClient: GET request to: ${this.baseUrl}${endpoint}`);
-			const response = await fetch(`${this.baseUrl}${endpoint}`, { client: this.httpClient });
+			//const response = await fetch(`${this.baseUrl}${endpoint}`, { client: this.httpClient });
+			const response = await fetch(`${this.baseUrl}${endpoint}`);
 			if (!response.ok) {
 				throw new Error(`HTTP error! status: ${response.status}`);
 			}
@@ -60,7 +65,7 @@ export default class ApiClient {
 					'Content-Type': 'application/json',
 				},
 				body: JSON.stringify(data),
-				client: this.httpClient,
+				//client: this.httpClient,
 			});
 			if (!response.ok) {
 				throw new Error(`HTTP error! status: ${response.status}`);

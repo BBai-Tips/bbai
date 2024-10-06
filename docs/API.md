@@ -84,6 +84,31 @@ All endpoints are relative to: `https://<hostname>:<port>/api/v1`
     - `conversationError`
     - `conversationCancelled`
 
+## LLM Tools
+
+The BBai API supports various LLM tools that can be used within conversations. Here are the available tools:
+
+### move_files
+
+Moves one or more files or directories to a new location within the project.
+
+**Parameters:**
+- `sources`: Array of strings representing the paths of files or directories to be moved.
+- `destination`: String representing the path of the destination directory.
+- `overwrite` (optional): Boolean indicating whether to overwrite existing files at the destination (default: false).
+
+**Example usage in a conversation:**
+```json
+{
+  "toolName": "move_files",
+  "toolInput": {
+    "sources": ["path/to/file1.txt", "path/to/directory"],
+    "destination": "path/to/new/location",
+    "overwrite": true
+  }
+}
+```
+
 ## Note on Unimplemented Features
 
 The following features are mentioned in the codebase but are not fully implemented or exposed through the API:

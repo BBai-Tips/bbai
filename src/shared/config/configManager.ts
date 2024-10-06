@@ -1,9 +1,9 @@
 import { parse as parseYaml, stringify as stringifyYaml } from '@std/yaml';
 import { ensureDir } from '@std/fs';
-import { join } from '@std/path';
+import { join, resolve } from '@std/path';
 import { stripIndent } from 'common-tags';
 
-import { getProjectRoot } from 'shared/dataDir.ts';
+import { getBbaiDir, getGlobalConfigDir, getProjectRoot } from 'shared/dataDir.ts';
 import {
 	defaultGlobalConfig,
 	defaultProjectConfig,
@@ -47,23 +47,17 @@ export class ConfigManager {
 	public static async getInstance(): Promise<ConfigManager> {
 		if (!ConfigManager.instance) {
 			ConfigManager.instance = new ConfigManager();
-			//await ConfigManager.instance.initialize();
 		}
 		return ConfigManager.instance;
 	}
 
-	//private async initialize(): Promise<void> {
-	//	await this.ensureGlobalConfig();
-	//	this.globalConfig = await this.loadGlobalConfig();
-	//}
-
-	public static async fullConfig(startDir?: string): Promise<FullConfigSchema> {
+	public static async fullConfig(startDir: string): Promise<FullConfigSchema> {
 		const configManager = await ConfigManager.getInstance();
 		const fullConfig = await configManager.getFullConfig(startDir);
 		return fullConfig;
 	}
 
-	public static async redactedFullConfig(startDir?: string): Promise<FullConfigSchema> {
+	public static async redactedFullConfig(startDir: string): Promise<FullConfigSchema> {
 		const configManager = await ConfigManager.getInstance();
 		const redactedFullConfig = await configManager.getRedactedFullConfig(startDir);
 		return redactedFullConfig;
@@ -82,9 +76,7 @@ export class ConfigManager {
 	}
 
 	public async ensureGlobalConfig(): Promise<void> {
-		const globalConfigDir = Deno.build.os === 'windows' ? (join(Deno.env.get('APPDATA') || '', 'bbai')) : (
-			join(Deno.env.get('HOME') || '', '.config', 'bbai')
-		);
+		const globalConfigDir = await getGlobalConfigDir();
 		const globalConfigPath = join(globalConfigDir, 'config.yaml');
 
 		try {
@@ -131,6 +123,10 @@ export class ConfigManager {
 
                     # Add any CLI-specific configuration options here
                     cli: {}
+
+                    # Directory for user-created tools
+                    userToolDirectories: 
+                      - ./tools
                     `;
 				await Deno.writeTextFile(globalConfigPath, defaultConfig);
 			} else {
@@ -159,6 +155,7 @@ export class ConfigManager {
 					name: wizardAnswers.project.name,
 					type: wizardAnswers.project.type,
 				},
+				userToolDirectories: existingConfig.userToolDirectories || ['./tools'],
 			};
 
 			if (wizardAnswers.anthropicApiKey) {
@@ -174,17 +171,43 @@ export class ConfigManager {
 
 			await Deno.writeTextFile(projectConfigPath, stringifyYaml(projectConfig));
 		} catch (error) {
-			//logger.error(`Failed to ensure project config for ${startDir}: ${error.message}`);
 			throw error;
 		}
 	}
 
-	public async loadFullConfig(startDir?: string): Promise<FullConfigSchema> {
+	public async loadFullConfig(startDir: string): Promise<FullConfigSchema> {
 		const globalConfig = await this.loadGlobalConfig();
-		const projectConfig = startDir ? await this.getProjectConfig(startDir) : {};
+		const projectConfig = await this.getProjectConfig(startDir);
 		const envConfig = this.loadEnvConfig();
 
+		// Merge configs
 		const mergedConfig = mergeConfigs(globalConfig, projectConfig, envConfig) as FullConfigSchema;
+
+		// handle resolving and merging userToolDirectories from default, project and global configs
+		const globalConfigDir = await getGlobalConfigDir();
+		const projectConfigDir = await getBbaiDir(startDir);
+
+		// Resolve global tool directories - use default values if user hasn't set a value
+		const resolvedGlobalToolDirs = this.resolveToolDirectories(
+			globalConfig.userToolDirectories,
+			defaultGlobalConfig.userToolDirectories,
+			globalConfigDir,
+		);
+
+		// Resolve project tool directories - use default values if user hasn't set a value
+		const resolvedProjectToolDirs = this.resolveToolDirectories(
+			projectConfig.userToolDirectories,
+			defaultProjectConfig.userToolDirectories,
+			projectConfigDir,
+		);
+
+		// Merge and deduplicate resolved tool directories
+		mergedConfig.userToolDirectories = [
+			...new Set([
+				...resolvedProjectToolDirs,
+				...resolvedGlobalToolDirs,
+			]),
+		];
 
 		if (!this.validateFullConfig(mergedConfig)) {
 			throw new Error('Invalid full configuration');
@@ -193,12 +216,21 @@ export class ConfigManager {
 		return mergedConfig;
 	}
 
+	private resolveToolDirectories(
+		userDirs: string[] | undefined,
+		defaultDirs: string[],
+		baseDir: string,
+	): string[] {
+		const dirsToResolve = userDirs && userDirs.length > 0 ? userDirs : defaultDirs;
+		return dirsToResolve.map((dir) => this.resolveConfigPath(dir, baseDir));
+	}
+
+	private resolveConfigPath(path: string, baseDir: string): string {
+		return path.startsWith('./') || !path.startsWith('/') ? resolve(baseDir, path) : path;
+	}
+
 	public async loadGlobalConfig(): Promise<GlobalConfigSchema> {
-		const globalConfigPath = Deno.build.os === 'windows'
-			? (join(Deno.env.get('APPDATA') || '', 'bbai', 'config.yaml'))
-			: (
-				join(Deno.env.get('HOME') || '', '.config', 'bbai', 'config.yaml')
-			);
+		const globalConfigPath = await getGlobalConfigDir();
 		try {
 			const content = await Deno.readTextFile(globalConfigPath);
 			const globalConfig = parseYaml(content) as GlobalConfigSchema;
@@ -212,7 +244,6 @@ export class ConfigManager {
 
 			return globalConfig;
 		} catch (error) {
-			//logger.error(`Failed to load user config: ${error.message}`);
 			return this.defaultGlobalConfig;
 		}
 	}
@@ -237,12 +268,11 @@ export class ConfigManager {
 			this.projectConfigs.set(projectConfig.project.name, projectConfig);
 			return projectConfig;
 		} catch (error) {
-			//logger.error(`Failed to load project config for ${startDir}: ${error.message}`);
 			throw new Error(`Failed to load project config for ${startDir}: ${error.message}`);
 		}
 	}
 
-	public async getFullConfig(startDir?: string): Promise<FullConfigSchema> {
+	public async getFullConfig(startDir: string): Promise<FullConfigSchema> {
 		return await this.loadFullConfig(startDir);
 	}
 
@@ -260,7 +290,6 @@ export class ConfigManager {
 		if (this.projectConfigs.has(projectName)) {
 			return this.projectConfigs.get(projectName)!;
 		}
-		//logger.warn(`Project config not found for project name: ${projectName}`);
 		return null;
 	}
 
@@ -280,7 +309,6 @@ export class ConfigManager {
 				const root = await getProjectRoot(startDir);
 				this.projectRoots.set(startDir, root);
 			} catch (error) {
-				//logger.error(`Failed to get project root for ${startDir}: ${error.message}`);
 				throw error;
 			}
 		}
@@ -351,7 +379,7 @@ export class ConfigManager {
 		return envConfig;
 	}
 
-	public async getRedactedFullConfig(startDir?: string): Promise<FullConfigSchema> {
+	public async getRedactedFullConfig(startDir: string): Promise<FullConfigSchema> {
 		const redactedFullConfig = JSON.parse(JSON.stringify(await this.loadFullConfig(startDir)));
 
 		if (redactedFullConfig.api?.anthropicApiKey) redactedFullConfig.api.anthropicApiKey = '[REDACTED]';
@@ -392,7 +420,6 @@ export class ConfigManager {
 		try {
 			await Deno.writeTextFile(globalConfigPath, stringifyYaml(fullConfig));
 		} catch (error) {
-			//logger.error(`Failed to save global config: ${error.message}`);
 			throw error;
 		}
 	}
@@ -400,6 +427,7 @@ export class ConfigManager {
 	private validateFullConfig(config: Partial<FullConfigSchema>): boolean {
 		if (!this.validateGlobalConfig(config)) return false;
 		if (!this.validateProjectConfig(config)) return false;
+		if (!Array.isArray(config.userToolDirectories)) return false;
 		return true;
 	}
 
@@ -410,6 +438,7 @@ export class ConfigManager {
 		if (globalConfig.api.usePromptCaching !== undefined && typeof globalConfig.api.usePromptCaching !== 'boolean') {
 			return false;
 		}
+		//if (!Array.isArray(globalConfig.userToolDirectories)) return false;
 		return true;
 	}
 
@@ -417,6 +446,7 @@ export class ConfigManager {
 		if (!projectConfig.project || typeof projectConfig.project !== 'object') return false;
 		if (typeof projectConfig.project.name !== 'string') return false;
 		if (projectConfig.project.type !== 'git' && projectConfig.project.type !== 'local') return false;
+		//if (!Array.isArray(projectConfig.userToolDirectories)) return false;
 		return true;
 	}
 }

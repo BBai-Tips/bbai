@@ -44,7 +44,11 @@ export async function startApiServer(
 	const apiPortArgs = apiPort ? ['--port', apiPort] : [];
 	const apiUseTlsArgs = typeof apiUseTls !== 'undefined' ? ['--use-tls', apiUseTls ? 'true' : 'false'] : [];
 
-	logger.debug(`Starting BBai API server on ${apiHostname}:${apiPort}, logging to ${apiLogFilePath}`);
+	//const redactedFullConfig = await ConfigManager.redactedFullConfig(startDir);
+	//logger.debug(`Starting API with config:`, redactedFullConfig);
+	logger.debug(
+		`Starting BBai API server from ${startDir} on ${apiHostname}:${apiPort}, logging to ${apiLogFilePath}`,
+	);
 
 	let command: Deno.Command;
 
@@ -63,7 +67,7 @@ export async function startApiServer(
 			},
 		});
 	} else {
-		logger.debug(`Starting BBai API as script using ${projectRoot}/api/src/main.ts`);
+		logger.info(`Starting BBai API as script using ${projectRoot}/api/src/main.ts`);
 		const cmdArgs = [
 			'run',
 			'--allow-read',
@@ -198,7 +202,7 @@ export async function getApiStatus(startDir: string): Promise<{
 		status.apiUrl = `${apiUseTls ? 'https' : 'http'}://${apiHostname}:${apiPort}`;
 
 		try {
-			const apiClient = await ApiClient.create(startDir, apiHostname, apiPort);
+			const apiClient = await ApiClient.create(startDir, apiHostname, apiPort, apiUseTls);
 			const response = await apiClient.get('/api/v1/status');
 			if (response.ok) {
 				const apiStatus = await response.json();
@@ -209,6 +213,8 @@ export async function getApiStatus(startDir: string): Promise<{
 		} catch (error) {
 			status.error = `Error connecting to API: ${error instanceof Error ? error.message : String(error)}`;
 		}
+	} else {
+		status.error = 'Process is not running (or has no saved PID)';
 	}
 
 	return status;

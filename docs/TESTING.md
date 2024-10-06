@@ -5,31 +5,42 @@ This document outlines the testing strategy, progress, and guidelines for the BB
 
 ## Testing New Tools
 
+**IMPORTANT: When creating tests for a new tool, it is crucial to use an existing tool's test file as a template. Follow the structure, style, and conventions of existing tests as closely as possible, modifying only what is necessary for the new tool's specific functionality.**
+
 When creating tests for a new tool:
 
-1. Create a new test file in the `api/tests/t/llms/tools` directory, named `toolName.test.ts`.
-2. Import necessary testing utilities from Deno's standard testing library.
-3. Create mock objects for `LLMConversationInteraction`, `LLMAnswerToolUse`, and `ProjectEditor` as needed.
-4. Write tests covering:
+1. Identify an existing tool test file that is most similar to the new tool you're testing.
+2. Create a new test file in the `tests` directory within the tool's directory (e.g., `api/src/llms/tools/toolName.tool/tests/tool.test.ts`), using the identified file as a template.
+3. Import necessary testing utilities from Deno's standard testing library.
+4. Create mock objects for `LLMConversationInteraction`, `LLMAnswerToolUse`, and `ProjectEditor` as needed.
+5. Write tests covering:
    - Basic functionality
    - Edge cases
    - Error scenarios
    - Input validation
-5. Test all public methods of the tool, including `toolUseInputFormatter` and `toolRunResultFormatter`.
-6. Follow the patterns established in existing tool tests for consistency.
-7. Ensure proper cleanup after each test, especially for file system operations.
+6. Test all public methods of the tool, including `toolUseInputFormatter` and `toolRunResultFormatter`.
+7. Follow the patterns established in existing tool tests for consistency, including:
+   - Test file structure (imports, test organization)
+   - Use of `withTestProject` and `getProjectEditor`
+   - Error handling and assertion patterns
+   - Use of temporary files and directories
+8. Ensure proper cleanup after each test, especially for file system operations.
+9. Include tests for both browser and console formatters (`toolUseInputFormatter` and `toolRunResultFormatter`).
+10. Maintain consistent naming conventions for test cases across all tool test files.
 
 ## General Testing Principles
-1. Each tool should have its own test file.
-2. Tests should cover basic functionality, edge cases, and error scenarios.
-3. Use `Deno.test()` for creating test cases.
-4. Set `sanitizeResources` and `sanitizeOps` to `false` for each test to handle resource management properly.
-5. Use a temporary directory for file-based tests to ensure a clean state for each test.
+
+1. Always use an existing tool's test file as a template and maintain consistency with it as much as possible.
+2. Each tool should have its own test file within its directory.
+3. Tests should cover basic functionality, edge cases, and error scenarios.
+4. Use `Deno.test()` for creating test cases.
+5. Set `sanitizeResources` and `sanitizeOps` to `false` for each test to handle resource management properly.
+6. Use a temporary directory for file-based tests to ensure a clean state for each test.
 
 ## Current Test Coverage
 
 ### SearchAndReplace Tool
-File: `api/tests/t/llms/tools/searchAndReplaceTool.test.ts`
+File: `api/src/llms/tools/searchAndReplace.tool/tests/tool.test.ts`
 
 Completed tests:
 1. Basic functionality (modifying existing files)
@@ -45,7 +56,7 @@ Potential additional tests:
 3. Error handling for invalid operations
 
 ### RequestFiles Tool
-File: `api/tests/t/llms/tools/requestFilesTool.test.ts`
+File: `api/src/llms/tools/requestFiles.tool/tests/tool.test.ts`
 
 Completed tests:
 1. Requesting existing files
@@ -61,7 +72,7 @@ Potential additional tests:
 ## Pending Tests
 
 ### SearchProject Tool
-File: `api/tests/t/llms/tools/searchProjectTool.test.ts`
+File: `api/src/llms/tools/searchProject.tool/tests/tool.test.ts`
 
 Completed tests:
 1. Basic search functionality
@@ -81,7 +92,7 @@ Potential additional tests:
 
 ## Testing Strategy and Reasoning
 
-1. **Isolation**: Each tool has its own test file to maintain clear separation of concerns and make it easier to locate and update specific tests.
+1. **Isolation**: Each tool has its own test file within its directory to maintain clear separation of concerns and make it easier to locate and update specific tests.
 
 2. **Comprehensive Coverage**: We aim to test not just the happy path, but also edge cases and error scenarios to ensure robust tool behavior.
 
@@ -108,6 +119,35 @@ Potential additional tests:
 
 1. Implemented initial test cases for the SearchProject tool, covering basic functionality, file pattern restrictions, no-result scenarios, and error handling.
 2. Created a consistent test environment with multiple files and a subdirectory for SearchProject tool tests.
+3. Updated test file locations to reflect the new tool directory structure.
+
+## Consistency Across Tool Tests
+
+To maintain consistency across all tool tests:
+
+1. Use the same import structure at the beginning of each test file.
+2. Follow the same pattern for creating test projects and editors (using `withTestProject` and `getProjectEditor`).
+3. Use consistent naming conventions for test cases (e.g., "ToolName - Specific scenario being tested").
+4. Structure test cases similarly, with setup, execution, and assertion phases clearly defined.
+5. Use the same patterns for error checking and assertions across all tool tests.
+6. Include tests for both success and failure scenarios for each tool operation.
+7. Test both browser and console formatters consistently across all tools.
+
+## Test File Location and Naming
+
+- All test files should be located in the `tests` directory within each tool's directory.
+- The main test file for each tool should be named `tool.test.ts`.
+- Additional test files, if needed, should follow a clear naming convention (e.g., `formatter.browser.test.ts`, `formatter.console.test.ts`).
+
+## Running Tests
+
+To run all tests, use the following command from the project root:
+
+```
+deno task test
+```
+
+This command is defined in the `deno.jsonc` file (which delegates to the `api/deno.jsonc` file) and includes the necessary permissions and test file locations.
 
 ## Conclusion
-Thorough testing is crucial for maintaining the reliability and functionality of the BBai project. By following these guidelines and continuously expanding our test coverage, we can ensure that the project remains robust and dependable as it grows and evolves. The recent addition of SearchProject tool tests demonstrates our commitment to comprehensive testing and lays the groundwork for testing other components of the system.
+Thorough testing is crucial for maintaining the reliability and functionality of the BBai project. By following these guidelines and continuously expanding our test coverage, we can ensure that the project remains robust and dependable as it grows and evolves. The recent updates to the tool directory structure and test file locations demonstrate our commitment to organized and comprehensive testing, laying the groundwork for consistent and reliable testing across all components of the system.

@@ -1,0 +1,15 @@
+{
+	"name": "run_command",
+	"description": "Run a system command and return the output",
+	"version": "1.0.0",
+	"author": "BBai Team",
+	"license": "MIT",
+	"config": {
+		"allowedCommands": [
+			"deno task tool:check-types-project",
+			"deno task tool:check-types-args",
+			"deno task tool:test",
+			"deno task tool:format"
+		]
+	}
+}

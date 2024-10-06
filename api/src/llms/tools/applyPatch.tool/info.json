@@ -1,0 +1,7 @@
+{
+	"name": "apply_patch",
+	"description": "Apply a well-formed patch to one or more files",
+	"version": "1.0.0",
+	"author": "BBai Team",
+	"license": "MIT"
+}

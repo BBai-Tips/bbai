@@ -9,7 +9,8 @@ export const requestChanges = new Command()
 	.option('--text', 'Return plain text instead of JSON')
 	.action(async (options) => {
 		try {
-			const apiClient = await ApiClient.create();
+			const startDir = Deno.cwd();
+			const apiClient = await ApiClient.create(startDir);
 			const response = await apiClient.post('/api/v1/request-changes', {
 				prompt: options.prompt,
 				conversationId: options.id,

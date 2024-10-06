@@ -1,0 +1,7 @@
+{
+	"name": "fetch_web_screenshot",
+	"description": "Fetches a screenshot of a specified web page",
+	"version": "1.0.0",
+	"author": "BBai Team",
+	"license": "MIT"
+}

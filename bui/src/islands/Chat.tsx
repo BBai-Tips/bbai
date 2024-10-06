@@ -221,7 +221,9 @@ export default function Chat() {
 					];
 					// Don't set isWorking to false for intermediate entries
 				} else if ('answer' in newEntry) {
-					conversationEntries.value = [...conversationEntries.value, newEntry as ConversationResponse];
+					const formattedEntry = await formatLogEntry(newEntry);
+					conversationEntries.value = [...conversationEntries.value, formattedEntry];
+					//conversationEntries.value = [...conversationEntries.value, newEntry as ConversationResponse];
 					// Only set isWorking to false when we receive the final answer
 					setIsWorking(false);
 				} else if ('conversationTitle' in newEntry) {
@@ -262,9 +264,10 @@ export default function Chat() {
 	const formatLogEntry = async (entry: any) => {
 		if (!apiClient.value) return entry;
 		try {
+			//console.debug('Formatting log entry', entry);
 			const formatterResponse = await apiClient.value.post(
-				`/api/v1/format_log_entry/browser/${entry.logEntry.entryType}`,
-				entry.logEntry,
+				`/api/v1/format_log_entry/browser/${entry.logEntry?.entryType || ''}`,
+				{ logEntry: entry.logEntry, startDir },
 			);
 			if (!formatterResponse.ok) {
 				throw new Error(
@@ -277,7 +280,7 @@ export default function Chat() {
 			console.error(`Error formatting log entry: ${error.message}`);
 			return {
 				...entry,
-				formattedContent: entry.logEntry.content ||
+				formattedContent: entry.logEntry?.content ||
 					JSON.stringify(entry.logEntry),
 			};
 		}
@@ -335,6 +338,8 @@ export default function Chat() {
 		}
 	};
 
+	const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
 	const sendMessage = async () => {
 		console.debug('Attempting to send message. Input:', input);
 		if (!wsManager.value?.isReady.value) {
@@ -355,6 +360,9 @@ export default function Chat() {
 					statement: input.trim(),
 				});
 				setInput('');
+				// give input time to update before adjusting height of text area
+				await delay(500);
+				adjustTextareaHeight();
 				// Update current conversation metadata
 				//if (currentConversation) {
 				//	setCurrentConversation((prev) =>
@@ -387,8 +395,6 @@ export default function Chat() {
 		adjustTextareaHeight();
 	};
 
-	// Removed unused functions
-
 	const adjustTextareaHeight = () => {
 		if (textareaRef.current) {
 			textareaRef.current.style.height = 'auto';
@@ -405,15 +411,19 @@ export default function Chat() {
 	}, []);
 
 	const renderEntry = (entry: ConversationEntry, index: number) => {
+		//console.debug('renderEntry: ', entry);
 		const renderContent = (content: any) => {
 			if (typeof content === 'string') {
 				return marked(content);
+				//return content;
 			} else if (Array.isArray(content)) {
 				return content.map((part, i) => {
 					if (typeof part === 'string') {
 						return marked(part);
+						//return part;
 					} else if (part.type === 'text') {
 						return marked(part.text);
+						//return part.text;
 					} else if (part.type === 'tool_use' || part.type === 'tool_result') {
 						return `<div class="tool-message"><strong>${
 							part.type === 'tool_use' ? 'Tool Input' : 'Tool Output'
@@ -456,9 +466,9 @@ export default function Chat() {
 						</button>
 					</div>
 					<div
-						className='prose max-w-none'
+						className='max-w-none'
 						dangerouslySetInnerHTML={{
-							__html: renderContent(entry.logEntry.content) as string,
+							__html: renderContent(entry.formattedContent) as string,
 						}}
 					/>
 					<div className='text-xs text-gray-500 mt-2'>
@@ -478,7 +488,7 @@ export default function Chat() {
 				>
 					<div className='font-semibold mb-2'>Assistant</div>
 					<div
-						className='prose max-w-none'
+						className='max-w-none'
 						dangerouslySetInnerHTML={{ __html: renderContent(entry.answer) as string }}
 					/>
 					<div className='font-semibold mt-4 mb-2'>Assistant Thinking:</div>
