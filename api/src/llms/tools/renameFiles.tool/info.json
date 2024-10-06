@@ -1,0 +1,7 @@
+{
+	"name": "rename_files",
+	"description": "Rename one or more files or directories within the project.",
+	"version": "1.0.0",
+	"author": "BBai Team",
+	"license": "MIT"
+}

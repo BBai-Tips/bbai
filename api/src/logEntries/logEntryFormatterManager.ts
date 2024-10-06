@@ -4,15 +4,27 @@ import type { JSX } from 'preact';
 import LLMToolManager from '../llms/llmToolManager.ts';
 import type { ConversationLogEntry, ConversationLoggerEntryType } from 'shared/conversationLogger.ts';
 import { logger } from 'shared/logger.ts';
+import { FullConfigSchema } from 'shared/configSchema.ts';
+import { escape as escapeHtmlEntities } from '@std/html';
 
 export default class LogEntryFormatterManager {
-	private toolManager: LLMToolManager = new LLMToolManager();
+	private toolManager!: LLMToolManager;
 
-	formatLogEntry(
+	constructor(
+		private fullConfig: FullConfigSchema,
+	) {}
+
+	public async init(): Promise<LogEntryFormatterManager> {
+		this.toolManager = await new LLMToolManager(this.fullConfig).init();
+		//logger.debug(`LogEntryFormatterManager: Initialized toolManager:`, this.toolManager.getAllToolsMetadata());
+		return this;
+	}
+
+	async formatLogEntry(
 		destination: LLMToolFormatterDestination,
 		logEntry: ConversationLogEntry,
 		options?: any,
-	): string | JSX.Element {
+	): Promise<string | JSX.Element> {
 		switch (logEntry.entryType as ConversationLoggerEntryType) {
 			case 'user':
 			case 'assistant':
@@ -24,19 +36,20 @@ export default class LogEntryFormatterManager {
 				if (!logEntry.toolName) {
 					throw new Error('Tool name is required for tool formatters');
 				}
-				return this.formatToolEntry(destination, logEntry, options);
+				return await this.formatToolEntry(destination, logEntry, options);
 			default:
 				throw new Error(`Unknown log entry type: ${logEntry.entryType}`);
 		}
 	}
 
-	private formatToolEntry(
+	private async formatToolEntry(
 		destination: LLMToolFormatterDestination,
 		logEntry: ConversationLogEntry,
 		_options: any,
-	): string | JSX.Element {
-		if (!logEntry.toolName) throw new Error(`Tool not found: ${logEntry.toolName}`);
-		const tool = this.toolManager.getTool(logEntry.toolName);
+	): Promise<string | JSX.Element> {
+		if (!logEntry.toolName) throw new Error(`Tool name not provided in log entry: ${logEntry.toolName}`);
+		const tool = await this.toolManager.getTool(logEntry.toolName);
+		logger.error(`LogEntryFormatterManager: Got tool ${logEntry.toolName}:`, tool);
 		if (!tool) {
 			throw new Error(`Tool not found: ${logEntry.toolName}`);
 		}
@@ -48,7 +61,9 @@ export default class LogEntryFormatterManager {
 				return tool.formatToolResult(logEntry.content as LLMToolRunResultContent, destination);
 			}
 		} catch (error) {
-			logger.error(`Error formatting ${logEntry.entryType} for tool ${logEntry.toolName}: ${error.message}`);
+			logger.error(
+				`LogEntryFormatterManager: Error formatting ${logEntry.entryType} for tool ${logEntry.toolName}: ${error.message}`,
+			);
 			return `Error formatting ${logEntry.entryType} for tool ${logEntry.toolName}`;
 		}
 	}
@@ -64,7 +79,6 @@ export default class LogEntryFormatterManager {
 	}
 
 	private formatBasicEntryConsole(logEntry: ConversationLogEntry, _options: unknown): string {
-		return logEntry.content as string;
 		// const { content, metadata } = entry;
 		// const formattedMetadata = this.formatMetadataConsole(
 		// 	metadata?.conversationStats,
@@ -73,10 +87,20 @@ export default class LogEntryFormatterManager {
 		// 	metadata?.tokenUsageConversation,
 		// );
 		// return `${formattedContent}\n${formattedMetadata}`;
+		const contentArray = this.formatContent(logEntry.content);
+		return contentArray
+			.map((item) => {
+				if (item.type === 'text') {
+					return item.content;
+				} else if (item.type === 'image') {
+					return '[Embedded Image]';
+				}
+				return '';
+			})
+			.join('\n');
 	}
 
 	private formatBasicEntryBrowser(logEntry: ConversationLogEntry, _options: unknown): string {
-		return `<div class="${logEntry.entryType}-message">${logEntry.content}</div>`;
 		// const { content, metadata } = entry;
 		// const formattedMetadata = this.formatMetadataBrowser(
 		// 	metadata?.conversationStats,
@@ -85,6 +109,49 @@ export default class LogEntryFormatterManager {
 		// 	metadata?.tokenUsageConversation,
 		// );
 		// return `${formattedContent}${formattedMetadata}`;
+
+		//logger.info('LogEntryFormatterManager: formatBasicEntryBrowser - ', logEntry);
+		const contentArray = this.formatContent(logEntry.content);
+		const formattedContent = contentArray
+			.map((item) => {
+				if (item.type === 'text') {
+					return `<div>${escapeHtmlEntities(item.content)}</div>`;
+				} else if (item.type === 'image') {
+					const source = JSON.parse(item.content);
+					return `<img src="data:${source.media_type};base64,${source.data}" alt="Embedded Image" />`;
+				}
+				return '';
+			})
+			.join('');
+		return `<div class="${logEntry.entryType}-message">${formattedContent}</div>`;
+	}
+
+	private formatContent(
+		content: string | LLMToolInputSchema | LLMToolRunResultContent,
+	): Array<{ type: string; content: string }> {
+		if (typeof content === 'string') {
+			return this.formatContentString(content).map((line) => ({ type: 'text', content: line }));
+		} else if (Array.isArray(content)) {
+			return content.flatMap((part) => {
+				if (part.type === 'text' && part.text) {
+					return this.formatContentString(part.text).map((line) => ({ type: 'text', content: line }));
+				} else if (part.type === 'image' && part.source) {
+					return [{ type: 'image', content: JSON.stringify(part.source) }];
+				} else if (part.type === 'tool_result' && Array.isArray(part.content)) {
+					return this.formatContent(part.content);
+				}
+				return [];
+			});
+		}
+		return [];
+	}
+
+	private formatContentString(content: string): string[] {
+		return content
+			.replace(/<bbai>.*?<\/bbai>/gs, '')
+			.split('\n')
+			.map((line) => line.trim());
+		//.filter((line) => line.length > 0);
 	}
 
 	/*

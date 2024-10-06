@@ -1,4 +1,5 @@
 import { Command } from 'cliffy/command/mod.ts';
+import { colors } from 'cliffy/ansi/colors.ts';
 import { TerminalHandler } from '../utils/terminalHandler.utils.ts';
 import { logger } from 'shared/logger.ts';
 import ApiClient from 'cli/apiClient.ts';
@@ -68,8 +69,6 @@ export const conversationChat = new Command()
 			// Check if API is running, start it if not
 			const apiRunning = await isApiRunning(projectRoot);
 			if (!apiRunning) {
-				apiStartedByUs = true;
-
 				console.log('API is not running. Starting it now...');
 				const { pid: _pid, apiLogFilePath: _apiLogFilePath, listen: _listen } = await startApiServer(
 					projectRoot,
@@ -81,7 +80,7 @@ export const conversationChat = new Command()
 				// Check if the API is running
 				let apiRunning = false;
 				const maxAttempts = 5;
-				const delayMs = 1000;
+				const delayMs = 250;
 
 				await new Promise((resolve) => setTimeout(resolve, delayMs * 2));
 				for (let attempt = 1; attempt <= maxAttempts; attempt++) {
@@ -91,13 +90,16 @@ export const conversationChat = new Command()
 						break;
 					}
 					await new Promise((resolve) => setTimeout(resolve, delayMs * attempt));
+					console.error(colors.yellow(`API status[${attempt}/${maxAttempts}]: ${status.error}`));
 				}
 				if (!apiRunning) {
-					console.error('Failed to start the API server after multiple attempts.');
-					exit(1);
+					//console.error(colors.bold.red('Failed to start the API server after multiple attempts.'));
+					//exit(1);
+					throw new Error('Failed to start the API server.');
+				} else {
+					apiStartedByUs = true;
+					console.log(colors.bold.green('API started successfully.'));
 				}
-
-				console.log('API started successfully.');
 			}
 
 			conversationId = options.id || generateConversationId();
@@ -145,8 +147,8 @@ export const conversationChat = new Command()
 				if (response.ok) {
 					const data = await response.json();
 
-					terminalHandler = new TerminalHandler(bbaiDir);
-					terminalHandler.displayConversationComplete(data, options);
+					terminalHandler = await new TerminalHandler(startDir).init();
+					await terminalHandler.displayConversationComplete(data, options);
 				} else {
 					const errorBody = await response.text();
 					console.error(JSON.stringify(
@@ -162,7 +164,7 @@ export const conversationChat = new Command()
 					logger.error(`Error body: ${errorBody}`);
 				}
 			} else {
-				terminalHandler = new TerminalHandler(bbaiDir);
+				terminalHandler = await new TerminalHandler(startDir).init();
 				await terminalHandler.initializeTerminal();
 
 				// Spinner is now managed by terminalHandler
@@ -178,47 +180,59 @@ export const conversationChat = new Command()
 
 				// Set up event listeners
 				let conversationChatDisplayed = false;
-				eventManager.on('cli:conversationReady', (data) => {
+				eventManager.on('cli:conversationReady', async (data) => {
 					if (!conversationChatDisplayed) {
 						if (!terminalHandler) {
 							logger.error(
 								`Terminal handler not initialized for conversation ${conversationId} and event cli:conversationReady`,
 							);
 						}
-						terminalHandler?.displayConversationStart(data as ConversationStart, conversationId, true);
+						await terminalHandler?.displayConversationStart(
+							data as ConversationStart,
+							conversationId,
+							true,
+						);
 						conversationChatDisplayed = true;
 					}
 				}, conversationId);
 
-				eventManager.on('cli:conversationContinue', (data) => {
+				eventManager.on('cli:conversationContinue', async (data) => {
 					if (!terminalHandler) {
 						logger.error(
 							`Terminal handler not initialized for conversation ${conversationId} and event cli:conversationContinue`,
 						);
 					}
-					terminalHandler?.displayConversationContinue(data as ConversationContinue, conversationId, true);
+					await terminalHandler?.displayConversationContinue(
+						data as ConversationContinue,
+						conversationId,
+						true,
+					);
 				}, conversationId);
 
-				eventManager.on('cli:conversationAnswer', (data) => {
+				eventManager.on('cli:conversationAnswer', async (data) => {
 					if (!terminalHandler) {
 						logger.error(
 							`Terminal handler not initialized for conversation ${conversationId} and event cli:conversationAnswer`,
 						);
 					}
-					terminalHandler?.displayConversationAnswer(data as ConversationResponse, conversationId, false);
+					await terminalHandler?.displayConversationAnswer(
+						data as ConversationResponse,
+						conversationId,
+						false,
+					);
 				}, conversationId);
 
-				eventManager.on('cli:websocketReconnected', handleWebsocketReconnection);
-
-				eventManager.on('cli:conversationError', (data) => {
+				eventManager.on('cli:conversationError', async (data) => {
 					if (!terminalHandler) {
 						logger.error(
 							`Terminal handler not initialized for conversation ${conversationId} and event cli:conversationError`,
 						);
 						return;
 					}
-					terminalHandler.displayError(data);
+					await terminalHandler.displayError(data);
 				}, conversationId);
+
+				eventManager.on('cli:websocketReconnected', handleWebsocketReconnection);
 
 				await websocketManager.waitForReady(conversationId!);
 
@@ -250,16 +264,21 @@ export const conversationChat = new Command()
 				Deno.exit(0);
 			}
 		} catch (error) {
-			console.error(JSON.stringify(
-				{
-					error: 'Error in conversation',
-					message: error.message,
-				},
-				null,
-				2,
-			));
-			logger.error(`Unexpected error: ${error.message}`);
-			logger.error(`Stack trace: ${error.stack}`);
+			if (error.message.startsWith('Failed to start')) {
+				console.error(colors.bold.red(error.message));
+				exit(1);
+			} else {
+				console.error(JSON.stringify(
+					{
+						error: 'Error in conversation',
+						message: error.message,
+					},
+					null,
+					2,
+				));
+				logger.error(`Unexpected error: ${error.message}`);
+				logger.error(`Stack trace: ${error.stack}`);
+			}
 		} finally {
 			await cleanup();
 		}

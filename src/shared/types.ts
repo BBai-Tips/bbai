@@ -89,6 +89,7 @@ export interface ConversationStart {
 	tokenUsageConversation: ConversationTokenUsage;
 	conversationStats: ConversationMetrics; // for resuming a conversation
 	conversationHistory: ConversationEntry[];
+	formattedContent?: string;
 }
 
 export interface ConversationContinue {
@@ -100,6 +101,7 @@ export interface ConversationContinue {
 	tokenUsageStatement: TokenUsage;
 	tokenUsageConversation: ConversationTokenUsage;
 	conversationStats: ConversationMetrics;
+	formattedContent?: string;
 }
 
 export interface ConversationResponse {
@@ -113,6 +115,7 @@ export interface ConversationResponse {
 	conversationStats: ConversationMetrics;
 	answer: string;
 	assistantThinking: string;
+	formattedContent?: string;
 }
 
 export interface VectorEmbedding {

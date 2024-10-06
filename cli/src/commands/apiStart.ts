@@ -23,6 +23,8 @@ export const apiStart = new Command()
 			: typeof fullConfig.api.apiUseTls !== 'undefined'
 			? fullConfig.api.apiUseTls
 			: true;
+
+		// Start the server
 		const { pid, apiLogFilePath } = await startApiServer(
 			startDir,
 			apiHostname,
@@ -40,7 +42,7 @@ export const apiStart = new Command()
 		// Check if the API is running
 		let apiRunning = false;
 		const maxAttempts = 5;
-		const delayMs = 1000;
+		const delayMs = 250;
 
 		await new Promise((resolve) => setTimeout(resolve, delayMs * 2));
 		for (let attempt = 1; attempt <= maxAttempts; attempt++) {
@@ -50,10 +52,11 @@ export const apiStart = new Command()
 				break;
 			}
 			await new Promise((resolve) => setTimeout(resolve, delayMs * attempt));
+			console.error(colors.yellow(`API status[${attempt}/${maxAttempts}]: ${status.error}`));
 		}
 
 		if (!apiRunning) {
-			console.error(colors.bold.red('Failed to start the API server after multiple attempts.'));
+			console.error(colors.bold.red('Failed to start the API server.'));
 			Deno.exit(1);
 		}
 

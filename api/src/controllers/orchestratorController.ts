@@ -10,7 +10,6 @@ import type LLMMessage from 'api/llms/llmMessage.ts';
 import type { LLMAnswerToolUse } from 'api/llms/llmMessage.ts';
 import type LLMTool from 'api/llms/llmTool.ts';
 //import type { LLMToolInputSchema, LLMToolRunResultContent } from 'api/llms/llmTool.ts';
-//import LLMToolManager, { LLMToolManagerToolSetType } from '../llms/llmToolManager.ts';
 import LLMToolManager from '../llms/llmToolManager.ts';
 import type LLMConversationInteraction from '../llms/interactions/conversationInteraction.ts';
 import type LLMChatInteraction from '../llms/interactions/chatInteraction.ts';
@@ -31,7 +30,7 @@ import type {
 	TokenUsage,
 } from 'shared/types.ts';
 import { logger } from 'shared/logger.ts';
-import { readProjectFileContent } from '../utils/fileHandling.utils.ts';
+import { readProjectFileContent } from 'api/utils/fileHandling.ts';
 import type { LLMCallbacks, LLMSpeakWithOptions, LLMSpeakWithResponse } from '../types.ts';
 import type { ConversationLogEntry } from 'shared/conversationLogger.ts';
 import { generateConversationTitle } from '../utils/conversation.utils.ts';
@@ -49,7 +48,7 @@ class OrchestratorController {
 	private agentControllers: Map<string, AgentController> = new Map();
 	public fullConfig!: FullConfigSchema;
 	public promptManager!: PromptManager;
-	public toolManager: LLMToolManager;
+	public toolManager!: LLMToolManager;
 	public llmProvider: LLM;
 	public eventManager!: EventManager;
 	private projectEditorRef!: WeakRef<ProjectEditor>;
@@ -72,11 +71,11 @@ class OrchestratorController {
 		this.projectEditorRef = new WeakRef(projectEditor);
 		this.interactionManager = interactionManager; //new InteractionManager();
 		this.llmProvider = LLMFactory.getProvider(this.getInteractionCallbacks());
-		this.toolManager = new LLMToolManager('coding'); // Assuming 'coding' is the default toolset
 		this.fullConfig = this.projectEditor.fullConfig;
 	}
 
 	async init(): Promise<OrchestratorController> {
+		this.toolManager = await new LLMToolManager(this.fullConfig, 'core').init(); // Assuming 'core' is the default toolset
 		this.eventManager = EventManager.getInstance();
 		this.promptManager = await new PromptManager().init(this.projectEditor.projectRoot);
 		//this.fullConfig = await ConfigManager.fullConfig(this.projectEditor.projectRoot);
@@ -188,7 +187,7 @@ class OrchestratorController {
 		// [TODO] `createInteraction` calls interactionManager.createInteraction which adds it to manager
 		// so let `loadInteraction` handle interactionManager.addInteraction
 		//this.interactionManager.addInteraction(interaction);
-		this.addToolsToInteraction(interaction);
+		await this.addToolsToInteraction(interaction);
 		return interaction;
 	}
 
@@ -431,8 +430,9 @@ class OrchestratorController {
 		return generateConversationTitle(chatInteraction, statement);
 	}
 
-	private addToolsToInteraction(interaction: LLMConversationInteraction): void {
-		const tools = this.toolManager.getAllTools();
+	private async addToolsToInteraction(interaction: LLMConversationInteraction): Promise<void> {
+		const tools = await this.toolManager.getAllTools();
+		//logger.debug(`OrchestratorController: Adding tools to interaction`, tools);
 		interaction.addTools(tools);
 	}
 

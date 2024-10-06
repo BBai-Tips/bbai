@@ -9,15 +9,17 @@ export default class WebsocketManager {
 	private MAX_RETRIES = 5;
 	private BASE_DELAY = 1000; // 1 second
 	private retryCount = 0;
-	private currentConversationId?: ConversationId;
+	private currentConversationId!: ConversationId;
+	private startDir!: string;
 
 	async setupWebsocket(
-		conversationId?: ConversationId,
-		startDir?: string,
+		conversationId: ConversationId,
+		startDir: string,
 		hostname?: string,
 		port?: number,
 	): Promise<void> {
 		this.currentConversationId = conversationId;
+		this.startDir = startDir;
 		const connectWebSocket = async (): Promise<WebSocket> => {
 			//console.log(`WebsocketManager: Connecting websocket for conversation: ${conversationId}`);
 			try {
@@ -82,7 +84,7 @@ export default class WebsocketManager {
 		if (this.ws && this.ws.readyState === WebSocket.OPEN) {
 			this.ws.close();
 		}
-		this.setupWebsocket(conversationId);
+		this.setupWebsocket(conversationId, this.startDir);
 	}
 
 	private handleMessage(event: MessageEvent): void {
@@ -134,7 +136,7 @@ export default class WebsocketManager {
 	private async handleClose(): Promise<void> {
 		this.removeEventListeners();
 		await this.handleRetry(new Error('WebSocket connection closed'));
-		await this.setupWebsocket(this.currentConversationId);
+		await this.setupWebsocket(this.currentConversationId, this.startDir);
 		eventManager.emit(
 			'cli:websocketReconnected',
 			{ conversationId: this.currentConversationId } as EventPayloadMap['cli']['cli:websocketReconnected'],
@@ -145,7 +147,7 @@ export default class WebsocketManager {
 		this.removeEventListeners();
 		const error = event instanceof ErrorEvent ? event.error : new Error('Unknown WebSocket error');
 		await this.handleRetry(error);
-		await this.setupWebsocket(this.currentConversationId);
+		await this.setupWebsocket(this.currentConversationId, this.startDir);
 		eventManager.emit(
 			'cli:websocketReconnected',
 			{ conversationId: this.currentConversationId } as EventPayloadMap['cli']['cli:websocketReconnected'],

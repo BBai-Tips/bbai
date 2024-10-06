@@ -4,6 +4,7 @@ import {
 	ErrorType,
 	ErrorTypes,
 	FileHandlingError,
+	FileMoveError,
 	FileNotFoundError,
 	FilePatchError,
 	FileReadError,
@@ -62,6 +63,8 @@ export const createError = (
 						: new FileReadError(message, fileOptions);
 				case 'write':
 					return new FileWriteError(message, fileOptions);
+				case 'move':
+					return new FileMoveError(message, fileOptions);
 				default:
 					return new FileHandlingError(message, fileOptions);
 			}

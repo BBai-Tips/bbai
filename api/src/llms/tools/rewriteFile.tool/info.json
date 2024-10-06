@@ -1,0 +1,8 @@
+{
+	"name": "rewrite_file",
+	"description": "Rewrites an entire file or creates a new one",
+	"version": "1.0.0",
+	"category": "FileManipulation",
+	"author": "BBai Team",
+	"license": "MIT"
+}

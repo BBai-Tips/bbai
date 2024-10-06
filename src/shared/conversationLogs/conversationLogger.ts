@@ -4,7 +4,7 @@ import type { JSX } from 'preact';
 import { renderToString } from 'preact-render-to-string';
 
 import LogEntryFormatterManager from '../../../api/src/logEntries/logEntryFormatterManager.ts';
-import ConversationLogFormatter from 'shared/conversationLogFormatter.ts';
+//import ConversationLogFormatter from 'shared/conversationLogFormatter.ts';
 import { ConversationId, ConversationMetrics, ConversationTokenUsage, TokenUsage } from 'shared/types.ts';
 import { getBbaiDataDir } from 'shared/dataDir.ts';
 import { logger } from 'shared/logger.ts';
@@ -41,7 +41,7 @@ export default class ConversationLogger {
 		auxiliary: 'Auxiliary Chat',
 		error: 'Error',
 	};
-	private logEntryFormatterManager = new LogEntryFormatterManager();
+	private logEntryFormatterManager!: LogEntryFormatterManager;
 
 	constructor(
 		private startDir: string,
@@ -57,10 +57,12 @@ export default class ConversationLogger {
 	) {}
 
 	async init(): Promise<ConversationLogger> {
+		const fullConfig = await ConfigManager.fullConfig(this.startDir);
+		this.logEntryFormatterManager = await new LogEntryFormatterManager(fullConfig).init();
+
 		this.logFileRaw = await ConversationLogger.getLogFileRawPath(this.startDir, this.conversationId);
 		this.logFileJson = await ConversationLogger.getLogFileJsonPath(this.startDir, this.conversationId);
 
-		const fullConfig = await ConfigManager.fullConfig(this.startDir);
 		ConversationLogger.entryTypeLabels.user = fullConfig.myPersonsName || 'Person';
 		ConversationLogger.entryTypeLabels.assistant = fullConfig.myAssistantsName || 'Assistant';
 
@@ -128,7 +130,7 @@ export default class ConversationLogger {
 			logger.error('Error in logEntryHandler:', error);
 		}
 
-		const rawEntry = this.createRawEntryWithSeparator(
+		const rawEntry = await this.createRawEntryWithSeparator(
 			timestamp,
 			logEntry,
 			conversationStats,
@@ -238,16 +240,16 @@ export default class ConversationLogger {
 	//	await this.logEntry('text_change', message);
 	//}
 
-	createRawEntry(
+	async createRawEntry(
 		timestamp: string,
 		logEntry: ConversationLogEntry,
 		conversationStats: ConversationMetrics,
 		tokenUsage: TokenUsage,
 		tokenUsageStatement?: TokenUsage,
 		tokenUsageConversation?: ConversationTokenUsage,
-	): string {
+	): Promise<string> {
 		// [TODO] add token usage to header line
-		const formattedContent = this.logEntryFormatterManager.formatLogEntry(
+		const formattedContent = await this.logEntryFormatterManager.formatLogEntry(
 			'console' as LLMToolFormatterDestination, // [TODO] we need a 'file' destination, use 'console' with ansi stripped
 			logEntry,
 			{}, // options
@@ -262,15 +264,15 @@ export default class ConversationLogger {
 		return `## ${label} [${timestamp}]\n${rawEntryContent.trim()}`;
 	}
 
-	createRawEntryWithSeparator(
+	async createRawEntryWithSeparator(
 		timestamp: string,
 		logEntry: ConversationLogEntry,
 		conversationStats: ConversationMetrics,
 		tokenUsage: TokenUsage,
 		tokenUsageStatement?: TokenUsage,
 		tokenUsageConversation?: ConversationTokenUsage,
-	): string {
-		let rawEntry = this.createRawEntry(
+	): Promise<string> {
+		let rawEntry = await this.createRawEntry(
 			timestamp,
 			logEntry,
 			conversationStats,
@@ -300,7 +302,7 @@ export default class ConversationLogger {
 		const logFile = await ConversationLogger.getLogFileRawPath(Deno.cwd(), conversationId);
 
 		const timestamp = new Date().toISOString();
-		const entry = ConversationLogFormatter.createRawEntryWithSeparator(
+		const entry = await ConversationLogFormatter.createRawEntryWithSeparator(
 			type,
 			timestamp,
 			message,

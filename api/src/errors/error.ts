@@ -129,6 +129,7 @@ export interface FileHandlingErrorOptions extends ErrorOptions {
 		| 'apply-patch'
 		| 'search-replace'
 		| 'rewrite-file'
+		| 'move-file'
 		// these are not really filehandling (filesystem) - they only affect files in the conversation
 		| 'request-files'
 		| 'forget-files';
@@ -173,6 +174,13 @@ export class FileWriteError extends FileHandlingError {
 	constructor(message: string, options: FileHandlingErrorOptions) {
 		super(message, { ...options, operation: 'write' });
 		this.name = 'FileWriteError';
+	}
+}
+
+export class FileMoveError extends FileHandlingError {
+	constructor(message: string, options: FileHandlingErrorOptions) {
+		super(message, { ...options, operation: 'move' });
+		this.name = 'FileMoveError';
 	}
 }
 

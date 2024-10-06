@@ -5,9 +5,9 @@ import type { LLMToolFormatterDestination } from 'api/llms/llmTool.ts';
 import type { ConversationLoggerEntryType } from 'shared/conversationLogger.ts';
 import LogEntryFormatterManager from '../../logEntries/logEntryFormatterManager.ts';
 import { logger } from 'shared/logger.ts';
+import { ConfigManager } from 'shared/configManager.ts';
 
 // Initialize LogEntryFormatterManager
-const logEntryFormatterManager = new LogEntryFormatterManager();
 
 export const logEntryFormatter = async (
 	{ params, request, response }: RouterContext<
@@ -19,8 +19,11 @@ export const logEntryFormatter = async (
 	const { logEntryDestination, logEntryFormatterType } = params;
 
 	try {
-		const logEntry = await request.body.json();
+		const { logEntry, startDir } = await request.body.json();
 		logger.info('HandlerLogEntryFormatter-logEntry', logEntry);
+
+		const fullConfig = await ConfigManager.fullConfig(startDir);
+		const logEntryFormatterManager = await new LogEntryFormatterManager(fullConfig).init();
 
 		if (!logEntry || !logEntry.entryType || !logEntry.content) {
 			response.status = 400;
@@ -41,7 +44,7 @@ export const logEntryFormatter = async (
 			return;
 		}
 
-		const formattedContent = logEntryFormatterManager.formatLogEntry(
+		const formattedContent = await logEntryFormatterManager.formatLogEntry(
 			logEntryDestination as LLMToolFormatterDestination,
 			logEntry,
 			logEntry.metadata,

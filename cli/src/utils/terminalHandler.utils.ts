@@ -13,6 +13,7 @@ import ConversationLogFormatter from 'shared/conversationLogFormatter.ts';
 //import { LLMProviderMessageMeta, LLMProviderMessageResponse } from 'api/types/llms.ts';
 import type { LLMMessageContentPartTextBlock } from 'api/llms/llmMessage.ts';
 import { getStatementHistory } from './statementHistory.utils.ts';
+import { getBbaiDir } from 'shared/dataDir.ts';
 import type {
 	ConversationContinue,
 	ConversationId,
@@ -47,18 +48,23 @@ export const palette = {
 };
 
 export class TerminalHandler {
-	private formatter: ConversationLogFormatter;
+	private formatter!: ConversationLogFormatter;
 	private history: string[] = [];
 	private spinner!: Spinner;
 	private statementInProgress: boolean = false;
-	private bbaiDir: string;
+	private startDir: string;
+	private bbaiDir!: string;
 	private apiClient!: ApiClient;
 
-	constructor(bbaiDir: string) {
-		this.formatter = new ConversationLogFormatter();
-		this.bbaiDir = bbaiDir;
+	constructor(startDir: string) {
+		this.startDir = startDir;
 		this.spinner = this.createSpinner('BBai warming up...');
+	}
+	public async init(): Promise<TerminalHandler> {
+		this.bbaiDir = await getBbaiDir(this.startDir);
 		this.loadHistory();
+		this.formatter = await new ConversationLogFormatter().init();
+		return this;
 	}
 
 	public async initializeTerminal(): Promise<void> {
@@ -80,7 +86,7 @@ export class TerminalHandler {
 			//colors.bold.blue(ansi.link('BBai', 'https://bbai.tips')) +
 			//+ '\n',
 		);
-		this.apiClient = await ApiClient.create();
+		this.apiClient = await ApiClient.create(this.startDir);
 	}
 
 	/*
@@ -191,11 +197,11 @@ export class TerminalHandler {
 		console.log(palette.secondary(`╭${'─'.repeat(cols - 2)}╮`));
 	}
 
-	public displayConversationStart(
+	public async displayConversationStart(
 		data: ConversationStart,
 		conversationId?: ConversationId,
 		expectingMoreInput: boolean = true,
-	): void {
+	): Promise<void> {
 		if (this.spinner) this.hideSpinner();
 		conversationId = data.conversationId;
 
@@ -263,9 +269,7 @@ export class TerminalHandler {
 		try {
 			const formatterResponse = await this.apiClient.post(
 				`/api/v1/format_log_entry/console/${logEntry.entryType}`,
-				{
-					...logEntry,
-				},
+				{ logEntry, startDir: this.startDir },
 			);
 
 			if (!formatterResponse.ok) {
@@ -273,7 +277,7 @@ export class TerminalHandler {
 			} else {
 				const responseContent = await formatterResponse.json();
 				const formattedContent = responseContent.formattedContent;
-				const formattedEntry = this.formatter.formatLogEntry(
+				const formattedEntry = await this.formatter.formatLogEntry(
 					logEntry.entryType,
 					timestamp,
 					//this.highlightOutput(formattedContent),
@@ -298,11 +302,11 @@ export class TerminalHandler {
 		}
 	}
 
-	public displayConversationAnswer(
+	public async displayConversationAnswer(
 		data: ConversationResponse,
 		conversationId?: ConversationId,
 		expectingMoreInput: boolean = false,
-	): void {
+	): Promise<void> {
 		//logger.debug(`displayConversationAnswer called with data: ${JSON.stringify(data)}`);
 		this.hideSpinner();
 		conversationId = data.conversationId;
@@ -324,7 +328,7 @@ export class TerminalHandler {
 
 		const timestamp = ConversationLogFormatter.getTimestamp();
 		const contentPart = data.response.answerContent[0] as LLMMessageContentPartTextBlock;
-		const formattedEntry = this.formatter.formatLogEntry(
+		const formattedEntry = await this.formatter.formatLogEntry(
 			'assistant',
 			timestamp,
 			this.highlightOutput(contentPart.text),
@@ -367,11 +371,11 @@ export class TerminalHandler {
 		}
 	}
 
-	public displayConversationComplete(
+	public async displayConversationComplete(
 		response: ConversationResponse,
 		options: { id?: string; text?: boolean },
 		_expectingMoreInput: boolean = false,
-	): void {
+	): Promise<void> {
 		this.hideSpinner();
 		const isNewConversation = !options.id;
 		const { conversationId, conversationStats, conversationTitle } = response;
@@ -457,7 +461,7 @@ export class TerminalHandler {
 		}
 	}
 
-	public displayError(data: unknown): void {
+	public async displayError(data: unknown): Promise<void> {
 		let errorMessage: string;
 
 		if (typeof data === 'object' && data !== null && 'error' in data && typeof data.error === 'string') {

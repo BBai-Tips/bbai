@@ -1,0 +1,7 @@
+{
+	"name": "move_files",
+	"description": "Move one or more files or directories to a new location within the project",
+	"version": "1.0.0",
+	"author": "BBai Team",
+	"license": "MIT"
+}
