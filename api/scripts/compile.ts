@@ -61,7 +61,7 @@ const compileProcess = new Deno.Command('deno', {
 		'compile',
 		'-A',
 		'--unstable',
-		target,
+		...(args.target ? ['--target', args.target] : []),
 		'--output',
 		output,
 		...includeArgs.split(' '),
