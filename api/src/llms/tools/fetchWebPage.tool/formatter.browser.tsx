@@ -2,7 +2,7 @@
 import type { JSX } from 'preact';
 import type { LLMToolInputSchema, LLMToolRunResultContent } from 'api/llms/llmTool.ts';
 //import type { LLMMessageContentPart, LLMMessageContentParts } from 'api/llms/llmMessage.ts';
-import { getContentFromToolResult } from '../../../utils/llms.utils.ts';
+import { getContentFromToolResult } from 'api/utils/llms.ts';
 
 export const formatToolUse = (toolInput: LLMToolInputSchema): JSX.Element => {
 	const { url } = toolInput as { url: string };

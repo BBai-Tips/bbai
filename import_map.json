@@ -66,6 +66,7 @@
 		"api/errors/error.ts": "./api/src/errors/error.ts",
 		"api/utils/fileHandling.ts": "./api/src/utils/fileHandling.utils.ts",
 		"api/utils/error.ts": "./api/src/utils/error.utils.ts",
+		"api/utils/llms.ts": "./api/src/utils/llms.utils.ts",
 		"api/llms/llmMessage.ts": "./api/src/llms/llmMessage.ts",
 		"api/llms/llmTool.ts": "./api/src/llms/llmTool.ts",
 		"api/llms/conversationInteraction.ts": "./api/src/llms/interactions/conversationInteraction.ts",

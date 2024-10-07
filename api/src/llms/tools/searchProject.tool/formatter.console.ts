@@ -2,7 +2,7 @@ import type { LLMToolInputSchema, LLMToolRunResultContent } from 'api/llms/llmTo
 //import type { LLMMessageContentPart, LLMMessageContentParts } from 'api/llms/llmMessage.ts';
 import { colors } from 'cliffy/ansi/colors.ts';
 import { stripIndents } from 'common-tags';
-import { getContentFromToolResult } from '../../../utils/llms.utils.ts';
+import { getContentFromToolResult } from 'api/utils/llms.ts';
 
 export const formatToolUse = (toolInput: LLMToolInputSchema): string => {
 	const { contentPattern, filePattern, dateAfter, dateBefore, sizeMin, sizeMax } = toolInput as {

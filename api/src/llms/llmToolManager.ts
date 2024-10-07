@@ -9,20 +9,25 @@ import { createError, ErrorType } from 'api/utils/error.ts';
 import type { LLMValidationErrorOptions } from '../errors/error.ts';
 import { logger } from 'shared/logger.ts';
 import type { FullConfigSchema } from 'shared/configManager.ts';
+
 import { compare as compareVersions, parse as parseVersion } from '@std/semver';
-import { dirname, fromFileUrl, join } from '@std/path';
+import { dirname, fromFileUrl, isAbsolute, join, SEPARATOR } from '@std/path';
 import { exists } from '@std/fs';
 
-const BUILT_IN_TOOL_DIRECTORY = join(dirname(fromFileUrl(import.meta.url)), 'tools');
+import { CORE_TOOLS } from './tools_manifest.ts';
 
-interface ToolMetadata {
+export interface ToolMetadata {
 	name: string;
 	version: string;
+	author: string;
+	license: string;
 	description: string;
-	path: string;
-	toolSets: string | string[];
-	enabled: boolean;
+	path?: string; // is set by code, not part of manifest
+	toolSets?: string | string[]; //defaults to 'core'
+	category?: string | string[];
+	enabled?: boolean; //defaults to true
 	error?: string;
+	config?: unknown;
 }
 
 export type LLMToolManagerToolSetType = 'core' | 'coding' | 'research' | 'creative';
@@ -42,17 +47,20 @@ class LLMToolManager {
 	}
 
 	async init() {
-		const toolDirectories = [
-			BUILT_IN_TOOL_DIRECTORY,
-			...this.fullConfig.userToolDirectories,
-		];
-
-		await this.loadToolMetadata(toolDirectories);
+		await this.loadToolMetadata(this.fullConfig.userToolDirectories);
 
 		return this;
 	}
 
 	private async loadToolMetadata(directories: string[]) {
+		for (const coreTool of CORE_TOOLS) {
+			const toolNamePath = join('tools', coreTool.toolNamePath);
+			coreTool.metadata.path = toolNamePath;
+			//logger.debug(`LLMToolManager: Metadata for CORE tool ${coreTool.toolNamePath}`, coreTool.metadata);
+			logger.debug(`LLMToolManager: Setting metadata for CORE tool ${coreTool.toolNamePath}`);
+			this.toolMetadata.set(coreTool.metadata.name, coreTool.metadata);
+		}
+
 		//logger.debug(`LLMToolManager: Processing tool directories:`, directories);
 		for (const directory of directories) {
 			logger.debug(`LLMToolManager: Checking ${directory} for tools`);
@@ -130,7 +138,7 @@ class LLMToolManager {
 
 	private shouldReplaceExistingTool(existing: ToolMetadata, newMetadata: ToolMetadata): boolean {
 		// Prefer user-supplied tools
-		if (this.fullConfig.userToolDirectories.some((dir) => newMetadata.path.startsWith(dir))) {
+		if (this.fullConfig.userToolDirectories.some((dir) => newMetadata.path!.startsWith(dir))) {
 			if (compareVersions(parseVersion(existing.version), parseVersion(newMetadata.version)) > 0) {
 				logger.warn(
 					`LLMToolManager: User-supplied tool ${newMetadata.name} (${newMetadata.version}) is older than built-in tool (${existing.version})`,
@@ -142,6 +150,7 @@ class LLMToolManager {
 	}
 
 	async getTool(name: string): Promise<LLMTool | undefined> {
+		logger.info(`LLMToolManager: Getting Tool ${name}`);
 		if (this.loadedTools.has(name)) {
 			logger.debug(`LLMToolManager: Returning cached ${name} tool`);
 			return this.loadedTools.get(name);
@@ -161,10 +170,14 @@ class LLMToolManager {
 		// Proceed with loading the tool
 
 		try {
-			logger.debug(`LLMToolManager: Tool ${name} is loading`);
-			const module = await import(`${metadata.path}/tool.ts`);
+			logger.info(`LLMToolManager: Is tool ${name} absolute ${metadata.path}`);
+			const toolPath = isAbsolute(metadata.path!)
+				? join(metadata.path!, 'tool.ts')
+				: `.${SEPARATOR}${metadata.path}${SEPARATOR}tool.ts`;
+			logger.info(`LLMToolManager: Tool ${name} is loading from ${toolPath}`);
+			const module = await import(toolPath);
 			const tool = new module.default();
-			logger.debug(`LLMToolManager: Tool ${tool.name} is loaded`);
+			//logger.debug(`LLMToolManager: Tool ${tool.name} is loaded`);
 			this.loadedTools.set(name, tool);
 			return tool;
 		} catch (error) {
@@ -179,10 +192,10 @@ class LLMToolManager {
 		return metadata ? `${metadata.path}/tool.ts` : undefined;
 	}
 
-	async getAllTools(): Promise<LLMTool[]> {
+	async getAllTools(enabledOnly = true): Promise<LLMTool[]> {
 		const tools: LLMTool[] = [];
 		for (const metadata of this.toolMetadata.values()) {
-			if (this.isToolEnabled(metadata)) {
+			if (enabledOnly && this.isToolEnabled(metadata)) {
 				const tool = await this.getTool(metadata.name);
 				if (tool) {
 					tools.push(tool);

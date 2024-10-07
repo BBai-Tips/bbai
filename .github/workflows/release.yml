@@ -48,7 +48,7 @@ jobs:
       - name: Build API for ${{ matrix.target }}
         run: |
           cd api
-          deno compile --allow-env --allow-net --allow-read --allow-run --allow-write --target ${{ matrix.target }} --output ../build/bbai-api${{ matrix.target == 'x86_64-pc-windows-msvc' && '.exe' || '' }} src/main.ts
+          deno run --allow-read --allow-run --allow-write scripts/compile.ts --target ${{ matrix.target }} --output ../build/bbai-api${{ matrix.target == 'x86_64-pc-windows-msvc' && '.exe' || '' }}
 
       - name: Create install script (Unix)
         if: matrix.target != 'x86_64-pc-windows-msvc'
