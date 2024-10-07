@@ -9,6 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 
 
+## [0.0.24-beta] - 2024-10-07
+
+### Changed
+
+- generate tools manifest file to facilitate loading from compiled binary
+- dynamically include tools at build compile time
+- update build scripts and release workflow to use compile script
+
+
 ## [0.0.23-beta] - 2024-10-06
 
 ### Changed

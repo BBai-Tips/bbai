@@ -19,7 +19,7 @@ import { isPathWithinProject } from 'api/utils/fileHandling.ts';
 import { logger } from 'shared/logger.ts';
 import { dirname, join } from '@std/path';
 import { ensureDir } from '@std/fs';
-import { getContentFromToolResult } from '../../../utils/llms.utils.ts';
+import { getContentFromToolResult } from 'api/utils/llms.ts';
 
 export default class LLMToolSearchAndReplace extends LLMTool {
 	private static readonly MIN_SEARCH_LENGTH = 1;

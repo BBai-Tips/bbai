@@ -1,6 +1,7 @@
-//import type { JSX } from 'preact';
+import type { JSX } from 'preact';
+
 import LLMTool from 'api/llms/llmTool.ts';
-import type { LLMToolInputSchema, LLMToolRunResult } from 'api/llms/llmTool.ts';
+import type { LLMToolInputSchema, LLMToolRunResult, LLMToolRunResultContent } from 'api/llms/llmTool.ts';
 import type LLMConversationInteraction from 'api/llms/conversationInteraction.ts';
 import type { LLMAnswerToolUse } from 'api/llms/llmMessage.ts';
 import type ProjectEditor from 'api/editor/projectEditor.ts';
@@ -8,6 +9,15 @@ import { createError, ErrorType } from 'api/utils/error.ts';
 import type { FileHandlingErrorOptions } from 'api/errors/error.ts';
 import { isPathWithinProject } from 'api/utils/fileHandling.ts';
 import { logger } from 'shared/logger.ts';
+import {
+	formatToolResult as formatToolResultBrowser,
+	formatToolUse as formatToolUseBrowser,
+} from './formatter.browser.tsx';
+import {
+	formatToolResult as formatToolResultConsole,
+	formatToolUse as formatToolUseConsole,
+} from './formatter.console.ts';
+
 import { dirname, join } from '@std/path';
 import { ensureDir } from '@std/fs';
 
@@ -230,6 +240,14 @@ export default class LLMToolSearchAndReplaceCode extends LLMTool {
 			},
 			required: ['filePath', 'operations'],
 		};
+	}
+
+	formatToolUse(toolInput: LLMToolInputSchema, format: 'console' | 'browser'): string | JSX.Element {
+		return format === 'console' ? formatToolUseConsole(toolInput) : formatToolUseBrowser(toolInput);
+	}
+
+	formatToolResult(toolResult: LLMToolRunResultContent, format: 'console' | 'browser'): string | JSX.Element {
+		return format === 'console' ? formatToolResultConsole(toolResult) : formatToolResultBrowser(toolResult);
 	}
 
 	/**

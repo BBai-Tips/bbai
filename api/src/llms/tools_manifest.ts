@@ -1,0 +1,164 @@
+// This file is auto-generated. Do not edit manually.
+import type { ToolMetadata } from './llmToolManager.ts';
+
+interface CoreTool {
+	toolNamePath: string;
+	metadata: ToolMetadata;
+}
+
+export const CORE_TOOLS: Array<CoreTool> = [
+	{
+		'toolNamePath': 'moveFiles.tool',
+		'metadata': {
+			'name': 'move_files',
+			'description': 'Move one or more files or directories to a new location within the project',
+			'version': '1.0.0',
+			'author': 'BBai Team',
+			'license': 'MIT',
+		},
+	},
+	{
+		'toolNamePath': 'searchProject.tool',
+		'metadata': {
+			'name': 'search_project',
+			'description': 'Searches the project for files matching content, name, date, or size criteria',
+			'version': '1.0.0',
+			'author': 'BBai Team',
+			'license': 'MIT',
+		},
+	},
+	{
+		'toolNamePath': 'requestFiles.tool',
+		'metadata': {
+			'name': 'request_files',
+			'description': 'Request one or more files within the project to be added to the conversation.',
+			'version': '1.0.0',
+			'author': 'BBai Team',
+			'license': 'MIT',
+		},
+	},
+	{
+		'toolNamePath': 'fetchWebScreenshot.tool',
+		'metadata': {
+			'name': 'fetch_web_screenshot',
+			'description': 'Fetches a screenshot of a specified web page',
+			'version': '1.0.0',
+			'author': 'BBai Team',
+			'license': 'MIT',
+		},
+	},
+	{
+		'toolNamePath': 'fetchWebPage.tool',
+		'metadata': {
+			'name': 'fetch_web_page',
+			'description': 'Fetches the content of a specified web page',
+			'version': '1.0.0',
+			'author': 'BBai Team',
+			'license': 'MIT',
+		},
+	},
+	{
+		'toolNamePath': 'searchAndReplace.tool',
+		'metadata': {
+			'name': 'search_and_replace',
+			'description': 'Apply a list of search and replace operations to a file',
+			'version': '1.0.0',
+			'author': 'BBai Team',
+			'license': 'MIT',
+		},
+	},
+	{
+		'toolNamePath': 'forgetFiles.tool',
+		'metadata': {
+			'name': 'forget_files',
+			'description': 'Remove and forget specified files from the chat when they are no longer needed',
+			'version': '1.0.0',
+			'category': 'FileManipulation',
+			'author': 'BBai Team',
+			'license': 'MIT',
+		},
+	},
+	{
+		'toolNamePath': 'searchAndReplaceMultilineCode.tool',
+		'metadata': {
+			'name': 'search_and_replace_multiline_code',
+			'description': 'Apply a list of search and replace operations to a file, supporting multiline code',
+			'enabled': false,
+			'version': '1.0.0',
+			'author': 'BBai Team',
+			'license': 'MIT',
+		},
+	},
+	{
+		'toolNamePath': 'vectorSearch.tool',
+		'metadata': {
+			'name': 'vector_search',
+			'description': 'Performs vector search operations',
+			'enabled': false,
+			'version': '1.0.0',
+			'author': 'BBai Team',
+			'license': 'MIT',
+		},
+	},
+	{
+		'toolNamePath': 'runCommand.tool',
+		'metadata': {
+			'name': 'run_command',
+			'description': 'Run a system command and return the output',
+			'version': '1.0.0',
+			'author': 'BBai Team',
+			'license': 'MIT',
+			'config': {
+				'allowedCommands': [
+					'deno task tool:check-types-project',
+					'deno task tool:check-types-args',
+					'deno task tool:test',
+					'deno task tool:format',
+				],
+			},
+		},
+	},
+	{
+		'toolNamePath': 'delegateTasks.tool',
+		'metadata': {
+			'name': 'delegate_tasks',
+			'description':
+				'Delegate tasks to child interactions. Input includes background, instructions, and resources. Output is the completed task requirements.',
+			'enabled': false,
+			'version': '1.0.0',
+			'author': 'BBai Team',
+			'license': 'MIT',
+		},
+	},
+	{
+		'toolNamePath': 'applyPatch.tool',
+		'metadata': {
+			'name': 'apply_patch',
+			'description': 'Apply a well-formed patch to one or more files',
+			'version': '1.0.0',
+			'author': 'BBai Team',
+			'license': 'MIT',
+		},
+	},
+	{
+		'toolNamePath': 'renameFiles.tool',
+		'metadata': {
+			'name': 'rename_files',
+			'description': 'Rename one or more files or directories within the project.',
+			'version': '1.0.0',
+			'author': 'BBai Team',
+			'license': 'MIT',
+		},
+	},
+	{
+		'toolNamePath': 'rewriteFile.tool',
+		'metadata': {
+			'name': 'rewrite_file',
+			'description': 'Rewrites an entire file or creates a new one',
+			'version': '1.0.0',
+			'category': 'FileManipulation',
+			'author': 'BBai Team',
+			'license': 'MIT',
+		},
+	},
+];
