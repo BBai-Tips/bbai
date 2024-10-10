@@ -28,13 +28,6 @@ interface MoveFilesParams {
 }
 
 export default class LLMToolMoveFiles extends LLMTool {
-	constructor() {
-		super(
-			'move_files',
-			'Move one or more files or directories to a new location within the project.',
-		);
-	}
-
 	get input_schema(): LLMToolInputSchema {
 		return {
 			type: 'object',

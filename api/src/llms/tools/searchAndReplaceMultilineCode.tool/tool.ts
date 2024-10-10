@@ -185,15 +185,6 @@ const languageConfigs: Record<string, LanguageConfig> = {
 export default class LLMToolSearchAndReplaceCode extends LLMTool {
 	private static readonly MIN_SEARCH_LENGTH = 1;
 
-	constructor() {
-		super(
-			'search_and_replace_code',
-			'Apply a list of search and replace operations to a file',
-		);
-		const url = new URL(import.meta.url);
-		this.fileName = url.pathname.split('/').pop() || '';
-	}
-
 	get input_schema(): LLMToolInputSchema {
 		return {
 			type: 'object',

@@ -4,7 +4,7 @@ import { join } from '@std/path';
 import { assert, assertStringIncludes } from 'api/tests/deps.ts';
 import LLMToolSearchProject from '../tool.ts';
 import { LLMAnswerToolUse } from 'api/llms/llmMessage.ts';
-import { getProjectEditor, withTestProject } from 'api/tests/testSetup.ts';
+import { getProjectEditor, getToolManager, withTestProject } from 'api/tests/testSetup.ts';
 
 async function createTestFiles(testProjectRoot: string) {
 	Deno.writeTextFileSync(join(testProjectRoot, 'file1.txt'), 'Hello, world!');
@@ -56,7 +56,9 @@ Deno.test({
 			const projectEditor = await getProjectEditor(testProjectRoot);
 			await createTestFiles(testProjectRoot);
 
-			const tool = new LLMToolSearchProject();
+			const toolManager = await getToolManager(projectEditor);
+			const tool = await toolManager.getTool('search_project');
+			assert(tool, 'Failed to get tool');
 
 			const toolUse: LLMAnswerToolUse = {
 				toolValidation: { validated: true, results: '' },
@@ -107,7 +109,9 @@ Deno.test({
 			const projectEditor = await getProjectEditor(testProjectRoot);
 			await createTestFiles(testProjectRoot);
 
-			const tool = new LLMToolSearchProject();
+			const toolManager = await getToolManager(projectEditor);
+			const tool = await toolManager.getTool('search_project');
+			assert(tool, 'Failed to get tool');
 
 			const toolUse: LLMAnswerToolUse = {
 				toolValidation: { validated: true, results: '' },
@@ -159,7 +163,9 @@ Deno.test({
 			const projectEditor = await getProjectEditor(testProjectRoot);
 			await createTestFiles(testProjectRoot);
 
-			const tool = new LLMToolSearchProject();
+			const toolManager = await getToolManager(projectEditor);
+			const tool = await toolManager.getTool('search_project');
+			assert(tool, 'Failed to get tool');
 
 			const toolUse: LLMAnswerToolUse = {
 				toolValidation: { validated: true, results: '' },
@@ -225,7 +231,9 @@ Deno.test({
 			const projectEditor = await getProjectEditor(testProjectRoot);
 			await createTestFiles(testProjectRoot);
 
-			const tool = new LLMToolSearchProject();
+			const toolManager = await getToolManager(projectEditor);
+			const tool = await toolManager.getTool('search_project');
+			assert(tool, 'Failed to get tool');
 
 			const toolUse: LLMAnswerToolUse = {
 				toolValidation: { validated: true, results: '' },
@@ -290,7 +298,9 @@ Deno.test({
 			const projectEditor = await getProjectEditor(testProjectRoot);
 			await createTestFiles(testProjectRoot);
 
-			const tool = new LLMToolSearchProject();
+			const toolManager = await getToolManager(projectEditor);
+			const tool = await toolManager.getTool('search_project');
+			assert(tool, 'Failed to get tool');
 
 			const toolUse: LLMAnswerToolUse = {
 				toolValidation: { validated: true, results: '' },
@@ -350,7 +360,9 @@ Deno.test({
 			const projectEditor = await getProjectEditor(testProjectRoot);
 			await createTestFiles(testProjectRoot);
 
-			const tool = new LLMToolSearchProject();
+			const toolManager = await getToolManager(projectEditor);
+			const tool = await toolManager.getTool('search_project');
+			assert(tool, 'Failed to get tool');
 
 			const toolUse: LLMAnswerToolUse = {
 				toolValidation: { validated: true, results: '' },
@@ -402,7 +414,9 @@ Deno.test({
 			const projectEditor = await getProjectEditor(testProjectRoot);
 			await createTestFiles(testProjectRoot);
 
-			const tool = new LLMToolSearchProject();
+			const toolManager = await getToolManager(projectEditor);
+			const tool = await toolManager.getTool('search_project');
+			assert(tool, 'Failed to get tool');
 
 			const toolUse: LLMAnswerToolUse = {
 				toolValidation: { validated: true, results: '' },
@@ -454,7 +468,9 @@ Deno.test({
 			const projectEditor = await getProjectEditor(testProjectRoot);
 			await createTestFiles(testProjectRoot);
 
-			const tool = new LLMToolSearchProject();
+			const toolManager = await getToolManager(projectEditor);
+			const tool = await toolManager.getTool('search_project');
+			assert(tool, 'Failed to get tool');
 
 			const toolUse: LLMAnswerToolUse = {
 				toolValidation: { validated: true, results: '' },
@@ -506,7 +522,9 @@ Deno.test({
 			const projectEditor = await getProjectEditor(testProjectRoot);
 			await createTestFiles(testProjectRoot);
 
-			const tool = new LLMToolSearchProject();
+			const toolManager = await getToolManager(projectEditor);
+			const tool = await toolManager.getTool('search_project');
+			assert(tool, 'Failed to get tool');
 
 			const toolUse: LLMAnswerToolUse = {
 				toolValidation: { validated: true, results: '' },
@@ -545,7 +563,9 @@ Deno.test({
 			const projectEditor = await getProjectEditor(testProjectRoot);
 			await createTestFiles(testProjectRoot);
 
-			const tool = new LLMToolSearchProject();
+			const toolManager = await getToolManager(projectEditor);
+			const tool = await toolManager.getTool('search_project');
+			assert(tool, 'Failed to get tool');
 
 			const toolUse: LLMAnswerToolUse = {
 				toolValidation: { validated: true, results: '' },
@@ -590,7 +610,9 @@ Deno.test({
 			const projectEditor = await getProjectEditor(testProjectRoot);
 			await createTestFiles(testProjectRoot);
 
-			const tool = new LLMToolSearchProject();
+			const toolManager = await getToolManager(projectEditor);
+			const tool = await toolManager.getTool('search_project');
+			assert(tool, 'Failed to get tool');
 
 			const toolUse: LLMAnswerToolUse = {
 				toolValidation: { validated: true, results: '' },
@@ -643,7 +665,9 @@ Deno.test({
 			const projectEditor = await getProjectEditor(testProjectRoot);
 			await createTestFiles(testProjectRoot);
 
-			const tool = new LLMToolSearchProject();
+			const toolManager = await getToolManager(projectEditor);
+			const tool = await toolManager.getTool('search_project');
+			assert(tool, 'Failed to get tool');
 
 			const toolUse: LLMAnswerToolUse = {
 				toolValidation: { validated: true, results: '' },
@@ -694,7 +718,9 @@ Deno.test({
 			const projectEditor = await getProjectEditor(testProjectRoot);
 			await createTestFiles(testProjectRoot);
 
-			const tool = new LLMToolSearchProject();
+			const toolManager = await getToolManager(projectEditor);
+			const tool = await toolManager.getTool('search_project');
+			assert(tool, 'Failed to get tool');
 
 			// Create a test file with the specific content
 			const testFilePath = join(testProjectRoot, 'bui', 'src', 'islands', 'Chat.tsx');
@@ -758,7 +784,9 @@ Deno.test({
 			const projectEditor = await getProjectEditor(testProjectRoot);
 			await createTestFiles(testProjectRoot);
 
-			const tool = new LLMToolSearchProject();
+			const toolManager = await getToolManager(projectEditor);
+			const tool = await toolManager.getTool('search_project');
+			assert(tool, 'Failed to get tool');
 
 			const toolUse: LLMAnswerToolUse = {
 				toolValidation: { validated: true, results: '' },
@@ -794,7 +822,9 @@ Deno.test({
 			const projectEditor = await getProjectEditor(testProjectRoot);
 			await createTestFiles(testProjectRoot);
 
-			const tool = new LLMToolSearchProject();
+			const toolManager = await getToolManager(projectEditor);
+			const tool = await toolManager.getTool('search_project');
+			assert(tool, 'Failed to get tool');
 
 			const toolUse: LLMAnswerToolUse = {
 				toolValidation: { validated: true, results: '' },
@@ -829,7 +859,9 @@ Deno.test({
 			const projectEditor = await getProjectEditor(testProjectRoot);
 			await createTestFiles(testProjectRoot);
 
-			const tool = new LLMToolSearchProject();
+			const toolManager = await getToolManager(projectEditor);
+			const tool = await toolManager.getTool('search_project');
+			assert(tool, 'Failed to get tool');
 
 			const toolUse: LLMAnswerToolUse = {
 				toolValidation: { validated: true, results: '' },
@@ -864,7 +896,9 @@ Deno.test({
 			const projectEditor = await getProjectEditor(testProjectRoot);
 			await createTestFiles(testProjectRoot);
 
-			const tool = new LLMToolSearchProject();
+			const toolManager = await getToolManager(projectEditor);
+			const tool = await toolManager.getTool('search_project');
+			assert(tool, 'Failed to get tool');
 
 			const toolUse: LLMAnswerToolUse = {
 				toolValidation: { validated: true, results: '' },
@@ -899,7 +933,9 @@ Deno.test({
 			const projectEditor = await getProjectEditor(testProjectRoot);
 			await createTestFiles(testProjectRoot);
 
-			const tool = new LLMToolSearchProject();
+			const toolManager = await getToolManager(projectEditor);
+			const tool = await toolManager.getTool('search_project');
+			assert(tool, 'Failed to get tool');
 
 			const toolUse: LLMAnswerToolUse = {
 				toolValidation: { validated: true, results: '' },
@@ -934,7 +970,9 @@ Deno.test({
 			const projectEditor = await getProjectEditor(testProjectRoot);
 			await createTestFiles(testProjectRoot);
 
-			const tool = new LLMToolSearchProject();
+			const toolManager = await getToolManager(projectEditor);
+			const tool = await toolManager.getTool('search_project');
+			assert(tool, 'Failed to get tool');
 
 			const toolUse: LLMAnswerToolUse = {
 				toolValidation: { validated: true, results: '' },
@@ -973,7 +1011,9 @@ Deno.test({
 			const projectEditor = await getProjectEditor(testProjectRoot);
 			await createTestFiles(testProjectRoot);
 
-			const tool = new LLMToolSearchProject();
+			const toolManager = await getToolManager(projectEditor);
+			const tool = await toolManager.getTool('search_project');
+			assert(tool, 'Failed to get tool');
 
 			const toolUse: LLMAnswerToolUse = {
 				toolValidation: { validated: true, results: '' },
@@ -1012,7 +1052,9 @@ Deno.test({
 			const projectEditor = await getProjectEditor(testProjectRoot);
 			await createTestFiles(testProjectRoot);
 
-			const tool = new LLMToolSearchProject();
+			const toolManager = await getToolManager(projectEditor);
+			const tool = await toolManager.getTool('search_project');
+			assert(tool, 'Failed to get tool');
 
 			const toolUse: LLMAnswerToolUse = {
 				toolValidation: { validated: true, results: '' },
@@ -1047,7 +1089,9 @@ Deno.test({
 			const projectEditor = await getProjectEditor(testProjectRoot);
 			await createTestFiles(testProjectRoot);
 
-			const tool = new LLMToolSearchProject();
+			const toolManager = await getToolManager(projectEditor);
+			const tool = await toolManager.getTool('search_project');
+			assert(tool, 'Failed to get tool');
 
 			const toolUse: LLMAnswerToolUse = {
 				toolValidation: { validated: true, results: '' },
@@ -1082,7 +1126,9 @@ Deno.test({
 			const projectEditor = await getProjectEditor(testProjectRoot);
 			await createTestFiles(testProjectRoot);
 
-			const tool = new LLMToolSearchProject();
+			const toolManager = await getToolManager(projectEditor);
+			const tool = await toolManager.getTool('search_project');
+			assert(tool, 'Failed to get tool');
 
 			const toolUse: LLMAnswerToolUse = {
 				toolValidation: { validated: true, results: '' },
@@ -1131,7 +1177,9 @@ Deno.test({
 			const projectEditor = await getProjectEditor(testProjectRoot);
 			await createTestFiles(testProjectRoot);
 
-			const tool = new LLMToolSearchProject();
+			const toolManager = await getToolManager(projectEditor);
+			const tool = await toolManager.getTool('search_project');
+			assert(tool, 'Failed to get tool');
 
 			const toolUse: LLMAnswerToolUse = {
 				toolValidation: { validated: true, results: '' },
@@ -1182,7 +1230,9 @@ Deno.test({
 			const projectEditor = await getProjectEditor(testProjectRoot);
 			await createTestFiles(testProjectRoot);
 
-			const tool = new LLMToolSearchProject();
+			const toolManager = await getToolManager(projectEditor);
+			const tool = await toolManager.getTool('search_project');
+			assert(tool, 'Failed to get tool');
 
 			const toolUse: LLMAnswerToolUse = {
 				toolValidation: { validated: true, results: '' },

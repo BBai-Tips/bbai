@@ -19,15 +19,6 @@ import { createError, ErrorType } from 'api/utils/error.ts';
 import { logger } from 'shared/logger.ts';
 
 export default class LLMToolForgetFiles extends LLMTool {
-	constructor() {
-		super(
-			'forget_files',
-			'Remove and Forget specified files from the chat when you no longer need them, to save on token cost and reduce the context you have to read.',
-		);
-		const url = new URL(import.meta.url);
-		this.fileName = url.pathname.split('/').pop() || '';
-	}
-
 	get input_schema(): LLMToolInputSchema {
 		return {
 			type: 'object',

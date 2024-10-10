@@ -22,14 +22,6 @@ import { ensureDir } from '@std/fs';
 import { dirname, join } from '@std/path';
 
 export default class LLMToolRewriteFile extends LLMTool {
-	constructor() {
-		super(
-			'rewrite_file',
-			'Rewrite an entire file or create a new one',
-		);
-		this.fileName = 'rewriteFileTool.ts';
-	}
-
 	get input_schema(): LLMToolInputSchema {
 		return {
 			type: 'object',

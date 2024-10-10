@@ -17,14 +17,6 @@ import { encodeBase64 } from '@std/encoding';
 import { createError, ErrorType } from 'api/utils/error.ts';
 
 export default class LLMToolFetchWebScreenshot extends LLMTool {
-	constructor() {
-		super(
-			'fetch_web_screenshot',
-			'Fetches a screenshot of a specified web page',
-		);
-		this.fileName = 'fetchWebScreenshotTool.ts';
-	}
-
 	get input_schema(): LLMToolInputSchema {
 		return {
 			type: 'object',

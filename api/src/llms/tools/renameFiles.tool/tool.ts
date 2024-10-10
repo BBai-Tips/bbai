@@ -28,13 +28,6 @@ interface RenameFilesParams {
 }
 
 export default class LLMToolRenameFiles extends LLMTool {
-	constructor() {
-		super(
-			'rename_files',
-			'Rename one or more files or directories within the project.',
-		);
-	}
-
 	get input_schema(): LLMToolInputSchema {
 		return {
 			type: 'object',

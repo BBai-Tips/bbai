@@ -20,15 +20,6 @@ import { searchEmbeddings } from '../../../utils/embedding.utils.ts';
 import { logger } from 'shared/logger.ts';
 
 export default class LLMToolVectorSearch extends LLMTool {
-	constructor() {
-		super(
-			'vector_search',
-			'Perform a vector search on the project files',
-		);
-		const url = new URL(import.meta.url);
-		this.fileName = url.pathname.split('/').pop() || '';
-	}
-
 	get input_schema(): LLMToolInputSchema {
 		return {
 			type: 'object',

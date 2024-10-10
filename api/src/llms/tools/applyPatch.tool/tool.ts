@@ -1,6 +1,6 @@
 import type { JSX } from 'preact';
 import LLMTool from 'api/llms/llmTool.ts';
-import type { LLMToolInputSchema, LLMToolRunResult, LLMToolRunResultContent } from 'api/llms/llmTool.ts';
+import type { LLMToolConfig, LLMToolInputSchema, LLMToolRunResult, LLMToolRunResultContent } from 'api/llms/llmTool.ts';
 import {
 	formatToolResult as formatToolResultBrowser,
 	formatToolUse as formatToolUseBrowser,
@@ -21,14 +21,6 @@ import { ensureDir } from '@std/fs';
 import * as diff from 'diff';
 
 export default class LLMToolApplyPatch extends LLMTool {
-	constructor() {
-		super(
-			'apply_patch',
-			'Apply a well-formed patch to one or more files',
-		);
-		this.fileName = 'applyPatchTool.ts';
-	}
-
 	get input_schema(): LLMToolInputSchema {
 		return {
 			type: 'object',

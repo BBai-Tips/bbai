@@ -4,7 +4,13 @@ import { assert, assertEquals, assertStringIncludes } from 'api/tests/deps.ts';
 import LLMToolRewriteFile from '../tool.ts';
 import { LLMAnswerToolUse } from 'api/llms/llmMessage.ts';
 import { makeOrchestratorControllerStub } from 'api/tests/stubs.ts';
-import { createTestInteraction, getProjectEditor, getTestFilePath, withTestProject } from 'api/tests/testSetup.ts';
+import {
+	createTestInteraction,
+	getProjectEditor,
+	getTestFilePath,
+	getToolManager,
+	withTestProject,
+} from 'api/tests/testSetup.ts';
 
 Deno.test({
 	name: 'Rewrite File Tool - rewrite existing file',
@@ -16,7 +22,10 @@ Deno.test({
 				projectEditor.orchestratorController,
 			);
 
-			const tool = new LLMToolRewriteFile();
+			const toolManager = await getToolManager(projectEditor);
+			const tool = await toolManager.getTool('rewrite_file');
+			assert(tool, 'Failed to get tool');
+
 			const logPatchAndCommitStub = orchestratorControllerStubMaker.logPatchAndCommitStub(() =>
 				Promise.resolve()
 			);
@@ -63,7 +72,9 @@ Deno.test({
 				projectEditor.orchestratorController,
 			);
 
-			const tool = new LLMToolRewriteFile();
+			const toolManager = await getToolManager(projectEditor);
+			const tool = await toolManager.getTool('rewrite_file');
+			assert(tool, 'Failed to get tool');
 			const logPatchAndCommitStub = orchestratorControllerStubMaker.logPatchAndCommitStub(() =>
 				Promise.resolve()
 			);
@@ -110,7 +121,9 @@ Deno.test({
 			const interaction = await createTestInteraction('test-conversation', projectEditor);
 			const orchestratorControllerStubMaker = makeOrchestratorControllerStub(projectEditor.orchestratorController);
 
-			const tool = new LLMToolRewriteFile();
+			const toolManager = await getToolManager(projectEditor);
+			const tool = await toolManager.getTool('rewrite_file');
+			assert(tool, 'Failed to get tool');
 
 			const logPatchAndCommitStub = orchestratorControllerStubMaker.logPatchAndCommitStub(() => Promise.resolve());
 			try {

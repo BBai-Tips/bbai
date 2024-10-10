@@ -5,7 +5,13 @@ import { join } from '@std/path';
 import LLMToolSearchAndReplace from '../tool.ts';
 import { LLMAnswerToolUse } from 'api/llms/llmMessage.ts';
 import { makeOrchestratorControllerStub } from 'api/tests/stubs.ts';
-import { createTestInteraction, getProjectEditor, getTestFilePath, withTestProject } from 'api/tests/testSetup.ts';
+import {
+	createTestInteraction,
+	getProjectEditor,
+	getTestFilePath,
+	getToolManager,
+	withTestProject,
+} from 'api/tests/testSetup.ts';
 
 Deno.test({
 	name: 'SearchAndReplaceTool - Basic functionality',
@@ -17,7 +23,10 @@ Deno.test({
 			);
 			const interaction = await createTestInteraction('test-conversation', projectEditor);
 
-			const tool = new LLMToolSearchAndReplace();
+			const toolManager = await getToolManager(projectEditor);
+			const tool = await toolManager.getTool('search_and_replace');
+			assert(tool, 'Failed to get tool');
+
 			const logPatchAndCommitStub = orchestratorControllerStubMaker.logPatchAndCommitStub(() =>
 				Promise.resolve()
 			);
@@ -85,7 +94,9 @@ Deno.test({
 			);
 			const interaction = await createTestInteraction('test-conversation', projectEditor);
 
-			const tool = new LLMToolSearchAndReplace();
+			const toolManager = await getToolManager(projectEditor);
+			const tool = await toolManager.getTool('search_and_replace');
+			assert(tool, 'Failed to get tool');
 			const logPatchAndCommitStub = orchestratorControllerStubMaker.logPatchAndCommitStub(() =>
 				Promise.resolve()
 			);
@@ -157,7 +168,9 @@ Deno.test({
 			);
 			const interaction = await createTestInteraction('test-conversation', projectEditor);
 
-			const tool = new LLMToolSearchAndReplace();
+			const toolManager = await getToolManager(projectEditor);
+			const tool = await toolManager.getTool('search_and_replace');
+			assert(tool, 'Failed to get tool');
 			const logPatchAndCommitStub = orchestratorControllerStubMaker.logPatchAndCommitStub(() =>
 				Promise.resolve()
 			);
@@ -201,7 +214,9 @@ Deno.test({
 			);
 			const interaction = await createTestInteraction('test-conversation', projectEditor);
 
-			const tool = new LLMToolSearchAndReplace();
+			const toolManager = await getToolManager(projectEditor);
+			const tool = await toolManager.getTool('search_and_replace');
+			assert(tool, 'Failed to get tool');
 			const logPatchAndCommitStub = orchestratorControllerStubMaker.logPatchAndCommitStub(() =>
 				Promise.resolve()
 			);
@@ -247,7 +262,9 @@ Deno.test({
 			);
 			const interaction = await createTestInteraction('test-conversation', projectEditor);
 
-			const tool = new LLMToolSearchAndReplace();
+			const toolManager = await getToolManager(projectEditor);
+			const tool = await toolManager.getTool('search_and_replace');
+			assert(tool, 'Failed to get tool');
 			const logPatchAndCommitStub = orchestratorControllerStubMaker.logPatchAndCommitStub(() =>
 				Promise.resolve()
 			);
@@ -313,7 +330,9 @@ Deno.test({
 			);
 			const interaction = await createTestInteraction('test-conversation', projectEditor);
 
-			const tool = new LLMToolSearchAndReplace();
+			const toolManager = await getToolManager(projectEditor);
+			const tool = await toolManager.getTool('search_and_replace');
+			assert(tool, 'Failed to get tool');
 			const logPatchAndCommitStub = orchestratorControllerStubMaker.logPatchAndCommitStub(() =>
 				Promise.resolve()
 			);
@@ -384,7 +403,9 @@ Deno.test({
 			);
 			const interaction = await createTestInteraction('test-conversation', projectEditor);
 
-			const tool = new LLMToolSearchAndReplace();
+			const toolManager = await getToolManager(projectEditor);
+			const tool = await toolManager.getTool('search_and_replace');
+			assert(tool, 'Failed to get tool');
 			const logPatchAndCommitStub = orchestratorControllerStubMaker.logPatchAndCommitStub(() =>
 				Promise.resolve()
 			);
@@ -432,7 +453,9 @@ Deno.test({
 			);
 			const interaction = await createTestInteraction('test-conversation', projectEditor);
 
-			const tool = new LLMToolSearchAndReplace();
+			const toolManager = await getToolManager(projectEditor);
+			const tool = await toolManager.getTool('search_and_replace');
+			assert(tool, 'Failed to get tool');
 			const logPatchAndCommitStub = orchestratorControllerStubMaker.logPatchAndCommitStub(() =>
 				Promise.resolve()
 			);
@@ -500,7 +523,9 @@ Deno.test({
 			);
 			const interaction = await createTestInteraction('test-conversation', projectEditor);
 
-			const tool = new LLMToolSearchAndReplace();
+			const toolManager = await getToolManager(projectEditor);
+			const tool = await toolManager.getTool('search_and_replace');
+			assert(tool, 'Failed to get tool');
 			const logPatchAndCommitStub = orchestratorControllerStubMaker.logPatchAndCommitStub(() =>
 				Promise.resolve()
 			);
@@ -565,7 +590,9 @@ Deno.test({
 			);
 			const interaction = await createTestInteraction('test-conversation', projectEditor);
 
-			const tool = new LLMToolSearchAndReplace();
+			const toolManager = await getToolManager(projectEditor);
+			const tool = await toolManager.getTool('search_and_replace');
+			assert(tool, 'Failed to get tool');
 			const logPatchAndCommitStub = orchestratorControllerStubMaker.logPatchAndCommitStub(() =>
 				Promise.resolve()
 			);
@@ -630,7 +657,9 @@ Deno.test({
 			);
 			const interaction = await createTestInteraction('test-conversation', projectEditor);
 
-			const tool = new LLMToolSearchAndReplace();
+			const toolManager = await getToolManager(projectEditor);
+			const tool = await toolManager.getTool('search_and_replace');
+			assert(tool, 'Failed to get tool');
 			const logPatchAndCommitStub = orchestratorControllerStubMaker.logPatchAndCommitStub(() =>
 				Promise.resolve()
 			);
@@ -698,7 +727,9 @@ Deno.test({
 			);
 			const interaction = await createTestInteraction('test-conversation', projectEditor);
 
-			const tool = new LLMToolSearchAndReplace();
+			const toolManager = await getToolManager(projectEditor);
+			const tool = await toolManager.getTool('search_and_replace');
+			assert(tool, 'Failed to get tool');
 			const logPatchAndCommitStub = orchestratorControllerStubMaker.logPatchAndCommitStub(() =>
 				Promise.resolve()
 			);
@@ -768,7 +799,9 @@ Deno.test({
 			);
 			const interaction = await createTestInteraction('test-conversation', projectEditor);
 
-			const tool = new LLMToolSearchAndReplace();
+			const toolManager = await getToolManager(projectEditor);
+			const tool = await toolManager.getTool('search_and_replace');
+			assert(tool, 'Failed to get tool');
 			const logPatchAndCommitStub = orchestratorControllerStubMaker.logPatchAndCommitStub(() =>
 				Promise.resolve()
 			);
@@ -837,7 +870,9 @@ Deno.test({
 			);
 			const interaction = await createTestInteraction('test-conversation', projectEditor);
 
-			const tool = new LLMToolSearchAndReplace();
+			const toolManager = await getToolManager(projectEditor);
+			const tool = await toolManager.getTool('search_and_replace');
+			assert(tool, 'Failed to get tool');
 			const logPatchAndCommitStub = orchestratorControllerStubMaker.logPatchAndCommitStub(() =>
 				Promise.resolve()
 			);
@@ -906,7 +941,9 @@ Deno.test({
 			);
 			const interaction = await createTestInteraction('test-conversation', projectEditor);
 
-			const tool = new LLMToolSearchAndReplace();
+			const toolManager = await getToolManager(projectEditor);
+			const tool = await toolManager.getTool('search_and_replace');
+			assert(tool, 'Failed to get tool');
 			const logPatchAndCommitStub = orchestratorControllerStubMaker.logPatchAndCommitStub(() =>
 				Promise.resolve()
 			);
@@ -961,7 +998,9 @@ Deno.test({
 			);
 			const interaction = await createTestInteraction('test-conversation', projectEditor);
 
-			const tool = new LLMToolSearchAndReplace();
+			const toolManager = await getToolManager(projectEditor);
+			const tool = await toolManager.getTool('search_and_replace');
+			assert(tool, 'Failed to get tool');
 			const logPatchAndCommitStub = orchestratorControllerStubMaker.logPatchAndCommitStub(() =>
 				Promise.resolve()
 			);
@@ -1018,7 +1057,9 @@ Deno.test({
 			);
 			const interaction = await createTestInteraction('test-conversation', projectEditor);
 
-			const tool = new LLMToolSearchAndReplace();
+			const toolManager = await getToolManager(projectEditor);
+			const tool = await toolManager.getTool('search_and_replace');
+			assert(tool, 'Failed to get tool');
 			const logPatchAndCommitStub = orchestratorControllerStubMaker.logPatchAndCommitStub(() =>
 				Promise.resolve()
 			);
@@ -1070,7 +1111,9 @@ Deno.test({
 			);
 			const interaction = await createTestInteraction('test-conversation', projectEditor);
 
-			const tool = new LLMToolSearchAndReplace();
+			const toolManager = await getToolManager(projectEditor);
+			const tool = await toolManager.getTool('search_and_replace');
+			assert(tool, 'Failed to get tool');
 			const logPatchAndCommitStub = orchestratorControllerStubMaker.logPatchAndCommitStub(() =>
 				Promise.resolve()
 			);
@@ -1122,7 +1165,9 @@ Deno.test({
 			);
 			const interaction = await createTestInteraction('test-conversation', projectEditor);
 
-			const tool = new LLMToolSearchAndReplace();
+			const toolManager = await getToolManager(projectEditor);
+			const tool = await toolManager.getTool('search_and_replace');
+			assert(tool, 'Failed to get tool');
 			const logPatchAndCommitStub = orchestratorControllerStubMaker.logPatchAndCommitStub(() =>
 				Promise.resolve()
 			);
@@ -1174,7 +1219,9 @@ Deno.test({
 			);
 			const interaction = await createTestInteraction('test-conversation', projectEditor);
 
-			const tool = new LLMToolSearchAndReplace();
+			const toolManager = await getToolManager(projectEditor);
+			const tool = await toolManager.getTool('search_and_replace');
+			assert(tool, 'Failed to get tool');
 			const logPatchAndCommitStub = orchestratorControllerStubMaker.logPatchAndCommitStub(() =>
 				Promise.resolve()
 			);
@@ -1226,7 +1273,9 @@ Deno.test({
 			);
 			const interaction = await createTestInteraction('test-conversation', projectEditor);
 
-			const tool = new LLMToolSearchAndReplace();
+			const toolManager = await getToolManager(projectEditor);
+			const tool = await toolManager.getTool('search_and_replace');
+			assert(tool, 'Failed to get tool');
 			const logPatchAndCommitStub = orchestratorControllerStubMaker.logPatchAndCommitStub(() =>
 				Promise.resolve()
 			);

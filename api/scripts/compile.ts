@@ -13,8 +13,7 @@ const args = parseArgs(Deno.args, {
 	alias: { t: 'target', o: 'output' },
 });
 
-const target = args.target ? `--target ${args.target}` : '';
-const output = args.output || OUTPUT_FILE;
+const outputFile = args.output || OUTPUT_FILE;
 
 async function getIncludeFiles() {
 	const includeFiles = [];
@@ -63,7 +62,7 @@ const compileProcess = new Deno.Command('deno', {
 		'--unstable',
 		...(args.target ? ['--target', args.target] : []),
 		'--output',
-		output,
+		outputFile,
 		...includeArgs.split(' '),
 		MAIN_FILE,
 	].filter(Boolean),

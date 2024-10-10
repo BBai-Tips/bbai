@@ -46,5 +46,5 @@
 			"src/fixtures/**/*.ts"
 		]
 	},
-	"version": "0.0.24a-beta"
+	"version": "0.0.25-beta"
 }

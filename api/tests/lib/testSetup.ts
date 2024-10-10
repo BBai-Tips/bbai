@@ -5,6 +5,7 @@ import { join } from '@std/path';
 import ProjectEditor from '../../src/editor/projectEditor.ts';
 import ProjectEditorManager from '../../src/editor/projectEditorManager.ts';
 import LLMConversationInteraction from '../../src/llms/interactions/conversationInteraction.ts';
+import LLMToolManager from '../../src/llms/llmToolManager.ts';
 
 export async function setupTestProject(): Promise<string> {
 	const testProjectRoot = Deno.makeTempDirSync();
@@ -32,6 +33,20 @@ export async function getProjectEditor(projectRoot: string): Promise<ProjectEdit
 	assert(projectEditor, 'Failed to get ProjectEditor');
 
 	return projectEditor;
+}
+
+export async function getToolManager(
+	projectEditor: ProjectEditor,
+	toolName?: string,
+	toolConfig?: Record<string, unknown>,
+): Promise<LLMToolManager> {
+	if (toolName && toolConfig) projectEditor.fullConfig.api.toolConfigs[toolName] = toolConfig;
+
+	const toolManager = await new LLMToolManager(projectEditor.fullConfig, 'core').init(); // Assuming 'core' is the default toolset
+
+	assert(toolManager, 'Failed to get LLMToolManager');
+
+	return toolManager;
 }
 
 // Ensure all file paths are relative to testProjectRoot

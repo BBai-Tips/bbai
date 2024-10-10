@@ -19,6 +19,8 @@ export interface ApiConfigSchema {
 	usePromptCaching?: boolean;
 	logFile?: string;
 	logLevel: 'debug' | 'info' | 'warn' | 'error';
+	userToolDirectories: string[];
+	toolConfigs: Record<string, unknown>;
 }
 export interface BuiConfigSchema {
 	environment?: string;
@@ -55,7 +57,6 @@ export interface GlobalConfigSchema {
 	version: string;
 	bbaiExeName: string;
 	bbaiApiExeName: string;
-	userToolDirectories: string[];
 }
 
 export interface ProjectConfigSchema {
@@ -67,7 +68,6 @@ export interface ProjectConfigSchema {
 	api: ApiConfigSchema;
 	bui: BuiConfigSchema;
 	cli: Record<string, unknown>;
-	userToolDirectories: string[];
 }
 
 export interface FullConfigSchema extends GlobalConfigSchema, ProjectConfigSchema {}
@@ -85,6 +85,8 @@ export const defaultGlobalConfig: GlobalConfigSchema = {
 		usePromptCaching: true,
 		logFile: 'api.log',
 		logLevel: 'info',
+		toolConfigs: {},
+		userToolDirectories: ['./tools'], // This will be resolved to an absolute path by ConfigManager
 	},
 	bui: {
 		environment: 'local',
@@ -104,7 +106,6 @@ export const defaultGlobalConfig: GlobalConfigSchema = {
 	version: 'unknown', // This will be overwritten by the actual version from version.ts
 	bbaiExeName: 'bbai', // This will be overwritten by the correct exe name when creating globalConfig
 	bbaiApiExeName: 'bbai-api', // This will be overwritten by the correct exe name when creating globalConfig
-	userToolDirectories: ['./tools'], // This will be resolved to an absolute path by ConfigManager
 };
 
 export const defaultProjectConfig: ProjectConfigSchema = {
@@ -120,6 +121,8 @@ export const defaultProjectConfig: ProjectConfigSchema = {
 		usePromptCaching: true,
 		logFile: 'api.log',
 		logLevel: 'info',
+		toolConfigs: {},
+		userToolDirectories: ['./tools'], // This will be resolved to an absolute path by ConfigManager
 	},
 	bui: {
 		environment: 'local',
@@ -136,7 +139,6 @@ export const defaultProjectConfig: ProjectConfigSchema = {
 		name: Deno.cwd(),
 		type: 'local',
 	},
-	userToolDirectories: ['./tools'], // This will be resolved to an absolute path by ConfigManager
 };
 
 export function mergeConfigs(

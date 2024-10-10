@@ -71,7 +71,8 @@ export const CORE_TOOLS: Array<CoreTool> = [
 		'toolNamePath': 'forgetFiles.tool',
 		'metadata': {
 			'name': 'forget_files',
-			'description': 'Remove and forget specified files from the chat when they are no longer needed',
+			'description':
+				'Remove and Forget specified files from the chat when you no longer need them, to save on token cost and reduce the context you have to read',
 			'version': '1.0.0',
 			'category': 'FileManipulation',
 			'author': 'BBai Team',
@@ -125,6 +126,17 @@ export const CORE_TOOLS: Array<CoreTool> = [
 			'description':
 				'Delegate tasks to child interactions. Input includes background, instructions, and resources. Output is the completed task requirements.',
 			'enabled': false,
+			'version': '1.0.0',
+			'author': 'BBai Team',
+			'license': 'MIT',
+		},
+	},
+	{
+		'toolNamePath': 'multiModelQuery.tool',
+		'metadata': {
+			'name': 'multi_model_query',
+			'description':
+				'Query multiple LLM models with the same prompt and return their exact responses; DO NOT summarize or analyze',
 			'version': '1.0.0',
 			'author': 'BBai Team',
 			'license': 'MIT',

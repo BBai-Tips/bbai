@@ -1,11 +1,11 @@
-import { assertStringIncludes } from 'api/tests/deps.ts';
+import { assert, assertStringIncludes } from 'api/tests/deps.ts';
 import { join } from '@std/path';
 import { stripIndents } from 'common-tags';
 import { stripAnsiCode } from '@std/fmt/colors';
 
 import LLMToolRunCommand from '../tool.ts';
 import type { LLMAnswerToolUse } from 'api/llms/llmMessage.ts';
-import { getProjectEditor, withTestProject } from 'api/tests/testSetup.ts';
+import { getProjectEditor, getToolManager, withTestProject } from 'api/tests/testSetup.ts';
 
 function createTestFiles(testProjectRoot: string) {
 	// Create a simple TypeScript file
@@ -41,6 +41,15 @@ function createTestFiles(testProjectRoot: string) {
 	);
 }
 
+const toolConfig = {
+	allowedCommands: [
+		'deno task tool:check-types-project',
+		'deno task tool:check-types-args',
+		'deno task tool:test',
+		'deno task tool:format',
+	],
+};
+
 Deno.test({
 	name: 'RunCommandTool - Execute allowed command: deno task tool:check-types',
 	fn: async () => {
@@ -48,7 +57,9 @@ Deno.test({
 			const projectEditor = await getProjectEditor(testProjectRoot);
 			createTestFiles(testProjectRoot);
 
-			const tool = new LLMToolRunCommand();
+			const toolManager = await getToolManager(projectEditor, 'run_command', toolConfig);
+			const tool = await toolManager.getTool('run_command');
+			assert(tool, 'Failed to get tool');
 
 			const toolUse: LLMAnswerToolUse = {
 				toolValidation: { validated: true, results: '' },
@@ -61,9 +72,12 @@ Deno.test({
 
 			const conversation = await projectEditor.initConversation('test-conversation-id');
 			const result = await tool.runTool(conversation, toolUse, projectEditor);
+			// console.log('Execute allowed command: deno task tool:check-types - bbaiResponse:', result.bbaiResponse);
+			// console.log('Execute allowed command: deno task tool:check-types - toolResponse:', result.toolResponse);
+			// console.log('Execute allowed command: deno task tool:check-types - toolResults:', result.toolResults);
 
 			assertStringIncludes(result.bbaiResponse, 'BBai ran command: deno task tool:check-types-args');
-			assertStringIncludes(result.toolResponse, 'Command ran with errors');
+			assertStringIncludes(result.toolResponse, 'Command completed successfully');
 			assertStringIncludes(stripAnsiCode(result.toolResults as string), 'Command executed with exit code: 0');
 			assertStringIncludes(
 				stripAnsiCode(result.toolResults as string),
@@ -82,7 +96,9 @@ Deno.test({
 			const projectEditor = await getProjectEditor(testProjectRoot);
 			createTestFiles(testProjectRoot);
 
-			const tool = new LLMToolRunCommand();
+			const toolManager = await getToolManager(projectEditor, 'run_command', toolConfig);
+			const tool = await toolManager.getTool('run_command');
+			assert(tool, 'Failed to get tool');
 
 			const toolUse: LLMAnswerToolUse = {
 				toolValidation: { validated: true, results: '' },
@@ -95,10 +111,12 @@ Deno.test({
 
 			const conversation = await projectEditor.initConversation('test-conversation-id');
 			const result = await tool.runTool(conversation, toolUse, projectEditor);
-			//console.log('Execute allowed command: deno task tool:test:', result);
+			// console.log('Execute allowed command: deno task tool:test - bbaiResponse:', result.bbaiResponse);
+			// console.log('Execute allowed command: deno task tool:test - toolResponse:', result.toolResponse);
+			// console.log('Execute allowed command: deno task tool:test - toolResults:', result.toolResults);
 
 			assertStringIncludes(result.bbaiResponse, 'BBai ran command: deno task tool:test');
-			assertStringIncludes(result.toolResponse, 'Command ran with errors');
+			assertStringIncludes(result.toolResponse, 'Command completed successfully');
 			assertStringIncludes(stripAnsiCode(result.toolResults as string), 'Command executed with exit code: 0');
 			assertStringIncludes(
 				stripAnsiCode(result.toolResults as string),
@@ -121,7 +139,9 @@ Deno.test({
 			const projectEditor = await getProjectEditor(testProjectRoot);
 			createTestFiles(testProjectRoot);
 
-			const tool = new LLMToolRunCommand();
+			const toolManager = await getToolManager(projectEditor, 'run_command', toolConfig);
+			const tool = await toolManager.getTool('run_command');
+			assert(tool, 'Failed to get tool');
 
 			const toolUse: LLMAnswerToolUse = {
 				toolValidation: { validated: true, results: '' },
@@ -136,7 +156,7 @@ Deno.test({
 			const result = await tool.runTool(conversation, toolUse, projectEditor);
 
 			assertStringIncludes(result.bbaiResponse, 'BBai ran command: deno task tool:format');
-			assertStringIncludes(result.toolResponse, 'Command ran with errors');
+			assertStringIncludes(result.toolResponse, 'Command completed successfully');
 			assertStringIncludes(stripAnsiCode(result.toolResults as string), 'Command executed with exit code: 0');
 			assertStringIncludes(
 				stripAnsiCode(result.toolResults as string),
@@ -159,7 +179,9 @@ Deno.test({
 			const projectEditor = await getProjectEditor(testProjectRoot);
 			createTestFiles(testProjectRoot);
 
-			const tool = new LLMToolRunCommand();
+			const toolManager = await getToolManager(projectEditor, 'run_command', toolConfig);
+			const tool = await toolManager.getTool('run_command');
+			assert(tool, 'Failed to get tool');
 
 			const toolUse: LLMAnswerToolUse = {
 				toolValidation: { validated: true, results: '' },

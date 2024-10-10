@@ -9,6 +9,7 @@ import type { ConversationId } from 'shared/types.ts';
 
 export type LLMToolInputSchema = JSONSchema4;
 export type LLMToolRunResultContent = string | LLMMessageContentPart | LLMMessageContentParts;
+import { logger } from 'shared/logger.ts';
 
 export interface LLMToolFinalizeResult {
 	messageId: string;
@@ -21,6 +22,8 @@ export interface LLMToolRunResult {
 	finalize?: (messageId: ConversationId) => void;
 }
 
+export type LLMToolConfig = Record<string, unknown>;
+
 export type LLMToolFormatterDestination = 'console' | 'browser';
 export type LLMToolUseInputFormatter = (toolInput: LLMToolInputSchema, format: LLMToolFormatterDestination) => string;
 export type LLMToolRunResultFormatter = (
@@ -29,12 +32,17 @@ export type LLMToolRunResultFormatter = (
 ) => string;
 
 abstract class LLMTool {
-	public fileName!: string;
-
 	constructor(
 		public name: string,
 		public description: string,
-	) {}
+		public toolConfig: LLMToolConfig,
+	) {
+		//logger.info(`LLMTool: Constructing tool ${name}`);
+	}
+
+	public async init(): Promise<LLMTool> {
+		return this;
+	}
 
 	abstract get input_schema(): LLMToolInputSchema;
 

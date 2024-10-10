@@ -18,14 +18,6 @@ import { createError, ErrorType } from 'api/utils/error.ts';
 //import { getContentFromToolResult } from '../../utils/llms.utils.ts';
 
 export default class LLMToolFetchWebPage extends LLMTool {
-	constructor() {
-		super(
-			'fetch_web_page',
-			'Fetches the content of a specified web page',
-		);
-		this.fileName = 'fetchWebPageTool.ts';
-	}
-
 	get input_schema(): LLMToolInputSchema {
 		return {
 			type: 'object',

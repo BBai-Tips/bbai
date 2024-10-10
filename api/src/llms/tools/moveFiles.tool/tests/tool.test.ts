@@ -3,9 +3,8 @@ import { assert, assertEquals, assertStringIncludes } from 'api/tests/deps.ts';
 import { join } from '@std/path';
 import { ensureDir, ensureFile, exists } from '@std/fs';
 
-import LLMToolMoveFiles from '../tool.ts';
 import { LLMAnswerToolUse } from 'api/llms/llmMessage.ts';
-import { getProjectEditor, withTestProject } from 'api/tests/testSetup.ts';
+import { getProjectEditor, getToolManager, withTestProject } from 'api/tests/testSetup.ts';
 
 Deno.test({
 	name: 'MoveFilesTool - Move single file',
@@ -19,7 +18,9 @@ Deno.test({
 			await ensureDir(destDir);
 			await Deno.writeTextFile(sourceFile, 'test content');
 
-			const tool = new LLMToolMoveFiles();
+			const toolManager = await getToolManager(projectEditor);
+			const tool = await toolManager.getTool('move_files');
+			assert(tool, 'Failed to get tool');
 
 			const toolUse: LLMAnswerToolUse = {
 				toolValidation: { validated: true, results: '' },
@@ -72,7 +73,9 @@ Deno.test({
 			await ensureFile(sourceFile);
 			await Deno.writeTextFile(sourceFile, 'test content');
 
-			const tool = new LLMToolMoveFiles();
+			const toolManager = await getToolManager(projectEditor);
+			const tool = await toolManager.getTool('move_files');
+			assert(tool, 'Failed to get tool');
 
 			const toolUse: LLMAnswerToolUse = {
 				toolValidation: { validated: true, results: '' },
@@ -112,7 +115,9 @@ Deno.test({
 			await ensureFile(sourceFile);
 			await Deno.writeTextFile(sourceFile, 'test content');
 
-			const tool = new LLMToolMoveFiles();
+			const toolManager = await getToolManager(projectEditor);
+			const tool = await toolManager.getTool('move_files');
+			assert(tool, 'Failed to get tool');
 
 			const toolUse: LLMAnswerToolUse = {
 				toolValidation: { validated: true, results: '' },
@@ -168,7 +173,9 @@ Deno.test({
 			await ensureFile(sourceFile1);
 			await ensureFile(sourceFile2);
 
-			const tool = new LLMToolMoveFiles();
+			const toolManager = await getToolManager(projectEditor);
+			const tool = await toolManager.getTool('move_files');
+			assert(tool, 'Failed to get tool');
 
 			const toolUse: LLMAnswerToolUse = {
 				toolValidation: { validated: true, results: '' },
@@ -238,7 +245,9 @@ Deno.test({
 			await ensureDir(destDir);
 			await Deno.writeTextFile(join(sourceDir, 'file.txt'), 'dir content');
 
-			const tool = new LLMToolMoveFiles();
+			const toolManager = await getToolManager(projectEditor);
+			const tool = await toolManager.getTool('move_files');
+			assert(tool, 'Failed to get tool');
 
 			const toolUse: LLMAnswerToolUse = {
 				toolValidation: { validated: true, results: '' },
@@ -309,7 +318,9 @@ Deno.test({
 			await ensureFile(join(destDir, 'overwrite.txt'));
 			await Deno.writeTextFile(join(destDir, 'overwrite.txt'), 'old content');
 
-			const tool = new LLMToolMoveFiles();
+			const toolManager = await getToolManager(projectEditor);
+			const tool = await toolManager.getTool('move_files');
+			assert(tool, 'Failed to get tool');
 
 			const toolUse: LLMAnswerToolUse = {
 				toolValidation: { validated: true, results: '' },
@@ -372,7 +383,9 @@ Deno.test({
 			await ensureFile(join(destDir, 'no_overwrite.txt'));
 			await Deno.writeTextFile(join(destDir, 'no_overwrite.txt'), 'old content');
 
-			const tool = new LLMToolMoveFiles();
+			const toolManager = await getToolManager(projectEditor);
+			const tool = await toolManager.getTool('move_files');
+			assert(tool, 'Failed to get tool');
 
 			const toolUse: LLMAnswerToolUse = {
 				toolValidation: { validated: true, results: '' },
@@ -431,7 +444,9 @@ Deno.test({
 			const destDir = join(testProjectRoot, 'non_existent_dest');
 			await ensureDir(destDir);
 
-			const tool = new LLMToolMoveFiles();
+			const toolManager = await getToolManager(projectEditor);
+			const tool = await toolManager.getTool('move_files');
+			assert(tool, 'Failed to get tool');
 
 			const toolUse: LLMAnswerToolUse = {
 				toolValidation: { validated: true, results: '' },

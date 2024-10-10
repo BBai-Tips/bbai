@@ -1,6 +1,6 @@
 import type { JSX } from 'preact';
 import LLMTool from 'api/llms/llmTool.ts';
-import type { LLMToolInputSchema, LLMToolRunResult, LLMToolRunResultContent } from 'api/llms/llmTool.ts';
+import type { LLMToolConfig, LLMToolInputSchema, LLMToolRunResult, LLMToolRunResultContent } from 'api/llms/llmTool.ts';
 import {
 	formatToolResult as formatToolResultBrowser,
 	formatToolUse as formatToolUseBrowser,
@@ -15,21 +15,22 @@ import type ProjectEditor from 'api/editor/projectEditor.ts';
 import { createError, ErrorType } from 'api/utils/error.ts';
 import { logger } from 'shared/logger.ts';
 
-export default class LLMToolRunCommand extends LLMTool {
-	private static readonly ALLOWED_COMMANDS = [
-		'deno task tool:check-types-project',
-		'deno task tool:check-types-args',
-		'deno task tool:test',
-		'deno task tool:format',
-	];
+interface LLMToolRunCommandConfig extends LLMToolConfig {
+	allowedCommands?: string[];
+}
 
-	constructor() {
+export default class LLMToolRunCommand extends LLMTool {
+	private allowedCommands: Array<string>;
+
+	constructor(name: string, description: string, toolConfig: LLMToolRunCommandConfig) {
 		super(
-			'run_command',
-			'Run a system command and return the output',
+			name,
+			description,
+			toolConfig,
 		);
-		const url = new URL(import.meta.url);
-		this.fileName = url.pathname.split('/').pop() || '';
+
+		this.allowedCommands = toolConfig.allowedCommands || [];
+		//logger.debug(`LLMToolRunCommand: allowedCommands`, this.allowedCommands);
 	}
 
 	get input_schema(): LLMToolInputSchema {
@@ -38,7 +39,7 @@ export default class LLMToolRunCommand extends LLMTool {
 			properties: {
 				command: {
 					type: 'string',
-					enum: LLMToolRunCommand.ALLOWED_COMMANDS,
+					enum: this.allowedCommands,
 					description: 'The command to run',
 				},
 				args: {
@@ -72,7 +73,7 @@ export default class LLMToolRunCommand extends LLMTool {
 			args?: string[];
 		};
 
-		if (!LLMToolRunCommand.ALLOWED_COMMANDS.some((allowed) => command.startsWith(allowed))) {
+		if (!this.allowedCommands.some((allowed) => command.startsWith(allowed))) {
 			const toolResults = `Command not allowed: ${command}`;
 
 			const bbaiResponse = `BBai won't run unapproved commands: ${command}`;
@@ -95,13 +96,16 @@ export default class LLMToolRunCommand extends LLMTool {
 				const output = new TextDecoder().decode(stdout);
 				const errorOutput = new TextDecoder().decode(stderr);
 
-				const isError = code !== 0 || errorOutput !== '';
+				const isError = code !== 0;
+				const stderrContainsError = this.checkStderrForErrors(errorOutput, command);
 
 				const toolResults = `Command executed with exit code: ${code}\n\nOutput:\n${output}${
 					errorOutput ? `\n\nError output:\n${errorOutput}` : ''
 				}`;
-				const toolResponse = isError ? 'Command ran with errors' : 'Command ran successfully';
-				const bbaiResponse = `BBai ran command: ${command}`;
+				const toolResponse = isError ? 'Command exited with non-zero status' : 'Command completed successfully';
+				const bbaiResponse = `BBai ran command: ${command}${
+					stderrContainsError ? ' (with potential issues in stderr)' : ''
+				}`;
 
 				return { toolResults, toolResponse, bbaiResponse };
 			} catch (error) {
@@ -115,5 +119,21 @@ export default class LLMToolRunCommand extends LLMTool {
 				});
 			}
 		}
+	}
+
+	private checkStderrForErrors(stderr: string, command: string): boolean {
+		// List of strings that indicate an actual error in stderr
+		const errorIndicators = ['error:', 'exception:', 'failed:'];
+
+		// Check if any error indicators are present in stderr
+		const containsError = errorIndicators.some((indicator) => stderr.toLowerCase().includes(indicator));
+
+		// For Deno commands, presence of output in stderr doesn't always indicate an error
+		if (command.startsWith('deno') && !containsError) {
+			return false;
+		}
+
+		// For other commands, any output to stderr is considered an error
+		return stderr.trim() !== '';
 	}
 }

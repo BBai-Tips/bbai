@@ -14,7 +14,7 @@ This document serves as a guide for creating new tools in the BBai project. It i
 
 3. **Create the Tool Directory**: Create a new directory in the `api/src/llms/tools` directory. Name it according to the existing naming convention (e.g., `newToolName.tool`).
 
-4. **Create the Tool File**: Within the new tool directory, create a `tool.ts` file. Copy the structure and style from the reference tool, modifying only what's necessary for the new functionality.
+4. **Create the Tool File**: Within the new tool directory, create a `tool.ts` file. Copy the structure and style from the reference tool, modifying only what's necessary for the new functionality. The file path should be `api/src/llms/tools/newToolName.tool/tool.ts`.
 
 5. **Create Formatter Files**: In the same tool directory, create two new files:
    - `formatter.browser.tsx` for browser formatting
@@ -26,7 +26,7 @@ This document serves as a guide for creating new tools in the BBai project. It i
 
 8. **Error Handling and Input Validation**: Implement robust error handling and input validation.
 
-9. **Testing**: Create a `tests` directory within your tool's directory. Create comprehensive tests for the new tool in this directory. Use the reference tool's test file as a template, modifying only what's necessary for the new functionality. It is critical to read the TESTING.md file before writing tests to ensure consistency and proper test coverage.
+9. **Testing**: Create a `tests` directory within your tool's directory. Create comprehensive tests for the new tool in this directory. The test file should be located at `api/src/llms/tools/newToolName.tool/tests/tool.test.ts`. Use the reference tool's test file as a template, modifying only what's necessary for the new functionality. It is critical to read the TESTING.md file before writing tests to ensure consistency and proper test coverage. Tests in this directory will be run automatically by the testing framework.
 
 10. **Documentation**: Add necessary documentation for the tool.
 
@@ -166,11 +166,15 @@ Tools that execute system commands. Example: RunCommand tool.
 - Sanitize and validate command inputs to prevent injection attacks.
 
 ## Important Notes
-- Tools are dynamically loaded by the LLMToolManager at runtime, so there's no need to manually register them.
+- Tools are dynamically loaded by the LLMToolManager at runtime, so there's no need to manually register them. Update the `info.json` file in the tool directory instead of modifying `tools_manifest.ts`, which is built automatically.
 - After adding or modifying tools, always restart the API server to ensure the changes are applied.
 - Be cautious when implementing tools that interact with the file system or execute commands, as they can have significant impacts on the user's environment.
 - Consider the impact of the tool on the overall conversation flow and user experience.
 - Ensure that both browser and console formatters are implemented and used correctly for each tool.
+
+## Tool Information File
+
+Each tool should have an `info.json` file in its directory. This file should contain metadata about the tool, such as its name, description, and any other relevant information. The `tools_manifest.ts` file is generated automatically based on these `info.json` files, so there's no need to modify it directly.
 
 ## Conclusion
 

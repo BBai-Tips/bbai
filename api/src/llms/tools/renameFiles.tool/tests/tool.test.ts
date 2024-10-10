@@ -5,7 +5,7 @@ import { ensureFile, exists } from '@std/fs';
 
 import LLMToolRenameFiles from '../tool.ts';
 import { LLMAnswerToolUse } from 'api/llms/llmMessage.ts';
-import { getProjectEditor, withTestProject } from 'api/tests/testSetup.ts';
+import { getProjectEditor, getToolManager, withTestProject } from 'api/tests/testSetup.ts';
 
 Deno.test({
 	name: 'RenameFilesTool - Rename single file',
@@ -18,7 +18,9 @@ Deno.test({
 			await ensureFile(sourceFile);
 			await Deno.writeTextFile(sourceFile, 'test content');
 
-			const tool = new LLMToolRenameFiles();
+			const toolManager = await getToolManager(projectEditor);
+			const tool = await toolManager.getTool('rename_files');
+			assert(tool, 'Failed to get tool');
 
 			const toolUse: LLMAnswerToolUse = {
 				toolValidation: { validated: true, results: '' },
@@ -70,7 +72,9 @@ Deno.test({
 			await ensureFile(sourceFile);
 			await Deno.writeTextFile(sourceFile, 'test content');
 
-			const tool = new LLMToolRenameFiles();
+			const toolManager = await getToolManager(projectEditor);
+			const tool = await toolManager.getTool('rename_files');
+			assert(tool, 'Failed to get tool');
 
 			const toolUse: LLMAnswerToolUse = {
 				toolValidation: { validated: true, results: '' },
@@ -108,7 +112,9 @@ Deno.test({
 			await ensureFile(sourceFile);
 			await Deno.writeTextFile(sourceFile, 'test content');
 
-			const tool = new LLMToolRenameFiles();
+			const toolManager = await getToolManager(projectEditor);
+			const tool = await toolManager.getTool('rename_files');
+			assert(tool, 'Failed to get tool');
 
 			const toolUse: LLMAnswerToolUse = {
 				toolValidation: { validated: true, results: '' },
@@ -149,7 +155,9 @@ Deno.test({
 			await Deno.writeTextFile(sourceFile1, 'content1');
 			await Deno.writeTextFile(sourceFile2, 'content2');
 
-			const tool = new LLMToolRenameFiles();
+			const toolManager = await getToolManager(projectEditor);
+			const tool = await toolManager.getTool('rename_files');
+			assert(tool, 'Failed to get tool');
 
 			const toolUse: LLMAnswerToolUse = {
 				toolValidation: { validated: true, results: '' },
@@ -198,7 +206,9 @@ Deno.test({
 			await Deno.writeTextFile(sourceFile, 'new content');
 			await Deno.writeTextFile(destFile, 'old content');
 
-			const tool = new LLMToolRenameFiles();
+			const toolManager = await getToolManager(projectEditor);
+			const tool = await toolManager.getTool('rename_files');
+			assert(tool, 'Failed to get tool');
 
 			const toolUse: LLMAnswerToolUse = {
 				toolValidation: { validated: true, results: '' },
@@ -238,7 +248,9 @@ Deno.test({
 			await Deno.writeTextFile(sourceFile, 'new content');
 			await Deno.writeTextFile(destFile, 'old content');
 
-			const tool = new LLMToolRenameFiles();
+			const toolManager = await getToolManager(projectEditor);
+			const tool = await toolManager.getTool('rename_files');
+			assert(tool, 'Failed to get tool');
 
 			const toolUse: LLMAnswerToolUse = {
 				toolValidation: { validated: true, results: '' },
@@ -279,7 +291,9 @@ Deno.test({
 			const nonExistentFile = join(testProjectRoot, 'non_existent.txt');
 			const destFile = join(testProjectRoot, 'renamed.txt');
 
-			const tool = new LLMToolRenameFiles();
+			const toolManager = await getToolManager(projectEditor);
+			const tool = await toolManager.getTool('rename_files');
+			assert(tool, 'Failed to get tool');
 
 			const toolUse: LLMAnswerToolUse = {
 				toolValidation: { validated: true, results: '' },
