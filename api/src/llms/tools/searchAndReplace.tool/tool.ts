@@ -24,14 +24,6 @@ import { getContentFromToolResult } from 'api/utils/llms.ts';
 export default class LLMToolSearchAndReplace extends LLMTool {
 	private static readonly MIN_SEARCH_LENGTH = 1;
 
-	constructor() {
-		super(
-			'search_and_replace',
-			'Apply a list of search and replace operations to a file',
-		);
-		this.fileName = 'searchAndReplaceTool.ts';
-	}
-
 	get input_schema(): LLMToolInputSchema {
 		return {
 			type: 'object',

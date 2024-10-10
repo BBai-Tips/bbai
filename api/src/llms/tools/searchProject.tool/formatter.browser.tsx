@@ -18,32 +18,32 @@ export const formatToolUse = (toolInput: LLMToolInputSchema): JSX.Element => {
 			<h3>Project Search Parameters:</h3>
 			{contentPattern && (
 				<p>
-					<strong>Content pattern:</strong> <span style='color: #DAA520;'>${contentPattern}</span>
+					<strong>Content pattern:</strong> <span style='color: #DAA520;'>{contentPattern}</span>
 				</p>
 			)}
 			{filePattern && (
 				<p>
-					<strong>File pattern:</strong> <span style='color: #4169E1;'>${filePattern}</span>
+					<strong>File pattern:</strong> <span style='color: #4169E1;'>{filePattern}</span>
 				</p>
 			)}
 			{dateAfter && (
 				<p>
-					<strong>Modified after:</strong> <span style='color: #008000;'>${dateAfter}</span>
+					<strong>Modified after:</strong> <span style='color: #008000;'>{dateAfter}</span>
 				</p>
 			)}
 			{dateBefore && (
 				<p>
-					<strong>Modified before:</strong> <span style='color: #008000;'>${dateBefore}</span>
+					<strong>Modified before:</strong> <span style='color: #008000;'>{dateBefore}</span>
 				</p>
 			)}
 			{sizeMin && (
 				<p>
-					<strong>Minimum size:</strong> <span style='color: #FF00FF;'>${sizeMin.toString()} bytes</span>
+					<strong>Minimum size:</strong> <span style='color: #FF00FF;'>{sizeMin.toString()} bytes</span>
 				</p>
 			)}
 			{sizeMax && (
 				<p>
-					<strong>Maximum size:</strong> <span style='color: #FF00FF;'>${sizeMax.toString()} bytes</span>
+					<strong>Maximum size:</strong> <span style='color: #FF00FF;'>{sizeMax.toString()} bytes</span>
 				</p>
 			)}
 		</div>
@@ -57,12 +57,12 @@ export const formatToolResult = (toolResult: LLMToolRunResultContent): JSX.Eleme
 	return (
 		<div className='tool-result'>
 			<p>
-				<strong>${resultSummary}</strong>
+				<strong>{resultSummary}</strong>
 			</p>
 			<p>
 				<strong>Matching files:</strong>
 			</p>
-			<pre style='background-color: #F0F8FF; padding: 10px;'>${fileList}</pre>
+			<pre style='background-color: #F0F8FF; padding: 10px;'>{fileList}</pre>
 		</div>
 	);
 	/*

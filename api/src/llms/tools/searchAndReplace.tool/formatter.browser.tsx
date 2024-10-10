@@ -13,7 +13,7 @@ export const formatToolUse = (toolInput: LLMToolInputSchema): JSX.Element => {
 		<div className='tool-use'>
 			<p>
 				<strong>File:</strong> {filePath}{' '}
-				<strong>(${createIfMissing ? 'Create if missing' : "Don't create new file"})</strong>
+				<strong>({createIfMissing ? 'Create if missing' : "Don't create new file"})</strong>
 			</p>
 			<p>
 				<strong>Operations:</strong>
@@ -22,23 +22,23 @@ export const formatToolUse = (toolInput: LLMToolInputSchema): JSX.Element => {
 				{operations.map((op, index) => (
 					<div>
 						<h4>
-							Operation ${index + 1}:{' '}
-							<strong>(${op.replaceAll ? 'Replace all' : 'Replace first'})</strong>{' '}
-							<strong>(${op.caseSensitive ? 'Case sensitive' : 'Case insensitive'})</strong>
+							Operation {index + 1}: <strong>({op.replaceAll ? 'Replace all' : 'Replace first'})</strong>
+							{' '}
+							<strong>({op.caseSensitive ? 'Case sensitive' : 'Case insensitive'})</strong>
 						</h4>
 						<p>
 							<strong>Search:</strong>
 						</p>
-						<pre style='color: #DAA520;'>${op.search}</pre>
+						<pre style='color: #DAA520;'>{op.search}</pre>
 						<p>
 							<strong>Replace:</strong>
 						</p>
-						<pre style='color: #228B22;'>${op.replace}</pre>
+						<pre style='color: #228B22;'>{op.replace}</pre>
 						<p>
-							<strong>Replace all:</strong> ${op.replaceAll ?? false}
+							<strong>Replace all:</strong> {op.replaceAll ?? false}
 						</p>
 						<p>
-							<strong>Case sensitive:</strong> ${op.caseSensitive ?? true}
+							<strong>Case sensitive:</strong> {op.caseSensitive ?? true}
 						</p>
 					</div>
 				))}

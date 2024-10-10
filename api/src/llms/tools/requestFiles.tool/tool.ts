@@ -16,14 +16,6 @@ import type ProjectEditor from 'api/editor/projectEditor.ts';
 import { createError, ErrorType } from 'api/utils/error.ts';
 
 export default class LLMToolRequestFiles extends LLMTool {
-	constructor() {
-		super(
-			'request_files',
-			`Request files for the chat when you need to review them or make changes. Before requesting a file, check that you don't already have it included in an earlier message`,
-		);
-		this.fileName = 'requestFilesTool.ts';
-	}
-
 	get input_schema(): LLMToolInputSchema {
 		return {
 			type: 'object',

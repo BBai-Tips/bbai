@@ -3,7 +3,7 @@ import { join } from '@std/path';
 
 import LLMToolRequestFiles from '../tool.ts';
 import type { LLMAnswerToolUse } from 'api/llms/llmMessage.ts';
-import { getProjectEditor, withTestProject } from 'api/tests/testSetup.ts';
+import { getProjectEditor, getToolManager, withTestProject } from 'api/tests/testSetup.ts';
 
 Deno.test({
 	name: 'RequestFilesTool - Request existing files',
@@ -11,7 +11,9 @@ Deno.test({
 		await withTestProject(async (testProjectRoot) => {
 			const projectEditor = await getProjectEditor(testProjectRoot);
 
-			const tool = new LLMToolRequestFiles();
+			const toolManager = await getToolManager(projectEditor);
+			const tool = await toolManager.getTool('request_files');
+			assert(tool, 'Failed to get tool');
 
 			// Create test files
 			await Deno.writeTextFile(join(testProjectRoot, 'file1.txt'), 'Content of file1');
@@ -90,7 +92,9 @@ Deno.test({
 		await withTestProject(async (testProjectRoot) => {
 			const projectEditor = await getProjectEditor(testProjectRoot);
 
-			const tool = new LLMToolRequestFiles();
+			const toolManager = await getToolManager(projectEditor);
+			const tool = await toolManager.getTool('request_files');
+			assert(tool, 'Failed to get tool');
 
 			const toolUse: LLMAnswerToolUse = {
 				toolValidation: { validated: true, results: '' },
@@ -146,7 +150,9 @@ Deno.test({
 		await withTestProject(async (testProjectRoot) => {
 			const projectEditor = await getProjectEditor(testProjectRoot);
 
-			const tool = new LLMToolRequestFiles();
+			const toolManager = await getToolManager(projectEditor);
+			const tool = await toolManager.getTool('request_files');
+			assert(tool, 'Failed to get tool');
 
 			const toolUse: LLMAnswerToolUse = {
 				toolValidation: { validated: true, results: '' },

@@ -1,9 +1,8 @@
-import { assertEquals, assertStringIncludes } from 'api/tests/deps.ts';
+import { assert, assertEquals, assertStringIncludes } from 'api/tests/deps.ts';
 //import { existsSync } from '@std/fs';
 
-import LLMToolFetchWebPage from '../tool.ts';
 import { LLMAnswerToolUse } from 'api/llms/llmMessage.ts';
-import { getProjectEditor, withTestProject } from 'api/tests/testSetup.ts';
+import { getProjectEditor, getToolManager, withTestProject } from 'api/tests/testSetup.ts';
 
 Deno.test({
 	name: 'FetchWebPageTool - successful fetch',
@@ -11,7 +10,9 @@ Deno.test({
 		await withTestProject(async (testProjectRoot) => {
 			const projectEditor = await getProjectEditor(testProjectRoot);
 
-			const tool = new LLMToolFetchWebPage();
+			const toolManager = await getToolManager(projectEditor);
+			const tool = await toolManager.getTool('fetch_web_page');
+			assert(tool, 'Failed to get tool');
 
 			const url = 'https://google.com';
 			const toolUse: LLMAnswerToolUse = {
@@ -47,7 +48,9 @@ Deno.test({
 		await withTestProject(async (testProjectRoot) => {
 			const projectEditor = await getProjectEditor(testProjectRoot);
 
-			const tool = new LLMToolFetchWebPage();
+			const toolManager = await getToolManager(projectEditor);
+			const tool = await toolManager.getTool('fetch_web_page');
+			assert(tool, 'Failed to get tool');
 			try {
 				const url = 'https://googlezzz.com';
 				const toolUse: LLMAnswerToolUse = {
@@ -76,7 +79,9 @@ Deno.test({
 		await withTestProject(async (testProjectRoot) => {
 			const projectEditor = await getProjectEditor(testProjectRoot);
 
-			const tool = new LLMToolFetchWebPage();
+			const toolManager = await getToolManager(projectEditor);
+			const tool = await toolManager.getTool('fetch_web_page');
+			assert(tool, 'Failed to get tool');
 			try {
 				const url = 'https://google.com/ttt';
 				const toolUse: LLMAnswerToolUse = {

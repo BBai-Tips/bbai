@@ -121,12 +121,16 @@ export class ConfigManager {
                       # Add any shared configuration options here
                       logLevel: info
 
+					  # Tool-specific congiguration
+					  toolConfigs: {}
+
+					  # Directory for user-created tools
+					  userToolDirectories: 
+						- ./tools
+
                     # Add any CLI-specific configuration options here
                     cli: {}
 
-                    # Directory for user-created tools
-                    userToolDirectories: 
-                      - ./tools
                     `;
 				await Deno.writeTextFile(globalConfigPath, defaultConfig);
 			} else {
@@ -155,11 +159,12 @@ export class ConfigManager {
 					name: wizardAnswers.project.name,
 					type: wizardAnswers.project.type,
 				},
-				userToolDirectories: existingConfig.userToolDirectories || ['./tools'],
 			};
 
 			if (wizardAnswers.anthropicApiKey) {
-				if (!projectConfig.api) projectConfig.api = { logLevel: 'error' };
+				if (!projectConfig.api) {
+					projectConfig.api = { logLevel: 'error', userToolDirectories: [], toolConfigs: {} };
+				}
 				projectConfig.api.anthropicApiKey = wizardAnswers.anthropicApiKey;
 			}
 			if (wizardAnswers.myPersonsName) {
@@ -189,20 +194,20 @@ export class ConfigManager {
 
 		// Resolve global tool directories - use default values if user hasn't set a value
 		const resolvedGlobalToolDirs = this.resolveToolDirectories(
-			globalConfig.userToolDirectories,
-			defaultGlobalConfig.userToolDirectories,
+			globalConfig.api.userToolDirectories,
+			defaultGlobalConfig.api.userToolDirectories,
 			globalConfigDir,
 		);
 
 		// Resolve project tool directories - use default values if user hasn't set a value
 		const resolvedProjectToolDirs = this.resolveToolDirectories(
-			projectConfig.userToolDirectories,
-			defaultProjectConfig.userToolDirectories,
+			projectConfig.api.userToolDirectories,
+			defaultProjectConfig.api.userToolDirectories,
 			projectConfigDir,
 		);
 
 		// Merge and deduplicate resolved tool directories
-		mergedConfig.userToolDirectories = [
+		mergedConfig.api.userToolDirectories = [
 			...new Set([
 				...resolvedProjectToolDirs,
 				...resolvedGlobalToolDirs,
@@ -317,7 +322,13 @@ export class ConfigManager {
 
 	private loadEnvConfig(): Partial<FullConfigSchema> {
 		const envConfig: Partial<FullConfigSchema> = {};
-		const apiConfig: FullConfigSchema['api'] = { logLevel: 'info', usePromptCaching: true };
+		// 		const apiConfig: Partial<FullConfigSchema['api']> = { logLevel: 'info', usePromptCaching: true };// , userToolDirectories: [], toolConfigs: {}
+		const apiConfig: FullConfigSchema['api'] = {
+			logLevel: 'info',
+			usePromptCaching: true,
+			userToolDirectories: [],
+			toolConfigs: {},
+		};
 		const buiConfig: FullConfigSchema['bui'] = {};
 		const cliConfig: Partial<FullConfigSchema['cli']> = {};
 
@@ -380,13 +391,37 @@ export class ConfigManager {
 	}
 
 	public async getRedactedFullConfig(startDir: string): Promise<FullConfigSchema> {
-		const redactedFullConfig = JSON.parse(JSON.stringify(await this.loadFullConfig(startDir)));
+		const fullConfig = await this.loadFullConfig(startDir);
+		//const fullConfig = JSON.parse(JSON.stringify(await this.loadFullConfig(startDir)));
+		const redactedConfig = this.redactSensitiveInfo(fullConfig);
+		return redactedConfig as FullConfigSchema;
+	}
 
-		if (redactedFullConfig.api?.anthropicApiKey) redactedFullConfig.api.anthropicApiKey = '[REDACTED]';
-		if (redactedFullConfig.api?.openaiApiKey) redactedFullConfig.api.openaiApiKey = '[REDACTED]';
-		if (redactedFullConfig.api?.voyageaiApiKey) redactedFullConfig.api.voyageaiApiKey = '[REDACTED]';
+	private redactSensitiveInfo(obj: Record<string, any>): Record<string, any> {
+		const redactedObj: Record<string, any> = {};
 
-		return redactedFullConfig;
+		for (const [key, value] of Object.entries(obj)) {
+			if (typeof value === 'object' && value !== null) {
+				redactedObj[key] = this.redactSensitiveInfo(value as Record<string, unknown>);
+			} else if (typeof value === 'string' && this.isSensitiveKey(key)) {
+				redactedObj[key] = '[REDACTED]';
+			} else {
+				redactedObj[key] = value;
+			}
+		}
+
+		return redactedObj;
+	}
+
+	private isSensitiveKey(key: string): boolean {
+		const sensitivePatterns = [
+			/api[_-]?key/i,
+			/secret/i,
+			/password/i,
+			/token/i,
+			/credential/i,
+		];
+		return sensitivePatterns.some((pattern) => pattern.test(key));
 	}
 
 	public async setGlobalConfigValue(key: string, value: string): Promise<void> {
@@ -427,7 +462,7 @@ export class ConfigManager {
 	private validateFullConfig(config: Partial<FullConfigSchema>): boolean {
 		if (!this.validateGlobalConfig(config)) return false;
 		if (!this.validateProjectConfig(config)) return false;
-		if (!Array.isArray(config.userToolDirectories)) return false;
+		if (!Array.isArray(config.api?.userToolDirectories)) return false;
 		return true;
 	}
 
@@ -438,7 +473,7 @@ export class ConfigManager {
 		if (globalConfig.api.usePromptCaching !== undefined && typeof globalConfig.api.usePromptCaching !== 'boolean') {
 			return false;
 		}
-		//if (!Array.isArray(globalConfig.userToolDirectories)) return false;
+		//if (!Array.isArray(globalConfig.api.userToolDirectories)) return false;
 		return true;
 	}
 
@@ -446,7 +481,7 @@ export class ConfigManager {
 		if (!projectConfig.project || typeof projectConfig.project !== 'object') return false;
 		if (typeof projectConfig.project.name !== 'string') return false;
 		if (projectConfig.project.type !== 'git' && projectConfig.project.type !== 'local') return false;
-		//if (!Array.isArray(projectConfig.userToolDirectories)) return false;
+		//if (!Array.isArray(projectConfig.api.userToolDirectories)) return false;
 		return true;
 	}
 }

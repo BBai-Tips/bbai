@@ -1,4 +1,3 @@
-//import { walk } from "@std/fs";
 import { join } from '@std/path';
 import { stripIndents } from 'common-tags';
 

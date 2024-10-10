@@ -43,24 +43,21 @@ export default class DelegateTasksTool extends LLMTool {
 	private errorHandler: ErrorHandler;
 	private taskQueue: TaskQueue;
 
-	constructor(
+	async init(
 		interactionManager: InteractionManager,
 		resourceManager: ResourceManager,
 		capabilityManager: CapabilityManager,
 		errorHandler: ErrorHandler,
 		taskQueue: TaskQueue,
 	) {
-		super(
-			'delegate_tasks',
-			'Delegate tasks to child interactions. Input includes background, instructions, and resources. Output is the completed task requirements.',
-		);
-		this.fileName = 'delegateTasksTool.ts';
+		super();
 
 		this.interactionManager = interactionManager;
 		this.resourceManager = resourceManager;
 		this.capabilityManager = capabilityManager;
 		this.errorHandler = errorHandler;
 		this.taskQueue = taskQueue;
+		return this;
 	}
 	get input_schema(): LLMToolInputSchema {
 		return {

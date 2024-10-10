@@ -493,7 +493,7 @@ export default function Chat() {
 					/>
 					<div className='font-semibold mt-4 mb-2'>Assistant Thinking:</div>
 					<div
-						className='prose max-w-none'
+						className='max-w-none'
 						dangerouslySetInnerHTML={{
 							__html: renderContent(entry.assistantThinking) as string,
 						}}

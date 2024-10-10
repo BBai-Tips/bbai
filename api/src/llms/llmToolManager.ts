@@ -47,7 +47,7 @@ class LLMToolManager {
 	}
 
 	async init() {
-		await this.loadToolMetadata(this.fullConfig.userToolDirectories);
+		await this.loadToolMetadata(this.fullConfig.api.userToolDirectories);
 
 		return this;
 	}
@@ -138,7 +138,7 @@ class LLMToolManager {
 
 	private shouldReplaceExistingTool(existing: ToolMetadata, newMetadata: ToolMetadata): boolean {
 		// Prefer user-supplied tools
-		if (this.fullConfig.userToolDirectories.some((dir) => newMetadata.path!.startsWith(dir))) {
+		if (this.fullConfig.api.userToolDirectories.some((dir) => newMetadata.path!.startsWith(dir))) {
 			if (compareVersions(parseVersion(existing.version), parseVersion(newMetadata.version)) > 0) {
 				logger.warn(
 					`LLMToolManager: User-supplied tool ${newMetadata.name} (${newMetadata.version}) is older than built-in tool (${existing.version})`,
@@ -150,7 +150,7 @@ class LLMToolManager {
 	}
 
 	async getTool(name: string): Promise<LLMTool | undefined> {
-		logger.info(`LLMToolManager: Getting Tool ${name}`);
+		//logger.debug(`LLMToolManager: Getting Tool ${name}`);
 		if (this.loadedTools.has(name)) {
 			logger.debug(`LLMToolManager: Returning cached ${name} tool`);
 			return this.loadedTools.get(name);
@@ -170,14 +170,18 @@ class LLMToolManager {
 		// Proceed with loading the tool
 
 		try {
-			logger.info(`LLMToolManager: Is tool ${name} absolute ${metadata.path}`);
+			//logger.debug(`LLMToolManager: Is tool ${name} absolute ${metadata.path}`);
 			const toolPath = isAbsolute(metadata.path!)
 				? join(metadata.path!, 'tool.ts')
 				: `.${SEPARATOR}${metadata.path}${SEPARATOR}tool.ts`;
-			logger.info(`LLMToolManager: Tool ${name} is loading from ${toolPath}`);
+			//logger.debug(`LLMToolManager: Tool ${name} is loading from ${toolPath}`);
 			const module = await import(toolPath);
-			const tool = new module.default();
-			//logger.debug(`LLMToolManager: Tool ${tool.name} is loaded`);
+			const tool = await new module.default(
+				metadata.name,
+				metadata.description,
+				this.fullConfig.api.toolConfigs[name] || {},
+			).init();
+			logger.debug(`LLMToolManager: Loaded Tool ${tool.name}`);
 			this.loadedTools.set(name, tool);
 			return tool;
 		} catch (error) {
@@ -244,12 +248,14 @@ class LLMToolManager {
 				);
 			}
 
+			//logger.info(`llmToolManager: handleToolUse - Running Tool ${toolUse.toolName} with: `, toolUse);
 			const { toolResults, toolResponse, bbaiResponse, finalize } = await tool.runTool(
 				interaction,
 				toolUse,
 				projectEditor,
 			);
 
+			//logger.info(`llmToolManager: handleToolUse - Finalizing Tool ${toolUse.toolName} with: `, toolResults);
 			const { messageId } = tool.finalizeToolUse(
 				interaction,
 				toolUse,

@@ -20,14 +20,6 @@ import { logger } from 'shared/logger.ts';
 import { stripIndents } from 'common-tags';
 
 export default class LLMToolSearchProject extends LLMTool {
-	constructor() {
-		super(
-			'search_project',
-			'Search the project for files matching content, name, date, or size criteria',
-		);
-		this.fileName = 'searchProjectTool.ts';
-	}
-
 	get input_schema(): LLMToolInputSchema {
 		return {
 			type: 'object',

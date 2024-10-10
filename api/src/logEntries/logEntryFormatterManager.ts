@@ -49,7 +49,7 @@ export default class LogEntryFormatterManager {
 	): Promise<string | JSX.Element> {
 		if (!logEntry.toolName) throw new Error(`Tool name not provided in log entry: ${logEntry.toolName}`);
 		const tool = await this.toolManager.getTool(logEntry.toolName);
-		logger.error(`LogEntryFormatterManager: Got tool ${logEntry.toolName}:`, tool);
+		//logger.error(`LogEntryFormatterManager: Got tool ${logEntry.toolName}:`, tool);
 		if (!tool) {
 			throw new Error(`Tool not found: ${logEntry.toolName}`);
 		}

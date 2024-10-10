@@ -1,9 +1,8 @@
 import { join } from '@std/path';
 
 import { assert, assertEquals, assertStringIncludes } from 'api/tests/deps.ts';
-import LLMToolForgetFiles from '../tool.ts';
 import { LLMAnswerToolUse } from 'api/llms/llmMessage.ts';
-import { getProjectEditor, withTestProject } from 'api/tests/testSetup.ts';
+import { getProjectEditor, getToolManager, withTestProject } from 'api/tests/testSetup.ts';
 
 Deno.test({
 	name: 'ForgetFilesTool - Forget existing files from conversation',
@@ -11,7 +10,9 @@ Deno.test({
 		await withTestProject(async (testProjectRoot) => {
 			const projectEditor = await getProjectEditor(testProjectRoot);
 
-			const tool = new LLMToolForgetFiles();
+			const toolManager = await getToolManager(projectEditor);
+			const tool = await toolManager.getTool('forget_files');
+			assert(tool, 'Failed to get tool');
 
 			const messageId = '1111-2222';
 			// Create test files and add them to the conversation
@@ -88,7 +89,9 @@ Deno.test({
 		await withTestProject(async (testProjectRoot) => {
 			const projectEditor = await getProjectEditor(testProjectRoot);
 
-			const tool = new LLMToolForgetFiles();
+			const toolManager = await getToolManager(projectEditor);
+			const tool = await toolManager.getTool('forget_files');
+			assert(tool, 'Failed to get tool');
 
 			const messageId = '1111-2222';
 			const toolUse: LLMAnswerToolUse = {
@@ -140,7 +143,9 @@ Deno.test({
 		await withTestProject(async (testProjectRoot) => {
 			const projectEditor = await getProjectEditor(testProjectRoot);
 
-			const tool = new LLMToolForgetFiles();
+			const toolManager = await getToolManager(projectEditor);
+			const tool = await toolManager.getTool('forget_files');
+			assert(tool, 'Failed to get tool');
 
 			const messageId = '1111-2222';
 			// Create test file and add it to the conversation
