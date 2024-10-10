@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 
 
+## [0.0.25-beta] - 2024-10-10
+
+### Changed
+
+- added new tool MultiModelQuery
+- updated tests to load tools via tool manager
+- moved tool configs to user config 
+- args for tool constructors set from metatadata json
+
+
 ## [0.0.24a-beta] - 2024-10-07
 
 ### Changed
