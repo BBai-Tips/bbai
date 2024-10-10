@@ -37,6 +37,7 @@ interface Resource {
 type InputSchema = Record<string, unknown>;
 
 export default class DelegateTasksTool extends LLMTool {
+	/*
 	private interactionManager: InteractionManager;
 	private resourceManager: ResourceManager;
 	private capabilityManager: CapabilityManager;
@@ -59,6 +60,7 @@ export default class DelegateTasksTool extends LLMTool {
 		this.taskQueue = taskQueue;
 		return this;
 	}
+	 */
 	get input_schema(): LLMToolInputSchema {
 		return {
 			type: 'object',
