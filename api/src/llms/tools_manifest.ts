@@ -8,10 +8,32 @@ interface CoreTool {
 
 export const CORE_TOOLS: Array<CoreTool> = [
 	{
+		'toolNamePath': 'conversationSummary.tool',
+		'metadata': {
+			'name': 'conversation_summary',
+			'description': 'Summarize and optionally truncate the current conversation',
+			'version': '1.0.0',
+			'author': 'BBai Team',
+			'license': 'MIT',
+			'enabled': false,
+		},
+	},
+	{
 		'toolNamePath': 'moveFiles.tool',
 		'metadata': {
 			'name': 'move_files',
 			'description': 'Move one or more files or directories to a new location within the project',
+			'version': '1.0.0',
+			'author': 'BBai Team',
+			'license': 'MIT',
+			'mutates': true,
+		},
+	},
+	{
+		'toolNamePath': 'conversationMetrics.tool',
+		'metadata': {
+			'name': 'conversation_metrics',
+			'description': 'Analyze conversation metrics such as turns, message types, and token usage',
 			'version': '1.0.0',
 			'author': 'BBai Team',
 			'license': 'MIT',
@@ -65,6 +87,7 @@ export const CORE_TOOLS: Array<CoreTool> = [
 			'version': '1.0.0',
 			'author': 'BBai Team',
 			'license': 'MIT',
+			'mutates': true,
 		},
 	},
 	{
@@ -150,6 +173,7 @@ export const CORE_TOOLS: Array<CoreTool> = [
 			'version': '1.0.0',
 			'author': 'BBai Team',
 			'license': 'MIT',
+			'mutates': true,
 		},
 	},
 	{
@@ -160,6 +184,7 @@ export const CORE_TOOLS: Array<CoreTool> = [
 			'version': '1.0.0',
 			'author': 'BBai Team',
 			'license': 'MIT',
+			'mutates': true,
 		},
 	},
 	{
@@ -171,6 +196,7 @@ export const CORE_TOOLS: Array<CoreTool> = [
 			'category': 'FileManipulation',
 			'author': 'BBai Team',
 			'license': 'MIT',
+			'mutates': true,
 		},
 	},
 ];

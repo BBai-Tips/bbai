@@ -54,7 +54,7 @@ It supports vector embeddings for code and text chunks from local repositories, 
 - **Session**: The entire duration of a user's interaction with BBai, which may include multiple conversations.
 - **Project**: The collection of files and resources that BBai is working with.
 - **Tool**: A specific function or capability that the LLM can use to perform actions or retrieve information.
-- **Patch**: A set of changes to be applied to a file.
+- **Change**: A set of changes to be applied to a file.
 - **Commit**: A saved state of the project in the version control system.
 - **Embedding**: A numerical representation of text used for semantic search and comparison.
 - **Token**: The basic unit of text processing for the LLM, typically a word or part of a word.

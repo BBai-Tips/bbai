@@ -1,7 +1,7 @@
 /** @jsxImportSource preact */
-import { JSX } from 'preact';
-import type { LLMToolInputSchema, LLMToolRunResultContent } from 'api/llms/llmTool.ts';
-import type { LLMMessageContentPart, LLMMessageContentParts } from 'api/llms/llmMessage.ts';
+import { Fragment, JSX } from 'preact';
+import type { LLMToolInputSchema } from 'api/llms/llmTool.ts';
+import type { ConversationLogEntryContentToolResult } from 'shared/types.ts';
 import { logger } from 'shared/logger.ts';
 
 export const formatToolUse = (toolInput: LLMToolInputSchema): JSX.Element => {
@@ -18,28 +18,73 @@ export const formatToolUse = (toolInput: LLMToolInputSchema): JSX.Element => {
 	);
 };
 
-export const formatToolResult = (toolResult: LLMToolRunResultContent): JSX.Element => {
-	const results: LLMMessageContentParts = Array.isArray(toolResult)
-		? toolResult
-		: [toolResult as LLMMessageContentPart];
-	//logger.info('LLMToolMultiModelQuery: formatToolResult', { results });
-	return (
-		<div className='tool-result'>
-			<p>
-				<strong>Model Responses:</strong>
-			</p>
-
-			{results.map((result, index) => {
-				if (result.type === 'text') {
-					return (
-						<p key={index}>
-							{result.text}
-						</p>
-					);
-				} else {
-					return <p key={index}>Unknown type: {result.type}</p>;
-				}
-			})}
-		</div>
-	);
+export const formatToolResult = (resultContent: ConversationLogEntryContentToolResult): JSX.Element => {
+	const { bbaiResponse } = resultContent;
+	if (typeof bbaiResponse === 'object' && 'data' in bbaiResponse) {
+		const data = bbaiResponse.data as {
+			querySuccess: Array<{ modelIdentifier: string; answer: string }>;
+			queryError: Array<{ modelIdentifier: string; error: string }>;
+		};
+		return (
+			<div className='tool-result'>
+				{data.querySuccess.length > 0
+					? (
+						<div>
+							<p>
+								<strong>✅ BBai has queried models:</strong>
+							</p>
+							<p>
+								<ul>
+									{data.querySuccess.map((query, index) => (
+										<Fragment key={index}>
+											{index > 0 && <hr />}
+											<li>
+												<p>
+													<strong>Model:</strong> {query.modelIdentifier}
+												</p>
+												<div>{query.answer}</div>
+											</li>
+										</Fragment>
+									))}
+								</ul>
+							</p>
+						</div>
+					)
+					: ''}
+				{data.queryError.length > 0
+					? (
+						<div>
+							<p>
+								<strong>⚠️ BBai failed to query models:</strong>
+							</p>
+							<p>
+								<ul>
+									{data.queryError.map((query, index) => (
+										<Fragment key={index}>
+											{index > 0 && <hr />}
+											<li>
+												<p>
+													<strong>Model:</strong> {query.modelIdentifier}
+												</p>
+												<div>{query.error}</div>
+											</li>
+										</Fragment>
+									))}
+								</ul>
+							</p>
+						</div>
+					)
+					: ''}
+			</div>
+		);
+	} else {
+		logger.error('Unexpected bbaiResponse format:', bbaiResponse);
+		return (
+			<div className='tool-result'>
+				<p>
+					<strong>{bbaiResponse}</strong>
+				</p>
+			</div>
+		);
+	}
 };

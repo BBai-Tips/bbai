@@ -13,10 +13,10 @@ import type OrchestratorController from '../../src/controllers/orchestratorContr
  *
  *  // Stub only the methods you need for a particular test
  *  stubMaker.generateConversationTitleStub(() => Promise.resolve('Test Title'));
- *  stubMaker.stageAndCommitAfterPatchingStub(() => Promise.resolve());
+ *  stubMaker.stageAndCommitAfterChangingStub(() => Promise.resolve());
  *
  *  // You can provide different implementations in different tests
- *  stubMaker.revertLastPatchStub(() => {
+ *  stubMaker.revertLastChangeStub(() => {
  *    // Custom implementation for this specific test
  *    return Promise.resolve();
  *  });
@@ -60,9 +60,9 @@ export function makeOrchestratorControllerStub(orchestratorController: Orchestra
 		};
 	};
 	const generateConversationTitleStub = createStub('generateConversationTitle');
-	//const stageAndCommitAfterPatchingStub = createStub('stageAndCommitAfterPatching');
-	const revertLastPatchStub = createStub('revertLastPatch');
-	const logPatchAndCommitStub = createStub('logPatchAndCommit');
+	//const stageAndCommitAfterChangingStub = createStub('stageAndCommitAfterChanging');
+	const revertLastChangeStub = createStub('revertLastChange');
+	const logChangeAndCommitStub = createStub('logChangeAndCommit');
 	const saveInitialConversationWithResponseStub = createStub('saveInitialConversationWithResponse');
 	const saveConversationAfterStatementStub = createStub('saveConversationAfterStatement');
 	/*
@@ -121,9 +121,9 @@ export function makeOrchestratorControllerStub(orchestratorController: Orchestra
 	return {
 		orchestratorController,
 		generateConversationTitleStub,
-		//stageAndCommitAfterPatchingStub,
-		revertLastPatchStub,
-		logPatchAndCommitStub,
+		//stageAndCommitAfterChangingStub,
+		revertLastChangeStub,
+		logChangeAndCommitStub,
 		saveInitialConversationWithResponseStub,
 		saveConversationAfterStatementStub,
 		//initStub,

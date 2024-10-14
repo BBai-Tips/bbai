@@ -65,7 +65,7 @@ When implementing a new tool, it's crucial to maintain consistency with existing
 Each tool should be a class that extends the `LLMTool` base class. The class should implement the following methods:
 
 - `constructor`: Initialize the tool with a name and description.
-- `get input_schema()`: Define the input schema for the tool.
+- `get inputSchema()`: Define the input schema for the tool.
 - `toolUseInputFormatter`: Format the tool input for display.
 - `toolRunResultFormatter`: Format the tool result for display.
 - `runTool`: Implement the main functionality of the tool.
@@ -89,7 +89,7 @@ Create two separate formatter files for each tool:
 In the main tool file (`tool.ts`):
 
 - Import the formatter functions from both formatter files.
-- Implement `toolUseInputFormatter` and `toolRunResultFormatter` methods to use the appropriate formatter based on the format parameter.
+- Implement `formatToolUse` and `formatToolResult` methods to use the appropriate formatter based on the format parameter.
 
 Example:
 
@@ -99,12 +99,12 @@ import { formatToolUse as formatToolUseConsole, formatToolResult as formatToolRe
 
 // ...
 
-toolUseInputFormatter = (toolInput: LLMToolInputSchema, format: 'console' | 'browser' = 'console'): string | JSX.Element => {
+formatToolUse = (toolInput: LLMToolInputSchema, format: 'console' | 'browser' = 'console'): string | JSX.Element => {
     return format === 'console' ? formatToolUseConsole(toolInput) : formatToolUseBrowser(toolInput);
 };
 
-toolRunResultFormatter = (toolResult: LLMToolRunResultContent, format: 'console' | 'browser' = 'console'): string | JSX.Element => {
-    return format === 'console' ? formatToolResultConsole(toolResult) : formatToolResultBrowser(toolResult);
+formatToolResult = (resultContent: ConversationLogEntryContentToolResult, format: 'console' | 'browser' = 'console'): string | JSX.Element => {
+    return format === 'console' ? formatToolResultConsole(resultContent) : formatToolResultBrowser(resultContent);
 };
 ```
 
@@ -120,7 +120,7 @@ The `runTool` method should return an object of type `LLMToolRunResult`, which i
 - `toolResults`: The main output of the tool (can be a string, LLMMessageContentPart, or LLMMessageContentParts).
 - `toolResponse`: A string response for the tool execution.
 - `bbaiResponse`: A user-friendly response describing the tool's action.
-- `finalize` (optional): A function to perform any final actions after the tool use is recorded.
+- `finalizeCallback` (optional): A function to perform any final actions after the tool use is recorded.
 
 ### Testing
 

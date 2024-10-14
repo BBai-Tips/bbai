@@ -13,6 +13,11 @@ import {
 	withTestProject,
 } from 'api/tests/testSetup.ts';
 
+// Type guard to check if bbaiResponse is a string
+function isString(value: unknown): value is string {
+	return typeof value === 'string';
+}
+
 Deno.test({
 	name: 'SearchAndReplaceTool - Basic functionality',
 	fn: async () => {
@@ -27,7 +32,7 @@ Deno.test({
 			const tool = await toolManager.getTool('search_and_replace');
 			assert(tool, 'Failed to get tool');
 
-			const logPatchAndCommitStub = orchestratorControllerStubMaker.logPatchAndCommitStub(() =>
+			const logChangeAndCommitStub = orchestratorControllerStubMaker.logChangeAndCommitStub(() =>
 				Promise.resolve()
 			);
 			try {
@@ -49,15 +54,21 @@ Deno.test({
 				};
 
 				const result = await tool.runTool(interaction, toolUse, projectEditor);
+				console.log('Basic functionality - bbaiResponse:', result.bbaiResponse);
+				console.log('Basic functionality - toolResponse:', result.toolResponse);
+				console.log('Basic functionality - toolResults:', result.toolResults);
 
-				//console.log(`TEST DEBUG: bbaiResponse: ${result.bbaiResponse}`);
-				//console.log(`TEST DEBUG: toolResponse: ${result.toolResponse}`);
-				//console.log(`TEST DEBUG: toolResults: ${JSON.stringify(result.toolResults, null, 2)}`);
+				assert(isString(result.bbaiResponse), 'bbaiResponse should be a string');
 
-				assertStringIncludes(
-					result.bbaiResponse,
-					'BBai applied search and replace operations.\nSearch and replace operations applied to file: test.txt. All operations succeeded.\n✅   Operation 1: Operation 1 completed successfully',
-				);
+				if (isString(result.bbaiResponse)) {
+					assertStringIncludes(
+						result.bbaiResponse,
+						'BBai applied search and replace operations.',
+					);
+				} else {
+					assert(false, 'bbaiResponse is not a string as expected');
+				}
+
 				assertStringIncludes(result.toolResponse, 'All operations succeeded');
 
 				// Check toolResults
@@ -71,12 +82,12 @@ Deno.test({
 
 				const secondResult = result.toolResults[1];
 				assert(secondResult.type === 'text', 'Second result should be of type text');
-				assertStringIncludes(secondResult.text, 'Operation 1 completed successfully');
+				assertStringIncludes(secondResult.text, '✅  Operation 1 completed successfully');
 
 				const updatedContent = await Deno.readTextFile(testFilePath);
 				assertEquals(updatedContent, 'Hello, Deno!');
 			} finally {
-				logPatchAndCommitStub.restore();
+				logChangeAndCommitStub.restore();
 			}
 		});
 	},
@@ -97,7 +108,7 @@ Deno.test({
 			const toolManager = await getToolManager(projectEditor);
 			const tool = await toolManager.getTool('search_and_replace');
 			assert(tool, 'Failed to get tool');
-			const logPatchAndCommitStub = orchestratorControllerStubMaker.logPatchAndCommitStub(() =>
+			const logChangeAndCommitStub = orchestratorControllerStubMaker.logChangeAndCommitStub(() =>
 				Promise.resolve()
 			);
 			try {
@@ -122,11 +133,21 @@ Deno.test({
 
 				const result = await tool.runTool(interaction, toolUse, projectEditor);
 				console.log(`created file: ${newFilePath}`);
+				// console.log('Multiple operations on new file - bbaiResponse:', result.bbaiResponse);
+				// console.log('Multiple operations on new file - toolResponse:', result.toolResponse);
+				// console.log('Multiple operations on new file - toolResults:', result.toolResults);
 
-				assertStringIncludes(
-					result.bbaiResponse,
-					'File created and search and replace operations applied to file: multi_op_test.txt. All operations succeeded.\n✅   Operation 1: Operation 1 completed successfully\n✅   Operation 2: Operation 2 completed successfully\n✅   Operation 3: Operation 3 completed successfully',
-				);
+				assert(isString(result.bbaiResponse), 'bbaiResponse should be a string');
+
+				if (isString(result.bbaiResponse)) {
+					assertStringIncludes(
+						result.bbaiResponse,
+						'BBai applied search and replace operations.',
+					);
+				} else {
+					assert(false, 'bbaiResponse is not a string as expected');
+				}
+
 				assertStringIncludes(result.toolResponse, 'All operations succeeded');
 
 				// Check toolResults
@@ -144,13 +165,13 @@ Deno.test({
 				for (let i = 1; i <= 3; i++) {
 					const operationResult = result.toolResults[i];
 					assert(operationResult.type === 'text', `Result ${i} should be of type text`);
-					assertStringIncludes(operationResult.text, `Operation ${i} completed successfully`);
+					assertStringIncludes(operationResult.text, `✅  Operation ${i} completed successfully`);
 				}
 
 				const fileContent = await Deno.readTextFile(newFilePath);
 				assertEquals(fileContent, 'Greetings, Deno!');
 			} finally {
-				logPatchAndCommitStub.restore();
+				logChangeAndCommitStub.restore();
 			}
 		});
 	},
@@ -171,7 +192,7 @@ Deno.test({
 			const toolManager = await getToolManager(projectEditor);
 			const tool = await toolManager.getTool('search_and_replace');
 			assert(tool, 'Failed to get tool');
-			const logPatchAndCommitStub = orchestratorControllerStubMaker.logPatchAndCommitStub(() =>
+			const logChangeAndCommitStub = orchestratorControllerStubMaker.logChangeAndCommitStub(() =>
 				Promise.resolve()
 			);
 			try {
@@ -196,7 +217,7 @@ Deno.test({
 					'Access denied:',
 				);
 			} finally {
-				logPatchAndCommitStub.restore();
+				logChangeAndCommitStub.restore();
 			}
 		});
 	},
@@ -217,7 +238,7 @@ Deno.test({
 			const toolManager = await getToolManager(projectEditor);
 			const tool = await toolManager.getTool('search_and_replace');
 			assert(tool, 'Failed to get tool');
-			const logPatchAndCommitStub = orchestratorControllerStubMaker.logPatchAndCommitStub(() =>
+			const logChangeAndCommitStub = orchestratorControllerStubMaker.logChangeAndCommitStub(() =>
 				Promise.resolve()
 			);
 			try {
@@ -244,7 +265,7 @@ Deno.test({
 				const fileContent = await Deno.readTextFile(testFilePath);
 				assertEquals(fileContent, 'Original content');
 			} finally {
-				logPatchAndCommitStub.restore();
+				logChangeAndCommitStub.restore();
 			}
 		});
 	},
@@ -265,7 +286,7 @@ Deno.test({
 			const toolManager = await getToolManager(projectEditor);
 			const tool = await toolManager.getTool('search_and_replace');
 			assert(tool, 'Failed to get tool');
-			const logPatchAndCommitStub = orchestratorControllerStubMaker.logPatchAndCommitStub(() =>
+			const logChangeAndCommitStub = orchestratorControllerStubMaker.logChangeAndCommitStub(() =>
 				Promise.resolve()
 			);
 			try {
@@ -287,10 +308,17 @@ Deno.test({
 
 				const result = await tool.runTool(interaction, toolUse, projectEditor);
 
-				assertStringIncludes(
-					result.bbaiResponse,
-					'BBai applied search and replace operations.\nSearch and replace operations applied to file: unicode_test.txt. All operations succeeded.\n✅   Operation 1: Operation 1 completed successfully',
-				);
+				assert(isString(result.bbaiResponse), 'bbaiResponse should be a string');
+
+				if (isString(result.bbaiResponse)) {
+					assertStringIncludes(
+						result.bbaiResponse,
+						'BBai applied search and replace operations.',
+					);
+				} else {
+					assert(false, 'bbaiResponse is not a string as expected');
+				}
+
 				assertStringIncludes(result.toolResponse, 'All operations succeeded');
 
 				// Check toolResults
@@ -307,12 +335,12 @@ Deno.test({
 
 				const secondResult = result.toolResults[1];
 				assert(secondResult.type === 'text', 'Second result should be of type text');
-				assertStringIncludes(secondResult.text, 'Operation 1 completed successfully');
+				assertStringIncludes(secondResult.text, '✅  Operation 1 completed successfully');
 
 				const fileContent = await Deno.readTextFile(testFilePath);
 				assertEquals(fileContent, 'Hello, 🌍!');
 			} finally {
-				logPatchAndCommitStub.restore();
+				logChangeAndCommitStub.restore();
 			}
 		});
 	},
@@ -333,7 +361,7 @@ Deno.test({
 			const toolManager = await getToolManager(projectEditor);
 			const tool = await toolManager.getTool('search_and_replace');
 			assert(tool, 'Failed to get tool');
-			const logPatchAndCommitStub = orchestratorControllerStubMaker.logPatchAndCommitStub(() =>
+			const logChangeAndCommitStub = orchestratorControllerStubMaker.logChangeAndCommitStub(() =>
 				Promise.resolve()
 			);
 			try {
@@ -355,10 +383,17 @@ Deno.test({
 
 				const result = await tool.runTool(interaction, toolUse, projectEditor);
 
-				assertStringIncludes(
-					result.bbaiResponse,
-					'BBai applied search and replace operations.\nFile created and search and replace operations applied to file: new_test.txt. All operations succeeded.\n✅   Operation 1: Operation 1 completed successfully',
-				);
+				assert(isString(result.bbaiResponse), 'bbaiResponse should be a string');
+
+				if (isString(result.bbaiResponse)) {
+					assertStringIncludes(
+						result.bbaiResponse,
+						'BBai applied search and replace operations.',
+					);
+				} else {
+					assert(false, 'bbaiResponse is not a string as expected');
+				}
+
 				assertStringIncludes(result.toolResponse, 'All operations succeeded');
 
 				// Check toolResults
@@ -374,18 +409,18 @@ Deno.test({
 
 				const secondResult = result.toolResults[1];
 				assert(secondResult.type === 'text', 'Second result should be of type text');
-				assertStringIncludes(secondResult.text, 'Operation 1 completed successfully');
+				assertStringIncludes(secondResult.text, '✅  Operation 1 completed successfully');
 
 				const fileContent = await Deno.readTextFile(newFilePath);
 				assertEquals(fileContent, 'Hello, new file!');
 
-				// Verify that the file is added to patchedFiles and patchContents
-				// [TODO] the patchedFiles and patchedContents get cleared after saving to conversation
-				// So change assertions to check the patched files in persisted conversation
-				//assert(projectEditor.patchedFiles.has(newFile));
-				//assert(projectEditor.patchContents.has(newFile));
+				// Verify that the file is added to changedFiles and changeContents
+				// [TODO] the changedFiles and changedContents get cleared after saving to conversation
+				// So change assertions to check the changed files in persisted conversation
+				//assert(projectEditor.changedFiles.has(newFile));
+				//assert(projectEditor.changeContents.has(newFile));
 			} finally {
-				logPatchAndCommitStub.restore();
+				logChangeAndCommitStub.restore();
 			}
 		});
 	},
@@ -406,7 +441,7 @@ Deno.test({
 			const toolManager = await getToolManager(projectEditor);
 			const tool = await toolManager.getTool('search_and_replace');
 			assert(tool, 'Failed to get tool');
-			const logPatchAndCommitStub = orchestratorControllerStubMaker.logPatchAndCommitStub(() =>
+			const logChangeAndCommitStub = orchestratorControllerStubMaker.logChangeAndCommitStub(() =>
 				Promise.resolve()
 			);
 			try {
@@ -435,7 +470,7 @@ Deno.test({
 				const updatedContent = await Deno.readTextFile(testFilePath);
 				assertEquals(updatedContent, 'Hello, world!');
 			} finally {
-				logPatchAndCommitStub.restore();
+				logChangeAndCommitStub.restore();
 			}
 		});
 	},
@@ -456,7 +491,7 @@ Deno.test({
 			const toolManager = await getToolManager(projectEditor);
 			const tool = await toolManager.getTool('search_and_replace');
 			assert(tool, 'Failed to get tool');
-			const logPatchAndCommitStub = orchestratorControllerStubMaker.logPatchAndCommitStub(() =>
+			const logChangeAndCommitStub = orchestratorControllerStubMaker.logChangeAndCommitStub(() =>
 				Promise.resolve()
 			);
 			try {
@@ -481,10 +516,17 @@ Deno.test({
 
 				const result = await tool.runTool(interaction, toolUse, projectEditor);
 
-				assertStringIncludes(
-					result.bbaiResponse,
-					'BBai applied search and replace operations.\nSearch and replace operations applied to file: multiline_test.txt. All operations succeeded.\n✅   Operation 1: Operation 1 completed successfully',
-				);
+				assert(isString(result.bbaiResponse), 'bbaiResponse should be a string');
+
+				if (isString(result.bbaiResponse)) {
+					assertStringIncludes(
+						result.bbaiResponse,
+						'BBai applied search and replace operations.',
+					);
+				} else {
+					assert(false, 'bbaiResponse is not a string as expected');
+				}
+
 				assertStringIncludes(result.toolResponse, 'All operations succeeded');
 
 				// Check toolResults
@@ -500,12 +542,12 @@ Deno.test({
 
 				const secondResult = result.toolResults[1];
 				assert(secondResult.type === 'text', 'Second result should be of type text');
-				assertStringIncludes(secondResult.text, 'Operation 1 completed successfully');
+				assertStringIncludes(secondResult.text, '✅  Operation 1 completed successfully');
 
 				const updatedContent = await Deno.readTextFile(testFilePath);
 				assertEquals(updatedContent, 'function newTest() {\n\tconsole.log("Hello, World!");\n}');
 			} finally {
-				logPatchAndCommitStub.restore();
+				logChangeAndCommitStub.restore();
 			}
 		});
 	},
@@ -526,7 +568,7 @@ Deno.test({
 			const toolManager = await getToolManager(projectEditor);
 			const tool = await toolManager.getTool('search_and_replace');
 			assert(tool, 'Failed to get tool');
-			const logPatchAndCommitStub = orchestratorControllerStubMaker.logPatchAndCommitStub(() =>
+			const logChangeAndCommitStub = orchestratorControllerStubMaker.logChangeAndCommitStub(() =>
 				Promise.resolve()
 			);
 			try {
@@ -548,10 +590,17 @@ Deno.test({
 
 				const result = await tool.runTool(interaction, toolUse, projectEditor);
 
-				assertStringIncludes(
-					result.bbaiResponse,
-					'BBai applied search and replace operations.\nSearch and replace operations applied to file: empty_replace_test.txt. All operations succeeded.\n✅   Operation 1: Operation 1 completed successfully',
-				);
+				assert(isString(result.bbaiResponse), 'bbaiResponse should be a string');
+
+				if (isString(result.bbaiResponse)) {
+					assertStringIncludes(
+						result.bbaiResponse,
+						'BBai applied search and replace operations.',
+					);
+				} else {
+					assert(false, 'bbaiResponse is not a string as expected');
+				}
+
 				assertStringIncludes(result.toolResponse, 'All operations succeeded');
 
 				// Check toolResults
@@ -572,7 +621,7 @@ Deno.test({
 				const updatedContent = await Deno.readTextFile(testFilePath);
 				assertEquals(updatedContent, 'Hello, !');
 			} finally {
-				logPatchAndCommitStub.restore();
+				logChangeAndCommitStub.restore();
 			}
 		});
 	},
@@ -593,7 +642,7 @@ Deno.test({
 			const toolManager = await getToolManager(projectEditor);
 			const tool = await toolManager.getTool('search_and_replace');
 			assert(tool, 'Failed to get tool');
-			const logPatchAndCommitStub = orchestratorControllerStubMaker.logPatchAndCommitStub(() =>
+			const logChangeAndCommitStub = orchestratorControllerStubMaker.logChangeAndCommitStub(() =>
 				Promise.resolve()
 			);
 			try {
@@ -615,10 +664,17 @@ Deno.test({
 
 				const result = await tool.runTool(interaction, toolUse, projectEditor);
 
-				assertStringIncludes(
-					result.bbaiResponse,
-					'BBai applied search and replace operations.\nSearch and replace operations applied to file: case_sensitive_test.txt. All operations succeeded.\n✅   Operation 1: Operation 1 completed successfully',
-				);
+				assert(isString(result.bbaiResponse), 'bbaiResponse should be a string');
+
+				if (isString(result.bbaiResponse)) {
+					assertStringIncludes(
+						result.bbaiResponse,
+						'BBai applied search and replace operations.',
+					);
+				} else {
+					assert(false, 'bbaiResponse is not a string as expected');
+				}
+
 				assertStringIncludes(result.toolResponse, 'All operations succeeded');
 
 				// Check toolResults
@@ -634,12 +690,12 @@ Deno.test({
 
 				const secondResult = result.toolResults[1];
 				assert(secondResult.type === 'text', 'Second result should be of type text');
-				assertStringIncludes(secondResult.text, 'Operation 1 completed successfully');
+				assertStringIncludes(secondResult.text, '✅  Operation 1 completed successfully');
 
 				const updatedContent = await Deno.readTextFile(testFilePath);
 				assertEquals(updatedContent, 'Hello, Deno! hello, world!');
 			} finally {
-				logPatchAndCommitStub.restore();
+				logChangeAndCommitStub.restore();
 			}
 		});
 	},
@@ -660,7 +716,7 @@ Deno.test({
 			const toolManager = await getToolManager(projectEditor);
 			const tool = await toolManager.getTool('search_and_replace');
 			assert(tool, 'Failed to get tool');
-			const logPatchAndCommitStub = orchestratorControllerStubMaker.logPatchAndCommitStub(() =>
+			const logChangeAndCommitStub = orchestratorControllerStubMaker.logChangeAndCommitStub(() =>
 				Promise.resolve()
 			);
 			try {
@@ -685,10 +741,17 @@ Deno.test({
 				console.log('Case insensitive search - toolResponse:', result.toolResponse);
 				console.log('Case insensitive search - toolResults:', result.toolResults);
 
-				assertStringIncludes(
-					result.bbaiResponse,
-					'BBai applied search and replace operations.\nSearch and replace operations applied to file: case_insensitive_test.txt. All operations succeeded.\n✅   Operation 1: Operation 1 completed successfully',
-				);
+				assert(isString(result.bbaiResponse), 'bbaiResponse should be a string');
+
+				if (isString(result.bbaiResponse)) {
+					assertStringIncludes(
+						result.bbaiResponse,
+						'BBai applied search and replace operations.',
+					);
+				} else {
+					assert(false, 'bbaiResponse is not a string as expected');
+				}
+
 				assertStringIncludes(result.toolResponse, 'All operations succeeded');
 
 				// Check toolResults
@@ -704,12 +767,12 @@ Deno.test({
 
 				const secondResult = result.toolResults[1];
 				assert(secondResult.type === 'text', 'Second result should be of type text');
-				assertStringIncludes(secondResult.text, 'Operation 1 completed successfully');
+				assertStringIncludes(secondResult.text, '✅  Operation 1 completed successfully');
 
 				const updatedContent = await Deno.readTextFile(testFilePath);
 				assertEquals(updatedContent, 'Hello, Deno! hello, Deno!');
 			} finally {
-				logPatchAndCommitStub.restore();
+				logChangeAndCommitStub.restore();
 			}
 		});
 	},
@@ -730,7 +793,7 @@ Deno.test({
 			const toolManager = await getToolManager(projectEditor);
 			const tool = await toolManager.getTool('search_and_replace');
 			assert(tool, 'Failed to get tool');
-			const logPatchAndCommitStub = orchestratorControllerStubMaker.logPatchAndCommitStub(() =>
+			const logChangeAndCommitStub = orchestratorControllerStubMaker.logChangeAndCommitStub(() =>
 				Promise.resolve()
 			);
 			try {
@@ -754,10 +817,17 @@ Deno.test({
 
 				const result = await tool.runTool(interaction, toolUse, projectEditor);
 
-				assertStringIncludes(
-					result.bbaiResponse,
-					'BBai applied search and replace operations.\nSearch and replace operations applied to file: multiple_replace_test.txt. All operations succeeded.\n✅   Operation 1: Operation 1 completed successfully\n✅   Operation 2: Operation 2 completed successfully\n✅   Operation 3: Operation 3 completed successfully',
-				);
+				assert(isString(result.bbaiResponse), 'bbaiResponse should be a string');
+
+				if (isString(result.bbaiResponse)) {
+					assertStringIncludes(
+						result.bbaiResponse,
+						'BBai applied search and replace operations.',
+					);
+				} else {
+					assert(false, 'bbaiResponse is not a string as expected');
+				}
+
 				assertStringIncludes(result.toolResponse, 'All operations succeeded');
 
 				// Check toolResults
@@ -775,13 +845,13 @@ Deno.test({
 				for (let i = 1; i <= 3; i++) {
 					const operationResult = result.toolResults[i];
 					assert(operationResult.type === 'text', `Result ${i} should be of type text`);
-					assertStringIncludes(operationResult.text, `Operation ${i} completed successfully`);
+					assertStringIncludes(operationResult.text, `✅  Operation ${i} completed successfully`);
 				}
 
 				const updatedContent = await Deno.readTextFile(testFilePath);
 				assertEquals(updatedContent, 'The slow red fox jumps over the energetic dog');
 			} finally {
-				logPatchAndCommitStub.restore();
+				logChangeAndCommitStub.restore();
 			}
 		});
 	},
@@ -802,7 +872,7 @@ Deno.test({
 			const toolManager = await getToolManager(projectEditor);
 			const tool = await toolManager.getTool('search_and_replace');
 			assert(tool, 'Failed to get tool');
-			const logPatchAndCommitStub = orchestratorControllerStubMaker.logPatchAndCommitStub(() =>
+			const logChangeAndCommitStub = orchestratorControllerStubMaker.logChangeAndCommitStub(() =>
 				Promise.resolve()
 			);
 			try {
@@ -825,10 +895,17 @@ Deno.test({
 
 				const result = await tool.runTool(interaction, toolUse, projectEditor);
 
-				assertStringIncludes(
-					result.bbaiResponse,
-					'BBai applied search and replace operations.\nSearch and replace operations applied to file: multiple_replace_test.txt. All operations succeeded.\n✅   Operation 1: Operation 1 completed successfully\n✅   Operation 2: Operation 2 completed successfully',
-				);
+				assert(isString(result.bbaiResponse), 'bbaiResponse should be a string');
+
+				if (isString(result.bbaiResponse)) {
+					assertStringIncludes(
+						result.bbaiResponse,
+						'BBai applied search and replace operations.',
+					);
+				} else {
+					assert(false, 'bbaiResponse is not a string as expected');
+				}
+
 				assertStringIncludes(result.toolResponse, 'All operations succeeded');
 
 				// Check toolResults
@@ -846,13 +923,13 @@ Deno.test({
 				for (let i = 1; i <= 2; i++) {
 					const operationResult = result.toolResults[i];
 					assert(operationResult.type === 'text', `Result ${i} should be of type text`);
-					assertStringIncludes(operationResult.text, `Operation ${i} completed successfully`);
+					assertStringIncludes(operationResult.text, `✅  Operation ${i} completed successfully`);
 				}
 
 				const updatedContent = await Deno.readTextFile(testFilePath);
 				assertEquals(updatedContent, 'ABCdEFG');
 			} finally {
-				logPatchAndCommitStub.restore();
+				logChangeAndCommitStub.restore();
 			}
 		});
 	},
@@ -873,7 +950,7 @@ Deno.test({
 			const toolManager = await getToolManager(projectEditor);
 			const tool = await toolManager.getTool('search_and_replace');
 			assert(tool, 'Failed to get tool');
-			const logPatchAndCommitStub = orchestratorControllerStubMaker.logPatchAndCommitStub(() =>
+			const logChangeAndCommitStub = orchestratorControllerStubMaker.logChangeAndCommitStub(() =>
 				Promise.resolve()
 			);
 			try {
@@ -896,10 +973,17 @@ Deno.test({
 
 				const result = await tool.runTool(interaction, toolUse, projectEditor);
 
-				assertStringIncludes(
-					result.bbaiResponse,
-					'BBai applied search and replace operations.\nSearch and replace operations applied to file: overlapping_replace_test.txt. All operations succeeded.\n✅   Operation 1: Operation 1 completed successfully\n✅   Operation 2: Operation 2 completed successfully',
-				);
+				assert(isString(result.bbaiResponse), 'bbaiResponse should be a string');
+
+				if (isString(result.bbaiResponse)) {
+					assertStringIncludes(
+						result.bbaiResponse,
+						'BBai applied search and replace operations.',
+					);
+				} else {
+					assert(false, 'bbaiResponse is not a string as expected');
+				}
+
 				assertStringIncludes(result.toolResponse, 'All operations succeeded');
 
 				// Check toolResults
@@ -917,13 +1001,13 @@ Deno.test({
 				for (let i = 1; i <= 2; i++) {
 					const operationResult = result.toolResults[i];
 					assert(operationResult.type === 'text', `Result ${i} should be of type text`);
-					assertStringIncludes(operationResult.text, `Operation ${i} completed successfully`);
+					assertStringIncludes(operationResult.text, `✅  Operation ${i} completed successfully`);
 				}
 
 				const updatedContent = await Deno.readTextFile(testFilePath);
 				assertEquals(updatedContent, 'ABCDEfg');
 			} finally {
-				logPatchAndCommitStub.restore();
+				logChangeAndCommitStub.restore();
 			}
 		});
 	},
@@ -944,7 +1028,7 @@ Deno.test({
 			const toolManager = await getToolManager(projectEditor);
 			const tool = await toolManager.getTool('search_and_replace');
 			assert(tool, 'Failed to get tool');
-			const logPatchAndCommitStub = orchestratorControllerStubMaker.logPatchAndCommitStub(() =>
+			const logChangeAndCommitStub = orchestratorControllerStubMaker.logChangeAndCommitStub(() =>
 				Promise.resolve()
 			);
 			try {
@@ -969,18 +1053,38 @@ Deno.test({
 				// console.log('Basic regex pattern - toolResponse:', result.toolResponse);
 				// console.log('Basic regex pattern - toolResults:', result.toolResults);
 
+				assert(isString(result.bbaiResponse), 'bbaiResponse should be a string');
+
+				if (isString(result.bbaiResponse)) {
+					assertStringIncludes(
+						result.bbaiResponse,
+						'BBai applied search and replace operations.',
+					);
+				} else {
+					assert(false, 'bbaiResponse is not a string as expected');
+				}
+
+				assert(Array.isArray(result.toolResults), 'toolResults should be an array');
+
+				const firstResult = result.toolResults[0];
+				assert(firstResult.type === 'text', 'First result should be of type text');
 				assertStringIncludes(
-					result.bbaiResponse,
-					`BBai applied search and replace operations.
-Search and replace operations applied to file: regex_test.txt. All operations succeeded.
-✅   Operation 1: Operation 1 completed successfully`,
+					firstResult.text,
+					`Search and replace operations applied to file: regex_test.txt. All operations succeeded`,
 				);
+				const secondResult = result.toolResults[1];
+				assert(secondResult.type === 'text', 'First result should be of type text');
+				assertStringIncludes(
+					secondResult.text,
+					`✅  Operation 1 completed successfully`,
+				);
+
 				assertStringIncludes(result.toolResponse, 'All operations succeeded');
 
 				const updatedContent = await Deno.readTextFile(testFilePath);
 				assertEquals(updatedContent, 'The fast brown fox jumps over the lazy dog');
 			} finally {
-				logPatchAndCommitStub.restore();
+				logChangeAndCommitStub.restore();
 			}
 		});
 	},
@@ -1001,7 +1105,7 @@ Deno.test({
 			const toolManager = await getToolManager(projectEditor);
 			const tool = await toolManager.getTool('search_and_replace');
 			assert(tool, 'Failed to get tool');
-			const logPatchAndCommitStub = orchestratorControllerStubMaker.logPatchAndCommitStub(() =>
+			const logChangeAndCommitStub = orchestratorControllerStubMaker.logChangeAndCommitStub(() =>
 				Promise.resolve()
 			);
 			try {
@@ -1028,18 +1132,38 @@ Deno.test({
 
 				const result = await tool.runTool(interaction, toolUse, projectEditor);
 
+				assert(isString(result.bbaiResponse), 'bbaiResponse should be a string');
+
+				if (isString(result.bbaiResponse)) {
+					assertStringIncludes(
+						result.bbaiResponse,
+						'BBai applied search and replace operations.',
+					);
+				} else {
+					assert(false, 'bbaiResponse is not a string as expected');
+				}
+
+				assert(Array.isArray(result.toolResults), 'toolResults should be an array');
+
+				const firstResult = result.toolResults[0];
+				assert(firstResult.type === 'text', 'First result should be of type text');
 				assertStringIncludes(
-					result.bbaiResponse,
-					`BBai applied search and replace operations.
-Search and replace operations applied to file: regex_capture_test.txt. All operations succeeded.
-✅   Operation 1: Operation 1 completed successfully`,
+					firstResult.text,
+					`Search and replace operations applied to file: regex_capture_test.txt. All operations succeeded`,
 				);
+				const secondResult = result.toolResults[1];
+				assert(secondResult.type === 'text', 'First result should be of type text');
+				assertStringIncludes(
+					secondResult.text,
+					`✅  Operation 1 completed successfully`,
+				);
+
 				assertStringIncludes(result.toolResponse, 'All operations succeeded');
 
 				const updatedContent = await Deno.readTextFile(testFilePath);
 				assertEquals(updatedContent, 'Hi, John! Hi, Jane!');
 			} finally {
-				logPatchAndCommitStub.restore();
+				logChangeAndCommitStub.restore();
 			}
 		});
 	},
@@ -1060,7 +1184,7 @@ Deno.test({
 			const toolManager = await getToolManager(projectEditor);
 			const tool = await toolManager.getTool('search_and_replace');
 			assert(tool, 'Failed to get tool');
-			const logPatchAndCommitStub = orchestratorControllerStubMaker.logPatchAndCommitStub(() =>
+			const logChangeAndCommitStub = orchestratorControllerStubMaker.logChangeAndCommitStub(() =>
 				Promise.resolve()
 			);
 			try {
@@ -1082,18 +1206,38 @@ Deno.test({
 
 				const result = await tool.runTool(interaction, toolUse, projectEditor);
 
+				assert(isString(result.bbaiResponse), 'bbaiResponse should be a string');
+
+				if (isString(result.bbaiResponse)) {
+					assertStringIncludes(
+						result.bbaiResponse,
+						'BBai applied search and replace operations.',
+					);
+				} else {
+					assert(false, 'bbaiResponse is not a string as expected');
+				}
+
+				assert(Array.isArray(result.toolResults), 'toolResults should be an array');
+
+				const firstResult = result.toolResults[0];
+				assert(firstResult.type === 'text', 'First result should be of type text');
 				assertStringIncludes(
-					result.bbaiResponse,
-					`BBai applied search and replace operations.
-Search and replace operations applied to file: regex_quantifier_test.txt. All operations succeeded.
-✅   Operation 1: Operation 1 completed successfully`,
+					firstResult.text,
+					`Search and replace operations applied to file: regex_quantifier_test.txt. All operations succeeded`,
 				);
+				const secondResult = result.toolResults[1];
+				assert(secondResult.type === 'text', 'First result should be of type text');
+				assertStringIncludes(
+					secondResult.text,
+					`✅  Operation 1 completed successfully`,
+				);
+
 				assertStringIncludes(result.toolResponse, 'All operations succeeded');
 
 				const updatedContent = await Deno.readTextFile(testFilePath);
 				assertEquals(updatedContent, 'X X X X');
 			} finally {
-				logPatchAndCommitStub.restore();
+				logChangeAndCommitStub.restore();
 			}
 		});
 	},
@@ -1114,7 +1258,7 @@ Deno.test({
 			const toolManager = await getToolManager(projectEditor);
 			const tool = await toolManager.getTool('search_and_replace');
 			assert(tool, 'Failed to get tool');
-			const logPatchAndCommitStub = orchestratorControllerStubMaker.logPatchAndCommitStub(() =>
+			const logChangeAndCommitStub = orchestratorControllerStubMaker.logChangeAndCommitStub(() =>
 				Promise.resolve()
 			);
 			try {
@@ -1136,18 +1280,38 @@ Deno.test({
 
 				const result = await tool.runTool(interaction, toolUse, projectEditor);
 
+				assert(isString(result.bbaiResponse), 'bbaiResponse should be a string');
+
+				if (isString(result.bbaiResponse)) {
+					assertStringIncludes(
+						result.bbaiResponse,
+						'BBai applied search and replace operations.',
+					);
+				} else {
+					assert(false, 'bbaiResponse is not a string as expected');
+				}
+
+				assert(Array.isArray(result.toolResults), 'toolResults should be an array');
+
+				const firstResult = result.toolResults[0];
+				assert(firstResult.type === 'text', 'First result should be of type text');
 				assertStringIncludes(
-					result.bbaiResponse,
-					`BBai applied search and replace operations.
-Search and replace operations applied to file: regex_character_class_test.txt. All operations succeeded.
-✅   Operation 1: Operation 1 completed successfully`,
+					firstResult.text,
+					`Search and replace operations applied to file: regex_character_class_test.txt. All operations succeeded`,
 				);
+				const secondResult = result.toolResults[1];
+				assert(secondResult.type === 'text', 'First result should be of type text');
+				assertStringIncludes(
+					secondResult.text,
+					`✅  Operation 1 completed successfully`,
+				);
+
 				assertStringIncludes(result.toolResponse, 'All operations succeeded');
 
 				const updatedContent = await Deno.readTextFile(testFilePath);
 				assertEquals(updatedContent, 'X X X d4 e5');
 			} finally {
-				logPatchAndCommitStub.restore();
+				logChangeAndCommitStub.restore();
 			}
 		});
 	},
@@ -1168,7 +1332,7 @@ Deno.test({
 			const toolManager = await getToolManager(projectEditor);
 			const tool = await toolManager.getTool('search_and_replace');
 			assert(tool, 'Failed to get tool');
-			const logPatchAndCommitStub = orchestratorControllerStubMaker.logPatchAndCommitStub(() =>
+			const logChangeAndCommitStub = orchestratorControllerStubMaker.logChangeAndCommitStub(() =>
 				Promise.resolve()
 			);
 			try {
@@ -1190,18 +1354,38 @@ Deno.test({
 
 				const result = await tool.runTool(interaction, toolUse, projectEditor);
 
+				assert(isString(result.bbaiResponse), 'bbaiResponse should be a string');
+
+				if (isString(result.bbaiResponse)) {
+					assertStringIncludes(
+						result.bbaiResponse,
+						'BBai applied search and replace operations.',
+					);
+				} else {
+					assert(false, 'bbaiResponse is not a string as expected');
+				}
+
+				assert(Array.isArray(result.toolResults), 'toolResults should be an array');
+
+				const firstResult = result.toolResults[0];
+				assert(firstResult.type === 'text', 'First result should be of type text');
 				assertStringIncludes(
-					result.bbaiResponse,
-					`BBai applied search and replace operations.
-Search and replace operations applied to file: regex_word_boundary_test.txt. All operations succeeded.
-✅   Operation 1: Operation 1 completed successfully`,
+					firstResult.text,
+					`Search and replace operations applied to file: regex_word_boundary_test.txt. All operations succeeded`,
 				);
+				const secondResult = result.toolResults[1];
+				assert(secondResult.type === 'text', 'First result should be of type text');
+				assertStringIncludes(
+					secondResult.text,
+					`✅  Operation 1 completed successfully`,
+				);
+
 				assertStringIncludes(result.toolResponse, 'All operations succeeded');
 
 				const updatedContent = await Deno.readTextFile(testFilePath);
 				assertEquals(updatedContent, 'The dog is in the category');
 			} finally {
-				logPatchAndCommitStub.restore();
+				logChangeAndCommitStub.restore();
 			}
 		});
 	},
@@ -1222,7 +1406,7 @@ Deno.test({
 			const toolManager = await getToolManager(projectEditor);
 			const tool = await toolManager.getTool('search_and_replace');
 			assert(tool, 'Failed to get tool');
-			const logPatchAndCommitStub = orchestratorControllerStubMaker.logPatchAndCommitStub(() =>
+			const logChangeAndCommitStub = orchestratorControllerStubMaker.logChangeAndCommitStub(() =>
 				Promise.resolve()
 			);
 			try {
@@ -1245,17 +1429,36 @@ Deno.test({
 				};
 
 				const result = await tool.runTool(interaction, toolUse, projectEditor);
+				// console.log('Case-sensitive literal search with special regex characters - bbaiResponse:', result.bbaiResponse);
+				// console.log('Case-sensitive literal search with special regex characters - toolResponse:', result.toolResponse);
+				// console.log('Case-sensitive literal search with special regex characters - toolResults:', result.toolResults);
 
+				assertStringIncludes(result.toolResponse, 'All operations succeeded');
+
+				// Check toolResults
+				assert(Array.isArray(result.toolResults), 'toolResults should be an array');
+				assert(result.toolResults.length === 4, 'toolResults should have 4 elements');
+
+				const firstResult = result.toolResults[0];
+				assert(firstResult.type === 'text', 'First result should be of type text');
 				assertStringIncludes(
-					result.bbaiResponse,
-					'BBai applied search and replace operations.\nSearch and replace operations applied to file: literal_regex_test.txt. All operations succeeded.\n✅   Operation 1: Operation 1 completed successfully\n✅   Operation 2: Operation 2 completed successfully\n✅   Operation 3: Operation 3 completed successfully',
+					firstResult.text,
+					'Search and replace operations applied to file: literal_regex_test.txt. All operations succeeded',
 				);
+				assertStringIncludes(firstResult.text, 'All operations succeeded');
+
+				for (let i = 1; i <= 3; i++) {
+					const operationResult = result.toolResults[i];
+					assert(operationResult.type === 'text', `Result ${i} should be of type text`);
+					assertStringIncludes(operationResult.text, `✅  Operation ${i} completed successfully`);
+				}
+
 				assertStringIncludes(result.toolResponse, 'All operations succeeded');
 
 				const updatedContent = await Deno.readTextFile(testFilePath);
 				assertEquals(updatedContent, 'The fast brown cat jumps over the active dog.');
 			} finally {
-				logPatchAndCommitStub.restore();
+				logChangeAndCommitStub.restore();
 			}
 		});
 	},
@@ -1276,7 +1479,7 @@ Deno.test({
 			const toolManager = await getToolManager(projectEditor);
 			const tool = await toolManager.getTool('search_and_replace');
 			assert(tool, 'Failed to get tool');
-			const logPatchAndCommitStub = orchestratorControllerStubMaker.logPatchAndCommitStub(() =>
+			const logChangeAndCommitStub = orchestratorControllerStubMaker.logChangeAndCommitStub(() =>
 				Promise.resolve()
 			);
 			try {
@@ -1305,16 +1508,32 @@ Deno.test({
 
 				const result = await tool.runTool(interaction, toolUse, projectEditor);
 
+				assertStringIncludes(result.toolResponse, 'All operations succeeded');
+
+				// Check toolResults
+				assert(Array.isArray(result.toolResults), 'toolResults should be an array');
+				assert(result.toolResults.length === 4, 'toolResults should have 4 elements');
+
+				const firstResult = result.toolResults[0];
+				assert(firstResult.type === 'text', 'First result should be of type text');
 				assertStringIncludes(
-					result.bbaiResponse,
-					'BBai applied search and replace operations.\nSearch and replace operations applied to file: literal_regex_case_insensitive_test.txt. All operations succeeded.\n✅   Operation 1: Operation 1 completed successfully\n✅   Operation 2: Operation 2 completed successfully\n✅   Operation 3: Operation 3 completed successfully',
+					firstResult.text,
+					'Search and replace operations applied to file: literal_regex_case_insensitive_test.txt. All operations succeeded',
 				);
+				assertStringIncludes(firstResult.text, 'All operations succeeded');
+
+				for (let i = 1; i <= 3; i++) {
+					const operationResult = result.toolResults[i];
+					assert(operationResult.type === 'text', `Result ${i} should be of type text`);
+					assertStringIncludes(operationResult.text, `✅  Operation ${i} completed successfully`);
+				}
+
 				assertStringIncludes(result.toolResponse, 'All operations succeeded');
 
 				const updatedContent = await Deno.readTextFile(testFilePath);
 				assertEquals(updatedContent, 'The fast brown cat jumps over the active dog.');
 			} finally {
-				logPatchAndCommitStub.restore();
+				logChangeAndCommitStub.restore();
 			}
 		});
 	},

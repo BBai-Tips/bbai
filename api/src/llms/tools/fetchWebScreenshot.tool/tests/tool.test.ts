@@ -4,6 +4,24 @@ import { assert, assertEquals, assertStringIncludes } from 'api/tests/deps.ts';
 import { LLMAnswerToolUse } from 'api/llms/llmMessage.ts';
 import { getProjectEditor, getToolManager, withTestProject } from 'api/tests/testSetup.ts';
 
+function isFetchWebScreenshotResponse(
+	response: unknown,
+): response is {
+	data: {
+		url: string;
+		html: string;
+	};
+} {
+	return (
+		typeof response === 'object' &&
+		response !== null &&
+		'data' in response &&
+		typeof (response as any).data === 'object' &&
+		'url' in (response as any).data &&
+		typeof (response as any).data.url === 'string'
+	);
+}
+
 Deno.test({
 	name: 'LLMToolFetchWebScreenshot - successful fetch',
 	async fn() {
@@ -26,19 +44,27 @@ Deno.test({
 
 			const conversation = await projectEditor.initConversation('test-conversation-id');
 			const result = await tool.runTool(conversation, toolUse, projectEditor);
+			// console.log('successful fetch - bbaiResponse:', result.bbaiResponse);
+			// console.log('successful fetch - toolResponse:', result.toolResponse);
+			// console.log('successful fetch - toolResults:', result.toolResults);
 
-			//console.log(`TEST DEBUG: bbaiResponse: ${result.bbaiResponse}`);
-			//console.log(`TEST DEBUG: toolResponse: ${result.toolResponse}`);
-			//console.log(`TEST DEBUG: toolResults: ${JSON.stringify(result.toolResults, null, 2)}`);
-
+			assert(
+				result.bbaiResponse && typeof result.bbaiResponse === 'object',
+				'bbaiResponse should be an object',
+			);
 			assertEquals(typeof result.toolResponse, 'string');
-			assertEquals(typeof result.bbaiResponse, 'string');
 
 			assertStringIncludes(result.toolResponse, `Successfully fetched screenshot from ${url}`);
-			assertStringIncludes(
-				result.bbaiResponse,
-				`I've captured a screenshot of ${url}. The image data is available as a base64-encoded string`,
+			assert(
+				isFetchWebScreenshotResponse(result.bbaiResponse),
+				'bbaiResponse should have the correct structure for Tool',
 			);
+
+			if (isFetchWebScreenshotResponse(result.bbaiResponse)) {
+				assertEquals(result.bbaiResponse.data.url, 'https://google.com', 'URL should be google.com');
+			} else {
+				assert(false, 'bbaiResponse does not have the expected structure for MultiModelQueryTool');
+			}
 
 			// Check toolResults
 			//assertEquals(typeof result.toolResults, 'object');

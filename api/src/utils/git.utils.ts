@@ -3,26 +3,26 @@ import { stripIndents } from 'common-tags';
 import type LLMChatInteraction from '../llms/interactions/chatInteraction.ts';
 import type LLMConversationInteraction from '../llms/interactions/conversationInteraction.ts';
 import type ProjectEditor from '../editor/projectEditor.ts';
-import { createFilePatchXmlString } from './patch.utils.ts';
+import { createFileChangeXmlString } from './fileChange.utils.ts';
 import { GitUtils } from 'shared/git.ts';
 
-export async function stageAndCommitAfterPatching(
+export async function stageAndCommitAfterChanging(
 	interaction: LLMConversationInteraction,
 	projectRoot: string,
-	patchedFiles: Set<string>,
-	patchContents: Map<string, string>,
+	changedFiles: Set<string>,
+	changeContents: Map<string, string>,
 	projectEditor: ProjectEditor,
 ): Promise<void> {
-	if (patchedFiles.size === 0) {
+	if (changedFiles.size === 0) {
 		return;
 	}
 
-	const commitMessage = await generateCommitMessage(interaction, patchedFiles, patchContents, projectEditor);
-	const patchedFilesArray = Array.from(patchedFiles);
+	const commitMessage = await generateCommitMessage(interaction, changedFiles, changeContents, projectEditor);
+	const changedFilesArray = Array.from(changedFiles);
 
 	try {
-		await GitUtils.stageAndCommit(projectRoot, patchedFilesArray, commitMessage);
-		logger.info(`Created commit for patched files: ${patchedFilesArray.join(', ')}`);
+		await GitUtils.stageAndCommit(projectRoot, changedFilesArray, commitMessage);
+		logger.info(`Created commit for changed files: ${changedFilesArray.join(', ')}`);
 	} catch (error) {
 		logger.error(`Failed to create commit: ${error.message}`);
 	}
@@ -30,20 +30,20 @@ export async function stageAndCommitAfterPatching(
 
 export async function generateCommitMessage(
 	interaction: LLMConversationInteraction,
-	patchedFiles: Set<string>,
-	patchContents: Map<string, string>,
+	changedFiles: Set<string>,
+	changeContents: Map<string, string>,
 	projectEditor: ProjectEditor,
 ): Promise<string> {
-	const patchedFilesArray = Array.from(patchedFiles);
-	const fileCount = patchedFilesArray.length;
-	const fileList = patchedFilesArray.map((file) => `- ${file}`).join('\n');
-	const filePatchList = patchedFilesArray.map((file) => {
-		const patchContent = patchContents.get(file) || '';
-		return createFilePatchXmlString(file, patchContent);
+	const changedFilesArray = Array.from(changedFiles);
+	const fileCount = changedFilesArray.length;
+	const fileList = changedFilesArray.map((file) => `- ${file}`).join('\n');
+	const fileChangeList = changedFilesArray.map((file) => {
+		const changeContent = changeContents.get(file) || '';
+		return createFileChangeXmlString(file, changeContent);
 	});
 
 	const prompt = await projectEditor.orchestratorController.promptManager.getPrompt('gitCommitMessage', {
-		patchedFiles: filePatchList,
+		changedFiles: fileChangeList,
 	});
 	const chat: LLMChatInteraction = await projectEditor.orchestratorController.createChatInteraction(
 		interaction.id,
@@ -55,7 +55,7 @@ export async function generateCommitMessage(
 
 	return stripIndents`${msg}
         
-        Applied patches from BBai to ${fileCount} file${fileCount > 1 ? 's' : ''}
+        Applied changes from BBai to ${fileCount} file${fileCount > 1 ? 's' : ''}
 
         Files modified:
         ${fileList}

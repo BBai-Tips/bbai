@@ -1,7 +1,7 @@
 import type { JSX } from 'preact';
 
 import LLMTool from 'api/llms/llmTool.ts';
-import type { LLMToolInputSchema, LLMToolRunResult, LLMToolRunResultContent } from 'api/llms/llmTool.ts';
+import type { LLMToolInputSchema, LLMToolRunResult } from 'api/llms/llmTool.ts';
 import {
 	formatToolResult as formatToolResultBrowser,
 	formatToolUse as formatToolUseBrowser,
@@ -11,6 +11,7 @@ import {
 	formatToolUse as formatToolUseConsole,
 } from './formatter.console.ts';
 import type LLMConversationInteraction from 'api/llms/conversationInteraction.ts';
+import type { ConversationLogEntryContentToolResult } from 'shared/types.ts';
 import type { LLMAnswerToolUse, LLMMessageContentParts } from 'api/llms/llmMessage.ts';
 import type ProjectEditor from 'api/editor/projectEditor.ts';
 import { createError, ErrorType } from 'api/utils/error.ts';
@@ -19,12 +20,11 @@ import { isPathWithinProject } from 'api/utils/fileHandling.ts';
 import { logger } from 'shared/logger.ts';
 import { dirname, join } from '@std/path';
 import { ensureDir } from '@std/fs';
-import { getContentFromToolResult } from 'api/utils/llms.ts';
 
 export default class LLMToolSearchAndReplace extends LLMTool {
 	private static readonly MIN_SEARCH_LENGTH = 1;
 
-	get input_schema(): LLMToolInputSchema {
+	get inputSchema(): LLMToolInputSchema {
 		return {
 			type: 'object',
 			properties: {
@@ -82,8 +82,11 @@ export default class LLMToolSearchAndReplace extends LLMTool {
 		return format === 'console' ? formatToolUseConsole(toolInput) : formatToolUseBrowser(toolInput);
 	}
 
-	formatToolResult(toolResult: LLMToolRunResultContent, format: 'console' | 'browser'): string | JSX.Element {
-		return format === 'console' ? formatToolResultConsole(toolResult) : formatToolResultBrowser(toolResult);
+	formatToolResult(
+		resultContent: ConversationLogEntryContentToolResult,
+		format: 'console' | 'browser',
+	): string | JSX.Element {
+		return format === 'console' ? formatToolResultConsole(resultContent) : formatToolResultBrowser(resultContent);
 	}
 
 	async runTool(
@@ -219,7 +222,7 @@ export default class LLMToolSearchAndReplace extends LLMTool {
 				await Deno.writeTextFile(fullFilePath, content);
 
 				logger.info(`Saving conversation search and replace operations: ${interaction.id}`);
-				await projectEditor.orchestratorController.logPatchAndCommit(
+				await projectEditor.orchestratorController.logChangeAndCommit(
 					interaction,
 					filePath,
 					JSON.stringify(successfulOperations),
@@ -229,9 +232,7 @@ export default class LLMToolSearchAndReplace extends LLMTool {
 					result: { status: string; operationIndex: number; message: string },
 				) => ({
 					type: 'text',
-					text: `${result.status === 'success' ? '✅  ' : '⚠️  '} Operation ${
-						result.operationIndex + 1
-					}: ${result.message}`,
+					text: `${result.status === 'success' ? '✅  ' : '⚠️  '}${result.message}`,
 				}));
 
 				const operationStatus = allOperationsSucceeded
@@ -246,9 +247,7 @@ export default class LLMToolSearchAndReplace extends LLMTool {
 
 				const toolResults = toolResultContentParts;
 				const toolResponse = operationStatus;
-				const bbaiResponse = `BBai applied search and replace operations.\n${
-					getContentFromToolResult(toolResultContentParts)
-				}`;
+				const bbaiResponse = `BBai applied search and replace operations.`;
 
 				return { toolResults, toolResponse, bbaiResponse };
 			} else {

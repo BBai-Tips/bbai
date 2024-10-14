@@ -1,7 +1,7 @@
-import { ensureDir, exists } from '@std/fs';
+import { copy, ensureDir, exists } from '@std/fs';
 import { dirname, join } from '@std/path';
 import { getProjectRoot } from 'shared/dataDir.ts';
-import LLMConversationInteraction from '../llms/interactions/conversationInteraction.ts';
+import LLMConversationInteraction from 'api/llms/conversationInteraction.ts';
 import type LLM from '../llms/providers/baseLLM.ts';
 import type {
 	ConversationDetailedMetadata,
@@ -15,7 +15,7 @@ import type {
 import type { LLMMessageContentPartToolUseBlock } from 'api/llms/llmMessage.ts';
 import { logger } from 'shared/logger.ts';
 import { ConfigManager } from 'shared/configManager.ts';
-import { createError, ErrorType } from '../utils/error.utils.ts';
+import { createError, ErrorType } from 'api/utils/error.ts';
 import type { FileHandlingErrorOptions } from '../errors/error.ts';
 import type ProjectEditor from '../editor/projectEditor.ts';
 import type { ProjectInfo } from '../llms/interactions/conversationInteraction.ts';
@@ -30,7 +30,7 @@ class ConversationPersistence {
 	private conversationDir!: string;
 	private metadataPath!: string;
 	private messagesPath!: string;
-	private patchLogPath!: string;
+	private changeLogPath!: string;
 	private preparedSystemPath!: string;
 	private preparedToolsPath!: string;
 	private conversationsMetadataPath!: string;
@@ -62,7 +62,7 @@ class ConversationPersistence {
 
 		this.metadataPath = join(this.conversationDir, 'metadata.json');
 		this.messagesPath = join(this.conversationDir, 'messages.jsonl');
-		this.patchLogPath = join(this.conversationDir, 'patches.jsonl');
+		this.changeLogPath = join(this.conversationDir, 'changes.jsonl');
 		this.preparedSystemPath = join(this.conversationDir, 'prepared_system.json');
 		this.preparedToolsPath = join(this.conversationDir, 'prepared_tools.json');
 		this.filesMetadataPath = join(this.conversationDir, 'files_metadata.json');
@@ -236,7 +236,7 @@ class ConversationPersistence {
 			conversation.conversationTurnCount = metadata.conversationStats.conversationTurnCount;
 			conversation.statementCount = metadata.conversationStats.statementCount;
 
-			//conversation.addTools((metadata.tools || []).map(tool => ({ ...tool, input_schema: {}, validateInput: () => true, runTool: async () => ({ result: '' }) })));
+			//conversation.addTools((metadata.tools || []).map(tool => ({ ...tool, inputSchema: {}, validateInput: () => true, runTool: async () => ({ result: '' }) })));
 
 			if (await exists(this.messagesPath)) {
 				const messagesContent = await Deno.readTextFile(this.messagesPath);
@@ -287,7 +287,7 @@ class ConversationPersistence {
 
 			return conversation;
 		} catch (error) {
-			logger.error(`ConversationPersistence: Error saving conversation: ${error.message}`);
+			logger.error(`ConversationPersistence: Error loading conversation: ${error.message}`);
 			throw createError(
 				ErrorType.FileHandling,
 				`File or directory not found when loading conversation: ${this.metadataPath}`,
@@ -485,7 +485,7 @@ class ConversationPersistence {
 		const toolsData = tools.map((tool) => ({
 			name: tool.name,
 			description: tool.description,
-			input_schema: tool.input_schema,
+			inputSchema: tool.inputSchema,
 		}));
 		await Deno.writeTextFile(this.preparedToolsPath, JSON.stringify(toolsData, null, 2));
 		logger.info(`ConversationPersistence: Prepared tools saved for conversation: ${this.conversationId}`);
@@ -550,45 +550,45 @@ class ConversationPersistence {
 		}
 	}
 
-	async logPatch(filePath: string, patch: string): Promise<void> {
+	async logChange(filePath: string, change: string): Promise<void> {
 		await this.ensureInitialized();
 
-		const patchEntry = JSON.stringify({
+		const changeEntry = JSON.stringify({
 			timestamp: new Date().toISOString(),
 			filePath,
-			patch,
+			change,
 		}) + '\n';
-		logger.info(`ConversationPersistence: Writing patch file: ${this.patchLogPath}`);
+		logger.info(`ConversationPersistence: Writing change file: ${this.changeLogPath}`);
 
-		await Deno.writeTextFile(this.patchLogPath, patchEntry, { append: true });
+		await Deno.writeTextFile(this.changeLogPath, changeEntry, { append: true });
 	}
 
-	async getPatchLog(): Promise<Array<{ timestamp: string; filePath: string; patch: string }>> {
+	async getChangeLog(): Promise<Array<{ timestamp: string; filePath: string; change: string }>> {
 		await this.ensureInitialized();
 
-		if (!await exists(this.patchLogPath)) {
+		if (!await exists(this.changeLogPath)) {
 			return [];
 		}
 
-		const content = await Deno.readTextFile(this.patchLogPath);
+		const content = await Deno.readTextFile(this.changeLogPath);
 		const lines = content.trim().split('\n');
 
 		return lines.map((line) => JSON.parse(line));
 	}
 
-	async removeLastPatch(): Promise<void> {
+	async removeLastChange(): Promise<void> {
 		await this.ensureInitialized();
 
-		if (!await exists(this.patchLogPath)) {
+		if (!await exists(this.changeLogPath)) {
 			return;
 		}
 
-		const content = await Deno.readTextFile(this.patchLogPath);
+		const content = await Deno.readTextFile(this.changeLogPath);
 		const lines = content.trim().split('\n');
 
 		if (lines.length > 0) {
 			lines.pop(); // Remove the last line
-			await Deno.writeTextFile(this.patchLogPath, lines.join('\n') + '\n');
+			await Deno.writeTextFile(this.changeLogPath, lines.join('\n') + '\n');
 		}
 	}
 
@@ -621,7 +621,14 @@ class ConversationPersistence {
 				}
 			}
 		}
-		throw new Error(`Could not read file contents for file revision ${revisionFilePath}`);
+		throw createError(
+			ErrorType.FileHandling,
+			`Could not read file contents for file revision ${revisionFilePath}`,
+			{
+				filePath: revisionFilePath,
+				operation: 'read',
+			} as FileHandlingErrorOptions,
+		);
 	}
 
 	// 	private async generateRevisionId(content: string): Promise<string> {
@@ -630,6 +637,20 @@ class ConversationPersistence {
 	// 		const hashBuffer = await crypto.subtle.digest('SHA-256', data);
 	// 		return encodeHex(new Uint8Array(hashBuffer));
 	// 	}
+
+	async createBackups(): Promise<void> {
+		const backupDir = join(this.conversationDir, 'backups');
+		await ensureDir(backupDir);
+
+		const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+		const filesToBackup = ['messages.jsonl', 'conversation.jsonl', 'metadata.json'];
+
+		for (const file of filesToBackup) {
+			const sourcePath = join(this.conversationDir, file);
+			const backupPath = join(backupDir, `${file}.${timestamp}`);
+			await copy(sourcePath, backupPath, { overwrite: true });
+		}
+	}
 }
 
 export default ConversationPersistence;

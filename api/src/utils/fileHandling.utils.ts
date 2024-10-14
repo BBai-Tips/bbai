@@ -155,8 +155,8 @@ export async function existsWithinProject(projectRoot: string, filePath: string)
 	const normalizedProjectRoot = normalize(projectRoot);
 	const normalizedFilePath = normalize(filePath);
 	const absoluteFilePath = resolve(normalizedProjectRoot, normalizedFilePath);
-	//logger.debug(`FileHandlingUtil: Checking file exists in project ${projectRoot} - ${filePath}`);
-	//logger.debug(`FileHandlingUtil: Checking file exists - absoluteFilePath ${absoluteFilePath}`);
+	logger.info(`FileHandlingUtil: Checking file exists in project ${projectRoot} - ${filePath}`);
+	logger.info(`FileHandlingUtil: Checking file exists - absoluteFilePath ${absoluteFilePath}`);
 
 	return await exists(absoluteFilePath);
 	// [TODO] Using isReadable is causing tests to fail - is it a real error or some other problem

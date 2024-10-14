@@ -1,7 +1,9 @@
 /** @jsxImportSource preact */
 import type { JSX } from 'preact';
-import type { LLMToolInputSchema, LLMToolRunResultContent } from 'api/llms/llmTool.ts';
+import type { LLMToolInputSchema } from 'api/llms/llmTool.ts';
 import type { LLMMessageContentPart, LLMMessageContentParts } from 'api/llms/llmMessage.ts';
+import type { ConversationLogEntryContentToolResult } from 'shared/types.ts';
+import { logger } from 'shared/logger.ts';
 
 export const formatToolUse = (toolInput: LLMToolInputSchema): JSX.Element => {
 	const { sources, destination, overwrite, createMissingDirectories } = toolInput as {
@@ -23,23 +25,46 @@ export const formatToolUse = (toolInput: LLMToolInputSchema): JSX.Element => {
 	);
 };
 
-export const formatToolResult = (toolResult: LLMToolRunResultContent): JSX.Element => {
-	const results: LLMMessageContentParts = Array.isArray(toolResult)
-		? toolResult
-		: [toolResult as LLMMessageContentPart];
-	return (
-		<div className='tool-result'>
-			{results.map((result, index) => {
-				if (result.type === 'text') {
-					return (
-						<p key={index}>
-							<strong>{result.text}</strong>
-						</p>
-					);
-				} else {
-					return <p key={index}>Unknown type: {result.type}</p>;
-				}
-			})}
-		</div>
-	);
+export const formatToolResult = (resultContent: ConversationLogEntryContentToolResult): JSX.Element => {
+	const { bbaiResponse } = resultContent;
+	if (typeof bbaiResponse === 'object' && 'data' in bbaiResponse) {
+		const data = bbaiResponse.data as { filesMoved: string[]; filesError: string[]; destination: string };
+		return (
+			<div className='tool-result'>
+				{data.filesMoved.length > 0
+					? (
+						<div>
+							<p>
+								<strong>✅ BBai has moved these files to ${data.destination}:</strong>
+							</p>
+							<p>
+								<ul>{data.filesMoved.map((file) => <li>{file}</li>)}</ul>
+							</p>
+						</div>
+					)
+					: ''}
+				{data.filesError.length > 0
+					? (
+						<div>
+							<p>
+								<strong>⚠️ BBai failed to move these files to ${data.destination}:</strong>
+							</p>
+							<p>
+								<ul>{data.filesError.map((file) => <li>{file}</li>)}</ul>
+							</p>
+						</div>
+					)
+					: ''}
+			</div>
+		);
+	} else {
+		logger.error('Unexpected bbaiResponse format:', bbaiResponse);
+		return (
+			<div className='tool-result'>
+				<p>
+					<strong>{bbaiResponse}</strong>
+				</p>
+			</div>
+		);
+	}
 };

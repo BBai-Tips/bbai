@@ -41,8 +41,8 @@ class ProjectEditor {
 	public projectRoot: string;
 	public toolSet: LLMToolManagerToolSetType = 'coding';
 
-	public patchedFiles: Set<string> = new Set();
-	public patchContents: Map<string, string> = new Map();
+	public changedFiles: Set<string> = new Set();
+	public changeContents: Map<string, string> = new Map();
 	private _projectInfo: ProjectInfo = {
 		startDir: '',
 		type: 'empty',

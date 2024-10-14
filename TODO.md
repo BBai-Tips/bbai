@@ -10,11 +10,9 @@
    - file listing
    - vector embeddings
    - fallback to file_search tool if none of the above are used
-2. Allow users to specify projectInfo type in the config
 3. Implement a repoInfo persistence solution
-4. Don't create tags file in .bbai - either save with conversation or use the persistence solution
 
-## Patching and Git Integration
+## Changes (mutating) and Git Integration
 1. Add config option to create new branch when starting a conversation
 2. Implement a way to "end" conversation which merges branch back to original
 
@@ -27,20 +25,19 @@
 2. Move project-info towards the beginning of the system prompt
 3. Create a high-level system prompt template to combine baseSystem with project info and files added
 4. Update system prompt to further clarify that assistant is talking to both BBai and user:
-   - Responses to tool use (e.g., "Patch applied successfully") should be directed to BBai and wrapped in tags for parsing
+   - Responses to tool use (e.g., "Change applied successfully") should be directed to BBai and wrapped in tags for parsing
    - Everything not inside <bbai> tags will be shown to user as part of the conversation
    - 'User' message showing 'tool result' should be clearly separate from rest of the conversation
 
 ## Logging and Output
 1. Implement terse and verbose options for conversation log:
-   - Verbose option to show results of tool use and details such as contents of patches being applied
-   - Implement fancy formatting for showing patches, similar to git diff output
+   - Verbose option to show results of tool use and details such as contents of changes being applied
+   - Implement fancy formatting for showing changes, similar to git diff output
 2. Format JSON in display of logs
 
 ## Configuration and Customization
 1. Create configs for different interfaces (API, BUI, CLI, DUI)
 2. Implement interface-specific settings in the configuration file
-1. Make the 'post-run' script (currently hard-coded for deno format) a user config option
 2. Implement a safety switch (e.g., allow_dangerous_user_scripts) for potentially dangerous user scripts
 3. Create a meta tool to choose which toolset to load (e.g., different tools for coding projects vs. creative writing)
 4. Create configs for:
@@ -61,7 +58,6 @@
 1. Create a `bbai doctor` command to zip a conversation for sharing
 2. Create a summarize history tool to reduce token count and delete earlier messages
 3. Implement new tools:
-   - Move files
    - Record memory, remember instruction/guideline
 
 ## For CHANGELOG
@@ -129,6 +125,13 @@
    - Check if API is running; if not, start it, and then kill it when exiting
    - Ensure the API logs go to file and not to chat terminal (Unless debug CLI arg is passed)
    - Don't start API in watch mode if auto-started by `bbai chat` (pass args via action(...))
+43. √ Allow users to specify projectInfo type in the config
+44. √ Don't create tags file in .bbai - either save with conversation or use the persistence solution
+45. √ Make the 'post-run' script (currently hard-coded for deno format) a user config option
+46. √ Implement new tools:
+   - Move files
+   - Rename files
+
 
 
 Thoughts...

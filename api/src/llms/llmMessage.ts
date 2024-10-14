@@ -90,19 +90,22 @@ export interface LLMMessageProviderResponse {
 
 class LLMMessage {
 	public timestamp: string = new Date().toISOString();
+	public id!: string;
 	constructor(
 		public role: 'user' | 'assistant' | 'system' | 'tool', // system and tool are only for openai
 		public content: LLMMessageContentParts,
 		public tool_call_id?: string,
 		public providerResponse?: LLMMessageProviderResponse,
-		public id?: string,
+		id?: string,
 	) {
-		this.setId();
+		this.setId(id);
 		this.setTimestamp();
 	}
 
-	public setId(): void {
-		if (!this.id) {
+	public setId(id?: string): void {
+		if (!this.id && id) {
+			this.id = id;
+		} else if (!this.id) {
 			this.id = ulid();
 		}
 	}

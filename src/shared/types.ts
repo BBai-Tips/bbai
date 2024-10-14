@@ -1,7 +1,14 @@
-import type { ConversationLogEntry, ConversationLoggerEntryType } from 'shared/conversationLogger.ts';
 import type { LLMProviderMessageMeta, LLMProviderMessageResponse } from 'api/types/llms.ts';
 import type { LLMToolInputSchema, LLMToolRunResultContent } from 'api/llms/llmTool.ts';
 import type { LLMMessageContentPartImageBlockSourceMediaType } from 'api/llms/llmMessage.ts';
+import type { ConversationLogEntry } from 'api/storage/conversationLogger.ts';
+
+export type {
+	ConversationLogEntry,
+	ConversationLogEntryContent,
+	ConversationLogEntryContentToolResult,
+	ConversationLogEntryType,
+} from 'api/storage/conversationLogger.ts';
 
 export type ConversationId = string;
 
@@ -108,13 +115,11 @@ export interface ConversationResponse {
 	conversationId: ConversationId;
 	conversationTitle: string;
 	timestamp: string;
-	response: LLMProviderMessageResponse;
-	messageMeta: LLMProviderMessageMeta;
+	logEntry: ConversationLogEntry;
+	tokenUsageTurn?: TokenUsage;
 	tokenUsageStatement: TokenUsage;
 	tokenUsageConversation: ConversationTokenUsage;
 	conversationStats: ConversationMetrics;
-	answer: string;
-	assistantThinking: string;
 	formattedContent?: string;
 }
 

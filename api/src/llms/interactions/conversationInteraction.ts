@@ -1,4 +1,5 @@
 import { join } from '@std/path';
+import { encodeBase64 } from '@std/encoding';
 
 import type { LLMSpeakWithOptions, LLMSpeakWithResponse } from 'api/types.ts';
 import type {
@@ -18,7 +19,8 @@ import type {
 	LLMMessageContentParts,
 	LLMMessageContentPartTextBlock,
 } from 'api/llms/llmMessage.ts';
-import { encodeBase64 } from '@std/encoding';
+import { isFileHandlingError } from 'api/errors/error.ts';
+
 import LLMMessage from 'api/llms/llmMessage.ts';
 import type LLMTool from 'api/llms/llmTool.ts';
 import { logger } from 'shared/logger.ts';
@@ -105,7 +107,7 @@ class LLMConversationInteraction extends LLMInteraction {
 			preparedTools = Array.from(tools.values()).map((tool) => ({
 				name: tool.name,
 				description: tool.description,
-				input_schema: tool.input_schema,
+				inputSchema: tool.inputSchema,
 			} as LLMTool));
 
 			// Save the prepared tools
@@ -177,30 +179,35 @@ class LLMConversationInteraction extends LLMInteraction {
 		revisionId: string,
 	): Promise<string | Uint8Array> {
 		try {
+			//logger.info(`ConversationInteraction: Reading file revision from project: ${filePath}`);
 			const content = await this.getFileRevision(filePath, revisionId);
-			logger.info(`ConversationInteraction: Returning contents of File Revision ${filePath} (${revisionId})`);
-			return content;
-		} catch (_) {
-			const projectRoot = await this.llm.invoke(LLMCallbackType.PROJECT_ROOT);
-			const fullFilePath = join(projectRoot, filePath);
-			logger.info(`ConversationInteraction: Reading contents of File ${fullFilePath}`);
-			try {
+			if (content === null) {
+				const projectRoot = await this.llm.invoke(LLMCallbackType.PROJECT_ROOT);
+				const fullFilePath = join(projectRoot, filePath);
+				logger.info(`ConversationInteraction: Reading contents of File ${fullFilePath}`);
 				const content = await this.resourceManager.loadResource({
 					type: 'file',
 					location: fullFilePath,
 				});
 				await this.storeFileRevision(filePath, revisionId, content);
 				return content;
-			} catch (error) {
-				if (error instanceof Deno.errors.NotFound) {
-					logger.info(`File not found: ${filePath} (${revisionId}) - ${error.message}`);
-					return '';
-				} else if (error instanceof Deno.errors.PermissionDenied) {
-					logger.info(`Permission denied: ${filePath} (${revisionId}) - ${error.message}`);
-					return '';
-				} else {
-					throw new Error(`Failed to read file: ${filePath} (${revisionId}) - Error: ${error}`);
-				}
+			}
+			logger.info(`ConversationInteraction: Returning contents of File Revision ${filePath} (${revisionId})`);
+			return content;
+		} catch (error) {
+			//logger.info(`ConversationInteraction: Error getting File from project ${filePath} (${revisionId}`, error);
+			if (error instanceof Deno.errors.NotFound) {
+				logger.info(
+					`ConversationInteraction: File not found: ${filePath} (${revisionId}) - ${error.message}`,
+				);
+				return '';
+			} else if (error instanceof Deno.errors.PermissionDenied) {
+				logger.info(
+					`ConversationInteraction: Permission denied: ${filePath} (${revisionId}) - ${error.message}`,
+				);
+				return '';
+			} else {
+				throw new Error(`Failed to read file: ${filePath} (${revisionId}) - Error: ${error}`);
 			}
 		}
 	}
@@ -210,10 +217,31 @@ class LLMConversationInteraction extends LLMInteraction {
 		await this.conversationPersistence.storeFileRevision(filePath, revisionId, content);
 	}
 
-	async getFileRevision(filePath: string, revisionId: string): Promise<string | Uint8Array> {
+	async getFileRevision(filePath: string, revisionId: string): Promise<string | Uint8Array | null> {
 		logger.info(`ConversationInteraction: Getting file revision: ${filePath} Revision: (${revisionId})`);
-		return await this.conversationPersistence.getFileRevision(filePath, revisionId);
+		try {
+			const content = await this.conversationPersistence.getFileRevision(filePath, revisionId);
+			return content;
+		} catch (error) {
+			if (error instanceof Deno.errors.NotFound || isFileHandlingError(error)) {
+				logger.info(
+					`ConversationInteraction: getFileRevision - File not found: ${filePath} (${revisionId}) - ${error.message}`,
+				);
+				return null;
+				// } else if (error instanceof Deno.errors.PermissionDenied) {
+				// 	logger.info(
+				// 		`ConversationInteraction: getFileRevision - Permission denied: ${filePath} (${revisionId}) - ${error.message}`,
+				// 	);
+				// 	return null;
+			} else {
+				throw new Error(`Failed to read file revision: ${filePath} (${revisionId}) - Error: ${error}`);
+			}
+		}
 	}
+	// async getFileRevisionSimple(filePath: string, revisionId: string): Promise<string | Uint8Array> {
+	// 	logger.info(`ConversationInteraction: Getting file revision: ${filePath} Revision: (${revisionId})`);
+	// 	return await this.conversationPersistence.getFileRevision(filePath, revisionId);
+	// }
 
 	protected appendProjectInfoToSystem(
 		system: string,
@@ -288,6 +316,7 @@ class LLMConversationInteraction extends LLMInteraction {
 						hydratedFiles.set(filePath, turnIndex);
 						return [imageBlock, textBlock] as LLMMessageContentParts;
 					} else {
+						//logger.info(`ConversationInteraction: Hydrating - preparing file: ${filePath}`);
 						const fileContent = await this.readProjectFileContent(filePath, messageId);
 						const fileXml =
 							`<bbaiFile path="${filePath}" size="${fileMetadata.size}" last_modified="${fileMetadata.lastModified}" revision="${messageId}">
@@ -509,8 +538,9 @@ ${fileContent}
 		this._statementTurnCount++;
 
 		//logger.debug(`ConversationInteraction: converse - calling addMessageForUserRole for turn ${this._statementTurnCount}` );
-		this.addMessageForUserRole({ type: 'text', text: prompt });
-		this.conversationLogger?.logUserMessage(
+		const messageId = this.addMessageForUserRole({ type: 'text', text: prompt });
+		this.conversationLogger.logUserMessage(
+			messageId,
 			prompt,
 			this.getConversationStats(),
 		);
@@ -530,6 +560,7 @@ ${fileContent}
 		const tokenUsageMessage: TokenUsage = response.messageResponse.usage;
 
 		this.conversationLogger.logAssistantMessage(
+			this.getLastMessageId(),
 			msg,
 			conversationStats,
 			tokenUsageMessage,

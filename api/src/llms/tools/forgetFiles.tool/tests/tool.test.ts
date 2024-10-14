@@ -4,6 +4,11 @@ import { assert, assertEquals, assertStringIncludes } from 'api/tests/deps.ts';
 import { LLMAnswerToolUse } from 'api/llms/llmMessage.ts';
 import { getProjectEditor, getToolManager, withTestProject } from 'api/tests/testSetup.ts';
 
+// Type guard to check if bbaiResponse is a string
+function isString(value: unknown): value is string {
+	return typeof value === 'string';
+}
+
 Deno.test({
 	name: 'ForgetFilesTool - Forget existing files from conversation',
 	fn: async () => {
@@ -47,7 +52,16 @@ Deno.test({
 			// console.log('Forget existing files from conversation - toolResponse:', result.toolResponse);
 			// console.log('Forget existing files from conversation - toolResults:', result.toolResults);
 
-			assertStringIncludes(result.bbaiResponse, 'BBai has removed these files from the conversation');
+			assert(isString(result.bbaiResponse), 'bbaiResponse should be a string');
+			if (isString(result.bbaiResponse)) {
+				assertStringIncludes(
+					result.bbaiResponse,
+					'BBai has removed these files from the conversation',
+				);
+			} else {
+				assert(false, 'bbaiResponse is not a string as expected');
+			}
+
 			assertStringIncludes(
 				result.toolResponse,
 				'Removed files from the conversation:\n- file1.txt (Revision: 1111-2222)\n- file2.txt (Revision: 1111-2222)',
@@ -109,7 +123,16 @@ Deno.test({
 			// console.log('Attempt to forget non-existent file - toolResponse:', result.toolResponse);
 			// console.log('Attempt to forget non-existent file - toolResults:', result.toolResults);
 
-			assertStringIncludes(result.bbaiResponse, 'BBai failed to remove these files from the conversation');
+			assert(isString(result.bbaiResponse), 'bbaiResponse should be a string');
+			if (isString(result.bbaiResponse)) {
+				assertStringIncludes(
+					result.bbaiResponse,
+					'BBai failed to remove these files from the conversation',
+				);
+			} else {
+				assert(false, 'bbaiResponse is not a string as expected');
+			}
+
 			assertStringIncludes(
 				result.toolResponse,
 				'non_existent.txt (1111-2222): File is not in the conversation history',
@@ -174,10 +197,16 @@ Deno.test({
 			// console.log('Forget mix of existing and non-existent files - toolResponse:', result.toolResponse);
 			// console.log('Forget mix of existing and non-existent files - toolResults:', result.toolResults);
 
-			assertStringIncludes(
-				result.bbaiResponse,
-				'BBai has removed these files from the conversation: existing_file.txt (Revision: 1111-2222)',
-			);
+			assert(isString(result.bbaiResponse), 'bbaiResponse should be a string');
+			if (isString(result.bbaiResponse)) {
+				assertStringIncludes(
+					result.bbaiResponse,
+					'BBai has removed these files from the conversation: existing_file.txt (Revision: 1111-2222)',
+				);
+			} else {
+				assert(false, 'bbaiResponse is not a string as expected');
+			}
+
 			assertStringIncludes(
 				result.bbaiResponse,
 				'BBai failed to remove these files from the conversation:\n- non_existent_file.txt (1111-2222): File is not in the conversation history',

@@ -2,7 +2,7 @@ import type { RouterContext } from '@oak/oak';
 import { renderToString } from 'preact-render-to-string';
 import type { JSX } from 'preact';
 import type { LLMToolFormatterDestination } from 'api/llms/llmTool.ts';
-import type { ConversationLoggerEntryType } from 'shared/conversationLogger.ts';
+import type { ConversationLogEntryType } from 'shared/types.ts';
 import LogEntryFormatterManager from '../../logEntries/logEntryFormatterManager.ts';
 import { logger } from 'shared/logger.ts';
 import { ConfigManager } from 'shared/configManager.ts';
@@ -12,15 +12,15 @@ import { ConfigManager } from 'shared/configManager.ts';
 export const logEntryFormatter = async (
 	{ params, request, response }: RouterContext<
 		'/v1/format_log_entry/:logEntryDestination/:logEntryFormatterType',
-		{ logEntryDestination: LLMToolFormatterDestination; logEntryFormatterType: ConversationLoggerEntryType }
+		{ logEntryDestination: LLMToolFormatterDestination; logEntryFormatterType: ConversationLogEntryType }
 	>,
 ) => {
-	logger.info('HandlerLogEntryFormatter-params', params);
+	//logger.debug('HandlerLogEntryFormatter-params', params);
 	const { logEntryDestination, logEntryFormatterType } = params;
 
 	try {
 		const { logEntry, startDir } = await request.body.json();
-		logger.info('HandlerLogEntryFormatter-logEntry', logEntry);
+		//logger.info('HandlerLogEntryFormatter-logEntry', logEntry);
 
 		const fullConfig = await ConfigManager.fullConfig(startDir);
 		const logEntryFormatterManager = await new LogEntryFormatterManager(fullConfig).init();

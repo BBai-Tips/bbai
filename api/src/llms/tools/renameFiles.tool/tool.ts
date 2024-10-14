@@ -4,7 +4,7 @@ import { dirname, join } from '@std/path';
 import { exists } from '@std/fs';
 
 import LLMTool from 'api/llms/llmTool.ts';
-import type { LLMToolInputSchema, LLMToolRunResult, LLMToolRunResultContent } from 'api/llms/llmTool.ts';
+import type { LLMToolInputSchema, LLMToolRunResult } from 'api/llms/llmTool.ts';
 import {
 	formatToolResult as formatToolResultBrowser,
 	formatToolUse as formatToolUseBrowser,
@@ -15,9 +15,8 @@ import {
 } from './formatter.console.ts';
 import type LLMConversationInteraction from 'api/llms/conversationInteraction.ts';
 import type ProjectEditor from 'api/editor/projectEditor.ts';
+import type { ConversationLogEntryContentToolResult } from 'shared/types.ts';
 import type { LLMAnswerToolUse, LLMMessageContentPartTextBlock } from 'api/llms/llmMessage.ts';
-import { createError, ErrorType } from 'api/utils/error.ts';
-//import type { FileHandlingErrorOptions } from '../../errors/error.ts';
 import { isPathWithinProject } from 'api/utils/fileHandling.ts';
 import { logger } from 'shared/logger.ts';
 
@@ -28,7 +27,7 @@ interface RenameFilesParams {
 }
 
 export default class LLMToolRenameFiles extends LLMTool {
-	get input_schema(): LLMToolInputSchema {
+	get inputSchema(): LLMToolInputSchema {
 		return {
 			type: 'object',
 			properties: {
@@ -66,12 +65,15 @@ export default class LLMToolRenameFiles extends LLMTool {
 		return format === 'console' ? formatToolUseConsole(toolInput) : formatToolUseBrowser(toolInput);
 	}
 
-	formatToolResult(toolResult: LLMToolRunResultContent, format: 'console' | 'browser'): string | JSX.Element {
-		return format === 'console' ? formatToolResultConsole(toolResult) : formatToolResultBrowser(toolResult);
+	formatToolResult(
+		resultContent: ConversationLogEntryContentToolResult,
+		format: 'console' | 'browser',
+	): string | JSX.Element {
+		return format === 'console' ? formatToolResultConsole(resultContent) : formatToolResultBrowser(resultContent);
 	}
 
 	async runTool(
-		_interaction: LLMConversationInteraction,
+		interaction: LLMConversationInteraction,
 		toolUse: LLMAnswerToolUse,
 		projectEditor: ProjectEditor,
 	): Promise<LLMToolRunResult> {
@@ -142,24 +144,25 @@ export default class LLMToolRenameFiles extends LLMTool {
 				}
 			}
 
-			const bbaiResponses = [];
+			const renamedFiles = [];
+			const renamedContent = [];
+			for (const renamed of renamedSuccess) {
+				renamedFiles.push(renamed.source);
+				renamedContent.push(`${renamed.source} renamed to ${renamed.destination}`);
+			}
+			await projectEditor.orchestratorController.logChangeAndCommit(
+				interaction,
+				renamedFiles,
+				renamedContent,
+			);
+
 			const toolResponses = [];
 			if (renamedSuccess.length > 0) {
-				bbaiResponses.push(
-					`BBai has renamed these files:\n${
-						renamedSuccess.map((f) => `- ${f.source} -> ${f.destination}`).join('\n')
-					}`,
-				);
 				toolResponses.push(
 					`Renamed files:\n${renamedSuccess.map((f) => `- ${f.source} -> ${f.destination}`).join('\n')}`,
 				);
 			}
 			if (renamedError.length > 0) {
-				bbaiResponses.push(
-					`BBai failed to rename these files:\n${
-						renamedError.map((f) => `- ${f.source} -> ${f.destination}: ${f.error}`).join('\n')
-					}`,
-				);
 				toolResponses.push(
 					`Failed to rename files:\n${
 						renamedError.map((f) => `- ${f.source} -> ${f.destination}: ${f.error}`).join('\n')
@@ -168,9 +171,13 @@ export default class LLMToolRenameFiles extends LLMTool {
 			}
 
 			const toolResults = toolResultContentParts;
-			const toolResponse = (noFilesRenamed ? 'No files renamed\n' : '') +
-				toolResponses.join('\n\n');
-			const bbaiResponse = bbaiResponses.join('\n\n');
+			const toolResponse = (noFilesRenamed ? 'No files renamed\n' : '') + toolResponses.join('\n\n');
+			const bbaiResponse = {
+				data: {
+					filesRenamed: renamedSuccess,
+					filesError: renamedError,
+				},
+			};
 
 			return {
 				toolResults,
@@ -180,15 +187,10 @@ export default class LLMToolRenameFiles extends LLMTool {
 		} catch (error) {
 			logger.error(`Error renaming files: ${error.message}`);
 
-			throw createError(
-				ErrorType.FileHandling,
-				`Error renaming files: ${error.message}`,
-				{
-					name: 'rename-file',
-					filePath: projectEditor.projectRoot,
-					operation: 'move',
-				},
-			);
+			const toolResults = `⚠️  ${error.message}`;
+			const bbaiResponse = `BBai failed to rename files. Error: ${error.message}`;
+			const toolResponse = `Failed to rename files. Error: ${error.message}`;
+			return { toolResults, toolResponse, bbaiResponse };
 		}
 	}
 }

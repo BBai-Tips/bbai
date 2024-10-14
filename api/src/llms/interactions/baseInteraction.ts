@@ -13,12 +13,12 @@ import type {
 import LLMMessage from 'api/llms/llmMessage.ts';
 import type LLMTool from 'api/llms/llmTool.ts';
 import type { LLMToolRunResultContent } from 'api/llms/llmTool.ts';
-import ConversationPersistence from '../../storage/conversationPersistence.ts';
-import type { FullConfigSchema } from 'shared/configManager.ts';
-import ConversationLogger from 'shared/conversationLogger.ts';
-import type { ConversationLogEntry } from 'shared/conversationLogger.ts';
-import { logger } from 'shared/logger.ts';
+import ConversationPersistence from 'api/storage/conversationPersistence.ts';
+import ConversationLogger from 'api/storage/conversationLogger.ts';
+import type { ConversationLogEntry } from 'api/storage/conversationLogger.ts';
 import { generateConversationId } from 'shared/conversationManagement.ts';
+import type { FullConfigSchema } from 'shared/configManager.ts';
+import { logger } from 'shared/logger.ts';
 
 class LLMInteraction {
 	public id: string;
@@ -47,7 +47,7 @@ class LLMInteraction {
 	protected messages: LLMMessage[] = [];
 	protected tools: Map<string, LLMTool> = new Map();
 	protected _baseSystem: string = '';
-	protected conversationPersistence!: ConversationPersistence;
+	public conversationPersistence!: ConversationPersistence;
 	public conversationLogger!: ConversationLogger;
 	protected fullConfig!: FullConfigSchema;
 
@@ -214,7 +214,6 @@ class LLMInteraction {
 	public addMessageForUserRole(content: LLMMessageContentPart | LLMMessageContentParts): string {
 		const lastMessage = this.getLastMessage();
 		//logger.debug('lastMessage for user', lastMessage);
-		//this.conversationLogger?.logUserMessage(content);
 		if (lastMessage && lastMessage.role === 'user') {
 			// Append content to the content array of the last user message
 			//logger.debug('Adding content to existing user message', JSON.stringify(content, null, 2));
@@ -223,13 +222,13 @@ class LLMInteraction {
 			} else {
 				lastMessage.content.push(content);
 			}
-			return lastMessage.id ?? '';
+			return lastMessage.id;
 		} else {
 			// Add a new user message
 			//logger.debug('Adding content to new user message', JSON.stringify(content, null, 2));
 			const newMessage = new LLMMessage('user', Array.isArray(content) ? content : [content]);
 			this.addMessage(newMessage);
-			return newMessage.id ?? '';
+			return newMessage.id;
 		}
 	}
 
@@ -250,7 +249,7 @@ class LLMInteraction {
 			} else {
 				lastMessage.content.push(content);
 			}
-			return lastMessage.id ?? '';
+			return lastMessage.id;
 		} else {
 			// Add a new assistant message
 			//logger.debug('Adding content to new assistant message', JSON.stringify(content, null, 2));
@@ -261,7 +260,7 @@ class LLMInteraction {
 				providerResponse,
 			);
 			this.addMessage(newMessage);
-			return newMessage.id ?? '';
+			return newMessage.id;
 		}
 	}
 
@@ -315,7 +314,7 @@ class LLMInteraction {
 				}
 				existingToolResult.is_error = existingToolResult.is_error || isError;
 				logger.debug('LLMInteraction: Updating existing tool result', JSON.stringify(toolResult, null, 2));
-				return lastMessage.id ?? '';
+				return lastMessage.id;
 			} else {
 				// Add new tool result to existing user message
 				logger.debug(
@@ -323,7 +322,7 @@ class LLMInteraction {
 					JSON.stringify(toolResult, null, 2),
 				);
 				lastMessage.content.push(toolResult);
-				return lastMessage.id ?? '';
+				return lastMessage.id;
 			}
 		} else {
 			// Add a new user message with the tool result
@@ -333,7 +332,7 @@ class LLMInteraction {
 			);
 			const newMessage = new LLMMessage('user', [toolResult]);
 			this.addMessage(newMessage);
-			return newMessage.id ?? '';
+			return newMessage.id;
 		}
 	}
 
@@ -357,6 +356,9 @@ class LLMInteraction {
 	public getMessages(): LLMMessage[] {
 		return this.messages;
 	}
+	public setMessages(messages: LLMMessage[]): void {
+		this.messages = messages;
+	}
 
 	public getLastMessage(): LLMMessage {
 		return this.messages.slice(-1)[0];
@@ -369,6 +371,12 @@ class LLMInteraction {
 	public getLastMessageContent(): LLMMessageContentParts | undefined {
 		const lastMessage = this.getLastMessage();
 		return lastMessage?.content;
+	}
+
+	public getLastMessageId(): string {
+		const lastMessage = this.getLastMessage();
+		if (!lastMessage) throw new Error('No message found for getLastMessageId');
+		return lastMessage.id;
 	}
 
 	public clearMessages(): void {
@@ -448,6 +456,8 @@ class LLMInteraction {
 		this.tools.clear();
 	}
 
+	// speakWithLLM is a lower-level call, to handle tool use/results loop and auxillary messages
+	// the caller is responsible for adding to conversationLogger
 	async speakWithLLM(
 		prompt: string,
 		speakOptions?: LLMSpeakWithOptions,
@@ -458,22 +468,8 @@ class LLMInteraction {
 
 		//logger.debug(`speakWithLLM - calling addMessageForUserRole for turn ${this._statementTurnCount}` );
 		this.addMessageForUserRole({ type: 'text', text: prompt });
-		//this.conversationLogger.logUserMessage(prompt);
 
 		const response = await this.llm.speakWithRetry(this, speakOptions);
-
-		/*
-		const contentPart: LLMMessageContentPart = response.messageResponse
-			.answerContent[0] as LLMMessageContentPartTextBlock;
-		const msg = contentPart.text;
-		const conversationStats: ConversationMetrics = {
-			statementCount: this.statementCount,
-			statementTurnCount: this.statementTurnCount,
-			conversationTurnCount: this.conversationTurnCount,
-		};
-		const tokenUsage: TokenUsage = response.messageResponse.usage;
-		this.conversationLogger.logAssistantMessage(msg, conversationStats, tokenUsage);
-		 */
 
 		return response;
 	}

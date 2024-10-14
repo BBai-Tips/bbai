@@ -1,6 +1,6 @@
 import type { JSX } from 'preact';
 import LLMTool from 'api/llms/llmTool.ts';
-import type { LLMToolConfig, LLMToolInputSchema, LLMToolRunResult, LLMToolRunResultContent } from 'api/llms/llmTool.ts';
+import type { LLMToolConfig, LLMToolInputSchema, LLMToolRunResult } from 'api/llms/llmTool.ts';
 import {
 	formatToolResult as formatToolResultBrowser,
 	formatToolUse as formatToolUseBrowser,
@@ -10,6 +10,7 @@ import {
 	formatToolUse as formatToolUseConsole,
 } from './formatter.console.ts';
 import type LLMConversationInteraction from 'api/llms/conversationInteraction.ts';
+import type { ConversationLogEntryContentToolResult } from 'shared/types.ts';
 import type { LLMAnswerToolUse, LLMMessageContentPartTextBlock } from 'api/llms/llmMessage.ts';
 import type ProjectEditor from 'api/editor/projectEditor.ts';
 //import { createError, ErrorType } from 'api/utils/error.ts';
@@ -96,7 +97,7 @@ export default class LLMToolMultiModelQuery extends LLMTool {
 		//logger.debug(`LLMToolMultiModelQuery: providers`, this.providers);
 	}
 
-	get input_schema(): LLMToolInputSchema {
+	get inputSchema(): LLMToolInputSchema {
 		return {
 			type: 'object',
 			properties: {
@@ -126,8 +127,11 @@ export default class LLMToolMultiModelQuery extends LLMTool {
 		return format === 'console' ? formatToolUseConsole(toolInput) : formatToolUseBrowser(toolInput);
 	}
 
-	formatToolResult(toolResult: LLMToolRunResultContent, format: 'console' | 'browser'): string | JSX.Element {
-		return format === 'console' ? formatToolResultConsole(toolResult) : formatToolResultBrowser(toolResult);
+	formatToolResult(
+		resultContent: ConversationLogEntryContentToolResult,
+		format: 'console' | 'browser',
+	): string | JSX.Element {
+		return format === 'console' ? formatToolResultConsole(resultContent) : formatToolResultBrowser(resultContent);
 	}
 
 	async runTool(
@@ -142,8 +146,8 @@ export default class LLMToolMultiModelQuery extends LLMTool {
 
 		try {
 			const toolResultContentParts: LLMMessageContentPartTextBlock[] = [];
-			const querySuccess: Array<{ name: string }> = [];
-			const queryError: Array<{ name: string; error: string }> = [];
+			const querySuccess: Array<{ modelIdentifier: string; answer: string }> = [];
+			const queryError: Array<{ modelIdentifier: string; error: string }> = [];
 
 			const modelQueries = models.map(async (modelName: string) => {
 				const provider = MODELS_PROVIDERS[modelName];
@@ -184,39 +188,38 @@ export default class LLMToolMultiModelQuery extends LLMTool {
 						'type': 'text',
 						'text': `**Model: ${result.modelIdentifier}**\n\n# Answer:\n${result.answer}`,
 					});
-					querySuccess.push({ name: result.modelName });
+					querySuccess.push({ modelIdentifier: result.modelIdentifier, answer: result.answer || '' });
 				} else {
 					toolResultContentParts.push({
 						'type': 'text',
 						'text': `Error querying ${result.modelIdentifier}: ${result.error}`,
 					});
-					queryError.push({ name: result.modelIdentifier, error: result.error });
+					queryError.push({ modelIdentifier: result.modelIdentifier, error: result.error });
 				}
 			});
 
-			const bbaiResponses = [];
 			const toolResponses = [];
 			if (querySuccess.length > 0) {
-				bbaiResponses.push(
-					`BBai has queried models: ${querySuccess.map((m) => m.name).join(', ')}`,
-				);
 				toolResponses.push(
-					`Queried models:\n${querySuccess.map((m) => `- ${m.name}`).join('\n')}`,
+					`Queried models:\n${querySuccess.map((m) => `- ${m.modelIdentifier}`).join('\n')}`,
 				);
 			}
 			if (queryError.length > 0) {
-				bbaiResponses.push(
-					`BBai failed to query models:\n${queryError.map((m) => `- ${m.name}: ${m.error}`).join('\n')}`,
-				);
 				toolResponses.push(
-					`Failed to query models:\n${queryError.map((m) => `- ${m.name}: ${m.error}`).join('\n')}`,
+					`Failed to query models:\n${
+						queryError.map((m) => `- ${m.modelIdentifier}: ${m.error}`).join('\n')
+					}`,
 				);
 			}
 
 			const toolResults = toolResultContentParts;
-			const toolResponse = (querySuccess.length === 0 ? 'No models queried.\n' : '') +
-				toolResponses.join('\n\n');
-			const bbaiResponse = `${bbaiResponses.join('\n\n')}. You can review their responses in the output.`;
+			const toolResponse = (querySuccess.length === 0 ? 'No models queried.\n' : '') + toolResponses.join('\n\n');
+			const bbaiResponse = {
+				data: {
+					querySuccess,
+					queryError,
+				},
+			};
 
 			return {
 				toolResults,

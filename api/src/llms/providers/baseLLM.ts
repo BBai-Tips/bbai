@@ -17,8 +17,8 @@ import type { LLMToolInputSchema } from '../llmTool.ts';
 import type LLMInteraction from '../interactions/baseInteraction.ts';
 import { logger } from 'shared/logger.ts';
 import type { FullConfigSchema } from 'shared/configManager.ts';
-import { ErrorType, type LLMErrorOptions } from '../../errors/error.ts';
-import { createError } from '../../utils/error.utils.ts';
+import { ErrorType, type LLMErrorOptions } from 'api/errors/error.ts';
+import { createError } from 'api/utils/error.ts';
 //import { metricsService } from '../../services/metrics.service.ts';
 import kv from '../../utils/kv.utils.ts';
 import { tokenUsageManager } from '../../utils/tokenUsage.utils.ts';
@@ -313,7 +313,7 @@ class LLM {
 						return `Tool exceeded max tokens`;
 					}
 
-					const inputSchema: LLMToolInputSchema = tool.input_schema;
+					const inputSchema: LLMToolInputSchema = tool.inputSchema;
 					const validate = ajv.compile(inputSchema);
 					const valid = validate(toolUse.toolInput);
 					//logger.error(`validateResponse - Tool is valid: ${toolUse.toolName}`);

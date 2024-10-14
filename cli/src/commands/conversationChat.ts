@@ -129,20 +129,11 @@ export const conversationChat = new Command()
 					statement = input.join('\n');
 				}
 				// we've got a statement now; either passed as cli arg or read from stdin
-				let response;
-				if (conversationId) {
-					response = await apiClient.post(`/api/v1/conversation/${conversationId}`, {
-						statement: statement,
-						//model: options.model,
-						startDir: startDir,
-					});
-				} else {
-					response = await apiClient.post('/api/v1/conversation', {
-						statement: statement,
-						//model: options.model,
-						startDir: startDir,
-					});
-				}
+				const response = await apiClient.post(`/api/v1/conversation/${conversationId}`, {
+					statement: statement,
+					//model: options.model,
+					startDir: startDir,
+				});
 
 				if (response.ok) {
 					const data = await response.json();

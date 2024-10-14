@@ -1,6 +1,6 @@
 {
 	"name": "bbai-api",
-	"version": "0.0.25-beta",
+	"version": "0.0.26-beta",
 	"exports": "./src/main.ts",
 	"tasks": {
 		"start": "deno run --allow-read --allow-write --allow-run --allow-net --allow-env src/main.ts",
@@ -12,7 +12,7 @@
 		"build-local": "deno task generate-tools-manifest && deno compile --allow-env --allow-net --allow-read --allow-run --allow-write --output ../build/bbai-api src/main.ts",
 		"format": "deno fmt",
 		"check-format": "deno fmt --check",
-		"check-types": "deno check src/main.ts",
+		"check-types": "deno check src/main.ts src/llms/tools/*.tool/*",
 		"update-deps": "deno cache src/main.ts && deno cache tests/deps.ts"
 	},
 	"importMap": "../import_map.json",

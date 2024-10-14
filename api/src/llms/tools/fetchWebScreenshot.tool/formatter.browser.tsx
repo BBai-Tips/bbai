@@ -1,8 +1,9 @@
 /** @jsxImportSource preact */
 import type { JSX } from 'preact';
-import type { LLMToolInputSchema, LLMToolRunResultContent } from 'api/llms/llmTool.ts';
-//import type { LLMMessageContentPart, LLMMessageContentParts } from 'api/llms/llmMessage.ts';
-import { getContentFromToolResult } from 'api/utils/llms.ts';
+import type { LLMToolInputSchema } from 'api/llms/llmTool.ts';
+import type { LLMMessageContentParts } from 'api/llms/llmMessage.ts';
+import type { ConversationLogEntryContentToolResult } from 'shared/types.ts';
+import { logger } from 'shared/logger.ts';
 
 export const formatToolUse = (toolInput: LLMToolInputSchema): JSX.Element => {
 	const { url } = toolInput as { url: string };
@@ -16,42 +17,41 @@ export const formatToolUse = (toolInput: LLMToolInputSchema): JSX.Element => {
 	);
 };
 
-export const formatToolResult = (toolResult: LLMToolRunResultContent): JSX.Element => {
-	const content = getContentFromToolResult(toolResult);
-	return (
-		<img
-			src={content}
-			alt='Web page screenshot'
-			style='max-width: 100%; height: auto;'
-		/>
-	);
-	/*
-	const results: LLMMessageContentParts = Array.isArray(toolResult)
-		? toolResult
-		: [toolResult as LLMMessageContentPart];
-	return (
-		<div className='tool-result'>
-			{results.map((result, index) => {
-				if (result.type === 'text') {
-					return (
-						<p key={index}>
-							<strong>{result.text}</strong>
-						</p>
-					);
-				} else if (result.type === 'image') {
-					return (
-						<img
-							key={index}
-							src={result.url}
-							alt='Web page screenshot'
-							style='max-width: 100%; height: auto;'
-						/>
-					);
-				} else {
-					return <p key={index}>Unknown type: {result.type}</p>;
-				}
-			})}
-		</div>
-	);
- */
+export const getImageContent = (contentParts: LLMMessageContentParts): string => {
+	const content = contentParts[0] || { source: { data: '' } };
+	if ('source' in content) {
+		return content.source.data;
+	}
+	return '';
+};
+
+export const formatToolResult = (resultContent: ConversationLogEntryContentToolResult): JSX.Element => {
+	const { toolResult, bbaiResponse } = resultContent;
+	if (typeof bbaiResponse === 'object' && 'data' in bbaiResponse) {
+		const { url } = bbaiResponse.data as { url: string };
+		const content = getImageContent(toolResult as LLMMessageContentParts);
+		return (
+			<div className='tool-result'>
+				<p>
+					<strong>
+						BBai has fetched web page screenshot from {url}.
+					</strong>
+				</p>
+				<img
+					src={`data:image/png;base64,${content}`}
+					alt='Web page screenshot'
+					style={{ maxWidth: '100%', height: 'auto' }}
+				/>
+			</div>
+		);
+	} else {
+		logger.error('Unexpected bbaiResponse format:', bbaiResponse);
+		return (
+			<div className='tool-result'>
+				<p>
+					<strong>{bbaiResponse}</strong>
+				</p>
+			</div>
+		);
+	}
 };

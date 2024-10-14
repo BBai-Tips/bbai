@@ -33,7 +33,7 @@ These instructions guide the process of creating and updating formatter files fo
    - Reuse existing formatting logic from the main tool file.
 
 4. Update Main Tool File
-   - Remove existing formatting logic (`toolUseInputFormatter` and `toolRunResultFormatter` methods).
+   - Remove existing formatting logic (`formatToolUse` and `formatToolResult` methods).
    - Ensure the `fileName` property is correctly set in the constructor.
 
 5. Error Handling
@@ -89,7 +89,7 @@ export const formatToolUse = (
 };
 
 export const formatToolResult = (
-  toolResult: LLMToolRunResultContent,
+  resultContent: ConversationLogEntryContentToolResult,
   format: LLMToolFormatterDestination = 'browser'
 ): JSX.Element => {
   // Implementation
@@ -120,7 +120,7 @@ export const formatToolUse = (
 };
 
 export const formatToolResult = (
-  toolResult: LLMToolRunResultContent,
+  resultContent: ConversationLogEntryContentToolResult,
   format: LLMToolFormatterDestination = 'console'
 ): string => {
   // Implementation

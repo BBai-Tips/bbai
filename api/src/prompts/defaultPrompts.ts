@@ -84,13 +84,13 @@ export const gitCommitMessage: Prompt = {
 		description: 'Prompt for creating a git commit message',
 		version: '1.0.0',
 	},
-	getContent: async ({ patchedFiles }) => {
+	getContent: async ({ changedFiles }) => {
 		return stripIndents`
 		  Generate a concise, single-line git commit message in past tense describing the purpose of the changes in the provided diffs. If necessary, add a blank line followed by a brief detailed explanation. Respond with only the commit message, without any additional text.
 	  
-		  <patched-files>
-		  ${(patchedFiles as string[]).join('\n')}
-		  </patched-files>
+		  <changed-files>
+		  ${(changedFiles as string[]).join('\n')}
+		  </changed-files>
 		`;
 	},
 };

@@ -1,14 +1,18 @@
 import type { LLMToolRunResultContent } from 'api/llms/llmTool.ts';
 import type { LLMMessageContentPart } from 'api/llms/llmMessage.ts';
 
-export const getContentFromToolResult = (toolRunResultContent: LLMToolRunResultContent): string => {
+export const getContentArrayFromToolResult = (toolRunResultContent: LLMToolRunResultContent): string[] => {
 	if (Array.isArray(toolRunResultContent)) {
-		return toolRunResultContent.map((part) => getTextContent(part)).join('\n');
+		return toolRunResultContent.map((part) => getTextContent(part));
 	} else if (typeof toolRunResultContent !== 'string') {
-		return getTextContent(toolRunResultContent);
+		return [getTextContent(toolRunResultContent)];
 	} else {
-		return toolRunResultContent;
+		return [toolRunResultContent];
 	}
+};
+
+export const getContentFromToolResult = (toolRunResultContent: LLMToolRunResultContent): string => {
+	return getContentArrayFromToolResult(toolRunResultContent).join('\n');
 };
 
 export const getTextContent = (content: LLMMessageContentPart): string => {

@@ -10,7 +10,7 @@ The Browser User Interface (BUI) for BBai provides a web-based interface for int
 - Project management and file browsing
 - Conversation interface with real-time updates
 - Code and text editing capabilities
-- File diff viewer and patch application
+- File diff viewer and change application
 - Integration with BBai API
 
 ## Architecture

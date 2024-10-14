@@ -7,6 +7,7 @@ import { IS_BROWSER } from '$fresh/runtime.ts';
 import { generateConversationId } from 'shared/conversationManagement.ts';
 import { createWebSocketManager } from '../utils/websocketManager.ts';
 import { ConversationContinue, ConversationEntry, ConversationResponse, ConversationStart } from 'shared/types.ts';
+import type { ConversationLogEntry } from 'shared/types.ts';
 //import type { EventPayloadMap } from 'shared/eventManager.ts';
 import { ApiClient } from '../utils/apiClient.utils.ts';
 import { useSignal } from '@preact/signals';
@@ -219,33 +220,26 @@ export default function Chat() {
 						...conversationEntries.value,
 						formattedEntry,
 					];
-					// Don't set isWorking to false for intermediate entries
-				} else if ('answer' in newEntry) {
-					const formattedEntry = await formatLogEntry(newEntry);
-					conversationEntries.value = [...conversationEntries.value, formattedEntry];
-					//conversationEntries.value = [...conversationEntries.value, newEntry as ConversationResponse];
 					// Only set isWorking to false when we receive the final answer
-					setIsWorking(false);
+					if (newEntry.logEntry.entryType === 'answer') setIsWorking(false);
 				} else if ('conversationTitle' in newEntry) {
 					wsManager.value!.isReady.value = true;
 				}
 				// Update current conversation metadata
 				if (currentConversation) {
-					if (currentConversation) {
-						setCurrentConversation({
-							...currentConversation,
-							title: newEntry.conversationTitle || currentConversation.title,
-							updatedAt: new Date().toISOString(),
-							//conversationStats: {
-							//	...currentConversation.conversationStats,
-							//	conversationTurnCount:
-							//		(currentConversation.conversationStats?.conversationTurnCount || 0) +
-							//		1,
-							//},
-							tokenUsageConversation: newEntry.tokenUsageConversation ||
-								currentConversation.tokenUsageConversation,
-						});
-					}
+					setCurrentConversation({
+						...currentConversation,
+						title: newEntry.conversationTitle || currentConversation.title,
+						updatedAt: new Date().toISOString(),
+						//conversationStats: {
+						//	...currentConversation.conversationStats,
+						//	conversationTurnCount:
+						//		(currentConversation.conversationStats?.conversationTurnCount || 0) +
+						//		1,
+						//},
+						tokenUsageConversation: newEntry.tokenUsageConversation ||
+							currentConversation.tokenUsageConversation,
+					});
 				}
 			});
 
@@ -303,17 +297,7 @@ export default function Chat() {
 				const data = await response.json();
 				console.log(data);
 				const formattedMessages = await Promise.all(
-					data.messages.map(async (message: any) => {
-						const entry = {
-							logEntry: {
-								entryType: message.role,
-								content: message.content,
-							},
-							timestamp: message.timestamp,
-							tokenUsageTurn: message.tokenUsageTurn || { totalTokens: 0 },
-							tokenUsageConversation: message.tokenUsageConversation ||
-								{ totalTokensTotal: 0 },
-						};
+					data.logEntries.map(async (entry: any) => {
 						return await formatLogEntry(entry);
 					}),
 				);
@@ -412,6 +396,19 @@ export default function Chat() {
 
 	const renderEntry = (entry: ConversationEntry, index: number) => {
 		//console.debug('renderEntry: ', entry);
+		const renderTitle = (logEntry: ConversationLogEntry) => {
+			return logEntry.entryType === 'tool_use' ||
+					logEntry.entryType === 'tool_result'
+				? (
+					(logEntry.entryType === 'tool_use' ? 'Tool Input' : 'Tool Output') +
+					` (${logEntry.toolName})`
+				)
+				: logEntry.entryType === 'answer'
+				? 'Answer from Assistant'
+				: (
+					logEntry.entryType.charAt(0).toUpperCase() + logEntry.entryType.slice(1)
+				);
+		};
 		const renderContent = (content: any) => {
 			if (typeof content === 'string') {
 				return marked(content);
@@ -439,7 +436,8 @@ export default function Chat() {
 		if ('logEntry' in entry) {
 			const bgColor = entry.logEntry.entryType === 'user'
 				? 'bg-blue-100'
-				: entry.logEntry.entryType === 'assistant'
+				: entry.logEntry.entryType === 'assistant' ||
+						entry.logEntry.entryType === 'answer'
 				? 'bg-green-100'
 				: entry.logEntry.entryType === 'tool_use' ||
 						entry.logEntry.entryType === 'tool_result'
@@ -455,8 +453,7 @@ export default function Chat() {
 				>
 					<div className='font-semibold mb-2 flex justify-between items-center'>
 						<span>
-							{entry.logEntry.entryType.charAt(0).toUpperCase() +
-								entry.logEntry.entryType.slice(1)}
+							{renderTitle(entry.logEntry)}
 						</span>
 						<button
 							onClick={() => copyToClipboard(renderContent(entry.logEntry.content) as string)}
@@ -474,35 +471,20 @@ export default function Chat() {
 					<div className='text-xs text-gray-500 mt-2'>
 						{new Date(entry.timestamp).toLocaleString()}
 						<br />
-						Tokens: {entry.tokenUsageTurn.totalTokens} | Total:{' '}
+						Tokens: {entry.tokenUsageTurn?.totalTokens || 0} | Total:{' '}
 						{entry.tokenUsageConversation.totalTokensTotal}
 					</div>
 				</div>
 			);
-		} else if ('answer' in entry) {
-			// Handle ConversationResponse
+		} else {
 			return (
 				<div
 					key={index}
-					className='bg-green-100 p-4 rounded-lg mb-4 shadow-md transition-all duration-300 hover:shadow-lg'
+					className='bg-red-100 p-4 rounded-lg mb-4 shadow-md transition-all duration-300 hover:shadow-lg'
 				>
-					<div className='font-semibold mb-2'>Assistant</div>
-					<div
-						className='max-w-none'
-						dangerouslySetInnerHTML={{ __html: renderContent(entry.answer) as string }}
-					/>
-					<div className='font-semibold mt-4 mb-2'>Assistant Thinking:</div>
-					<div
-						className='max-w-none'
-						dangerouslySetInnerHTML={{
-							__html: renderContent(entry.assistantThinking) as string,
-						}}
-					/>
-					<div className='text-xs text-gray-500 mt-2'>
-						{new Date(entry.timestamp).toLocaleString()}
-						<br />
-						Tokens: {entry.tokenUsageStatement.totalTokens} | Total:{' '}
-						{entry.tokenUsageConversation.totalTokensTotal}
+					<div className='font-semibold mb-2'>Error</div>
+					<div className='max-w-none'>
+						Unknown Entry
 					</div>
 				</div>
 			);

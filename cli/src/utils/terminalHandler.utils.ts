@@ -9,9 +9,9 @@ import { ansi, colors, tty } from 'cliffy/ansi/mod.ts';
 import Kia from 'kia-spinner';
 import { SPINNERS } from './terminalSpinners.ts';
 import ApiClient from 'cli/apiClient.ts';
-import ConversationLogFormatter from 'shared/conversationLogFormatter.ts';
+import ConversationLogFormatter from 'cli/conversationLogFormatter.ts';
 //import { LLMProviderMessageMeta, LLMProviderMessageResponse } from 'api/types/llms.ts';
-import type { LLMMessageContentPartTextBlock } from 'api/llms/llmMessage.ts';
+//import type { LLMMessageContentPartTextBlock } from 'api/llms/llmMessage.ts';
 import { getStatementHistory } from './statementHistory.utils.ts';
 import { getBbaiDir } from 'shared/dataDir.ts';
 import type {
@@ -311,27 +311,28 @@ export class TerminalHandler {
 		this.hideSpinner();
 		conversationId = data.conversationId;
 
-		if (!data.response) {
-			console.log('Entry has no response', data);
+		if (!data.logEntry) {
+			console.log('Entry has no logEntry', data);
 			return;
 		}
 
 		const {
 			conversationTitle,
-			conversationStats = { statementCount: 1, statementTurnCount: 1, conversationTurnCount: 1 },
+			conversationStats = data.conversationStats, //{ statementCount: 1, statementTurnCount: 1, conversationTurnCount: 1 },
 			tokenUsageStatement = {
-				inputTokens: data.response.usage.inputTokens,
-				outputTokens: data.response.usage.outputTokens,
-				totalTokens: data.response.usage.totalTokens,
+				inputTokens: data.tokenUsageStatement.inputTokens,
+				outputTokens: data.tokenUsageStatement.outputTokens,
+				totalTokens: data.tokenUsageStatement.totalTokens,
 			},
 		} = data;
 
 		const timestamp = ConversationLogFormatter.getTimestamp();
-		const contentPart = data.response.answerContent[0] as LLMMessageContentPartTextBlock;
+		//const contentPart = data.response.answerContent[0] as LLMMessageContentPartTextBlock;
+		const answer = data.logEntry.content as string;
 		const formattedEntry = await this.formatter.formatLogEntry(
 			'assistant',
 			timestamp,
-			this.highlightOutput(contentPart.text),
+			this.highlightOutput(answer),
 			conversationStats,
 			tokenUsageStatement,
 		);
@@ -381,9 +382,9 @@ export class TerminalHandler {
 		const { conversationId, conversationStats, conversationTitle } = response;
 		//const tokenUsageStatement = response.response.usage;
 		const tokenUsageConversation: ConversationTokenUsage = {
-			inputTokensTotal: response.response.usage.inputTokens,
-			outputTokensTotal: response.response.usage.outputTokens,
-			totalTokensTotal: response.response.usage.totalTokens,
+			inputTokensTotal: response.tokenUsageStatement.inputTokens,
+			outputTokensTotal: response.tokenUsageStatement.outputTokens,
+			totalTokensTotal: response.tokenUsageStatement.totalTokens,
 		};
 
 		if (!options.text) {
@@ -400,8 +401,9 @@ export class TerminalHandler {
 				2,
 			));
 		} else {
-			const contentPart = response.response.answerContent[0] as LLMMessageContentPartTextBlock;
-			console.log(this.highlightOutput(contentPart.text));
+			//const contentPart = response.response.answerContent[0] as LLMMessageContentPartTextBlock;
+			const answer = response.logEntry.content as string;
+			console.log(this.highlightOutput(answer));
 
 			console.log(palette.secondary('╭─────────────────────────────────────────────────────╮'));
 			console.log(

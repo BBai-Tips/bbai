@@ -124,7 +124,7 @@ export interface FileHandlingErrorOptions extends ErrorOptions {
 		| 'write'
 		| 'delete'
 		| 'move'
-		| 'patch'
+		| 'change'
 		| 'search-project'
 		| 'apply-patch'
 		| 'search-replace'
@@ -149,10 +149,10 @@ export const isFileHandlingError = (value: unknown): value is FileHandlingError 
 	return value instanceof FileHandlingError;
 };
 
-export class FilePatchError extends FileHandlingError {
+export class FileChangeError extends FileHandlingError {
 	constructor(message: string, options: FileHandlingErrorOptions) {
-		super(message, { ...options, operation: 'patch' });
-		this.name = 'FilePatchError';
+		super(message, { ...options, operation: 'change' });
+		this.name = 'FileChangeError';
 	}
 }
 
@@ -201,4 +201,23 @@ export class VectorSearchError extends Error {
 
 export const isVectorSearchError = (value: unknown): value is VectorSearchError => {
 	return value instanceof VectorSearchError;
+};
+
+export interface ToolHandlingErrorOptions extends ErrorOptions {
+	toolName: string;
+	operation: 'tool-run' | 'tool-input' | 'formatting';
+}
+
+export class ToolHandlingError extends Error {
+	constructor(
+		message: string,
+		public options: ToolHandlingErrorOptions,
+	) {
+		super(message);
+		this.name = ErrorType.ToolHandling;
+	}
+}
+
+export const isToolHandlingError = (value: unknown): value is ToolHandlingError => {
+	return value instanceof ToolHandlingError;
 };

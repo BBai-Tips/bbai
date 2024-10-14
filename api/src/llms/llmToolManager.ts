@@ -3,7 +3,7 @@ import type LLMConversationInteraction from './interactions/conversationInteract
 import type { LLMAnswerToolUse } from 'api/llms/llmMessage.ts';
 
 import type LLMTool from 'api/llms/llmTool.ts';
-import type { LLMToolRunResultContent } from 'api/llms/llmTool.ts';
+import type { LLMToolRunBbaiResponse, LLMToolRunResultContent, LLMToolRunToolResponse } from 'api/llms/llmTool.ts';
 
 import { createError, ErrorType } from 'api/utils/error.ts';
 import type { LLMValidationErrorOptions } from '../errors/error.ts';
@@ -11,7 +11,7 @@ import { logger } from 'shared/logger.ts';
 import type { FullConfigSchema } from 'shared/configManager.ts';
 
 import { compare as compareVersions, parse as parseVersion } from '@std/semver';
-import { dirname, fromFileUrl, isAbsolute, join, SEPARATOR } from '@std/path';
+import { isAbsolute, join, SEPARATOR } from '@std/path';
 import { exists } from '@std/fs';
 
 import { CORE_TOOLS } from './tools_manifest.ts';
@@ -26,6 +26,7 @@ export interface ToolMetadata {
 	toolSets?: string | string[]; //defaults to 'core'
 	category?: string | string[];
 	enabled?: boolean; //defaults to true
+	mutates?: boolean; //defaults to true
 	error?: string;
 	config?: unknown;
 }
@@ -152,7 +153,7 @@ class LLMToolManager {
 	async getTool(name: string): Promise<LLMTool | undefined> {
 		//logger.debug(`LLMToolManager: Getting Tool ${name}`);
 		if (this.loadedTools.has(name)) {
-			logger.debug(`LLMToolManager: Returning cached ${name} tool`);
+			logger.info(`LLMToolManager: Returning cached ${name} tool`);
 			return this.loadedTools.get(name);
 		}
 
@@ -181,7 +182,7 @@ class LLMToolManager {
 				metadata.description,
 				this.fullConfig.api.toolConfigs[name] || {},
 			).init();
-			logger.debug(`LLMToolManager: Loaded Tool ${tool.name}`);
+			logger.info(`LLMToolManager: Loaded Tool ${tool.name}`);
 			this.loadedTools.set(name, tool);
 			return tool;
 		} catch (error) {
@@ -225,8 +226,8 @@ class LLMToolManager {
 		{
 			messageId: string;
 			toolResults: LLMToolRunResultContent;
-			toolResponse: string;
-			bbaiResponse: string;
+			toolResponse: LLMToolRunToolResponse;
+			bbaiResponse: LLMToolRunBbaiResponse;
 			isError: boolean;
 		}
 	> {
@@ -249,25 +250,20 @@ class LLMToolManager {
 			}
 
 			//logger.info(`llmToolManager: handleToolUse - Running Tool ${toolUse.toolName} with: `, toolUse);
-			const { toolResults, toolResponse, bbaiResponse, finalize } = await tool.runTool(
+			const { toolResults, toolResponse, bbaiResponse, finalizeCallback } = await tool.runTool(
 				interaction,
 				toolUse,
 				projectEditor,
 			);
 
-			//logger.info(`llmToolManager: handleToolUse - Finalizing Tool ${toolUse.toolName} with: `, toolResults);
-			const { messageId } = tool.finalizeToolUse(
-				interaction,
-				toolUse,
-				toolResults,
-				false,
-			);
+			//logger.info(`llmToolManager: handleToolUse - Adding results for tool ${toolUse.toolName} with: `, toolResults);
+			const messageId = interaction.addMessageForToolResult(toolUse.toolUseId, toolResults, false) || '';
 
-			if (finalize) {
+			if (finalizeCallback) {
 				logger.info(
 					`llmToolManager: handleToolUse - Tool ${toolUse.toolName} is being finalized for messageId: ${messageId}`,
 				);
-				finalize(messageId);
+				finalizeCallback(messageId);
 			}
 
 			return {
@@ -279,12 +275,9 @@ class LLMToolManager {
 			};
 		} catch (error) {
 			logger.error(`llmToolManager: Error executing tool ${toolUse.toolName}: ${error.message}`);
-			const { messageId } = tool.finalizeToolUse(
-				interaction,
-				toolUse,
-				error.message,
-				true,
-			);
+
+			const messageId = interaction.addMessageForToolResult(toolUse.toolUseId, error.message, true) || '';
+
 			return {
 				messageId,
 				toolResults: [],

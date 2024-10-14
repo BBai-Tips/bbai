@@ -1,11 +1,12 @@
 /** @jsxImportSource preact */
-
-import type { LLMToolInputSchema, LLMToolRunResultContent } from 'api/llms/llmTool.ts';
 import type { JSX } from 'preact';
+import { AnsiUp } from 'ansi_up';
 
-export const formatToolUse = (
-	toolInput: LLMToolInputSchema,
-): JSX.Element => {
+import type { LLMToolInputSchema } from 'api/llms/llmTool.ts';
+import type { ConversationLogEntryContentToolResult } from 'shared/types.ts';
+import { logger } from 'shared/logger.ts';
+
+export const formatToolUse = (toolInput: LLMToolInputSchema): JSX.Element => {
 	const { command, args = [] } = toolInput as { command: string; args?: string[] };
 	return (
 		<div className='tool-use run-command'>
@@ -22,22 +23,61 @@ export const formatToolUse = (
 	);
 };
 
-export const formatToolResult = (
-	toolResult: LLMToolRunResultContent,
-): JSX.Element => {
-	const lines = toolResult.toString().split('\n');
-	const exitCodeLine = lines[0];
-	const output = lines.slice(2).join('\n');
-
-	return (
-		<div className='tool-result run-command'>
-			<p>
-				<strong>{exitCodeLine}</strong>
-			</p>
-			<p>
-				<strong>Command output:</strong>
-			</p>
-			<pre style={{ backgroundColor: '#F0F8FF', padding: '10px' }}>{output}</pre>
-		</div>
-	);
+export const formatToolResult = (resultContent: ConversationLogEntryContentToolResult): JSX.Element => {
+	const { bbaiResponse } = resultContent;
+	if (typeof bbaiResponse === 'object' && 'data' in bbaiResponse) {
+		const { code, command, stderrContainsError, stdout, stderr } = bbaiResponse.data as {
+			code: number;
+			command: string;
+			stderrContainsError: boolean;
+			stdout: string;
+			stderr: string;
+		};
+		var ansi_up = new AnsiUp();
+		return (
+			<div className='tool-result run-command'>
+				<p>
+					<strong>BBai ran command:</strong> <span style={{ color: '#DAA520' }}>{command}</span>
+					{stderrContainsError ? ' (with potential issues in stderr)' : ''}
+					<br />
+					<strong>Exit Code:</strong> {code}
+				</p>
+				{stdout
+					? (
+						<div>
+							<p>
+								<strong>Command output:</strong>
+							</p>
+							<pre
+								style={{ backgroundColor: '#F0F8FF', padding: '10px' }}
+								dangerouslySetInnerHTML={{ __html: ansi_up.ansi_to_html(stdout) }}
+							/>
+						</div>
+					)
+					: ''}
+				{stderr
+					? (
+						<div>
+							<p>
+								<strong>Error output:</strong>
+							</p>
+							<pre
+								style={{ backgroundColor: '#F0F8FF', padding: '10px' }}
+								dangerouslySetInnerHTML={{ __html: ansi_up.ansi_to_html(stderr) }}
+							/>
+						</div>
+					)
+					: ''}
+			</div>
+		);
+	} else {
+		logger.error('Unexpected bbaiResponse format:', bbaiResponse);
+		return (
+			<div className='tool-result'>
+				<p>
+					<strong>{bbaiResponse}</strong>
+				</p>
+			</div>
+		);
+	}
 };
