@@ -1,0 +1,8 @@
+{
+	"name": "conversation_summary",
+	"description": "Summarize and optionally truncate the current conversation",
+	"version": "1.0.0",
+	"author": "BBai Team",
+	"license": "MIT",
+	"enabled": false
+}

@@ -1,7 +1,8 @@
 /** @jsxImportSource preact */
 import type { JSX } from 'preact';
-import type { LLMToolInputSchema, LLMToolRunResultContent } from 'api/llms/llmTool.ts';
-import type { LLMMessageContentPart, LLMMessageContentParts } from 'api/llms/llmMessage.ts';
+import type { LLMToolInputSchema } from 'api/llms/llmTool.ts';
+import type { ConversationLogEntryContentToolResult } from 'shared/types.ts';
+import { logger } from 'shared/logger.ts';
 
 export const formatToolUse = (toolInput: LLMToolInputSchema): JSX.Element => {
 	const { filePath, patch } = toolInput as { filePath?: string; patch: string };
@@ -26,23 +27,42 @@ export const formatToolUse = (toolInput: LLMToolInputSchema): JSX.Element => {
 	);
 };
 
-export const formatToolResult = (toolResult: LLMToolRunResultContent): JSX.Element => {
-	const results: LLMMessageContentParts = Array.isArray(toolResult)
-		? toolResult
-		: [toolResult as LLMMessageContentPart];
-	return (
-		<div className='tool-result'>
-			{results.map((result, index) => {
-				if (result.type === 'text') {
-					return (
-						<p key={index}>
-							<strong>{result.text}</strong>
+export const formatToolResult = (resultContent: ConversationLogEntryContentToolResult): JSX.Element => {
+	const { bbaiResponse } = resultContent;
+	if (typeof bbaiResponse === 'object' && 'data' in bbaiResponse) {
+		const { modifiedFiles, newFiles } = bbaiResponse.data as { modifiedFiles: string[]; newFiles: string[] };
+		return (
+			<div>
+				<p>
+					<strong>
+						`✅ Patch applied successfully to ${modifiedFiles.length + newFiles.length} file(s):`
+					</strong>
+				</p>
+				{modifiedFiles.length > 0
+					? (
+						<p>
+							<ul>{modifiedFiles.map((file) => <li>📝 Modified: {file}</li>)}</ul>
 						</p>
-					);
-				} else {
-					return <p key={index}>Unknown type: {result.type}</p>;
-				}
-			})}
-		</div>
-	);
+					)
+					: ''}
+
+				{newFiles.length > 0
+					? (
+						<p>
+							<ul>{newFiles.map((file) => <li>📄 Created: {file}</li>)}</ul>
+						</p>
+					)
+					: ''}
+			</div>
+		);
+	} else {
+		logger.error('Unexpected bbaiResponse format:', bbaiResponse);
+		return (
+			<div className='tool-result'>
+				<p>
+					<strong>{bbaiResponse}</strong>
+				</p>
+			</div>
+		);
+	}
 };

@@ -9,7 +9,8 @@ import {
 	formatToolUse as formatToolUseConsole,
 } from './formatter.console.ts';
 import LLMTool from 'api/llms/llmTool.ts';
-import type { LLMToolInputSchema, LLMToolRunResult, LLMToolRunResultContent } from 'api/llms/llmTool.ts';
+import type { LLMToolInputSchema, LLMToolRunResult } from 'api/llms/llmTool.ts';
+import type { ConversationLogEntryContentToolResult } from 'shared/types.ts';
 import type { LLMAnswerToolUse } from 'api/llms/llmMessage.ts';
 import type LLMConversationInteraction from 'api/llms/conversationInteraction.ts';
 //import type ProjectEditor from 'api/editor/projectEditor.ts';
@@ -20,7 +21,7 @@ import { searchEmbeddings } from '../../../utils/embedding.utils.ts';
 import { logger } from 'shared/logger.ts';
 
 export default class LLMToolVectorSearch extends LLMTool {
-	get input_schema(): LLMToolInputSchema {
+	get inputSchema(): LLMToolInputSchema {
 		return {
 			type: 'object',
 			properties: {
@@ -37,8 +38,11 @@ export default class LLMToolVectorSearch extends LLMTool {
 		return format === 'console' ? formatToolUseConsole(toolInput) : formatToolUseBrowser(toolInput);
 	}
 
-	formatToolResult(toolResult: LLMToolRunResultContent, format: 'console' | 'browser'): string | JSX.Element {
-		return format === 'console' ? formatToolResultConsole(toolResult) : formatToolResultBrowser(toolResult);
+	formatToolResult(
+		resultContent: ConversationLogEntryContentToolResult,
+		format: 'console' | 'browser',
+	): string | JSX.Element {
+		return format === 'console' ? formatToolResultConsole(resultContent) : formatToolResultBrowser(resultContent);
 	}
 
 	async runTool(

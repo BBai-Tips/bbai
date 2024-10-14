@@ -3,58 +3,117 @@ import { assert, assertEquals, assertStringIncludes } from 'api/tests/deps.ts';
 import { join } from '@std/path';
 import { ensureFile, exists } from '@std/fs';
 
-import LLMToolRenameFiles from '../tool.ts';
 import { LLMAnswerToolUse } from 'api/llms/llmMessage.ts';
-import { getProjectEditor, getToolManager, withTestProject } from 'api/tests/testSetup.ts';
+import { makeOrchestratorControllerStub } from 'api/tests/stubs.ts';
+import { createTestInteraction, getProjectEditor, getToolManager, withTestProject } from 'api/tests/testSetup.ts';
+
+// Type guard function
+function isRenameFilesResponse(
+	response: unknown,
+): response is {
+	data: {
+		filesRenamed: Array<{ source: string; destination: string }>;
+		filesError: Array<{ source: string; destination: string; error: string }>;
+	};
+} {
+	return (
+		typeof response === 'object' &&
+		response !== null &&
+		'data' in response &&
+		typeof (response as any).data === 'object' &&
+		'filesRenamed' in (response as any).data &&
+		Array.isArray((response as any).data.filesRenamed) &&
+		'filesError' in (response as any).data &&
+		Array.isArray((response as any).data.filesError)
+	);
+}
 
 Deno.test({
 	name: 'RenameFilesTool - Rename single file',
 	fn: async () => {
 		await withTestProject(async (testProjectRoot) => {
 			const projectEditor = await getProjectEditor(testProjectRoot);
+			const interaction = await createTestInteraction('test-conversation', projectEditor);
+			const orchestratorControllerStubMaker = makeOrchestratorControllerStub(
+				projectEditor.orchestratorController,
+			);
+			const logChangeAndCommitStub = orchestratorControllerStubMaker.logChangeAndCommitStub(() =>
+				Promise.resolve()
+			);
 
-			const sourceFile = join(testProjectRoot, 'source.txt');
-			const destFile = join(testProjectRoot, 'renamed.txt');
-			await ensureFile(sourceFile);
-			await Deno.writeTextFile(sourceFile, 'test content');
+			try {
+				const sourceFile = join(testProjectRoot, 'source.txt');
+				const destFile = join(testProjectRoot, 'renamed.txt');
+				await ensureFile(sourceFile);
+				await Deno.writeTextFile(sourceFile, 'test content');
 
-			const toolManager = await getToolManager(projectEditor);
-			const tool = await toolManager.getTool('rename_files');
-			assert(tool, 'Failed to get tool');
+				const toolManager = await getToolManager(projectEditor);
+				const tool = await toolManager.getTool('rename_files');
+				assert(tool, 'Failed to get tool');
 
-			const toolUse: LLMAnswerToolUse = {
-				toolValidation: { validated: true, results: '' },
-				toolUseId: 'test-id',
-				toolName: 'rename_files',
-				toolInput: {
-					operations: [{ source: 'source.txt', destination: 'renamed.txt' }],
-				},
-			};
+				const toolUse: LLMAnswerToolUse = {
+					toolValidation: { validated: true, results: '' },
+					toolUseId: 'test-id',
+					toolName: 'rename_files',
+					toolInput: {
+						operations: [{ source: 'source.txt', destination: 'renamed.txt' }],
+					},
+				};
 
-			const conversation = await projectEditor.initConversation('test-conversation-id');
-			const result = await tool.runTool(conversation, toolUse, projectEditor);
-			// console.log('Rename single file - bbaiResponse:', result.bbaiResponse);
-			// console.log('Rename single file - toolResponse:', result.toolResponse);
-			// console.log('Rename single file - toolResults:', result.toolResults);
+				const result = await tool.runTool(interaction, toolUse, projectEditor);
+				// console.log('Rename single file - bbaiResponse:', result.bbaiResponse);
+				// console.log('Rename single file - toolResponse:', result.toolResponse);
+				// console.log('Rename single file - toolResults:', result.toolResults);
 
-			assertStringIncludes(result.bbaiResponse, 'BBai has renamed these files');
-			assertStringIncludes(result.toolResponse, 'Renamed files');
+				assert(
+					result.bbaiResponse && typeof result.bbaiResponse === 'object',
+					'bbaiResponse should be an object',
+				);
+				assertEquals(typeof result.toolResponse, 'string');
+				assertEquals(typeof result.toolResults, 'object');
 
-			// Check toolResults
-			assert(Array.isArray(result.toolResults), 'toolResults should be an array');
-			assert(result.toolResults.length > 0, 'toolResults should not be empty');
-			assert(result.toolResults.length === 1, 'toolResults should have 1 element');
+				assert(
+					isRenameFilesResponse(result.bbaiResponse),
+					'bbaiResponse should have the correct structure for Tool',
+				);
 
-			const firstResult = result.toolResults[0];
-			assert(firstResult.type === 'text', 'First result should be of type text');
-			assertStringIncludes(firstResult.text, 'File/Directory renamed: ');
-			assertStringIncludes(firstResult.text, 'source.txt');
-			assertStringIncludes(firstResult.text, 'renamed.txt');
+				if (isRenameFilesResponse(result.bbaiResponse)) {
+					assertEquals(
+						result.bbaiResponse.data.filesRenamed.length,
+						1,
+						'Should have 1 successful rename results',
+					);
+					const renameResult1 = result.bbaiResponse.data.filesRenamed[0];
 
-			// Check that the file was renamed
-			assert(!(await exists(sourceFile)), 'Source file should not exist');
-			assert(await exists(destFile), 'Destination file should exist');
-			assertEquals(await Deno.readTextFile(destFile), 'test content', 'File content should be preserved');
+					assert(renameResult1, 'Should have a result for renamed file');
+					assertEquals(renameResult1.source, 'source.txt', 'Result1 response should match source');
+					assertEquals(renameResult1.destination, 'renamed.txt', 'Result1 response should match destination');
+
+					assertEquals(result.bbaiResponse.data.filesError.length, 0, 'Should have no rename errors');
+				} else {
+					assert(false, 'bbaiResponse does not have the expected structure for Tool');
+				}
+
+				assertStringIncludes(result.toolResponse, 'Renamed files');
+
+				// Check toolResults
+				assert(Array.isArray(result.toolResults), 'toolResults should be an array');
+				assert(result.toolResults.length > 0, 'toolResults should not be empty');
+				assert(result.toolResults.length === 1, 'toolResults should have 1 element');
+
+				const firstResult = result.toolResults[0];
+				assert(firstResult.type === 'text', 'First result should be of type text');
+				assertStringIncludes(firstResult.text, 'File/Directory renamed: ');
+				assertStringIncludes(firstResult.text, 'source.txt');
+				assertStringIncludes(firstResult.text, 'renamed.txt');
+
+				// Check that the file was renamed
+				assert(!(await exists(sourceFile)), 'Source file should not exist');
+				assert(await exists(destFile), 'Destination file should exist');
+				assertEquals(await Deno.readTextFile(destFile), 'test content', 'File content should be preserved');
+			} finally {
+				logChangeAndCommitStub.restore();
+			}
 		});
 	},
 	sanitizeResources: false,
@@ -66,35 +125,80 @@ Deno.test({
 	fn: async () => {
 		await withTestProject(async (testProjectRoot) => {
 			const projectEditor = await getProjectEditor(testProjectRoot);
+			const interaction = await createTestInteraction('test-conversation', projectEditor);
+			const orchestratorControllerStubMaker = makeOrchestratorControllerStub(
+				projectEditor.orchestratorController,
+			);
+			const logChangeAndCommitStub = orchestratorControllerStubMaker.logChangeAndCommitStub(() =>
+				Promise.resolve()
+			);
 
-			const sourceFile = join(testProjectRoot, 'source.txt');
-			const destFile = join(testProjectRoot, 'new_dir', 'renamed.txt');
-			await ensureFile(sourceFile);
-			await Deno.writeTextFile(sourceFile, 'test content');
+			try {
+				const sourceFile = join(testProjectRoot, 'source.txt');
+				const destFile = join(testProjectRoot, 'new_dir', 'renamed.txt');
+				await ensureFile(sourceFile);
+				await Deno.writeTextFile(sourceFile, 'test content');
 
-			const toolManager = await getToolManager(projectEditor);
-			const tool = await toolManager.getTool('rename_files');
-			assert(tool, 'Failed to get tool');
+				const toolManager = await getToolManager(projectEditor);
+				const tool = await toolManager.getTool('rename_files');
+				assert(tool, 'Failed to get tool');
 
-			const toolUse: LLMAnswerToolUse = {
-				toolValidation: { validated: true, results: '' },
-				toolUseId: 'test-id',
-				toolName: 'rename_files',
-				toolInput: {
-					operations: [{ source: 'source.txt', destination: join('new_dir', 'renamed.txt') }],
-					createMissingDirectories: true,
-				},
-			};
+				const toolUse: LLMAnswerToolUse = {
+					toolValidation: { validated: true, results: '' },
+					toolUseId: 'test-id',
+					toolName: 'rename_files',
+					toolInput: {
+						operations: [{ source: 'source.txt', destination: join('new_dir', 'renamed.txt') }],
+						createMissingDirectories: true,
+					},
+				};
 
-			const conversation = await projectEditor.initConversation('test-conversation-id');
-			const result = await tool.runTool(conversation, toolUse, projectEditor);
+				const result = await tool.runTool(interaction, toolUse, projectEditor);
+				// console.log('Create missing directories - bbaiResponse:', result.bbaiResponse);
+				// console.log('Create missing directories - toolResponse:', result.toolResponse);
+				// console.log('Create missing directories - toolResults:', result.toolResults);
 
-			assertStringIncludes(result.bbaiResponse, 'BBai has renamed these files');
-			assertStringIncludes(result.toolResponse, 'Renamed files');
+				assert(
+					result.bbaiResponse && typeof result.bbaiResponse === 'object',
+					'bbaiResponse should be an object',
+				);
+				assertEquals(typeof result.toolResponse, 'string');
+				assertEquals(typeof result.toolResults, 'object');
 
-			assert(!(await exists(sourceFile)), 'Source file should not exist');
-			assert(await exists(destFile), 'Destination file should exist');
-			assertEquals(await Deno.readTextFile(destFile), 'test content', 'File content should be preserved');
+				assert(
+					isRenameFilesResponse(result.bbaiResponse),
+					'bbaiResponse should have the correct structure for Tool',
+				);
+
+				if (isRenameFilesResponse(result.bbaiResponse)) {
+					assertEquals(
+						result.bbaiResponse.data.filesRenamed.length,
+						1,
+						'Should have 1 successful rename results',
+					);
+					const renameResult1 = result.bbaiResponse.data.filesRenamed[0];
+
+					assert(renameResult1, 'Should have a result for renamed file');
+					assertEquals(renameResult1.source, 'source.txt', 'Result1 response should match source');
+					assertEquals(
+						renameResult1.destination,
+						'new_dir/renamed.txt',
+						'Result1 response should match destination',
+					);
+
+					assertEquals(result.bbaiResponse.data.filesError.length, 0, 'Should have no rename errors');
+				} else {
+					assert(false, 'bbaiResponse does not have the expected structure for Tool');
+				}
+
+				assertStringIncludes(result.toolResponse, 'Renamed files');
+
+				assert(!(await exists(sourceFile)), 'Source file should not exist');
+				assert(await exists(destFile), 'Destination file should exist');
+				assertEquals(await Deno.readTextFile(destFile), 'test content', 'File content should be preserved');
+			} finally {
+				logChangeAndCommitStub.restore();
+			}
 		});
 	},
 	sanitizeResources: false,
@@ -106,34 +210,84 @@ Deno.test({
 	fn: async () => {
 		await withTestProject(async (testProjectRoot) => {
 			const projectEditor = await getProjectEditor(testProjectRoot);
+			const interaction = await createTestInteraction('test-conversation', projectEditor);
+			const orchestratorControllerStubMaker = makeOrchestratorControllerStub(
+				projectEditor.orchestratorController,
+			);
+			const logChangeAndCommitStub = orchestratorControllerStubMaker.logChangeAndCommitStub(() =>
+				Promise.resolve()
+			);
 
-			const sourceFile = join(testProjectRoot, 'source.txt');
-			const destFile = join(testProjectRoot, 'new_dir', 'renamed.txt');
-			await ensureFile(sourceFile);
-			await Deno.writeTextFile(sourceFile, 'test content');
+			try {
+				const sourceFile = join(testProjectRoot, 'source.txt');
+				const destFile = join(testProjectRoot, 'new_dir', 'renamed.txt');
+				await ensureFile(sourceFile);
+				await Deno.writeTextFile(sourceFile, 'test content');
 
-			const toolManager = await getToolManager(projectEditor);
-			const tool = await toolManager.getTool('rename_files');
-			assert(tool, 'Failed to get tool');
+				const toolManager = await getToolManager(projectEditor);
+				const tool = await toolManager.getTool('rename_files');
+				assert(tool, 'Failed to get tool');
 
-			const toolUse: LLMAnswerToolUse = {
-				toolValidation: { validated: true, results: '' },
-				toolUseId: 'test-id',
-				toolName: 'rename_files',
-				toolInput: {
-					operations: [{ source: 'source.txt', destination: join('new_dir', 'renamed.txt') }],
-					createMissingDirectories: false,
-				},
-			};
+				const toolUse: LLMAnswerToolUse = {
+					toolValidation: { validated: true, results: '' },
+					toolUseId: 'test-id',
+					toolName: 'rename_files',
+					toolInput: {
+						operations: [{ source: 'source.txt', destination: join('new_dir', 'renamed.txt') }],
+						createMissingDirectories: false,
+					},
+				};
 
-			const conversation = await projectEditor.initConversation('test-conversation-id');
-			const result = await tool.runTool(conversation, toolUse, projectEditor);
+				const result = await tool.runTool(interaction, toolUse, projectEditor);
+				console.log('Fail to create missing directories - bbaiResponse:', result.bbaiResponse);
+				console.log('Fail to create missing directories - toolResponse:', result.toolResponse);
+				console.log('Fail to create missing directories - toolResults:', result.toolResults);
 
-			assertStringIncludes(result.bbaiResponse, 'BBai failed to rename these files');
-			assertStringIncludes(result.toolResponse, 'Failed to rename files');
+				assert(
+					result.bbaiResponse && typeof result.bbaiResponse === 'object',
+					'bbaiResponse should be an object',
+				);
+				assertEquals(typeof result.toolResponse, 'string');
+				assertEquals(typeof result.toolResults, 'object');
 
-			assert(await exists(sourceFile), 'Source file should still exist');
-			assert(!(await exists(destFile)), 'Destination file should not exist');
+				assert(
+					isRenameFilesResponse(result.bbaiResponse),
+					'bbaiResponse should have the correct structure for Tool',
+				);
+
+				if (isRenameFilesResponse(result.bbaiResponse)) {
+					assertEquals(
+						result.bbaiResponse.data.filesError.length,
+						1,
+						'Should have 1 error rename results',
+					);
+					const renameResult1 = result.bbaiResponse.data.filesError[0];
+
+					assert(renameResult1, 'Should have a result for renamed file');
+					assertEquals(renameResult1.source, 'source.txt', 'Result1 response should match source');
+					assertEquals(
+						renameResult1.destination,
+						'new_dir/renamed.txt',
+						'Result1 response should match destination',
+					);
+					assertStringIncludes(
+						renameResult1.error,
+						'No such file or directory',
+						'Result1 response should have error',
+					);
+
+					assertEquals(result.bbaiResponse.data.filesRenamed.length, 0, 'Should have no renamed files');
+				} else {
+					assert(false, 'bbaiResponse does not have the expected structure for Tool');
+				}
+
+				assertStringIncludes(result.toolResponse, 'Failed to rename files');
+
+				assert(await exists(sourceFile), 'Source file should still exist');
+				assert(!(await exists(destFile)), 'Destination file should not exist');
+			} finally {
+				logChangeAndCommitStub.restore();
+			}
 		});
 	},
 	sanitizeResources: false,
@@ -145,48 +299,102 @@ Deno.test({
 	fn: async () => {
 		await withTestProject(async (testProjectRoot) => {
 			const projectEditor = await getProjectEditor(testProjectRoot);
+			const interaction = await createTestInteraction('test-conversation', projectEditor);
+			const orchestratorControllerStubMaker = makeOrchestratorControllerStub(
+				projectEditor.orchestratorController,
+			);
+			const logChangeAndCommitStub = orchestratorControllerStubMaker.logChangeAndCommitStub(() =>
+				Promise.resolve()
+			);
 
-			const sourceFile1 = join(testProjectRoot, 'file1.txt');
-			const sourceFile2 = join(testProjectRoot, 'file2.txt');
-			const destFile1 = join(testProjectRoot, 'renamed1.txt');
-			const destFile2 = join(testProjectRoot, 'renamed2.txt');
-			await ensureFile(sourceFile1);
-			await ensureFile(sourceFile2);
-			await Deno.writeTextFile(sourceFile1, 'content1');
-			await Deno.writeTextFile(sourceFile2, 'content2');
+			try {
+				const sourceFile1 = join(testProjectRoot, 'file1.txt');
+				const sourceFile2 = join(testProjectRoot, 'file2.txt');
+				const destFile1 = join(testProjectRoot, 'renamed1.txt');
+				const destFile2 = join(testProjectRoot, 'renamed2.txt');
+				await ensureFile(sourceFile1);
+				await ensureFile(sourceFile2);
+				await Deno.writeTextFile(sourceFile1, 'content1');
+				await Deno.writeTextFile(sourceFile2, 'content2');
 
-			const toolManager = await getToolManager(projectEditor);
-			const tool = await toolManager.getTool('rename_files');
-			assert(tool, 'Failed to get tool');
+				const toolManager = await getToolManager(projectEditor);
+				const tool = await toolManager.getTool('rename_files');
+				assert(tool, 'Failed to get tool');
 
-			const toolUse: LLMAnswerToolUse = {
-				toolValidation: { validated: true, results: '' },
-				toolUseId: 'test-id',
-				toolName: 'rename_files',
-				toolInput: {
-					operations: [
-						{ source: 'file1.txt', destination: 'renamed1.txt' },
-						{ source: 'file2.txt', destination: 'renamed2.txt' },
-					],
-				},
-			};
+				const toolUse: LLMAnswerToolUse = {
+					toolValidation: { validated: true, results: '' },
+					toolUseId: 'test-id',
+					toolName: 'rename_files',
+					toolInput: {
+						operations: [
+							{ source: 'file1.txt', destination: 'renamed1.txt' },
+							{ source: 'file2.txt', destination: 'renamed2.txt' },
+						],
+					},
+				};
 
-			const conversation = await projectEditor.initConversation('test-conversation-id');
-			const result = await tool.runTool(conversation, toolUse, projectEditor);
+				const result = await tool.runTool(interaction, toolUse, projectEditor);
+				// console.log('Create missing directories - bbaiResponse:', result.bbaiResponse);
+				// console.log('Create missing directories - toolResponse:', result.toolResponse);
+				// console.log('Create missing directories - toolResults:', result.toolResults);
 
-			assertStringIncludes(result.bbaiResponse, 'BBai has renamed these files');
-			assertStringIncludes(result.toolResponse, 'Renamed files');
+				assert(
+					result.bbaiResponse && typeof result.bbaiResponse === 'object',
+					'bbaiResponse should be an object',
+				);
+				assertEquals(typeof result.toolResponse, 'string');
+				assertEquals(typeof result.toolResults, 'object');
 
-			// Check toolResults
-			assert(Array.isArray(result.toolResults), 'toolResults should be an array');
-			assert(result.toolResults.length === 2, 'toolResults should have 2 elements');
+				assert(
+					isRenameFilesResponse(result.bbaiResponse),
+					'bbaiResponse should have the correct structure for Tool',
+				);
 
-			assert(!(await exists(sourceFile1)), 'Source file 1 should not exist');
-			assert(!(await exists(sourceFile2)), 'Source file 2 should not exist');
-			assert(await exists(destFile1), 'Destination file 1 should exist');
-			assert(await exists(destFile2), 'Destination file 2 should exist');
-			assertEquals(await Deno.readTextFile(destFile1), 'content1', 'File 1 content should be preserved');
-			assertEquals(await Deno.readTextFile(destFile2), 'content2', 'File 2 content should be preserved');
+				if (isRenameFilesResponse(result.bbaiResponse)) {
+					assertEquals(
+						result.bbaiResponse.data.filesRenamed.length,
+						2,
+						'Should have 2 successful rename results',
+					);
+					const renameResult1 = result.bbaiResponse.data.filesRenamed[0];
+					const renameResult2 = result.bbaiResponse.data.filesRenamed[1];
+
+					assert(renameResult1, 'Should have a result for renamed file');
+					assertEquals(renameResult1.source, 'file1.txt', 'Result1 response should match source');
+					assertEquals(
+						renameResult1.destination,
+						'renamed1.txt',
+						'Result1 response should match destination',
+					);
+
+					assert(renameResult2, 'Should have a result for renamed file');
+					assertEquals(renameResult2.source, 'file2.txt', 'Result2 response should match source');
+					assertEquals(
+						renameResult2.destination,
+						'renamed2.txt',
+						'Result2 response should match destination',
+					);
+
+					assertEquals(result.bbaiResponse.data.filesError.length, 0, 'Should have no rename errors');
+				} else {
+					assert(false, 'bbaiResponse does not have the expected structure for Tool');
+				}
+
+				assertStringIncludes(result.toolResponse, 'Renamed files');
+
+				// Check toolResults
+				assert(Array.isArray(result.toolResults), 'toolResults should be an array');
+				assert(result.toolResults.length === 2, 'toolResults should have 2 elements');
+
+				assert(!(await exists(sourceFile1)), 'Source file 1 should not exist');
+				assert(!(await exists(sourceFile2)), 'Source file 2 should not exist');
+				assert(await exists(destFile1), 'Destination file 1 should exist');
+				assert(await exists(destFile2), 'Destination file 2 should exist');
+				assertEquals(await Deno.readTextFile(destFile1), 'content1', 'File 1 content should be preserved');
+				assertEquals(await Deno.readTextFile(destFile2), 'content2', 'File 2 content should be preserved');
+			} finally {
+				logChangeAndCommitStub.restore();
+			}
 		});
 	},
 	sanitizeResources: false,
@@ -198,37 +406,86 @@ Deno.test({
 	fn: async () => {
 		await withTestProject(async (testProjectRoot) => {
 			const projectEditor = await getProjectEditor(testProjectRoot);
+			const interaction = await createTestInteraction('test-conversation', projectEditor);
+			const orchestratorControllerStubMaker = makeOrchestratorControllerStub(
+				projectEditor.orchestratorController,
+			);
+			const logChangeAndCommitStub = orchestratorControllerStubMaker.logChangeAndCommitStub(() =>
+				Promise.resolve()
+			);
 
-			const sourceFile = join(testProjectRoot, 'source.txt');
-			const destFile = join(testProjectRoot, 'existing.txt');
-			await ensureFile(sourceFile);
-			await ensureFile(destFile);
-			await Deno.writeTextFile(sourceFile, 'new content');
-			await Deno.writeTextFile(destFile, 'old content');
+			try {
+				const sourceFile = join(testProjectRoot, 'source.txt');
+				const destFile = join(testProjectRoot, 'existing.txt');
+				await ensureFile(sourceFile);
+				await ensureFile(destFile);
+				await Deno.writeTextFile(sourceFile, 'new content');
+				await Deno.writeTextFile(destFile, 'old content');
 
-			const toolManager = await getToolManager(projectEditor);
-			const tool = await toolManager.getTool('rename_files');
-			assert(tool, 'Failed to get tool');
+				const toolManager = await getToolManager(projectEditor);
+				const tool = await toolManager.getTool('rename_files');
+				assert(tool, 'Failed to get tool');
 
-			const toolUse: LLMAnswerToolUse = {
-				toolValidation: { validated: true, results: '' },
-				toolUseId: 'test-id',
-				toolName: 'rename_files',
-				toolInput: {
-					operations: [{ source: 'source.txt', destination: 'existing.txt' }],
-					overwrite: true,
-				},
-			};
+				const toolUse: LLMAnswerToolUse = {
+					toolValidation: { validated: true, results: '' },
+					toolUseId: 'test-id',
+					toolName: 'rename_files',
+					toolInput: {
+						operations: [{ source: 'source.txt', destination: 'existing.txt' }],
+						overwrite: true,
+					},
+				};
 
-			const conversation = await projectEditor.initConversation('test-conversation-id');
-			const result = await tool.runTool(conversation, toolUse, projectEditor);
+				const result = await tool.runTool(interaction, toolUse, projectEditor);
+				// console.log('Overwrite existing file - bbaiResponse:', result.bbaiResponse);
+				// console.log('Overwrite existing file - toolResponse:', result.toolResponse);
+				// console.log('Overwrite existing file - toolResults:', result.toolResults);
 
-			assertStringIncludes(result.bbaiResponse, 'BBai has renamed these files');
-			assertStringIncludes(result.toolResponse, 'Renamed files');
+				assert(
+					result.bbaiResponse && typeof result.bbaiResponse === 'object',
+					'bbaiResponse should be an object',
+				);
+				assertEquals(typeof result.toolResponse, 'string');
+				assertEquals(typeof result.toolResults, 'object');
 
-			assert(!(await exists(sourceFile)), 'Source file should not exist');
-			assert(await exists(destFile), 'Destination file should exist');
-			assertEquals(await Deno.readTextFile(destFile), 'new content', 'Destination file should be overwritten');
+				assert(
+					isRenameFilesResponse(result.bbaiResponse),
+					'bbaiResponse should have the correct structure for Tool',
+				);
+
+				if (isRenameFilesResponse(result.bbaiResponse)) {
+					assertEquals(
+						result.bbaiResponse.data.filesRenamed.length,
+						1,
+						'Should have 1 successful rename results',
+					);
+					const renameResult1 = result.bbaiResponse.data.filesRenamed[0];
+
+					assert(renameResult1, 'Should have a result for renamed file');
+					assertEquals(renameResult1.source, 'source.txt', 'Result1 response should match source');
+					assertEquals(
+						renameResult1.destination,
+						'existing.txt',
+						'Result1 response should match destination',
+					);
+
+					assertEquals(result.bbaiResponse.data.filesError.length, 0, 'Should have no rename errors');
+				} else {
+					assert(false, 'bbaiResponse does not have the expected structure for Tool');
+				}
+
+				assertStringIncludes(result.toolResponse, 'Renamed files');
+
+				assert(!(await exists(sourceFile)), 'Source file should not exist');
+				assert(await exists(destFile), 'Destination file should exist');
+				assertEquals(
+					await Deno.readTextFile(destFile),
+					'new content',
+					'Destination file should be overwritten',
+				);
+			} finally {
+				logChangeAndCommitStub.restore();
+			}
 		});
 	},
 	sanitizeResources: false,
@@ -240,42 +497,96 @@ Deno.test({
 	fn: async () => {
 		await withTestProject(async (testProjectRoot) => {
 			const projectEditor = await getProjectEditor(testProjectRoot);
-
-			const sourceFile = join(testProjectRoot, 'source.txt');
-			const destFile = join(testProjectRoot, 'existing.txt');
-			await ensureFile(sourceFile);
-			await ensureFile(destFile);
-			await Deno.writeTextFile(sourceFile, 'new content');
-			await Deno.writeTextFile(destFile, 'old content');
-
-			const toolManager = await getToolManager(projectEditor);
-			const tool = await toolManager.getTool('rename_files');
-			assert(tool, 'Failed to get tool');
-
-			const toolUse: LLMAnswerToolUse = {
-				toolValidation: { validated: true, results: '' },
-				toolUseId: 'test-id',
-				toolName: 'rename_files',
-				toolInput: {
-					operations: [{ source: 'source.txt', destination: 'existing.txt' }],
-					overwrite: false,
-				},
-			};
-
-			const conversation = await projectEditor.initConversation('test-conversation-id');
-			const result = await tool.runTool(conversation, toolUse, projectEditor);
-
-			assertStringIncludes(result.bbaiResponse, 'BBai failed to rename these files');
-			assertStringIncludes(result.toolResponse, 'Failed to rename files');
-
-			assert(await exists(sourceFile), 'Source file should still exist');
-			assert(await exists(destFile), 'Destination file should still exist');
-			assertEquals(await Deno.readTextFile(sourceFile), 'new content', 'Source file content should be unchanged');
-			assertEquals(
-				await Deno.readTextFile(destFile),
-				'old content',
-				'Destination file should not be overwritten',
+			const interaction = await createTestInteraction('test-conversation', projectEditor);
+			const orchestratorControllerStubMaker = makeOrchestratorControllerStub(
+				projectEditor.orchestratorController,
 			);
+			const logChangeAndCommitStub = orchestratorControllerStubMaker.logChangeAndCommitStub(() =>
+				Promise.resolve()
+			);
+
+			try {
+				const sourceFile = join(testProjectRoot, 'source.txt');
+				const destFile = join(testProjectRoot, 'existing.txt');
+				await ensureFile(sourceFile);
+				await ensureFile(destFile);
+				await Deno.writeTextFile(sourceFile, 'new content');
+				await Deno.writeTextFile(destFile, 'old content');
+
+				const toolManager = await getToolManager(projectEditor);
+				const tool = await toolManager.getTool('rename_files');
+				assert(tool, 'Failed to get tool');
+
+				const toolUse: LLMAnswerToolUse = {
+					toolValidation: { validated: true, results: '' },
+					toolUseId: 'test-id',
+					toolName: 'rename_files',
+					toolInput: {
+						operations: [{ source: 'source.txt', destination: 'existing.txt' }],
+						overwrite: false,
+					},
+				};
+
+				const result = await tool.runTool(interaction, toolUse, projectEditor);
+				// console.log('Fail to overwrite without permission - bbaiResponse:', result.bbaiResponse);
+				// console.log('Fail to overwrite without permission - toolResponse:', result.toolResponse);
+				// console.log('Fail to overwrite without permission - toolResults:', result.toolResults);
+
+				assert(
+					result.bbaiResponse && typeof result.bbaiResponse === 'object',
+					'bbaiResponse should be an object',
+				);
+				assertEquals(typeof result.toolResponse, 'string');
+				assertEquals(typeof result.toolResults, 'object');
+
+				assert(
+					isRenameFilesResponse(result.bbaiResponse),
+					'bbaiResponse should have the correct structure for Tool',
+				);
+
+				if (isRenameFilesResponse(result.bbaiResponse)) {
+					assertEquals(
+						result.bbaiResponse.data.filesError.length,
+						1,
+						'Should have 1 error rename results',
+					);
+					const renameResult1 = result.bbaiResponse.data.filesError[0];
+
+					assert(renameResult1, 'Should have a result for renamed file');
+					assertEquals(renameResult1.source, 'source.txt', 'Result1 response should match source');
+					assertEquals(
+						renameResult1.destination,
+						'existing.txt',
+						'Result1 response should match destination',
+					);
+					assertStringIncludes(
+						renameResult1.error,
+						'Destination existing.txt already exists and overwrite is false',
+						'Result1 response should have error',
+					);
+
+					assertEquals(result.bbaiResponse.data.filesRenamed.length, 0, 'Should have no renamed files');
+				} else {
+					assert(false, 'bbaiResponse does not have the expected structure for Tool');
+				}
+
+				assertStringIncludes(result.toolResponse, 'Failed to rename files');
+
+				assert(await exists(sourceFile), 'Source file should still exist');
+				assert(await exists(destFile), 'Destination file should still exist');
+				assertEquals(
+					await Deno.readTextFile(sourceFile),
+					'new content',
+					'Source file content should be unchanged',
+				);
+				assertEquals(
+					await Deno.readTextFile(destFile),
+					'old content',
+					'Destination file should not be overwritten',
+				);
+			} finally {
+				logChangeAndCommitStub.restore();
+			}
 		});
 	},
 	sanitizeResources: false,
@@ -287,31 +598,80 @@ Deno.test({
 	fn: async () => {
 		await withTestProject(async (testProjectRoot) => {
 			const projectEditor = await getProjectEditor(testProjectRoot);
+			const interaction = await createTestInteraction('test-conversation', projectEditor);
+			const orchestratorControllerStubMaker = makeOrchestratorControllerStub(
+				projectEditor.orchestratorController,
+			);
+			const logChangeAndCommitStub = orchestratorControllerStubMaker.logChangeAndCommitStub(() =>
+				Promise.resolve()
+			);
 
-			const nonExistentFile = join(testProjectRoot, 'non_existent.txt');
-			const destFile = join(testProjectRoot, 'renamed.txt');
+			try {
+				const nonExistentFile = join(testProjectRoot, 'non_existent.txt');
+				const destFile = join(testProjectRoot, 'renamed.txt');
 
-			const toolManager = await getToolManager(projectEditor);
-			const tool = await toolManager.getTool('rename_files');
-			assert(tool, 'Failed to get tool');
+				const toolManager = await getToolManager(projectEditor);
+				const tool = await toolManager.getTool('rename_files');
+				assert(tool, 'Failed to get tool');
 
-			const toolUse: LLMAnswerToolUse = {
-				toolValidation: { validated: true, results: '' },
-				toolUseId: 'test-id',
-				toolName: 'rename_files',
-				toolInput: {
-					operations: [{ source: 'non_existent.txt', destination: 'renamed.txt' }],
-				},
-			};
+				const toolUse: LLMAnswerToolUse = {
+					toolValidation: { validated: true, results: '' },
+					toolUseId: 'test-id',
+					toolName: 'rename_files',
+					toolInput: {
+						operations: [{ source: 'non_existent.txt', destination: 'renamed.txt' }],
+					},
+				};
 
-			const conversation = await projectEditor.initConversation('test-conversation-id');
-			const result = await tool.runTool(conversation, toolUse, projectEditor);
+				const result = await tool.runTool(interaction, toolUse, projectEditor);
+				// console.log('Attempt to rename non-existent file - bbaiResponse:', result.bbaiResponse);
+				// console.log('Attempt to rename non-existent file - toolResponse:', result.toolResponse);
+				// console.log('Attempt to rename non-existent file - toolResults:', result.toolResults);
 
-			assertStringIncludes(result.bbaiResponse, 'BBai failed to rename these files');
-			assertStringIncludes(result.toolResponse, 'Failed to rename files');
+				assert(
+					result.bbaiResponse && typeof result.bbaiResponse === 'object',
+					'bbaiResponse should be an object',
+				);
+				assertEquals(typeof result.toolResponse, 'string');
+				assertEquals(typeof result.toolResults, 'object');
 
-			assert(!(await exists(nonExistentFile)), 'Source file should not exist');
-			assert(!(await exists(destFile)), 'Destination file should not exist');
+				assert(
+					isRenameFilesResponse(result.bbaiResponse),
+					'bbaiResponse should have the correct structure for Tool',
+				);
+
+				if (isRenameFilesResponse(result.bbaiResponse)) {
+					assertEquals(
+						result.bbaiResponse.data.filesError.length,
+						1,
+						'Should have 1 error rename results',
+					);
+					const renameResult1 = result.bbaiResponse.data.filesError[0];
+
+					assert(renameResult1, 'Should have a result for renamed file');
+					assertEquals(renameResult1.source, 'non_existent.txt', 'Result1 response should match source');
+					assertEquals(
+						renameResult1.destination,
+						'renamed.txt',
+						'Result1 response should match destination',
+					);
+					assertStringIncludes(
+						renameResult1.error,
+						'No such file or directory',
+						'Result1 response should have error',
+					);
+
+					assertEquals(result.bbaiResponse.data.filesRenamed.length, 0, 'Should have no renamed files');
+				} else {
+					assert(false, 'bbaiResponse does not have the expected structure for Tool');
+				}
+				assertStringIncludes(result.toolResponse, 'Failed to rename files');
+
+				assert(!(await exists(nonExistentFile)), 'Source file should not exist');
+				assert(!(await exists(destFile)), 'Destination file should not exist');
+			} finally {
+				logChangeAndCommitStub.restore();
+			}
 		});
 	},
 	sanitizeResources: false,

@@ -4,7 +4,7 @@ import { logger } from 'shared/logger.ts';
 import { getLogFilePath, viewLastLines, watchLogs } from 'shared/logViewer.ts';
 //import { join } from '@std/path';
 //import { ensureDir } from '@std/fs';
-import { displayFormattedLogs } from 'shared/conversationLogFormatter.ts';
+import { displayFormattedLogs } from 'cli/conversationLogFormatter.ts';
 
 export const viewLogs = new Command()
 	.name('logs')
@@ -34,7 +34,7 @@ export const viewLogs = new Command()
 					// Use the ConversationLogFormatter for conversation logs
 					await displayFormattedLogs(
 						options.id,
-						(formattedEntry) => {
+						(formattedEntry: string) => {
 							console.log(formattedEntry);
 						},
 						true,

@@ -1,8 +1,8 @@
 import { logger } from 'shared/logger.ts';
 
-export function createFilePatchXmlString(filePath: string, patchContent: string): string | null {
+export function createFileChangeXmlString(filePath: string, changeContent: string): string | null {
 	try {
-		return `<file path="${filePath}">\n${patchContent}\n</file>`;
+		return `<file path="${filePath}">\n${changeContent}\n</file>`;
 	} catch (error) {
 		logger.error(`Error creating XML string for ${filePath}: ${error.message}`);
 		return null;

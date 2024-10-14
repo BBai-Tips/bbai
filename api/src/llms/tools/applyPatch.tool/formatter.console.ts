@@ -1,5 +1,6 @@
-import type { LLMToolInputSchema, LLMToolRunResultContent } from 'api/llms/llmTool.ts';
-import type { LLMMessageContentPart, LLMMessageContentParts } from 'api/llms/llmMessage.ts';
+import type { LLMToolInputSchema } from 'api/llms/llmTool.ts';
+import type { ConversationLogEntryContentToolResult } from 'shared/types.ts';
+import { logger } from 'shared/logger.ts';
 import { colors } from 'cliffy/ansi/colors.ts';
 import { stripIndents } from 'common-tags';
 
@@ -13,15 +14,22 @@ export const formatToolUse = (toolInput: LLMToolInputSchema): string => {
   `;
 };
 
-export const formatToolResult = (toolResult: LLMToolRunResultContent): string => {
-	const results: LLMMessageContentParts = Array.isArray(toolResult)
-		? toolResult
-		: [toolResult as LLMMessageContentPart];
-	return results.map((result) => {
-		if (result.type === 'text') {
-			return colors.bold(result.text);
-		} else {
-			return `Unknown type: ${result.type}`;
-		}
-	}).join('\n');
+export const formatToolResult = (resultContent: ConversationLogEntryContentToolResult): string => {
+	const { bbaiResponse } = resultContent;
+	if (typeof bbaiResponse === 'object' && 'data' in bbaiResponse) {
+		const { modifiedFiles, newFiles } = bbaiResponse.data as { modifiedFiles: string[]; newFiles: string[] };
+		return [
+			`✅ Patch applied successfully to ${modifiedFiles.length + newFiles.length} file(s):`,
+			`${
+				modifiedFiles.length > 0
+					? modifiedFiles.map((file) => colors.cyan(`📝 Modified: ${file}`)).join('\n')
+					: ''
+			}`,
+			`${newFiles.length > 0 ? newFiles.map((file) => colors.cyan(`📄 Created: ${file}`)).join('\n') : ''}
+		`,
+		].join('\n\n');
+	} else {
+		logger.error('Unexpected bbaiResponse format:', bbaiResponse);
+		return bbaiResponse;
+	}
 };

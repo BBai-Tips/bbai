@@ -7,8 +7,8 @@ import type LLMInteraction from '../interactions/baseInteraction.ts';
 import type LLMMessage from 'api/llms/llmMessage.ts';
 import type { LLMMessageContentParts, LLMMessageContentPartTextBlock } from 'api/llms/llmMessage.ts';
 import type LLMTool from 'api/llms/llmTool.ts';
-import { createError } from '../../utils/error.utils.ts';
-import { ErrorType, type LLMErrorOptions } from '../../errors/error.ts';
+import { createError } from 'api/utils/error.ts';
+import { ErrorType, type LLMErrorOptions } from 'api/errors/error.ts';
 import { logger } from 'shared/logger.ts';
 import type {
 	LLMCallbacks,
@@ -88,7 +88,7 @@ class AnthropicLLM extends LLM {
 		return tools.map((tool) => ({
 			name: tool.name,
 			description: tool.description,
-			input_schema: tool.input_schema,
+			input_schema: tool.inputSchema,
 		} as Anthropic.Tool));
 	}
 

@@ -3,5 +3,6 @@
 	"description": "Apply a list of search and replace operations to a file",
 	"version": "1.0.0",
 	"author": "BBai Team",
-	"license": "MIT"
+	"license": "MIT",
+	"mutates": true
 }

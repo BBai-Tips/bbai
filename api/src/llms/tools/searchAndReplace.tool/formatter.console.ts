@@ -1,5 +1,6 @@
-import type { LLMToolInputSchema, LLMToolRunResultContent } from 'api/llms/llmTool.ts';
-import type { LLMMessageContentPart, LLMMessageContentParts } from 'api/llms/llmMessage.ts';
+import type { LLMToolInputSchema } from 'api/llms/llmTool.ts';
+import type { ConversationLogEntryContentToolResult } from 'shared/types.ts';
+import { getContentArrayFromToolResult } from 'api/utils/llms.ts';
 import { colors } from 'cliffy/ansi/colors.ts';
 import { stripIndents } from 'common-tags';
 
@@ -30,15 +31,15 @@ export const formatToolUse = (toolInput: LLMToolInputSchema): string => {
 	  `;
 };
 
-export const formatToolResult = (toolResult: LLMToolRunResultContent): string => {
-	const results: LLMMessageContentParts = Array.isArray(toolResult)
-		? toolResult
-		: [toolResult as LLMMessageContentPart];
-	return results.map((result) => {
-		if (result.type === 'text') {
-			return colors.bold(result.text);
-		} else {
-			return `Unknown type: ${result.type}`;
-		}
-	}).join('\n');
+export const formatToolResult = (resultContent: ConversationLogEntryContentToolResult): string => {
+	const { toolResult, bbaiResponse } = resultContent;
+	const results = getContentArrayFromToolResult(toolResult);
+	return stripIndents`
+		${colors.cyan(`${bbaiResponse}:`)}
+	
+		${
+		results.map((content) => {
+			return colors.bold(content);
+		}).join('\n')
+	}`;
 };

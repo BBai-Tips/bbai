@@ -1,6 +1,6 @@
 import type { JSX } from 'preact';
 import LLMTool from 'api/llms/llmTool.ts';
-import type { LLMToolConfig, LLMToolInputSchema, LLMToolRunResult, LLMToolRunResultContent } from 'api/llms/llmTool.ts';
+import type { LLMToolInputSchema, LLMToolRunResult } from 'api/llms/llmTool.ts';
 import {
 	formatToolResult as formatToolResultBrowser,
 	formatToolUse as formatToolUseBrowser,
@@ -10,6 +10,7 @@ import {
 	formatToolUse as formatToolUseConsole,
 } from './formatter.console.ts';
 import type LLMConversationInteraction from 'api/llms/conversationInteraction.ts';
+import type { ConversationLogEntryContentToolResult } from 'shared/types.ts';
 import type { LLMAnswerToolUse, LLMMessageContentParts, LLMMessageContentPartTextBlock } from 'api/llms/llmMessage.ts';
 import type ProjectEditor from 'api/editor/projectEditor.ts';
 import { isPathWithinProject } from 'api/utils/fileHandling.ts';
@@ -21,7 +22,7 @@ import { ensureDir } from '@std/fs';
 import * as diff from 'diff';
 
 export default class LLMToolApplyPatch extends LLMTool {
-	get input_schema(): LLMToolInputSchema {
+	get inputSchema(): LLMToolInputSchema {
 		return {
 			type: 'object',
 			properties: {
@@ -42,8 +43,11 @@ export default class LLMToolApplyPatch extends LLMTool {
 		return format === 'console' ? formatToolUseConsole(toolInput) : formatToolUseBrowser(toolInput);
 	}
 
-	formatToolResult(toolResult: LLMToolRunResultContent, format: 'console' | 'browser'): string | JSX.Element {
-		return format === 'console' ? formatToolResultConsole(toolResult) : formatToolResultBrowser(toolResult);
+	formatToolResult(
+		resultContent: ConversationLogEntryContentToolResult,
+		format: 'console' | 'browser',
+	): string | JSX.Element {
+		return format === 'console' ? formatToolResultConsole(resultContent) : formatToolResultBrowser(resultContent);
 	}
 
 	async runTool(
@@ -51,6 +55,8 @@ export default class LLMToolApplyPatch extends LLMTool {
 		toolUse: LLMAnswerToolUse,
 		projectEditor: ProjectEditor,
 	): Promise<LLMToolRunResult> {
+		const patchedFiles: string[] = [];
+		const patchContents: string[] = [];
 		const { toolInput } = toolUse;
 		const { filePath, patch } = toolInput as { filePath?: string; patch: string };
 
@@ -106,7 +112,7 @@ export default class LLMToolApplyPatch extends LLMTool {
 						throw createError(ErrorType.FileHandling, errorMessage, {
 							name: 'apply-patch',
 							filePath: currentFilePath,
-							operation: 'patch',
+							operation: 'change',
 						} as FileHandlingErrorOptions);
 					}
 
@@ -114,21 +120,23 @@ export default class LLMToolApplyPatch extends LLMTool {
 					logger.info(`Patch applied to existing file: ${currentFilePath}`);
 				}
 
-				// [TODO] the `logPatchAndCommit` (used below) is already adding to patchedFiles and patchContents
+				// [TODO] the `logChangeAndCommit` (used below) is already adding to patchedFiles and patchContents
 				// Is this legacy usage and should be removed, or do we need it for multi-part patches
-				projectEditor.patchedFiles.add(currentFilePath);
+				projectEditor.changedFiles.add(currentFilePath);
 				// [TODO] for multiple patch parts - will subsequent overwrite the first??
-				projectEditor.patchContents.set(currentFilePath, patch);
+				projectEditor.changeContents.set(currentFilePath, patch);
 			}
 
+			// Prepare arrays for logChangeAndCommit
+			patchedFiles.push(...modifiedFiles, ...newFiles);
+			patchContents.push(...patchedFiles.map((file) => projectEditor.changeContents.get(file) || ''));
+
 			// Log patch and commit for all modified files
-			for (const file of [...modifiedFiles, ...newFiles]) {
-				await projectEditor.orchestratorController.logPatchAndCommit(
-					interaction,
-					file,
-					patch,
-				);
-			}
+			await projectEditor.orchestratorController.logChangeAndCommit(
+				interaction,
+				patchedFiles,
+				patchContents,
+			);
 
 			const toolResultContentParts: LLMMessageContentParts = [
 				{
@@ -145,9 +153,12 @@ export default class LLMToolApplyPatch extends LLMTool {
 
 			const toolResults = toolResultContentParts;
 			const toolResponse = `Applied patch successfully to ${modifiedFiles.length + newFiles.length} file(s)`;
-			const bbaiResponse = `BBai has applied patch successfully to ${
-				modifiedFiles.length + newFiles.length
-			} file(s)`;
+			const bbaiResponse = {
+				data: {
+					modifiedFiles,
+					newFiles,
+				},
+			};
 
 			return { toolResults, toolResponse, bbaiResponse };
 		} catch (error) {

@@ -9,7 +9,7 @@ import LLMFactory from '../llms/llmProvider.ts';
 import type LLMMessage from 'api/llms/llmMessage.ts';
 import type { LLMAnswerToolUse } from 'api/llms/llmMessage.ts';
 import type LLMTool from 'api/llms/llmTool.ts';
-//import type { LLMToolInputSchema, LLMToolRunResultContent } from 'api/llms/llmTool.ts';
+import type { LLMToolRunToolResponse } from 'api/llms/llmTool.ts';
 import LLMToolManager from '../llms/llmToolManager.ts';
 import type LLMConversationInteraction from '../llms/interactions/conversationInteraction.ts';
 import type LLMChatInteraction from '../llms/interactions/chatInteraction.ts';
@@ -17,7 +17,7 @@ import AgentController from './agentController.ts';
 import PromptManager from '../prompts/promptManager.ts';
 import EventManager from 'shared/eventManager.ts';
 import type { EventPayloadMap } from 'shared/eventManager.ts';
-import ConversationPersistence from '../storage/conversationPersistence.ts';
+import ConversationPersistence from 'api/storage/conversationPersistence.ts';
 import type { ErrorHandlingConfig, LLMProviderMessageResponse, Task } from 'api/types/llms.ts';
 import type {
 	ConversationContinue,
@@ -32,11 +32,11 @@ import type {
 import { logger } from 'shared/logger.ts';
 import { readProjectFileContent } from 'api/utils/fileHandling.ts';
 import type { LLMCallbacks, LLMSpeakWithOptions, LLMSpeakWithResponse } from '../types.ts';
-import type { ConversationLogEntry } from 'shared/conversationLogger.ts';
+import type { ConversationLogEntry } from 'shared/types.ts';
 import { generateConversationTitle } from '../utils/conversation.utils.ts';
 import { generateConversationId } from 'shared/conversationManagement.ts';
 //import { runFormatCommand } from '../utils/project.utils.ts';
-import { stageAndCommitAfterPatching } from '../utils/git.utils.ts';
+import { stageAndCommitAfterChanging } from '../utils/git.utils.ts';
 import type { FullConfigSchema } from 'shared/configManager.ts';
 
 class OrchestratorController {
@@ -387,20 +387,36 @@ class OrchestratorController {
 				tokenUsageStatement: TokenUsage,
 				tokenUsageConversation: ConversationTokenUsage,
 			): Promise<void> => {
-				const conversationContinue: ConversationContinue = {
-					timestamp,
-					conversationId: this.primaryInteraction.id,
-					conversationTitle: this.primaryInteraction.title,
-					logEntry,
-					conversationStats,
-					tokenUsageTurn: tokenUsageTurn,
-					tokenUsageStatement: tokenUsageStatement,
-					tokenUsageConversation: tokenUsageConversation,
-				};
-				this.eventManager.emit(
-					'projectEditor:conversationContinue',
-					conversationContinue as EventPayloadMap['projectEditor']['projectEditor:conversationContinue'],
-				);
+				if (logEntry.entryType === 'answer') {
+					const statementAnswer: ConversationResponse = {
+						timestamp,
+						conversationId: this.primaryInteraction.id,
+						conversationTitle: this.primaryInteraction.title,
+						logEntry,
+						conversationStats,
+						tokenUsageStatement,
+						tokenUsageConversation,
+					};
+					this.eventManager.emit(
+						'projectEditor:conversationAnswer',
+						statementAnswer as EventPayloadMap['projectEditor']['projectEditor:conversationAnswer'],
+					);
+				} else {
+					const conversationContinue: ConversationContinue = {
+						timestamp,
+						conversationId: this.primaryInteraction.id,
+						conversationTitle: this.primaryInteraction.title,
+						logEntry,
+						conversationStats,
+						tokenUsageTurn,
+						tokenUsageStatement,
+						tokenUsageConversation,
+					};
+					this.eventManager.emit(
+						'projectEditor:conversationContinue',
+						conversationContinue as EventPayloadMap['projectEditor']['projectEditor:conversationContinue'],
+					);
+				}
 			},
 			PREPARE_SYSTEM_PROMPT: async (system: string, interactionId: string): Promise<string> => {
 				const interaction = this.interactionManager.getInteraction(interactionId);
@@ -463,10 +479,11 @@ class OrchestratorController {
 		interaction: LLMConversationInteraction,
 		toolUse: LLMAnswerToolUse,
 		response: LLMProviderMessageResponse,
-	): Promise<{ bbaiResponse: string; toolResponse: string; thinkingContent: string }> {
+	): Promise<{ toolResponse: LLMToolRunToolResponse; thinkingContent: string }> {
 		logger.error(`OrchestratorController: Handling tool use for: ${toolUse.toolName}`);
 		//logger.error(`OrchestratorController: Handling tool use for: ${toolUse.toolName}`, response);
 		await interaction.conversationLogger.logToolUse(
+			interaction.getLastMessageId(),
 			toolUse.toolName,
 			toolUse.toolInput,
 			interaction.conversationStats,
@@ -476,7 +493,7 @@ class OrchestratorController {
 		);
 
 		const {
-			messageId: _messageId,
+			messageId,
 			toolResults,
 			toolResponse,
 			bbaiResponse,
@@ -487,19 +504,21 @@ class OrchestratorController {
 			this.projectEditor,
 		);
 		if (isError) {
-			interaction.conversationLogger.logError(`Tool Output (${toolUse.toolName}): ${toolResponse}`);
+			interaction.conversationLogger.logError(messageId, `Tool Output (${toolUse.toolName}): ${toolResponse}`);
 		}
 
 		await interaction.conversationLogger.logToolResult(
+			messageId,
 			toolUse.toolName,
 			toolResults,
+			bbaiResponse,
 		);
 
 		// Extract thinking content from the response
 		const thinkingContent = this.extractThinkingContent(response);
 		//logger.error(`OrchestratorController: Extracted thinking for tool: ${toolUse.toolName}`, thinkingContent);
 
-		return { bbaiResponse, toolResponse, thinkingContent };
+		return { toolResponse, thinkingContent };
 	}
 
 	async handleStatement(statement: string, conversationId: ConversationId): Promise<ConversationResponse> {
@@ -601,18 +620,17 @@ class OrchestratorController {
 			logger.warn(`OrchestratorController: LOOP: turns ${loopTurnCount}`);
 			try {
 				// Handle tool calls and collect toolResponse
-				const bbaiResponses = [];
 				const toolResponses = [];
 				if (currentResponse.messageResponse.toolsUsed && currentResponse.messageResponse.toolsUsed.length > 0) {
 					for (const toolUse of currentResponse.messageResponse.toolsUsed) {
 						logger.info('OrchestratorController: Handling tool', toolUse);
 						try {
-							const { bbaiResponse, toolResponse, thinkingContent } = await this.handleToolUse(
+							const { toolResponse, thinkingContent } = await this.handleToolUse(
 								interaction,
 								toolUse,
 								currentResponse.messageResponse,
 							);
-							bbaiResponses.push(bbaiResponse);
+							//bbaiResponses.push(bbaiResponse);
 							toolResponses.push(toolResponse);
 							logger.debug(
 								`OrchestratorController: Thinking content for ${toolUse.toolName}:`,
@@ -630,18 +648,17 @@ class OrchestratorController {
 				logger.warn(`OrchestratorController: LOOP: turns ${loopTurnCount} - handled all tools`);
 
 				loopTurnCount++;
-				const allBbaiResponses = bbaiResponses.join('\n');
-				const allToolRunsResonse = toolResponses.join('\n');
+
 				// If there's tool toolResponse, send it back to the LLM
-				if (allBbaiResponses || allToolRunsResonse) {
+				if (toolResponses.length > 0) {
 					try {
 						await this.projectEditor.updateProjectInfo();
 
-						statement =
-							`BBai Feedback:\n${allBbaiResponses}\nTool use feedback:\n${allToolRunsResonse}\nPlease continue the conversation.`;
+						statement = `Tool results feedback:\n${
+							toolResponses.join('\n')
+						}\n\nPlease continue the conversation.`;
 
 						currentResponse = await interaction.speakWithLLM(statement, speakOptions);
-
 						//logger.info('OrchestratorController: tool response', currentResponse);
 					} catch (error) {
 						logger.error(`OrchestratorController: Error in LLM communication: ${error.message}`);
@@ -732,8 +749,7 @@ class OrchestratorController {
 		logger.debug(`OrchestratorController: Extracted assistantThinking: ${assistantThinking}`);
 
 		const statementAnswer: ConversationResponse = {
-			response: currentResponse.messageResponse,
-			messageMeta: currentResponse.messageMeta,
+			logEntry: { entryType: 'answer', content: answer },
 			conversationId: interaction.id,
 			conversationTitle: interaction.title,
 			timestamp: new Date().toISOString(),
@@ -748,13 +764,14 @@ class OrchestratorController {
 				totalTokens: 0,
 			},
 			tokenUsageConversation: this.tokenUsageTotals,
-			answer,
-			assistantThinking,
 		};
 
-		this.eventManager.emit(
-			'projectEditor:conversationAnswer',
-			statementAnswer as EventPayloadMap['projectEditor']['projectEditor:conversationAnswer'],
+		interaction.conversationLogger.logAnswerMessage(
+			interaction.getLastMessageId(),
+			answer,
+			statementAnswer.conversationStats,
+			statementAnswer.tokenUsageStatement,
+			this.tokenUsageTotals,
 		);
 
 		return statementAnswer;
@@ -799,65 +816,84 @@ class OrchestratorController {
 	}
 	 */
 
-	async logPatchAndCommit(interaction: LLMConversationInteraction, filePath: string, patch: string): Promise<void> {
-		this.projectEditor.patchedFiles.add(filePath);
-		this.projectEditor.patchContents.set(filePath, patch);
+	async logChangeAndCommit(
+		interaction: LLMConversationInteraction,
+		filePath: string | string[],
+		change: string | string[],
+	): Promise<void> {
+		const persistence = await new ConversationPersistence(interaction.id, this.projectEditor).init();
+
+		if (Array.isArray(filePath) && Array.isArray(change)) {
+			if (filePath.length !== change.length) {
+				throw new Error('filePath and change arrays must have the same length');
+			}
+			for (let i = 0; i < filePath.length; i++) {
+				this.projectEditor.changedFiles.add(filePath[i]);
+				this.projectEditor.changeContents.set(filePath[i], change[i]);
+				await persistence.logChange(filePath[i], change[i]);
+			}
+		} else if (typeof filePath === 'string' && typeof change === 'string') {
+			this.projectEditor.changedFiles.add(filePath);
+			this.projectEditor.changeContents.set(filePath, change);
+			await persistence.logChange(filePath, change);
+		} else {
+			throw new Error('filePath and change must both be strings or both be arrays');
+		}
+
 		if (this.projectEditor.fullConfig.project.type === 'git') {
-			await stageAndCommitAfterPatching(
+			await stageAndCommitAfterChanging(
 				interaction,
 				this.projectEditor.projectRoot,
-				this.projectEditor.patchedFiles,
-				this.projectEditor.patchContents,
+				this.projectEditor.changedFiles,
+				this.projectEditor.changeContents,
 				this.projectEditor,
 			);
 		}
-		this.projectEditor.patchedFiles.clear();
-		this.projectEditor.patchContents.clear();
-		// Log the applied changes
-		const persistence = await new ConversationPersistence(interaction.id, this.projectEditor).init();
-		await persistence.logPatch(filePath, patch);
+
+		this.projectEditor.changedFiles.clear();
+		this.projectEditor.changeContents.clear();
 	}
 
-	async revertLastPatch(): Promise<void> {
+	async revertLastChange(): Promise<void> {
 		const primaryInteraction = this.primaryInteraction;
 		if (!primaryInteraction) {
-			throw new Error('No active conversation. Cannot revert patch.');
+			throw new Error('No active conversation. Cannot revert change.');
 		}
 
 		const persistence = await new ConversationPersistence(primaryInteraction.id, this.projectEditor).init();
-		const patchLog = await persistence.getPatchLog();
+		const changeLog = await persistence.getChangeLog();
 
-		if (patchLog.length === 0) {
-			throw new Error('No patches to revert.');
+		if (changeLog.length === 0) {
+			throw new Error('No changes to revert.');
 		}
 
-		const lastPatch = patchLog[patchLog.length - 1];
-		const { filePath, patch } = lastPatch;
+		const lastChange = changeLog[changeLog.length - 1];
+		const { filePath, change } = lastChange;
 
 		try {
 			const currentContent = await Deno.readTextFile(filePath);
 
-			// Create a reverse patch
-			const patchResult = diff.applyPatch(currentContent, patch);
-			if (typeof patchResult === 'boolean') {
-				throw new Error('Failed to apply original patch. Cannot create reverse patch.');
+			// Create a reverse change
+			const changeResult = diff.applyPatch(currentContent, change);
+			if (typeof changeResult === 'boolean') {
+				throw new Error('Failed to apply original change. Cannot create reverse change.');
 			}
-			const reversePatch = diff.createPatch(filePath, patchResult, currentContent);
+			const reverseChange = diff.createPatch(filePath, changeResult, currentContent);
 
-			// Apply the reverse patch
-			const revertedContent = diff.applyPatch(currentContent, reversePatch);
+			// Apply the reverse change
+			const revertedContent = diff.applyPatch(currentContent, reverseChange);
 
 			if (revertedContent === false) {
-				throw new Error('Failed to revert patch. The current file content may have changed.');
+				throw new Error('Failed to revert change. The current file content may have changed.');
 			}
 
 			await Deno.writeTextFile(filePath, revertedContent);
-			logger.info(`OrchestratorController: Last patch reverted for file: ${filePath}`);
+			logger.info(`OrchestratorController: Last change reverted for file: ${filePath}`);
 
-			// Remove the last patch from the log
-			await persistence.removeLastPatch();
+			// Remove the last change from the log
+			await persistence.removeLastChange();
 		} catch (error) {
-			logger.error(`Error reverting last patch: ${error.message}`);
+			logger.error(`Error reverting last change: ${error.message}`);
 			throw error;
 		}
 	}

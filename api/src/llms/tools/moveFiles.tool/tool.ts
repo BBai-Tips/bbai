@@ -3,7 +3,7 @@ import { basename, join } from '@std/path';
 import { exists } from '@std/fs';
 
 import LLMTool from 'api/llms/llmTool.ts';
-import type { LLMToolInputSchema, LLMToolRunResult, LLMToolRunResultContent } from 'api/llms/llmTool.ts';
+import type { LLMToolInputSchema, LLMToolRunResult } from 'api/llms/llmTool.ts';
 import {
 	formatToolResult as formatToolResultBrowser,
 	formatToolUse as formatToolUseBrowser,
@@ -14,6 +14,7 @@ import {
 } from './formatter.console.ts';
 import type LLMConversationInteraction from 'api/llms/conversationInteraction.ts';
 import type ProjectEditor from 'api/editor/projectEditor.ts';
+import type { ConversationLogEntryContentToolResult } from 'shared/types.ts';
 import type { LLMAnswerToolUse, LLMMessageContentPartTextBlock } from 'api/llms/llmMessage.ts';
 import { createError, ErrorType } from 'api/utils/error.ts';
 import type { FileHandlingErrorOptions } from 'api/errors/error.ts';
@@ -28,7 +29,7 @@ interface MoveFilesParams {
 }
 
 export default class LLMToolMoveFiles extends LLMTool {
-	get input_schema(): LLMToolInputSchema {
+	get inputSchema(): LLMToolInputSchema {
 		return {
 			type: 'object',
 			properties: {
@@ -60,12 +61,15 @@ export default class LLMToolMoveFiles extends LLMTool {
 		return format === 'console' ? formatToolUseConsole(toolInput) : formatToolUseBrowser(toolInput);
 	}
 
-	formatToolResult(toolResult: LLMToolRunResultContent, format: 'console' | 'browser'): string | JSX.Element {
-		return format === 'console' ? formatToolResultConsole(toolResult) : formatToolResultBrowser(toolResult);
+	formatToolResult(
+		resultContent: ConversationLogEntryContentToolResult,
+		format: 'console' | 'browser',
+	): string | JSX.Element {
+		return format === 'console' ? formatToolResultConsole(resultContent) : formatToolResultBrowser(resultContent);
 	}
 
 	async runTool(
-		_interaction: LLMConversationInteraction,
+		interaction: LLMConversationInteraction,
 		toolUse: LLMAnswerToolUse,
 		projectEditor: ProjectEditor,
 	): Promise<LLMToolRunResult> {
@@ -145,22 +149,25 @@ export default class LLMToolMoveFiles extends LLMTool {
 				}
 			}
 
-			const bbaiResponses = [];
+			const movedFiles = [];
+			const movedContent = [];
+			for (const moved of movedSuccess) {
+				movedFiles.push(moved.name);
+				movedContent.push(`${moved.name} moved to ${destination}`);
+			}
+			await projectEditor.orchestratorController.logChangeAndCommit(
+				interaction,
+				movedFiles,
+				movedContent,
+			);
+
 			const toolResponses = [];
 			if (movedSuccess.length > 0) {
-				bbaiResponses.push(
-					`BBai has moved these files to ${destination}: ${movedSuccess.map((f) => f.name).join(', ')}`,
-				);
 				toolResponses.push(
 					`Moved files to ${destination}:\n${movedSuccess.map((f) => `- ${f.name}`).join('\n')}`,
 				);
 			}
 			if (movedError.length > 0) {
-				bbaiResponses.push(
-					`BBai failed to move these files to ${destination}:\n${
-						movedError.map((f) => `- ${f.name}: ${f.error}`).join('\n')
-					}`,
-				);
 				toolResponses.push(
 					`Failed to move files to ${destination}:\n${
 						movedError.map((f) => `- ${f.name}: ${f.error}`).join('\n')
@@ -171,7 +178,13 @@ export default class LLMToolMoveFiles extends LLMTool {
 			const toolResults = toolResultContentParts;
 			const toolResponse = (noFilesMoved ? 'No files moved\n' : '') +
 				toolResponses.join('\n\n');
-			const bbaiResponse = bbaiResponses.join('\n\n');
+			const bbaiResponse = {
+				data: {
+					filesMoved: movedSuccess.map((f) => f.name),
+					filesError: movedError.map((f) => f.name),
+					destination,
+				},
+			};
 
 			return {
 				toolResults,
@@ -180,16 +193,10 @@ export default class LLMToolMoveFiles extends LLMTool {
 			};
 		} catch (error) {
 			logger.error(`Error moving files: ${error.message}`);
-
-			throw createError(
-				ErrorType.FileHandling,
-				`Error moving files: ${error.message}`,
-				{
-					name: 'move-file',
-					filePath: projectEditor.projectRoot,
-					operation: 'move',
-				},
-			);
+			const toolResults = `⚠️  ${error.message}`;
+			const bbaiResponse = `BBai failed to move files. Error: ${error.message}`;
+			const toolResponse = `Failed to move files. Error: ${error.message}`;
+			return { toolResults, toolResponse, bbaiResponse };
 		}
 	}
 }

@@ -9,7 +9,8 @@ import {
 	formatToolUse as formatToolUseConsole,
 } from './formatter.console.ts';
 import LLMTool from 'api/llms/llmTool.ts';
-import type { LLMToolInputSchema, LLMToolRunResult, LLMToolRunResultContent } from 'api/llms/llmTool.ts';
+import type { LLMToolInputSchema, LLMToolRunResult } from 'api/llms/llmTool.ts';
+import type { ConversationLogEntryContentToolResult } from 'shared/types.ts';
 import type { LLMAnswerToolUse, LLMMessageContentPartTextBlock } from 'api/llms/llmMessage.ts';
 import type LLMConversationInteraction from 'api/llms/conversationInteraction.ts';
 import type ProjectEditor from 'api/editor/projectEditor.ts';
@@ -19,7 +20,7 @@ import { createError, ErrorType } from 'api/utils/error.ts';
 import { logger } from 'shared/logger.ts';
 
 export default class LLMToolForgetFiles extends LLMTool {
-	get input_schema(): LLMToolInputSchema {
+	get inputSchema(): LLMToolInputSchema {
 		return {
 			type: 'object',
 			properties: {
@@ -50,8 +51,11 @@ export default class LLMToolForgetFiles extends LLMTool {
 		return format === 'console' ? formatToolUseConsole(toolInput) : formatToolUseBrowser(toolInput);
 	}
 
-	formatToolResult(toolResult: LLMToolRunResultContent, format: 'console' | 'browser'): string | JSX.Element {
-		return format === 'console' ? formatToolResultConsole(toolResult) : formatToolResultBrowser(toolResult);
+	formatToolResult(
+		resultContent: ConversationLogEntryContentToolResult,
+		format: 'console' | 'browser',
+	): string | JSX.Element {
+		return format === 'console' ? formatToolResultConsole(resultContent) : formatToolResultBrowser(resultContent);
 	}
 
 	async runTool(

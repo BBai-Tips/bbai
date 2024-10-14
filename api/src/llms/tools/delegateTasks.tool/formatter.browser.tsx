@@ -1,7 +1,8 @@
 /** @jsxImportSource preact */
 import type { JSX } from 'preact';
-import type { LLMToolInputSchema, LLMToolRunResultContent } from 'api/llms/llmTool.ts';
-import type { LLMMessageContentPart, LLMMessageContentParts } from 'api/llms/llmMessage.ts';
+import type { LLMToolInputSchema } from 'api/llms/llmTool.ts';
+import type { ConversationLogEntryContentToolResult } from 'shared/types.ts';
+import { getContentArrayFromToolResult } from 'api/utils/llms.ts';
 
 export const formatToolUse = (toolInput: LLMToolInputSchema): JSX.Element => {
 	const { tasks } = toolInput as { tasks: string[] };
@@ -17,22 +18,20 @@ export const formatToolUse = (toolInput: LLMToolInputSchema): JSX.Element => {
 	);
 };
 
-export const formatToolResult = (toolResult: LLMToolRunResultContent): JSX.Element => {
-	const results: LLMMessageContentParts = Array.isArray(toolResult)
-		? toolResult
-		: [toolResult as LLMMessageContentPart];
+export const formatToolResult = (resultContent: ConversationLogEntryContentToolResult): JSX.Element => {
+	const { toolResult, bbaiResponse } = resultContent;
+	const results = getContentArrayFromToolResult(toolResult);
 	return (
 		<div className='tool-result'>
-			{results.map((result, index) => {
-				if (result.type === 'text') {
-					return (
-						<p key={index}>
-							<strong>{result.text}</strong>
-						</p>
-					);
-				} else {
-					return <p key={index}>Unknown type: {result.type}</p>;
-				}
+			<p>
+				<strong>{bbaiResponse}</strong>
+			</p>
+			{results.map((content, index) => {
+				return (
+					<p key={index}>
+						<strong>{content}</strong>
+					</p>
+				);
 			})}
 		</div>
 	);

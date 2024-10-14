@@ -83,7 +83,7 @@ class OpenAILLM extends LLM {
 			'function': {
 				name: tool.name,
 				description: tool.description,
-				parameters: tool.input_schema,
+				parameters: tool.inputSchema,
 			},
 		} as OpenAI.Chat.ChatCompletionTool));
 	}

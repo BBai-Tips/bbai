@@ -1,8 +1,8 @@
-import type { ConversationLoggerEntryType } from 'shared/conversationLogger.ts';
 import { LLMProviderMessageMeta, LLMProviderMessageResponse } from 'api/types/llms.ts';
 import {
 	ConversationContinue,
 	ConversationId,
+	ConversationLogEntryType,
 	ConversationMetrics,
 	ConversationResponse,
 	ConversationStart,

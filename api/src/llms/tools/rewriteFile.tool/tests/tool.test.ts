@@ -1,7 +1,7 @@
-import { assert, assertEquals, assertStringIncludes } from 'api/tests/deps.ts';
+import { assert, assertEquals, assertRejects, assertStringIncludes, assertThrows } from 'api/tests/deps.ts';
 //import { existsSync } from '@std/fs';
 
-import LLMToolRewriteFile from '../tool.ts';
+//import LLMToolRewriteFile from '../tool.ts';
 import { LLMAnswerToolUse } from 'api/llms/llmMessage.ts';
 import { makeOrchestratorControllerStub } from 'api/tests/stubs.ts';
 import {
@@ -11,6 +11,12 @@ import {
 	getToolManager,
 	withTestProject,
 } from 'api/tests/testSetup.ts';
+import { FileHandlingError } from 'api/errors/error.ts';
+
+// Type guard to check if bbaiResponse is a string
+function isString(value: unknown): value is string {
+	return typeof value === 'string';
+}
 
 Deno.test({
 	name: 'Rewrite File Tool - rewrite existing file',
@@ -26,7 +32,7 @@ Deno.test({
 			const tool = await toolManager.getTool('rewrite_file');
 			assert(tool, 'Failed to get tool');
 
-			const logPatchAndCommitStub = orchestratorControllerStubMaker.logPatchAndCommitStub(() =>
+			const logChangeAndCommitStub = orchestratorControllerStubMaker.logChangeAndCommitStub(() =>
 				Promise.resolve()
 			);
 			try {
@@ -46,15 +52,28 @@ Deno.test({
 				};
 
 				const result = await tool.runTool(interaction, toolUse, projectEditor);
+				// console.log('rewrite existing file - bbaiResponse:', result.bbaiResponse);
+				// console.log('rewrite existing file - toolResponse:', result.toolResponse);
+				// console.log('rewrite existing file - toolResults:', result.toolResults);
 
-				assertStringIncludes(result.bbaiResponse, `BBai rewrote file: test.txt`);
+				assert(isString(result.bbaiResponse), 'bbaiResponse should be a string');
+
+				if (isString(result.bbaiResponse)) {
+					assertStringIncludes(
+						result.bbaiResponse,
+						'BBai rewrote file test.txt with new contents',
+					);
+				} else {
+					assert(false, 'bbaiResponse is not a string as expected');
+				}
+
 				assertStringIncludes(result.toolResponse, `Rewrote existing file`);
 				assertStringIncludes(result.toolResults as string, `File ${testFile} rewritten with new contents`);
 
 				const newContent = await Deno.readTextFile(testFilePath);
 				assertEquals(newContent, 'New content');
 			} finally {
-				logPatchAndCommitStub.restore();
+				logChangeAndCommitStub.restore();
 			}
 		});
 	},
@@ -75,7 +94,7 @@ Deno.test({
 			const toolManager = await getToolManager(projectEditor);
 			const tool = await toolManager.getTool('rewrite_file');
 			assert(tool, 'Failed to get tool');
-			const logPatchAndCommitStub = orchestratorControllerStubMaker.logPatchAndCommitStub(() =>
+			const logChangeAndCommitStub = orchestratorControllerStubMaker.logChangeAndCommitStub(() =>
 				Promise.resolve()
 			);
 			try {
@@ -95,7 +114,17 @@ Deno.test({
 
 				const result = await tool.runTool(interaction, toolUse, projectEditor);
 
-				assertStringIncludes(result.bbaiResponse, `BBai created file: new-test.txt`);
+				assert(isString(result.bbaiResponse), 'bbaiResponse should be a string');
+
+				if (isString(result.bbaiResponse)) {
+					assertStringIncludes(
+						result.bbaiResponse,
+						'BBai created file new-test.txt with new contents',
+					);
+				} else {
+					assert(false, 'bbaiResponse is not a string as expected');
+				}
+
 				assertStringIncludes(result.toolResponse, `Created a new file`);
 				assertStringIncludes(result.toolResults as string, `File ${testFile} created with new contents`);
 
@@ -104,7 +133,7 @@ Deno.test({
 				const newContent = await Deno.readTextFile(testFilePath);
 				assertEquals(newContent, 'New file content');
 			} finally {
-				logPatchAndCommitStub.restore();
+				logChangeAndCommitStub.restore();
 			}
 		});
 	},
@@ -112,46 +141,47 @@ Deno.test({
 	sanitizeOps: false,
 });
 
-/*
 Deno.test({
 	name: 'Rewrite File Tool - throw error for file outside project',
 	async fn() {
 		await withTestProject(async (testProjectRoot) => {
 			const projectEditor = await getProjectEditor(testProjectRoot);
 			const interaction = await createTestInteraction('test-conversation', projectEditor);
-			const orchestratorControllerStubMaker = makeOrchestratorControllerStub(projectEditor.orchestratorController);
+			const orchestratorControllerStubMaker = makeOrchestratorControllerStub(
+				projectEditor.orchestratorController,
+			);
 
 			const toolManager = await getToolManager(projectEditor);
 			const tool = await toolManager.getTool('rewrite_file');
 			assert(tool, 'Failed to get tool');
 
-			const logPatchAndCommitStub = orchestratorControllerStubMaker.logPatchAndCommitStub(() => Promise.resolve());
+			const logChangeAndCommitStub = orchestratorControllerStubMaker.logChangeAndCommitStub(() =>
+				Promise.resolve()
+			);
 			try {
 				// Create a test file
-				const testFile = '/tmp/outside_project.txt';
-				//const testFilePath = '/tmp/outside_project.txt';
+				const testFilePath = '/tmp/outside_project.txt';
 
 				const toolUse: LLMAnswerToolUse = {
 					toolValidation: { validated: true, results: '' },
 					toolUseId: 'test-id',
 					toolName: 'rewrite_file',
 					toolInput: {
-						filePath: testFile,
+						filePath: testFilePath,
 						content: 'New content',
 					},
 				};
 
-				assertThrows(
+				assertRejects(
 					async () => await tool.runTool(interaction, toolUse, projectEditor),
-					Error,
-					`Access denied: ${testFile} is outside the project directory`,
+					FileHandlingError,
+					`Access denied: ${testFilePath} is outside the project directory`,
 				);
 			} finally {
-				logPatchAndCommitStub.restore();
+				logChangeAndCommitStub.restore();
 			}
 		});
 	},
 	sanitizeResources: false,
 	sanitizeOps: false,
 });
- */

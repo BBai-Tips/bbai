@@ -9,7 +9,8 @@ import {
 	formatToolUse as formatToolUseConsole,
 } from './formatter.console.ts';
 import LLMTool from 'api/llms/llmTool.ts';
-import type { LLMToolInputSchema, LLMToolRunResult, LLMToolRunResultContent } from 'api/llms/llmTool.ts';
+import type { LLMToolInputSchema, LLMToolRunResult } from 'api/llms/llmTool.ts';
+import type { ConversationLogEntryContentToolResult } from 'shared/types.ts';
 import type { LLMAnswerToolUse } from 'api/llms/llmMessage.ts';
 import type LLMConversationInteraction from 'api/llms/conversationInteraction.ts';
 import type ProjectEditor from 'api/editor/projectEditor.ts';
@@ -22,7 +23,7 @@ import { ensureDir } from '@std/fs';
 import { dirname, join } from '@std/path';
 
 export default class LLMToolRewriteFile extends LLMTool {
-	get input_schema(): LLMToolInputSchema {
+	get inputSchema(): LLMToolInputSchema {
 		return {
 			type: 'object',
 			properties: {
@@ -46,8 +47,11 @@ export default class LLMToolRewriteFile extends LLMTool {
 		return format === 'console' ? formatToolUseConsole(toolInput) : formatToolUseBrowser(toolInput);
 	}
 
-	formatToolResult(toolResult: LLMToolRunResultContent, format: 'console' | 'browser'): string | JSX.Element {
-		return format === 'console' ? formatToolResultConsole(toolResult) : formatToolResultBrowser(toolResult);
+	formatToolResult(
+		resultContent: ConversationLogEntryContentToolResult,
+		format: 'console' | 'browser',
+	): string | JSX.Element {
+		return format === 'console' ? formatToolResultConsole(resultContent) : formatToolResultBrowser(resultContent);
 	}
 
 	async runTool(
@@ -102,8 +106,8 @@ export default class LLMToolRewriteFile extends LLMTool {
 
 			await Deno.writeTextFile(fullFilePath, content);
 
-			logger.info(`Saving conversation rewrite file: ${interaction.id}`);
-			await projectEditor.orchestratorController.logPatchAndCommit(
+			logger.info(`LLMToolRewriteFile: Saving conversation rewrite file: ${interaction.id}`);
+			await projectEditor.orchestratorController.logChangeAndCommit(
 				interaction,
 				filePath,
 				content,
@@ -111,7 +115,7 @@ export default class LLMToolRewriteFile extends LLMTool {
 
 			const toolResults = `File ${filePath} ${isNewFile ? 'created' : 'rewritten'} with new contents.`;
 			const toolResponse = isNewFile ? 'Created a new file' : 'Rewrote existing file';
-			const bbaiResponse = `BBai ${isNewFile ? 'created' : 'rewrote'} file: ${filePath}`;
+			const bbaiResponse = `BBai ${isNewFile ? 'created' : 'rewrote'} file ${filePath} with new contents.`;
 
 			return { toolResults, toolResponse, bbaiResponse };
 		} catch (error) {

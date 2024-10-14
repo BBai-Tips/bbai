@@ -1,6 +1,6 @@
 import type { JSX } from 'preact';
 import LLMTool from 'api/llms/llmTool.ts';
-import type { LLMToolInputSchema, LLMToolRunResult, LLMToolRunResultContent } from 'api/llms/llmTool.ts';
+import type { LLMToolInputSchema, LLMToolRunResult } from 'api/llms/llmTool.ts';
 import {
 	formatToolResult as formatToolResultBrowser,
 	formatToolUse as formatToolUseBrowser,
@@ -10,15 +10,14 @@ import {
 	formatToolUse as formatToolUseConsole,
 } from './formatter.console.ts';
 import type LLMConversationInteraction from 'api/llms/conversationInteraction.ts';
+import type { ConversationLogEntryContentToolResult } from 'shared/types.ts';
 import type { LLMAnswerToolUse } from 'api/llms/llmMessage.ts';
 import FetchManager from 'shared/fetchManager.ts';
 import type ProjectEditor from 'api/editor/projectEditor.ts';
-//import { logger } from 'shared/logger.ts';
-import { createError, ErrorType } from 'api/utils/error.ts';
-//import { getContentFromToolResult } from '../../utils/llms.utils.ts';
+import { logger } from 'shared/logger.ts';
 
 export default class LLMToolFetchWebPage extends LLMTool {
-	get input_schema(): LLMToolInputSchema {
+	get inputSchema(): LLMToolInputSchema {
 		return {
 			type: 'object',
 			properties: {
@@ -32,8 +31,11 @@ export default class LLMToolFetchWebPage extends LLMTool {
 		return format === 'console' ? formatToolUseConsole(toolInput) : formatToolUseBrowser(toolInput);
 	}
 
-	formatToolResult(toolResult: LLMToolRunResultContent, format: 'console' | 'browser'): string | JSX.Element {
-		return format === 'console' ? formatToolResultConsole(toolResult) : formatToolResultBrowser(toolResult);
+	formatToolResult(
+		resultContent: ConversationLogEntryContentToolResult,
+		format: 'console' | 'browser',
+	): string | JSX.Element {
+		return format === 'console' ? formatToolResultConsole(resultContent) : formatToolResultBrowser(resultContent);
 	}
 
 	async runTool(
@@ -49,11 +51,20 @@ export default class LLMToolFetchWebPage extends LLMTool {
 			return {
 				toolResults: this.extractTextFromHtml(content),
 				toolResponse: `Successfully fetched content from ${url}`,
-				bbaiResponse:
-					`I've retrieved the content from ${url}. The page content is now available for reference.`,
+				bbaiResponse: {
+					data: {
+						url,
+						html: content,
+					},
+				},
 			};
 		} catch (error) {
-			throw createError(ErrorType.ToolHandling, `Failed to fetch web page: ${error.message}`);
+			logger.error(`Failed to fetch web page: ${error.message}`);
+
+			const toolResults = `⚠️  ${error.message}`;
+			const bbaiResponse = `BBai failed to fetch web page. Error: ${error.message}`;
+			const toolResponse = `Failed to fetch web page. Error: ${error.message}`;
+			return { toolResults, toolResponse, bbaiResponse };
 		}
 	}
 

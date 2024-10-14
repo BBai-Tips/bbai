@@ -1,15 +1,13 @@
 //import { consoleSize } from '@std/console';
 import { stripIndents } from 'common-tags';
-import { join } from '@std/path';
-import { BufReader } from '@std/io';
+import { writeAllSync } from '@std/io';
+import { TextLineStream } from '@std/streams';
 import { colors } from 'cliffy/ansi/mod.ts';
-import { renderToString } from 'preact-render-to-string';
+//import { renderToString } from 'preact-render-to-string';
 
-//import LogEntryFormatterManager from '../../../api/src/logEntries/logEntryFormatterManager.ts';
-import ConversationLogger from 'shared/conversationLogger.ts';
-import type { ConversationLogEntry, ConversationLoggerEntryType } from 'shared/conversationLogger.ts';
-import { getBbaiDataDir } from 'shared/dataDir.ts';
-import { ConversationId, ConversationMetrics, ConversationTokenUsage, TokenUsage } from 'shared/types.ts';
+import ConversationLogger from 'api/storage/conversationLogger.ts';
+//import { getBbaiDataDir } from 'shared/dataDir.ts';
+import { ConversationId, ConversationLogEntryType, ConversationMetrics, TokenUsage } from 'shared/types.ts';
 import { ConfigManager } from 'shared/configManager.ts';
 
 // [TODO] this needs to be projectConfig (or fullConfig), which means startDir needs to get passed in
@@ -28,18 +26,22 @@ const TOOL_ICON = '🔧';
 const AUXILIARY_ICON = '📎';
 const ERROR_ICON = '❌';
 const UNKNOWN_ICON = '❓';
-const CLOCK_ICON = '🕒'; // Clock emoji
+//const CLOCK_ICON = '🕒'; // Clock emoji
 
 export default class ConversationLogFormatter {
-	//private logEntryFormatterManager!: LogEntryFormatterManager;
 	private _maxLineLength: number;
 
 	private static readonly iconColorMap: Record<
-		ConversationLoggerEntryType,
+		ConversationLogEntryType,
 		{ icon: string; color: (text: string) => string; label: string }
 	> = {
 		user: { icon: USER_ICON, color: colors.green, label: globalConfig.myPersonsName || 'Person' },
 		assistant: { icon: ASSISTANT_ICON, color: colors.blue, label: globalConfig.myAssistantsName || 'Assistant' },
+		answer: {
+			icon: ASSISTANT_ICON,
+			color: colors.blue,
+			label: `Answer from ${globalConfig.myAssistantsName || 'Assistant'}`,
+		},
 		tool_use: { icon: TOOL_ICON, color: colors.yellow, label: 'Tool Input' },
 		tool_result: { icon: TOOL_ICON, color: colors.yellow, label: 'Tool Output' },
 		auxiliary: { icon: AUXILIARY_ICON, color: colors.cyan, label: 'Auxiliary Chat' },
@@ -51,7 +53,6 @@ export default class ConversationLogFormatter {
 	}
 
 	public async init(): Promise<ConversationLogFormatter> {
-		//this.logEntryFormatterManager = await new LogEntryFormatterManager().init();
 		return this;
 	}
 
@@ -59,8 +60,18 @@ export default class ConversationLogFormatter {
 		if (userDefinedLength && userDefinedLength > 0) {
 			return userDefinedLength;
 		}
-		const { columns, rows: _rows } = Deno.stdin.isTerminal() ? Deno.consoleSize() : { columns: 0, rows: 0 };
-		return columns > 0 ? columns : 120; // Default to 120 if unable to determine console width
+		const defaultCols = 120; // Default to 120 if unable to determine console width
+		try {
+			if (Deno.stdin.isTerminal()) {
+				const { columns } = Deno.consoleSize();
+				return columns > 0 ? columns : defaultCols;
+			} else {
+				return defaultCols;
+			}
+		} catch {
+			// Handle potential errors when stdin is not available or consoleSize fails
+		}
+		return defaultCols; // Default fallback
 	}
 
 	get maxLineLength(): number {
@@ -121,7 +132,7 @@ export default class ConversationLogFormatter {
 	}
 
 	async formatLogEntry(
-		type: ConversationLoggerEntryType,
+		type: ConversationLogEntryType,
 		timestamp: string,
 		//logEntry: ConversationLogEntry,
 		content: string,
@@ -153,14 +164,32 @@ export default class ConversationLogFormatter {
 		const footer = color(`╰${'─'.repeat(this._maxLineLength - 1)}`);
 
 		const formattedContent = content;
-		//const formattedContent = await logEntryFormatterManager.formatLogEntry(
-		//	'console' as LLMToolFormatterDestination,
-		//	logEntry,
-		//	{}, // metadata
-		//).trim();
 
+		function isImageCompatibleTerminal(): boolean {
+			if (Deno.env.get('TERM_PROGRAM') === 'iTerm.app') return true; // Check for iTerm2
+			if (Deno.env.get('KITTY_WINDOW_ID') !== undefined) return true; // Check for Kitty
+			if (Deno.env.get('WEZTERM_PANE') !== undefined) return true; // Check for WezTerm
+			if (Deno.env.get('KONSOLE_VERSION') !== undefined) return true; // Check for Konsole
+			try {
+				writeAllSync(Deno.stdout, new TextEncoder().encode('\u001b[1;2C')); // Generic check for terminals that support ANSI graphics
+				return true;
+			} catch {
+				return false;
+			}
+		}
+
+		// 		const wrappedMessage = content.startsWith('File=name=Screenshot.png') && isImageCompatibleTerminal()
+		// 			? `\u001b]1337;${content}\u0007\n`
+		// 			: content.startsWith('File=name=Screenshot.png')
+		// 			? `Terminal doesn't support inline images. Skipping display`
+		// 			: this.wrapText(formattedContent, color('  '), '');
+		const wrappedMessage = content.startsWith('Screenshot captured from') && isImageCompatibleTerminal()
+			? content
+			: content.startsWith('Screenshot captured from')
+			? `Terminal doesn't support inline images. Skipping display`
+			: this.wrapText(formattedContent, color('  '), '');
 		//const wrappedMessage = this.wrapText(formattedContent, color('│ '), '');
-		const wrappedMessage = this.wrapText(formattedContent, color('  '), '');
+		//const wrappedMessage = this.wrapText(formattedContent, color('  '), '');
 
 		return stripIndents`
 			${header}
@@ -180,7 +209,7 @@ export default class ConversationLogFormatter {
 			};
 			const tokenUsage: TokenUsage = { inputTokens: 0, outputTokens: 0, totalTokens: 0 };
 			if (typeof typeString !== 'undefined' && typeof timestamp !== 'undefined') {
-				const type = typeString as ConversationLoggerEntryType;
+				const type = typeString as ConversationLogEntryType;
 				return await this.formatLogEntry(
 					type,
 					timestamp.replace(']', ''),
@@ -222,6 +251,7 @@ export async function displayFormattedLogs(
 		}
 	};
 
+	/*
 	const readAndProcessEntries = async (startPosition = 0) => {
 		let file: Deno.FsFile | null = null;
 		try {
@@ -244,6 +274,39 @@ export async function displayFormattedLogs(
 			if (entry.trim() !== '') {
 				await processEntry(entry);
 			}
+			return file.seek(0, Deno.SeekMode.Current);
+		} finally {
+			file?.close();
+		}
+	};
+ */
+
+	const logEntrySeparator = ConversationLogger.getEntrySeparator();
+
+	const readAndProcessEntries = async (startPosition = 0) => {
+		let file: Deno.FsFile | null = null;
+		try {
+			file = await Deno.open(rawLogFile, { read: true });
+			await file.seek(startPosition, Deno.SeekMode.Start);
+
+			const reader = file.readable
+				.pipeThrough(new TextDecoderStream())
+				.pipeThrough(new TextLineStream());
+
+			let entry = '';
+			for await (const line of reader) {
+				if (line.includes(logEntrySeparator)) {
+					await processEntry(entry);
+					entry = '';
+				} else {
+					entry += line + '\n';
+				}
+			}
+
+			if (entry.trim() !== '') {
+				await processEntry(entry);
+			}
+
 			return file.seek(0, Deno.SeekMode.Current);
 		} finally {
 			file?.close();

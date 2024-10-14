@@ -3,24 +3,38 @@ import { ensureDir } from '@std/fs';
 import type { JSX } from 'preact';
 import { renderToString } from 'preact-render-to-string';
 
-import LogEntryFormatterManager from '../../../api/src/logEntries/logEntryFormatterManager.ts';
-//import ConversationLogFormatter from 'shared/conversationLogFormatter.ts';
+import LogEntryFormatterManager from '../logEntries/logEntryFormatterManager.ts';
+//import ConversationLogFormatter from 'cli/conversationLogFormatter.ts';
 import { ConversationId, ConversationMetrics, ConversationTokenUsage, TokenUsage } from 'shared/types.ts';
 import { getBbaiDataDir } from 'shared/dataDir.ts';
 import { logger } from 'shared/logger.ts';
 import { ConfigManager } from 'shared/configManager.ts';
-import {
-	LLMMessageContentPart,
-	LLMMessageContentPartImageBlock,
-	LLMMessageContentParts,
-	LLMMessageContentPartTextBlock,
-} from 'api/llms/llmMessage.ts';
-import LLMTool, { LLMToolFormatterDestination, LLMToolInputSchema, LLMToolRunResultContent } from 'api/llms/llmTool.ts';
+import type {
+	LLMToolFormatterDestination,
+	LLMToolInputSchema,
+	LLMToolRunBbaiResponse,
+	LLMToolRunResultContent,
+} from 'api/llms/llmTool.ts';
 
-export type ConversationLoggerEntryType = 'user' | 'assistant' | 'tool_use' | 'tool_result' | 'auxiliary' | 'error'; //text_change
+export type ConversationLogEntryType =
+	| 'user'
+	| 'assistant'
+	| 'tool_use'
+	| 'tool_result'
+	| 'answer'
+	| 'auxiliary'
+	| 'error'; //text_change
+
+export interface ConversationLogEntryContentToolResult {
+	toolResult: LLMToolRunResultContent;
+	bbaiResponse: LLMToolRunBbaiResponse;
+}
+
+export type ConversationLogEntryContent = string | LLMToolInputSchema | ConversationLogEntryContentToolResult;
+
 export interface ConversationLogEntry {
-	entryType: ConversationLoggerEntryType;
-	content: string | LLMToolInputSchema | LLMToolRunResultContent;
+	entryType: ConversationLogEntryType;
+	content: ConversationLogEntryContent;
 	toolName?: string;
 }
 
@@ -31,11 +45,12 @@ export default class ConversationLogger {
 	private logFileJson!: string;
 	private static readonly ENTRY_SEPARATOR = '<<<BBAI_LOG_ENTRY_SEPARATOR>>>';
 	private static readonly entryTypeLabels: Record<
-		ConversationLoggerEntryType,
+		ConversationLogEntryType,
 		string
 	> = {
 		user: globalConfig.myPersonsName || 'Person',
 		assistant: globalConfig.myAssistantsName || 'Assistant',
+		answer: `Answer from ${globalConfig.myAssistantsName || 'Assistant'}`,
 		tool_use: 'Tool Input',
 		tool_result: 'Tool Output',
 		auxiliary: 'Auxiliary Chat',
@@ -53,7 +68,7 @@ export default class ConversationLogger {
 			tokenUsageTurn: TokenUsage,
 			tokenUsageStatement: TokenUsage,
 			tokenUsageConversation: ConversationTokenUsage,
-		) => {},
+		) => Promise<void>,
 	) {}
 
 	async init(): Promise<ConversationLogger> {
@@ -84,6 +99,12 @@ export default class ConversationLogger {
 		return join(conversationLogsDir, 'conversation.jsonl');
 	}
 
+	static async getLogEntries(startDir: string, conversationId: string): Promise<Array<ConversationLogEntry>> {
+		const conversationLogFile = await ConversationLogger.getLogFileJsonPath(startDir, conversationId);
+		const content = await Deno.readTextFile(conversationLogFile);
+		return content.trim().split('\n').map((line) => JSON.parse(line));
+	}
+
 	private async appendToRawLog(content: string) {
 		await Deno.writeTextFile(this.logFileRaw, content + '\n', { append: true });
 	}
@@ -96,6 +117,7 @@ export default class ConversationLogger {
 	}
 
 	private async logEntry(
+		messageId: string,
 		logEntry: ConversationLogEntry,
 		conversationStats: ConversationMetrics = { statementCount: 0, statementTurnCount: 0, conversationTurnCount: 0 },
 		tokenUsageTurn: TokenUsage = {
@@ -145,6 +167,7 @@ export default class ConversationLogger {
 		}
 
 		const jsonEntry = JSON.stringify({
+			messageId,
 			timestamp,
 			logEntry,
 			conversationStats,
@@ -159,11 +182,12 @@ export default class ConversationLogger {
 		}
 	}
 
-	async logUserMessage(message: string, conversationStats?: ConversationMetrics) {
-		await this.logEntry({ entryType: 'user', content: message }, conversationStats);
+	async logUserMessage(messageId: string, message: string, conversationStats?: ConversationMetrics) {
+		await this.logEntry(messageId, { entryType: 'user', content: message }, conversationStats);
 	}
 
 	async logAssistantMessage(
+		messageId: string,
 		message: string,
 		conversationStats?: ConversationMetrics,
 		tokenUsageTurn?: TokenUsage,
@@ -171,6 +195,7 @@ export default class ConversationLogger {
 		tokenUsageConversation?: ConversationTokenUsage,
 	) {
 		await this.logEntry(
+			messageId,
 			{ entryType: 'assistant', content: message },
 			conversationStats,
 			tokenUsageTurn,
@@ -179,13 +204,36 @@ export default class ConversationLogger {
 		);
 	}
 
-	async logAuxiliaryMessage(message: string) {
+	async logAnswerMessage(
+		messageId: string,
+		answer: string,
+		conversationStats?: ConversationMetrics,
+		tokenUsageStatement?: TokenUsage,
+		tokenUsageConversation?: ConversationTokenUsage,
+	) {
 		await this.logEntry(
+			messageId,
+			{ entryType: 'answer', content: answer },
+			conversationStats,
+			{ // tokenUsageTurn
+				inputTokens: 0,
+				outputTokens: 0,
+				totalTokens: 0,
+			},
+			tokenUsageStatement,
+			tokenUsageConversation,
+		);
+	}
+
+	async logAuxiliaryMessage(messageId: string, message: string) {
+		await this.logEntry(
+			messageId,
 			{ entryType: 'auxiliary', content: message },
 		);
 	}
 
 	async logToolUse(
+		messageId: string,
 		toolName: string,
 		toolInput: LLMToolInputSchema,
 		conversationStats?: ConversationMetrics,
@@ -193,15 +241,9 @@ export default class ConversationLogger {
 		tokenUsageStatement?: TokenUsage,
 		tokenUsageConversation?: ConversationTokenUsage,
 	) {
-		// let message: string;
-		// try {
-		// 	message = `Tool: ${toolName}\n\n${toolInputFormatter(toolInput, 'console')}`;
-		// } catch (error) {
-		// 	logger.error(`Error formatting tool use for ${toolName}:`, error);
-		// 	message = `Tool: ${toolName}\nInput:\n**Error formatting input**\n${JSON.stringify(error)}`;
-		// }
 		try {
 			await this.logEntry(
+				messageId,
 				{ entryType: 'tool_use', content: toolInput, toolName },
 				conversationStats,
 				tokenUsageTurn,
@@ -214,39 +256,38 @@ export default class ConversationLogger {
 	}
 
 	async logToolResult(
+		messageId: string,
 		toolName: string,
 		toolResult: LLMToolRunResultContent,
+		bbaiResponse: LLMToolRunBbaiResponse,
 	) {
-		// let message: string;
-		// try {
-		// 	message = `Tool: ${toolName}\nResult:\n${toolRunResultFormatter(toolResult, 'console')}`;
-		// } catch (error) {
-		// 	logger.error(`Error formatting tool result for ${toolName}:`, error);
-		// 	message = `Tool: ${toolName}\nResult:\n**Error formatting result**\n${JSON.stringify(error)}`;
-		// }
 		try {
-			await this.logEntry({ entryType: 'tool_result', content: toolResult, toolName });
+			await this.logEntry(messageId, {
+				entryType: 'tool_result',
+				content: { toolResult, bbaiResponse },
+				toolName,
+			});
 		} catch (error) {
 			logger.error('Error in logEntry for logToolResult:', error);
 		}
 	}
 
-	async logError(error: string) {
-		await this.logEntry({ entryType: 'error', content: error });
+	async logError(messageId: string, error: string) {
+		await this.logEntry(messageId, { entryType: 'error', content: error });
 	}
 
-	//async logTextChange(filePath: string, patch: string) {
-	//	const message = `Diff Patch for ${filePath}:\n${patch}`;
+	//async logTextChange(filePath: string, change: string) {
+	//	const message = `Diff Patch for ${filePath}:\n${change}`;
 	//	await this.logEntry('text_change', message);
 	//}
 
 	async createRawEntry(
 		timestamp: string,
 		logEntry: ConversationLogEntry,
-		conversationStats: ConversationMetrics,
-		tokenUsage: TokenUsage,
-		tokenUsageStatement?: TokenUsage,
-		tokenUsageConversation?: ConversationTokenUsage,
+		_conversationStats: ConversationMetrics,
+		_tokenUsage: TokenUsage,
+		_tokenUsageStatement?: TokenUsage,
+		_tokenUsageConversation?: ConversationTokenUsage,
 	): Promise<string> {
 		// [TODO] add token usage to header line
 		const formattedContent = await this.logEntryFormatterManager.formatLogEntry(
@@ -288,36 +329,4 @@ export default class ConversationLogger {
 	static getEntrySeparator(): string {
 		return this.ENTRY_SEPARATOR.trim();
 	}
-
-	/*
-	static async writeLogEntry(
-		conversationId: ConversationId,
-		type: ConversationLoggerEntryType,
-		message: string,
-		conversationStats: ConversationMetrics,
-		tokenUsage: TokenUsage,
-		tokenUsageStatement?: TokenUsage,
-		tokenUsageConversation?: ConversationTokenUsage,
-	): Promise<void> {
-		const logFile = await ConversationLogger.getLogFileRawPath(Deno.cwd(), conversationId);
-
-		const timestamp = new Date().toISOString();
-		const entry = await ConversationLogFormatter.createRawEntryWithSeparator(
-			type,
-			timestamp,
-			message,
-			conversationStats,
-			tokenUsage,
-			tokenUsageStatement,
-			tokenUsageConversation,
-		);
-
-		try {
-			// Append the entry to the log file
-			await Deno.writeTextFile(logFile, entry, { append: true });
-		} catch (error) {
-			console.error(`Error writing log entry: ${error.message}`);
-		}
-	}
- */
 }

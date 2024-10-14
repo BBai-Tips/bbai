@@ -38,15 +38,15 @@ class LLMChatInteraction extends LLMInteraction {
 
 		this._statementTurnCount++;
 		//logger.debug(`chat - calling addMessageForUserRole for turn ${this._statementTurnCount}` );
-		this.addMessageForUserRole({ type: 'text', text: prompt });
-		this.conversationLogger.logAuxiliaryMessage(prompt);
+		const messageId = this.addMessageForUserRole({ type: 'text', text: prompt });
+		this.conversationLogger.logAuxiliaryMessage(messageId, prompt);
 
 		const response = await this.llm.speakWithPlus(this, speakOptions);
 		const contentPart: LLMMessageContentPart = response.messageResponse
 			.answerContent[0] as LLMMessageContentPartTextBlock;
 		const msg = contentPart.text;
 
-		this.conversationLogger.logAuxiliaryMessage(msg);
+		this.conversationLogger.logAuxiliaryMessage(this.getLastMessageId(), msg);
 
 		return response;
 	}

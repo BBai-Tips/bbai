@@ -1,12 +1,14 @@
 /** @jsxImportSource preact */
 import type { JSX } from 'preact';
-import type { LLMToolInputSchema, LLMToolRunResultContent } from 'api/llms/llmTool.ts';
-//import type { LLMMessageContentPart, LLMMessageContentParts } from 'api/llms/llmMessage.ts';
+
+import type { LLMToolInputSchema } from 'api/llms/llmTool.ts';
+import type { ConversationLogEntryContentToolResult } from 'shared/types.ts';
 import { getContentFromToolResult } from 'api/utils/llms.ts';
 
 export const formatToolUse = (toolInput: LLMToolInputSchema): JSX.Element => {
-	const { contentPattern, filePattern, dateAfter, dateBefore, sizeMin, sizeMax } = toolInput as {
+	const { contentPattern, caseSensitive, filePattern, dateAfter, dateBefore, sizeMin, sizeMax } = toolInput as {
 		contentPattern?: string;
+		caseSensitive?: boolean;
 		filePattern?: string;
 		dateAfter?: string;
 		dateBefore?: string;
@@ -18,7 +20,10 @@ export const formatToolUse = (toolInput: LLMToolInputSchema): JSX.Element => {
 			<h3>Project Search Parameters:</h3>
 			{contentPattern && (
 				<p>
-					<strong>Content pattern:</strong> <span style='color: #DAA520;'>{contentPattern}</span>
+					<strong>Content pattern:</strong>{' '}
+					<span style='color: #DAA520;'>
+						{contentPattern}, {caseSensitive ? 'case-sensitive' : 'case-insensitive'}
+					</span>
 				</p>
 			)}
 			{filePattern && (
@@ -50,39 +55,16 @@ export const formatToolUse = (toolInput: LLMToolInputSchema): JSX.Element => {
 	);
 };
 
-export const formatToolResult = (toolResult: LLMToolRunResultContent): JSX.Element => {
+export const formatToolResult = (resultContent: ConversationLogEntryContentToolResult): JSX.Element => {
+	const { toolResult, bbaiResponse } = resultContent;
 	const lines = getContentFromToolResult(toolResult).split('\n');
-	const resultSummary = lines[0];
 	const fileList = lines.slice(2, -1).join('\n');
 	return (
 		<div className='tool-result'>
 			<p>
-				<strong>{resultSummary}</strong>
-			</p>
-			<p>
-				<strong>Matching files:</strong>
+				<strong>{bbaiResponse}</strong>
 			</p>
 			<pre style='background-color: #F0F8FF; padding: 10px;'>{fileList}</pre>
 		</div>
 	);
-	/*
-	const results: LLMMessageContentParts = Array.isArray(toolResult)
-		? toolResult
-		: [toolResult as LLMMessageContentPart];
-	return (
-		<div className='tool-result'>
-			{results.map((result, index) => {
-				if (result.type === 'text') {
-					return (
-						<p key={index}>
-							<strong>{result.text}</strong>
-						</p>
-					);
-				} else {
-					return <p key={index}>Unknown type: {result.type}</p>;
-				}
-			})}
-		</div>
-	);
- */
 };

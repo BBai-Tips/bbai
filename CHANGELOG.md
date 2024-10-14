@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- normalized tool results and responses - better feedback to LLM and clearer output in conversation
+- New LLM tool: `conversation_metrics` for calculating the current turn and token counts, 
+  needed for the upcoming `conversation_summary` (& truncation) tool
+- improved handling for conversation log entries; loading saved conversations and conversation answers
+  have the same handling as normal entries during conversation
 
 
 ## [0.0.25-beta] - 2024-10-10

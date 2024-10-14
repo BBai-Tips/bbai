@@ -5,11 +5,17 @@ import type { JSX } from 'preact';
 import type { LLMAnswerToolUse, LLMMessageContentPart, LLMMessageContentParts } from 'api/llms/llmMessage.ts';
 import type LLMConversationInteraction from './interactions/conversationInteraction.ts';
 import type ProjectEditor from '../editor/projectEditor.ts';
-import type { ConversationId } from 'shared/types.ts';
+import type { ConversationId, ConversationLogEntryContent } from 'shared/types.ts';
+//import { logger } from 'shared/logger.ts';
 
 export type LLMToolInputSchema = JSONSchema4;
+
 export type LLMToolRunResultContent = string | LLMMessageContentPart | LLMMessageContentParts;
-import { logger } from 'shared/logger.ts';
+export type LLMToolRunToolResponse = string;
+export interface LLMToolRunBbaiResponseData {
+	data: unknown;
+}
+export type LLMToolRunBbaiResponse = LLMToolRunBbaiResponseData | string;
 
 export interface LLMToolFinalizeResult {
 	messageId: string;
@@ -17,9 +23,9 @@ export interface LLMToolFinalizeResult {
 
 export interface LLMToolRunResult {
 	toolResults: LLMToolRunResultContent;
-	toolResponse: string;
-	bbaiResponse: string;
-	finalize?: (messageId: ConversationId) => void;
+	toolResponse: LLMToolRunToolResponse;
+	bbaiResponse: LLMToolRunBbaiResponse;
+	finalizeCallback?: (messageId: ConversationId) => void;
 }
 
 export type LLMToolConfig = Record<string, unknown>;
@@ -27,7 +33,7 @@ export type LLMToolConfig = Record<string, unknown>;
 export type LLMToolFormatterDestination = 'console' | 'browser';
 export type LLMToolUseInputFormatter = (toolInput: LLMToolInputSchema, format: LLMToolFormatterDestination) => string;
 export type LLMToolRunResultFormatter = (
-	toolResult: LLMToolRunResultContent,
+	resultContent: ConversationLogEntryContent,
 	format: LLMToolFormatterDestination,
 ) => string;
 
@@ -44,11 +50,11 @@ abstract class LLMTool {
 		return this;
 	}
 
-	abstract get input_schema(): LLMToolInputSchema;
+	abstract get inputSchema(): LLMToolInputSchema;
 
 	validateInput(input: unknown): boolean {
 		const ajv = new Ajv();
-		const validate = ajv.compile(this.input_schema);
+		const validate = ajv.compile(this.inputSchema);
 		return validate(input) as boolean;
 	}
 
@@ -58,20 +64,10 @@ abstract class LLMTool {
 		projectEditor: ProjectEditor,
 	): Promise<LLMToolRunResult>;
 
-	finalizeToolUse(
-		interaction: LLMConversationInteraction,
-		toolUse: LLMAnswerToolUse,
-		toolRunResultContent: LLMToolRunResultContent,
-		isError: boolean,
-	): LLMToolFinalizeResult {
-		const messageId = interaction.addMessageForToolResult(toolUse.toolUseId, toolRunResultContent, isError) || '';
-		return { messageId };
-	}
-
 	abstract formatToolUse(toolInput: LLMToolInputSchema, format: LLMToolFormatterDestination): string | JSX.Element;
 
 	abstract formatToolResult(
-		toolResult: LLMToolRunResultContent,
+		resultContent: ConversationLogEntryContent,
 		format: LLMToolFormatterDestination,
 	): string | JSX.Element;
 }

@@ -1,6 +1,6 @@
 import type { JSX } from 'preact';
 import LLMTool from 'api/llms/llmTool.ts';
-import type { LLMToolInputSchema, LLMToolRunResult, LLMToolRunResultContent } from 'api/llms/llmTool.ts';
+import type { LLMToolInputSchema, LLMToolRunResult } from 'api/llms/llmTool.ts';
 import {
 	formatToolResult as formatToolResultBrowser,
 	formatToolUse as formatToolUseBrowser,
@@ -10,13 +10,14 @@ import {
 	formatToolUse as formatToolUseConsole,
 } from './formatter.console.ts';
 import type LLMConversationInteraction from 'api/llms/conversationInteraction.ts';
-import { logger } from 'shared/logger.ts';
+import type { ConversationLogEntryContentToolResult } from 'shared/types.ts';
 import type { LLMAnswerToolUse, LLMMessageContentPartTextBlock } from 'api/llms/llmMessage.ts';
 import type ProjectEditor from 'api/editor/projectEditor.ts';
 import { createError, ErrorType } from 'api/utils/error.ts';
+import { logger } from 'shared/logger.ts';
 
 export default class LLMToolRequestFiles extends LLMTool {
-	get input_schema(): LLMToolInputSchema {
+	get inputSchema(): LLMToolInputSchema {
 		return {
 			type: 'object',
 			properties: {
@@ -34,8 +35,11 @@ export default class LLMToolRequestFiles extends LLMTool {
 		return format === 'console' ? formatToolUseConsole(toolInput) : formatToolUseBrowser(toolInput);
 	}
 
-	formatToolResult(toolResult: LLMToolRunResultContent, format: 'console' | 'browser'): string | JSX.Element {
-		return format === 'console' ? formatToolResultConsole(toolResult) : formatToolResultBrowser(toolResult);
+	formatToolResult(
+		resultContent: ConversationLogEntryContentToolResult,
+		format: 'console' | 'browser',
+	): string | JSX.Element {
+		return format === 'console' ? formatToolResultConsole(resultContent) : formatToolResultBrowser(resultContent);
 	}
 
 	async runTool(
@@ -74,22 +78,14 @@ export default class LLMToolRequestFiles extends LLMTool {
 				}
 			}
 
-			const bbaiResponses = [];
+			//const bbaiResponses = [];
 			const toolResponses = [];
 			if (filesSuccess.length > 0) {
-				bbaiResponses.push(
-					`BBai has added these files to the conversation: ${filesSuccess.map((f) => f.name).join(', ')}`,
-				);
 				toolResponses.push(
 					`Added files to the conversation:\n${filesSuccess.map((f) => `- ${f.name}`).join('\n')}`,
 				);
 			}
 			if (filesError.length > 0) {
-				bbaiResponses.push(
-					`BBai failed to add these files to the conversation:\n${
-						filesError.map((f) => `- ${f.name}: ${f.error}`).join('\n')
-					}`,
-				);
 				toolResponses.push(
 					`Failed to add files to the conversation:\n${
 						filesError.map((f) => `- ${f.name}: ${f.error}`).join('\n')
@@ -98,16 +94,19 @@ export default class LLMToolRequestFiles extends LLMTool {
 			}
 
 			const toolResults = toolResultContentParts;
-
-			const toolResponse = (allFilesFailed ? 'No files added\n' : '') +
-				toolResponses.join('\n\n');
-			const bbaiResponse = bbaiResponses.join('\n\n');
+			const toolResponse = (allFilesFailed ? 'No files added\n' : '') + toolResponses.join('\n\n');
+			const bbaiResponse = {
+				data: {
+					filesAdded: filesSuccess.map((f) => f.name),
+					filesError: filesError.map((f) => f.name),
+				},
+			};
 
 			return {
 				toolResults,
 				toolResponse,
 				bbaiResponse,
-				finalize: (messageId) => {
+				finalizeCallback: (messageId) => {
 					interaction.addFilesForMessage(
 						filesAdded,
 						messageId,
@@ -116,17 +115,32 @@ export default class LLMToolRequestFiles extends LLMTool {
 				},
 			};
 		} catch (error) {
-			logger.error(`Error adding files to conversation: ${error.message}`);
+			let errorMessage: string;
+			if (error instanceof Deno.errors.NotFound) {
+				errorMessage = `File not found: ${error.message}`;
+			} else if (error instanceof Deno.errors.PermissionDenied) {
+				errorMessage = `Permission denied: ${error.message}`;
+			} else {
+				errorMessage = error.message;
+			}
+			logger.error(`Error adding files to conversation: ${errorMessage}`);
 
-			throw createError(
-				ErrorType.FileHandling,
-				`Error adding files to conversation: ${error.message}`,
-				{
-					name: 'request-files',
-					filePath: projectEditor.projectRoot,
-					operation: 'request-files',
-				},
-			);
+			const toolResults = `⚠️  ${errorMessage}`;
+			const bbaiResponse = `BBai failed to add files. Error: ${errorMessage}`;
+			const toolResponse = `Failed to add files. Error: ${errorMessage}`;
+			return { toolResults, toolResponse, bbaiResponse };
+
+			// 			logger.error(`Error adding files to conversation: ${error.message}`);
+			//
+			// 			throw createError(
+			// 				ErrorType.FileHandling,
+			// 				`Error adding files to conversation: ${error.message}`,
+			// 				{
+			// 					name: 'request-files',
+			// 					filePath: projectEditor.projectRoot,
+			// 					operation: 'request-files',
+			// 				},
+			// 			);
 		}
 	}
 }

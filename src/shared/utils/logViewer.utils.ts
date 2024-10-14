@@ -1,7 +1,7 @@
 import { join } from '@std/path';
 import { getBbaiDir } from 'shared/dataDir.ts';
 import { ConfigManager } from 'shared/configManager.ts';
-import ConversationLogger from 'shared/conversationLogger.ts';
+import ConversationLogger from 'api/storage/conversationLogger.ts';
 
 export async function watchLogs(logFilePath: string, onNewContent: (content: string) => void) {
 	const watcher = Deno.watchFs(logFilePath);

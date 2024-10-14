@@ -2,7 +2,7 @@
 import type { LLMToolFormatterDestination, LLMToolInputSchema, LLMToolRunResultContent } from 'api/llms/llmTool.ts';
 import type { JSX } from 'preact';
 import LLMToolManager from '../llms/llmToolManager.ts';
-import type { ConversationLogEntry, ConversationLoggerEntryType } from 'shared/conversationLogger.ts';
+import type { ConversationLogEntry, ConversationLogEntryContent, ConversationLogEntryType } from 'shared/types.ts';
 import { logger } from 'shared/logger.ts';
 import { FullConfigSchema } from 'shared/configSchema.ts';
 import { escape as escapeHtmlEntities } from '@std/html';
@@ -25,9 +25,10 @@ export default class LogEntryFormatterManager {
 		logEntry: ConversationLogEntry,
 		options?: any,
 	): Promise<string | JSX.Element> {
-		switch (logEntry.entryType as ConversationLoggerEntryType) {
+		switch (logEntry.entryType as ConversationLogEntryType) {
 			case 'user':
 			case 'assistant':
+			case 'answer':
 			case 'auxiliary':
 			case 'error':
 				return this.formatBasicEntry(destination, logEntry, options);
@@ -58,7 +59,7 @@ export default class LogEntryFormatterManager {
 			if (logEntry.entryType === 'tool_use') {
 				return tool.formatToolUse(logEntry.content as LLMToolInputSchema, destination);
 			} else {
-				return tool.formatToolResult(logEntry.content as LLMToolRunResultContent, destination);
+				return tool.formatToolResult(logEntry.content as ConversationLogEntryContent, destination);
 			}
 		} catch (error) {
 			logger.error(

@@ -1,8 +1,9 @@
 import type { JSX } from 'preact';
 
 import LLMTool from 'api/llms/llmTool.ts';
-import type { LLMToolInputSchema, LLMToolRunResult, LLMToolRunResultContent } from 'api/llms/llmTool.ts';
+import type { LLMToolInputSchema, LLMToolRunResult } from 'api/llms/llmTool.ts';
 import type LLMConversationInteraction from 'api/llms/conversationInteraction.ts';
+import type { ConversationLogEntryContentToolResult } from 'shared/types.ts';
 import type { LLMAnswerToolUse } from 'api/llms/llmMessage.ts';
 import type ProjectEditor from 'api/editor/projectEditor.ts';
 import { createError, ErrorType } from 'api/utils/error.ts';
@@ -185,7 +186,7 @@ const languageConfigs: Record<string, LanguageConfig> = {
 export default class LLMToolSearchAndReplaceCode extends LLMTool {
 	private static readonly MIN_SEARCH_LENGTH = 1;
 
-	get input_schema(): LLMToolInputSchema {
+	get inputSchema(): LLMToolInputSchema {
 		return {
 			type: 'object',
 			properties: {
@@ -237,8 +238,11 @@ export default class LLMToolSearchAndReplaceCode extends LLMTool {
 		return format === 'console' ? formatToolUseConsole(toolInput) : formatToolUseBrowser(toolInput);
 	}
 
-	formatToolResult(toolResult: LLMToolRunResultContent, format: 'console' | 'browser'): string | JSX.Element {
-		return format === 'console' ? formatToolResultConsole(toolResult) : formatToolResultBrowser(toolResult);
+	formatToolResult(
+		resultContent: ConversationLogEntryContentToolResult,
+		format: 'console' | 'browser',
+	): string | JSX.Element {
+		return format === 'console' ? formatToolResultConsole(resultContent) : formatToolResultBrowser(resultContent);
 	}
 
 	/**
@@ -609,17 +613,17 @@ export default class LLMToolSearchAndReplaceCode extends LLMTool {
 				await Deno.writeTextFile(fullFilePath, content);
 				logger.info(`Saving conversation search and replace: ${interaction.id}`);
 
-				await projectEditor.orchestratorController.logPatchAndCommit(
+				await projectEditor.orchestratorController.logChangeAndCommit(
 					interaction,
 					filePath,
 					JSON.stringify(operations),
 				);
 
 				const toolResults = toolWarning;
-				const bbaiResponse = `BBai applied search and replace operations: ${toolWarning}`;
 				const toolResponse = isNewFile
 					? `File created and search and replace operations applied successfully to file: ${filePath}`
 					: `Search and replace operations applied successfully to file: ${filePath}`;
+				const bbaiResponse = `BBai applied search and replace operations: ${toolWarning}`;
 
 				return { toolResults, toolResponse, bbaiResponse };
 			} else {
