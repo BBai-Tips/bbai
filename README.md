@@ -1,3 +1,9 @@
+# PROJECT HAS MOVED
+
+BBai has a new home: https://github.com/Beyond-Better/bb
+
+---
+
 # BBai - Your Intelligent Project Assistant
 
 ## Be Better At … Everything You Do With Text
